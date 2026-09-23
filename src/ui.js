@@ -436,6 +436,7 @@ let lastDrawMs = 0;
 const DRAW_INTERVAL_MS = 20; /* ~50Hz; the panel cannot show more */
 
 let quiz = null;
+let quizHear = false;        /* ear training: the prompt is played, not shown */
 let quizSolvedAt = 0;        /* brief confirmation before the next prompt */
 const guessOff = [];         /* ms-scheduled note-offs; the quiz has no clock */
 const GUESS_ADVANCE_MS = 450;
@@ -485,6 +486,8 @@ function rebuildMenu() {
   menuRows = [
     { label: 'Guess: notes', guess: GUESS.NOTES, value: '?' },
     { label: 'Guess: chords', guess: GUESS.CHORDS, value: '?' },
+    { label: 'Hear: notes', guess: GUESS.NOTES, hear: true, value: '♪' },
+    { label: 'Hear: chords', guess: GUESS.CHORDS, hear: true, value: '♪' },
   ];
   const gen = GEN.builtins(generatorOptions());
   for (const g of gen) menuRows.push({ label: g.label, build: g.build, value: '' });
@@ -495,8 +498,9 @@ function rebuildMenu() {
   if (menuCursor >= menuRows.length) menuCursor = Math.max(0, menuRows.length - 1);
 }
 
-function startQuiz(kind) {
+function startQuiz(kind, hear) {
   allNotesOff();
+  quizHear = Boolean(hear);
   quiz = GUESS.createQuiz({
     kind,
     rootPc: settings.rootPc,
@@ -508,7 +512,12 @@ function startQuiz(kind) {
   view = GUESS_VIEW;
   dirty = true;
   ledDirty = true;
-  announce('Note guesser. Play ' + NOTATION.chordLabel(quiz.prompt, keyFifths()) + '.');
+  if (quizHear) {
+    hearPrompt();
+    announce('Ear training. Listen, then play what you hear.');
+  } else {
+    announce('Note guesser. Play ' + NOTATION.chordLabel(quiz.prompt, keyFifths()) + '.');
+  }
 }
 
 function keyFifths() {
@@ -521,7 +530,7 @@ function selectExercise(index) {
   selectedIndex = index;
   menuCursor = index;
   if (row.guess) {
-    startQuiz(row.guess);
+    startQuiz(row.guess, row.hear);
     return;
   }
   chart = row.build();
@@ -646,9 +655,15 @@ function paintPads() {
   if (target) for (let i = 0; i < target.pads.length; i++) targetSet[target.pads[i]] = 1;
   /* Pulsing white, distinct from the steady blue of guidance ahead of time and
    * from the red of a miss flash: "this one, now". */
-  const stuck = blockedPads() || guessPads();
+  const stuck = blockedPads();
   const stuckSet = {};
   if (stuck) for (let i = 0; i < stuck.length; i++) stuckSet[stuck[i]] = 1;
+  /* Steady, not pulsing. The pulse in the reading mode means "this one, NOW",
+   * because the music has stopped and is waiting. The guesser has no clock and
+   * nothing is urgent, so a blinking pad is just noise to play against. */
+  const answer = guessPads();
+  const answerSet = {};
+  if (answer) for (let i = 0; i < answer.length; i++) answerSet[answer[i]] = 1;
   const sounding = soundingPads();
   const soundingSet = {};
   if (sounding) for (let i = 0; i < sounding.length; i++) soundingSet[sounding[i]] = 1;
@@ -663,6 +678,8 @@ function paintPads() {
       color = PAD.LED_PRESSED;
     } else if (soundingSet[pad]) {
       color = PAD.LED_TARGET_NEAR;
+    } else if (answerSet[pad]) {
+      color = PAD.LED_ROOT;
     } else if (stuckSet[pad]) {
       color = ledPhase ? PAD.LED_ROOT : PAD.LED_OFF;
     } else if (targetSet[pad]) {
@@ -760,7 +777,12 @@ function serviceGuess() {
     GUESS.nextPrompt(quiz);
     dirty = true;
     ledDirty = true;
-    announce(NOTATION.chordLabel(quiz.prompt, keyFifths()));
+    if (quizHear) {
+      hearPrompt();
+      announce('Listen.');
+    } else {
+      announce(NOTATION.chordLabel(quiz.prompt, keyFifths()));
+    }
   }
 }
 
@@ -790,9 +812,10 @@ function draw() {
       prompt: quiz.prompt,
       fifths: keyFifths(),
       solved: quiz.solved,
-      title: quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE',
+      hidden: quizHear && !quiz.solved,
+      title: quizHear ? 'HEAR' : (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE'),
       score: st.correct + '/' + st.asked,
-      footer: 'streak ' + st.streak + '   PLAY hear',
+      footer: 'streak ' + st.streak + (quizHear ? '   PLAY again' : '   PLAY hear'),
     });
   } else if (view === SUMMARY) {
     VIEW.drawSummary(ctx, chart, run);
@@ -958,6 +981,7 @@ globalThis.init = function init() {
   settingsCursor = 0;
   settingsEditing = false;
   quiz = null;
+  quizHear = false;
   quizSolvedAt = 0;
   guessOff.length = 0;
   ledPhase = -1;
@@ -1111,6 +1135,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       quizSolvedAt = 0;
       dirty = true;
       ledDirty = true;
+      if (quizHear) hearPrompt();
       return;
     }
     if (view === RUNNING && !listening) stopRun();

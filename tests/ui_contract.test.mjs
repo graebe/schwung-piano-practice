@@ -415,10 +415,32 @@ test('the mode is entered from the list, and picks notes or chords by which row'
   const menu = code.match(/function rebuildMenu\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(menu, /guess: GUESS\.NOTES/);
   assert.match(menu, /guess: GUESS\.CHORDS/);
-  assert.match(code, /if \(row\.guess\)[\s\S]{0,60}startQuiz\(row\.guess\)/);
+  assert.match(code, /if \(row\.guess\)[\s\S]{0,80}startQuiz\(row\.guess, row\.hear\)/);
+  assert.match(menu, /hear: true/, 'and the hearing rows are there too');
 });
 
 test('leaving the guesser silences it', () => {
   const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}/)[1];
   assert.match(back, /view === READY \|\| view === GUESS_VIEW[\s\S]{0,80}allNotesOff\(\)/);
+});
+
+test('the guesser lights its answer steadily, not blinking', () => {
+  /* The pulse in the reading mode means "this one, NOW" — the music has
+   * stopped and is waiting. The guesser has no clock, so a blinking pad is
+   * just something to play against. */
+  const paint = code.match(/function paintPads\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(paint, /answerSet\[pad\][\s\S]{0,40}color = PAD\.LED_ROOT;/);
+  assert.doesNotMatch(paint, /answerSet\[pad\][\s\S]{0,40}ledPhase/, 'must not pulse');
+  /* ...while the miss rescue keeps its pulse. */
+  assert.match(paint, /stuckSet\[pad\][\s\S]{0,60}ledPhase \? PAD\.LED_ROOT/);
+});
+
+test('hearing mode plays the prompt and withholds the notation', () => {
+  assert.match(code, /let quizHear = false/);
+  /* Played when the quiz starts, when it moves on, and when Play is pressed. */
+  assert.match(code, /if \(quizHear\) \{\s*\n\s*hearPrompt\(\);/);
+  assert.match(code, /hidden: quizHear && !quiz\.solved/,
+    'the answer is revealed only once it has been played');
+  /* And the screen reader must not simply read the answer out. */
+  assert.match(code, /announce\('Listen\.'\)/);
 });

@@ -938,3 +938,46 @@ test('a single note does not have the staff cut around it', () => {
     assert.ok(isOn(c, V.GUESS_X, line), `staff line ${line} should pass the note`);
   }
 });
+
+/* ---- Hearing mode --------------------------------------------------------- */
+
+test('a hidden prompt shows no notehead and no name', () => {
+  const shown = createScreen();
+  V.drawGuessView(shown, { prompt: [65], fifths: 0 });
+  const hidden = createScreen();
+  V.drawGuessView(hidden, { prompt: [65], fifths: 0, hidden: true });
+
+  assert.notEqual(shown.pixels.join(''), hidden.pixels.join(''));
+  const y = pitchToY(65, 0);
+  assert.ok(countOn(shown, V.GUESS_X - 3, y - 2, 7, 5) > 0, 'shown should have a head');
+  /* Nothing at the notehead position, and nothing naming it. */
+  const bare = createScreen();
+  V.drawGuessView(bare, { prompt: [], fifths: 0 });
+  assert.equal(countOn(hidden, 0, L.NAME_LANE_Y, W, 8), countOn(bare, 0, L.NAME_LANE_Y, W, 8),
+    'the name would be the answer');
+});
+
+test('a hidden prompt asks a question mark instead', () => {
+  const hidden = createScreen();
+  V.drawGuessView(hidden, { prompt: [65], fifths: 0, hidden: true });
+  const bare = createScreen();
+  V.drawGuessView(bare, { prompt: [], fifths: 0 });
+  assert.ok(
+    countOn(hidden, 40, L.STAFF_TOP_Y - 2, 48, 24) > countOn(bare, 40, L.STAFF_TOP_Y - 2, 48, 24) + 20,
+    'there should be a large ? over the staff',
+  );
+  const q = blank();
+  R.drawBigDigit(q, 2, 2, '?', 3);
+  assert.ok(countOn(q, 0, 0, W, H) > 0, 'the ? glyph must exist');
+});
+
+test('answering reveals the notation, which is where the teaching is', () => {
+  const asked = createScreen();
+  V.drawGuessView(asked, { prompt: [65], fifths: 0, hidden: true });
+  const answered = createScreen();
+  V.drawGuessView(answered, { prompt: [65], fifths: 0, hidden: false, solved: true });
+  assert.notEqual(asked.pixels.join(''), answered.pixels.join(''));
+  const y = pitchToY(65, 0);
+  assert.ok(countOn(answered, V.GUESS_X - 3, y - 2, 7, 5) > 0, 'the note appears');
+  assert.ok(countOn(answered, 0, L.NAME_LANE_Y - 1, W, 9) > 20, 'and so does its name');
+});

@@ -48,10 +48,10 @@ Piano Practice is an independent module for Schwung. It is not made or supported
 - **Gets out of your way.** Target-pad lighting exists, but it is off by default: this is a reading
   trainer first.
 
-## Note guesser
+## Note guesser and ear training
 
-A second mode, at the top of the exercise list as **Guess: notes** and **Guess: chords** — which
-entry you open is also how you pick.
+Two extra modes at the top of the exercise list — **Guess: notes**, **Guess: chords**, **Hear:
+notes**, **Hear: chords**. Which entry you open is also how you pick.
 
 One note or chord sits still on the staff with its name below it, and it waits until you play it.
 No clock, no scrolling, nothing timed. This drills a different skill from the reading mode: the
@@ -63,8 +63,14 @@ A chord has to be **held all at once**. Part of it down is *incomplete*, not a m
 isn't in the chord is what makes it wrong. A wrong answer is counted once and the question stays
 until you get it.
 
+**Hear** is the same quiz with the notation withheld: you hear the note or chord and play it back,
+and the staff shows a `?` until you get it right, then reveals what it was — which is where the
+teaching is. **Play** repeats it.
+
 **Play** sounds the answer, **Record** skips it, **Back** returns to the list. The answer is never
-lit on the pads unless **Guide pads** is on — lighting it would be the answer.
+lit on the pads unless **Guide pads** is on — lighting it would be the answer — and when it is lit
+it sits steady rather than pulsing. The pulse is reserved for the reading mode's "this one, now",
+where the music has stopped and is waiting; nothing here is urgent.
 
 ## Requirements
 

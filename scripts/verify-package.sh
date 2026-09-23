@@ -10,18 +10,6 @@ LIST=$(tar -tzf "$ARCHIVE")
 for entry in \
   piano-practice/module.json \
   piano-practice/ui.js \
-  piano-practice/layout.mjs \
-  piano-practice/notation.mjs \
-  piano-practice/staff_render.mjs \
-  piano-practice/chart.mjs \
-  piano-practice/scoring.mjs \
-  piano-practice/generator.mjs \
-  piano-practice/exercise_io.mjs \
-  piano-practice/padmap.mjs \
-  piano-practice/view.mjs \
-  piano-practice/controls.mjs \
-  piano-practice/settings_def.mjs \
-  piano-practice/guess.mjs \
   piano-practice/dsp.so \
   piano-practice/help.json \
   piano-practice/exercises/index.json \
@@ -30,10 +18,31 @@ do
   echo "$LIST" | grep -qx "$entry" || { echo "missing from package: $entry" >&2; exit 1; }
 done
 
-# Every relative import in ui.js must be in the archive.
-for mod in $(sed -n "s/.*from '\.\/\([a-z_]*\.mjs\)'.*/\1/p" "$ROOT/src/ui.js"); do
-  echo "$LIST" | grep -qx "piano-practice/$mod" || { echo "ui.js imports $mod, not packaged" >&2; exit 1; }
+# The siblings are stamped per build, so check by count rather than by name.
+MJS=$(echo "$LIST" | grep -c '/[A-Za-z0-9_]*-[0-9][0-9]*\.mjs$' || true)
+[ "$MJS" -eq 12 ] || { echo "expected 12 stamped modules, found $MJS" >&2; exit 1; }
+
+# Every relative import, from any packaged file, must resolve to a packaged
+# file — and must carry this build's stamp. An unstamped sibling would be
+# served from QuickJS's runtime-lifetime module cache by whatever version of
+# this module was opened first, and link against stale exports.
+TMPD=$(mktemp -d)
+tar -xzf "$ARCHIVE" -C "$TMPD"
+MODDIR="$TMPD/piano-practice"
+for f in "$MODDIR/ui.js" "$MODDIR"/*.mjs; do
+  for imp in $(sed -n "s/.*from '\.\/\([A-Za-z0-9_-]*\.mjs\)'.*/\1/p" "$f"); do
+    if [ ! -f "$MODDIR/$imp" ]; then
+      echo "$(basename "$f") imports $imp, which is not in the package" >&2
+      rm -rf "$TMPD"; exit 1
+    fi
+    case "$imp" in
+      *-[0-9]*.mjs) ;;
+      *) echo "$(basename "$f") imports unstamped $imp — it would be served from a stale cache" >&2
+         rm -rf "$TMPD"; exit 1 ;;
+    esac
+  done
 done
+rm -rf "$TMPD"
 
 # Every exercise the manifest names must be in the archive.
 for file in $(sed -n 's/.*"file": *"\([^"]*\)".*/\1/p' "$ROOT/src/exercises/index.json"); do

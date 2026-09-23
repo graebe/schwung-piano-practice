@@ -171,14 +171,19 @@ export function drawGuessView(ctx, state) {
   ctx.clear();
   R.drawStaff(ctx);
 
-  const notes = [];
-  for (let i = 0; i < prompt.length; i++) {
-    if (!inStaffRange(prompt[i])) continue;
-    const sp = spell(prompt[i], fifths);
-    notes.push({ y: pitchToY(prompt[i], fifths), alter: sp.alter, state: 'pending' });
-  }
-  if (notes.length) {
-    R.drawEntry(ctx, { x: GUESS_X, notes, label: '' });
+  /* Hearing mode withholds the notation until you have answered: the question
+   * is what you heard, and showing it would answer it. Revealed on success,
+   * which is where the teaching happens. */
+  if (!state.hidden) {
+    const notes = [];
+    for (let i = 0; i < prompt.length; i++) {
+      if (!inStaffRange(prompt[i])) continue;
+      const sp = spell(prompt[i], fifths);
+      notes.push({ y: pitchToY(prompt[i], fifths), alter: sp.alter, state: 'pending' });
+    }
+    if (notes.length) {
+      R.drawEntry(ctx, { x: GUESS_X, notes, label: '' });
+    }
   }
 
   /* The clef last, over the staff lines, as in the reading view. */
@@ -193,6 +198,12 @@ export function drawGuessView(ctx, state) {
   /* The name is always shown: this drills finding the pitch on the grid, not
    * decoding the staff. Inverted for a moment on a correct answer, which reads
    * as "yes" without costing a pause. */
+  if (state.hidden) {
+    drawCentreCallout(ctx, '?', 4);
+    if (state.footer) drawFooterHint(ctx, state.footer);
+    return ctx;
+  }
+
   const label = chordLabel(prompt, fifths);
   if (label) {
     const w = ctx.textWidth(label);
