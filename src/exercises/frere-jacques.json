@@ -1,0 +1,240 @@
+{
+  "id": "frere-jacques",
+  "name": "Frere Jacques",
+  "bpm": 88,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": -1,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 7,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 2,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 1,
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 2,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 16.5,
+      "durBeats": 0.5,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 17.5,
+      "durBeats": 0.5,
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 19,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 20.5,
+      "durBeats": 0.5,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 21.5,
+      "durBeats": 0.5,
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 22,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 23,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 24,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 25,
+      "durBeats": 1,
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 26,
+      "durBeats": 2,
+      "pitches": [
+        60,
+        65,
+        69
+      ]
+    },
+    {
+      "beat": 28,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 29,
+      "durBeats": 1,
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 30,
+      "durBeats": 2,
+      "pitches": [
+        60,
+        65,
+        69
+      ]
+    }
+  ]
+}

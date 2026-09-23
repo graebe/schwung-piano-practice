@@ -1,0 +1,117 @@
+{
+  "id": "c-major-scale",
+  "name": "C major scale",
+  "bpm": 80,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": 0,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 1,
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 1,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 7,
+      "durBeats": 1,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 1,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 1,
+      "pitches": [
+        60
+      ]
+    }
+  ]
+}

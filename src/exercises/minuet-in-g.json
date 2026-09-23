@@ -1,0 +1,236 @@
+{
+  "id": "minuet-in-g",
+  "name": "Minuet in G",
+  "bpm": 100,
+  "timeSig": [
+    3,
+    4
+  ],
+  "keySig": 1,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 1,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 0.5,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 1.5,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 0.5,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 2.5,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 1,
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 7,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 7.5,
+      "durBeats": 0.5,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 0.5,
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 8.5,
+      "durBeats": 0.5,
+      "pitches": [
+        78
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "pitches": [
+        79
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 0.5,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 13.5,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 0.5,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 14.5,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 15,
+      "durBeats": 1,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 16.5,
+      "durBeats": 0.5,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 17.5,
+      "durBeats": 0.5,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 1,
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 19,
+      "durBeats": 0.5,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 19.5,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 0.5,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 20.5,
+      "durBeats": 0.5,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 3,
+      "pitches": [
+        69
+      ]
+    }
+  ]
+}

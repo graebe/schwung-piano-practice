@@ -1,0 +1,48 @@
+{
+  "id": "triads-i-iv-v",
+  "name": "Triads I-IV-V-I",
+  "bpm": 70,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": 0,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 2,
+      "pitches": [
+        60,
+        64,
+        67
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 2,
+      "pitches": [
+        65,
+        69,
+        72
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 2,
+      "pitches": [
+        67,
+        71,
+        74
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 2,
+      "pitches": [
+        60,
+        64,
+        67
+      ]
+    }
+  ]
+}

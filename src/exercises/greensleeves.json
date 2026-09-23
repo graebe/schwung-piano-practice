@@ -1,0 +1,243 @@
+{
+  "id": "greensleeves",
+  "name": "Greensleeves",
+  "bpm": 76,
+  "timeSig": [
+    6,
+    8
+  ],
+  "keySig": 0,
+  "events": [
+    {
+      "beat": 2.5,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 3.5,
+      "durBeats": 0.5,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 0.5,
+      "pitches": [
+        77
+      ]
+    },
+    {
+      "beat": 5.5,
+      "durBeats": 0.5,
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 1,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 7,
+      "durBeats": 0.5,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 7.5,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 8.5,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 10.5,
+      "durBeats": 1,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 11.5,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 0.5,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 13.5,
+      "durBeats": 0.5,
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 1,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 15,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 15.5,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 1,
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 0.5,
+      "pitches": [
+        77
+      ]
+    },
+    {
+      "beat": 17.5,
+      "durBeats": 0.5,
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 1,
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 19,
+      "durBeats": 0.5,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 19.5,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 20.5,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 1,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 22,
+      "durBeats": 0.5,
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 22.5,
+      "durBeats": 0.5,
+      "pitches": [
+        71
+      ]
+    },
+    {
+      "beat": 23,
+      "durBeats": 0.5,
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 23.5,
+      "durBeats": 0.5,
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 24,
+      "durBeats": 3,
+      "pitches": [
+        69
+      ]
+    }
+  ]
+}

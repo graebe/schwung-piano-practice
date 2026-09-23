@@ -1,0 +1,194 @@
+{
+  "id": "mary-had-a-lamb",
+  "name": "Marys Lamb",
+  "bpm": 84,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": 0,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 1,
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 2,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 2,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 1,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 2,
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 1,
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 19,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 22,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 23,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 24,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 25,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 26,
+      "durBeats": 1,
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 27,
+      "durBeats": 1,
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 28,
+      "durBeats": 4,
+      "pitches": [
+        60
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "exercises": [
+    { "id": "c-major-scale", "name": "C major scale", "file": "c-major-scale.json" },
+    { "id": "thirds-in-c",   "name": "Thirds in C",   "file": "thirds-in-c.json" },
+    { "id": "triads-i-iv-v", "name": "Triads I-IV-V-I", "file": "triads-i-iv-v.json" },
+
+    { "id": "ode-to-joy",      "name": "Ode to Joy",      "file": "ode-to-joy.json" },
+    { "id": "twinkle",         "name": "Twinkle",         "file": "twinkle.json" },
+    { "id": "mary-had-a-lamb", "name": "Marys Lamb",      "file": "mary-had-a-lamb.json" },
+    { "id": "frere-jacques",   "name": "Frere Jacques",   "file": "frere-jacques.json" },
+    { "id": "jingle-bells",    "name": "Jingle Bells",    "file": "jingle-bells.json" },
+    { "id": "greensleeves",    "name": "Greensleeves",    "file": "greensleeves.json" },
+    { "id": "fur-elise",       "name": "Fur Elise",       "file": "fur-elise.json" },
+    { "id": "minuet-in-g",     "name": "Minuet in G",     "file": "minuet-in-g.json" }
+  ]
+}
