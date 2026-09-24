@@ -8,6 +8,7 @@ import {
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
 import { MODES } from '../src/generator.mjs';
+import { spell } from '../src/notation.mjs';
 
 const notesQuiz = (o = {}) => createQuiz({ kind: NOTES, seed: 3, ...o });
 const chordQuiz = (o = {}) => createQuiz({ kind: CHORDS, seed: 3, ...o });
@@ -179,4 +180,49 @@ test('an empty pool does not throw', () => {
   assert.deepEqual(q.prompt, []);
   assert.doesNotThrow(() => nextPrompt(q));
   assert.doesNotThrow(() => pressPitch(q, 60));
+});
+
+/* ---- Half tones ------------------------------------------------------------ */
+
+test('with half tones on, the pool is every semitone in reach', () => {
+  const diatonic = createQuiz({ kind: NOTES, halfTones: false, seed: 1 });
+  const chromatic = createQuiz({ kind: NOTES, halfTones: true, seed: 1 });
+  assert.ok(chromatic.pool.length > diatonic.pool.length);
+  /* Consecutive prompts are a semitone apart, with no gaps. */
+  const pitches = chromatic.pool.map((p) => p[0]);
+  for (let i = 1; i < pitches.length; i++) {
+    assert.equal(pitches[i] - pitches[i - 1], 1, 'the chromatic pool must not skip a note');
+  }
+});
+
+test('half tones brings in the black notes, which are the hard ones on this grid', () => {
+  const q = createQuiz({ kind: NOTES, rootPc: 0, mode: 'major', halfTones: true, seed: 1 });
+  const altered = q.pool.filter((p) => spell(p[0], 0).alter !== 0);
+  assert.ok(altered.length >= 5, 'all five accidentals should appear');
+  const plain = createQuiz({ kind: NOTES, rootPc: 0, mode: 'major', halfTones: false, seed: 1 });
+  assert.equal(plain.pool.filter((p) => spell(p[0], 0).alter !== 0).length, 0,
+    'and none of them when it is off');
+});
+
+test('half tones are still drawable and still reachable on a pad', () => {
+  const q = createQuiz({ kind: NOTES, halfTones: true, seed: 1 });
+  for (const prompt of q.pool) {
+    assert.ok(inStaffRange(prompt[0]), prompt[0] + ' cannot be drawn');
+    assert.ok(padsForPitch(prompt[0], DEFAULT_TRANSPOSE).length > 0, prompt[0] + ' has no pad');
+  }
+});
+
+test('the key still spells them: sharps in a sharp key, flats in a flat one', () => {
+  const q = createQuiz({ kind: NOTES, halfTones: true, seed: 1 });
+  const black = q.pool.map((p) => p[0]).find((p) => spell(p, 0).alter !== 0);
+  assert.equal(spell(black, 2).label.slice(-1), '#', 'D major spells it sharp');
+  assert.equal(spell(black, -1).label.slice(-1), 'b', 'F major spells it flat');
+});
+
+test('chords stay diatonic whatever the note pool does', () => {
+  /* A triad is built from the scale; "a chromatic triad" would mean choosing a
+   * root and a quality, which is a different drill. */
+  const a = createQuiz({ kind: CHORDS, halfTones: false, seed: 1 });
+  const b = createQuiz({ kind: CHORDS, halfTones: true, seed: 1 });
+  assert.deepEqual(a.pool, b.pool);
 });

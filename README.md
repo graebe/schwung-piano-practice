@@ -165,6 +165,7 @@ shortcuts to the first four.
 | --- | --- | --- |
 | Guide pads | **off** | lights the pad you need next while reading, brightening as it approaches. Has no effect in the guessing and hearing modes |
 | Any octave | off | accept the right note in the wrong register |
+| Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid. Chords stay diatonic |
 | Click | on | MIDI metronome (see the caveat above) |
 | Reference | **on** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along. Off for unaided reading |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |

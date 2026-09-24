@@ -320,6 +320,7 @@ const settings = {
   transpose: PAD.DEFAULT_TRANSPOSE,
   guidance: false, /* sight-reading first — the user's call */
   anyOctave: false,
+  halfTones: true,   /* the guesser asks about black notes too */
   click: true,
   reference: true,   /* hear the line you are meant to be playing */
   midiOut: OUT_INTERNAL, /* our own piano: always works, needs no setup */
@@ -508,6 +509,7 @@ function startQuiz(kind, hear) {
     rootPc: settings.rootPc,
     mode: settings.mode,
     transpose: settings.transpose,
+    halfTones: settings.halfTones,
     seed: (Date.now() & 0x7fffffff) || 1,
   });
   quizSolvedAt = 0;

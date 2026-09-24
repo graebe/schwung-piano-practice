@@ -10,7 +10,7 @@ import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX } from '../src/layout.mjs';
 
 const fresh = () => ({
   bpm: 80, pxPerBeat: 24, rootPc: 0, transpose: 12, mode: 'major',
-  guidance: false, anyOctave: false, waitForNote: true, graceBeats: 1 / 3,
+  guidance: false, anyOctave: false, halfTones: true, waitForNote: true, graceBeats: 1 / 3,
   click: true, reference: true, refVel: 70, midiOut: 4, midiCh: 0, countIn: 4,
 });
 

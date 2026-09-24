@@ -37,6 +37,11 @@ export const SETTINGS_DEF = [
   { key: 'mode', label: 'Scale', type: 'list', values: Object.keys(MODES), rebuild: true },
   { key: 'guidance', label: 'Guide pads', type: 'bool', format: onOff },
   { key: 'anyOctave', label: 'Any octave', type: 'bool', format: onOff },
+  {
+    /* Chromatic prompts in the note guesser. The black notes are the hard ones
+     * to find on this grid, so they are in by default. Chords stay diatonic. */
+    key: 'halfTones', label: 'Half tones', type: 'bool', format: onOff,
+  },
   { key: 'waitForNote', label: 'Wait', type: 'bool', format: onOff },
   { key: 'graceBeats', label: 'Grace', type: 'enum', values: GRACE_VALUES, labels: GRACE_LABELS },
   { key: 'click', label: 'Click', type: 'bool', format: onOff },

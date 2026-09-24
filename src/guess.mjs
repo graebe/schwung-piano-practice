@@ -26,12 +26,15 @@ export const INCOMPLETE = 'incomplete';
  * reachable on a pad. A prompt that fails any of those is unanswerable — it
  * would be invisible, or there would be no pad for it.
  */
-function buildPool(kind, rootPc, mode, transpose) {
+function buildPool(kind, rootPc, mode, transpose, halfTones) {
   const { lo, hi } = playableRange(transpose);
   const scale = scalePitches(rootPc, MODES[mode] ? mode : 'major', lo, hi);
   const pool = [];
 
   if (kind === CHORDS) {
+    /* Chords stay diatonic whatever the note pool does. A triad is built from
+     * the scale by definition; "a chromatic triad" would mean picking a root
+     * and a quality, which is a different drill from this one. */
     for (let i = 0; i < scale.length; i++) {
       if (!fitsTriad(scale, i)) continue;
       const chord = triadOn(scale, i);
@@ -39,10 +42,22 @@ function buildPool(kind, rootPc, mode, transpose) {
       if (!chord.every((p) => inStaffRange(p))) continue;
       pool.push(chord);
     }
-  } else {
-    for (let i = 0; i < scale.length; i++) {
-      if (inStaffRange(scale[i])) pool.push([scale[i]]);
+    return pool;
+  }
+
+  if (halfTones) {
+    /* Every semitone in reach, not just the seven of the key — the black notes
+     * are the ones that are hard to find on an isomorphic grid, and skipping
+     * them leaves five twelfths of the instrument undrilled. They are spelled
+     * by the key signature, so C# in a sharp key and Db in a flat one. */
+    for (let pitch = lo; pitch <= hi; pitch++) {
+      if (inStaffRange(pitch)) pool.push([pitch]);
     }
+    return pool;
+  }
+
+  for (let i = 0; i < scale.length; i++) {
+    if (inStaffRange(scale[i])) pool.push([scale[i]]);
   }
   return pool;
 }
@@ -52,11 +67,12 @@ export function createQuiz({
   rootPc = 0,
   mode = 'major',
   transpose = DEFAULT_TRANSPOSE,
+  halfTones = false,
   seed = 1,
 } = {}) {
   const quiz = {
     kind: kind === CHORDS ? CHORDS : NOTES,
-    pool: buildPool(kind, rootPc, mode, transpose),
+    pool: buildPool(kind, rootPc, mode, transpose, halfTones),
     rand: rng(seed),
     prompt: [],
     held: [],
