@@ -17,8 +17,20 @@ import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX, PX_PER_BEAT_DEFAULT } from './layout.
 
 /* Tolerance before the scroll freezes, as a fraction of a beat. Tempo-relative
  * because "the rhythm doesn't break" is a musical span, not a fixed duration. */
-export const GRACE_VALUES = [1 / 6, 1 / 4, 1 / 3, 1 / 2, 1];
-export const GRACE_LABELS = ['1/6', '1/4', '1/3', '1/2', '1'];
+/*
+ * How late you may be, in beats, before the scroll stops and waits for you.
+ *
+ * Sight-reading is mostly spent finding the pad, not deciding which note it
+ * is, and at 1/3 of a beat — 250ms at 80bpm — the music halted while a hand
+ * was still travelling. A beat is the honest default for someone learning:
+ * long enough to look for the key, short enough that the rhythm is still the
+ * thing being practised.
+ *
+ * 1/6 is gone. At any sensible tempo it was shorter than the 180ms late
+ * window, so effectiveGrace() clamped it away and the setting did nothing.
+ */
+export const GRACE_VALUES = [1 / 4, 1 / 3, 1 / 2, 1, 2, 4];
+export const GRACE_LABELS = ['1/4', '1/3', '1/2', '1', '2', '4'];
 
 const onOff = (v) => (v ? 'on' : 'off');
 

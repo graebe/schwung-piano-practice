@@ -245,9 +245,28 @@ test('the settings page is a table, not a renumbering hazard', () => {
   assert.doesNotMatch(code, /CHART_AFFECTING_SETTINGS/);
 });
 
-test('wait is on by default, with a fractional-beat grace', () => {
+/*
+ * The declared settings version.
+ *
+ * A migration test asks whether ITS migration is still there, never what the
+ * current version happens to be — two tests pinned `SETTINGS_VERSION = 4`
+ * while testing the v2 and v3 migrations, so raising it to 5 broke both of
+ * them for no reason connected to what they check.
+ */
+function settingsVersion() {
+  const m = code.match(/SETTINGS_VERSION = (\d+)/);
+  assert.ok(m, 'ui.js must declare a settings version');
+  return Number(m[1]);
+}
+
+test('wait is on by default, and the grace is long enough to find the key', () => {
   assert.match(code, /waitForNote: true/);
-  assert.match(code, /graceBeats: 1 \/ 3/);
+  /* A third of a beat is 250ms at 80bpm, and the scroll halted while the hand
+   * was still travelling. Sight-reading is mostly spent finding the pad. */
+  assert.match(code, /graceBeats: 1,/);
+  /* And the change has to reach someone who has already used the module: a
+   * saved settings.json always beats a changed default. */
+  assert.match(code, /storedVersion < 5[\s\S]{0,160}settings\.graceBeats = 1/);
 });
 
 /* ---- Closing cleanly ----------------------------------------------------- */
@@ -362,7 +381,7 @@ test('a changed default is migrated, because a saved file always wins over it', 
   /* Switching the default from "both" to "Move" does nothing on its own for
    * anyone who has already used the module: their settings.json still says 3.
    * v2 moves those over, and leaves a deliberate USB choice alone. */
-  assert.match(code, /SETTINGS_VERSION = 4/);
+  assert.ok(settingsVersion() >= 2, 'the version may not fall back past this migration');
   assert.match(code, /storedVersion < 2 && settings\.midiOut === \(OUT_TRACK \| OUT_USB\)[\s\S]{0,80}settings\.midiOut = OUT_TRACK/);
   const load = code.match(/function loadSettings\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(load, /settings\.version = SETTINGS_VERSION/);
@@ -373,7 +392,7 @@ test('a channel mismatch cannot silence the module', () => {
   assert.match(code, /midiCh: 0/, 'broadcast by default');
   const each = code.match(/function eachChannel\(fn\) \{([\s\S]*?)\n\}/)[1];
   assert.match(each, /settings\.midiCh === 0[\s\S]{0,120}ch < 16/);
-  assert.match(code, /SETTINGS_VERSION = 4/);
+  assert.ok(settingsVersion() >= 3, 'the version may not fall back past this migration');
   assert.match(code, /storedVersion < 3[\s\S]{0,40}settings\.midiCh = 0/);
 });
 

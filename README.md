@@ -240,7 +240,7 @@ shortcuts to the first four.
 | Click | on | MIDI metronome (see the caveat above) |
 | Reference | **on** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along. Off for unaided reading |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
-| Grace | **1/3** | how late still counts as in time, as a fraction of a beat, so the tolerance scales with tempo. Never shorter than the 180 ms scoring window |
+| Grace | **1** | how late you may be before the scroll stops and waits, in beats, so the tolerance scales with tempo. A beat is 750 ms at 80bpm — long enough to find the key. Raise it to 2 or 4 while a piece is new; drop it to 1/4 once the rhythm is the point. Never shorter than the 180 ms scoring window |
 | Count in | 4 | beats before the first note |
 | MIDI ch | 1 | which channel the Move track listens on |
 

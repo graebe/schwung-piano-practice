@@ -311,7 +311,7 @@ function allNotesOff() {
  * A saved settings.json always wins over a default, so changing one silently
  * does nothing for anybody who has already used the module.
  */
-const SETTINGS_VERSION = 4;
+const SETTINGS_VERSION = 5;
 
 const settings = {
   version: SETTINGS_VERSION,
@@ -329,7 +329,7 @@ const settings = {
   reference: true,   /* hear the line you are meant to be playing */
   midiOut: OUT_INTERNAL, /* our own piano: always works, needs no setup */
   waitForNote: true, /* stop at a note until it is played */
-  graceBeats: 1 / 3, /* how late is still in time, as a fraction of a beat */
+  graceBeats: 1,     /* beats you may be late before the scroll waits for you */
   refVel: 70,
   midiCh: 0,         /* 0 = every channel, so a track mismatch cannot silence us */
   countIn: 4,
@@ -373,6 +373,13 @@ function loadSettings() {
    * up for a note to be heard. */
   if (storedVersion < 4 && settings.midiOut !== OUT_INTERNAL) {
     settings.midiOut = OUT_INTERNAL;
+    migrated = true;
+  }
+  /* v5: a third of a beat is 250ms at 80bpm, and the music stopped while the
+   * hand was still moving. A beat is long enough to find the key. Anyone who
+   * chose a grace deliberately keeps it; only the old default is moved. */
+  if (storedVersion < 5 && settings.graceBeats === 1 / 3) {
+    settings.graceBeats = 1;
     migrated = true;
   }
   if (storedVersion !== SETTINGS_VERSION) {
