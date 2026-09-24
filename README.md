@@ -271,7 +271,7 @@ Four beats count you in, counted down on screen.
 | **Shift + jog click** | settings |
 | **Back** | from a running exercise, **restart it**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
-| **Knob 1** | **scrub**, and only while paused — about half a turn per bar, deliberately slow, and continuous rather than jumping bar to bar. Pause with Play, find your spot, Play again to take it from there |
+| **Knob 1** | **scrub**, and only while paused — about a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. Pause with Play, find your spot, Play again to take it from there |
 | **Knob 8** | tempo, 40–200 |
 
 The knobs mean different things in different places, and **only Settings changes settings**: in an

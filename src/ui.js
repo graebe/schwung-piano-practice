@@ -487,9 +487,10 @@ let paused = false;
 let pausedAtMs = 0;
 /*
  * Scrub sensitivity: this many knob units to a bar, applied continuously.
- * Roughly half a turn; the number wants checking on the device.
+ * Roughly a turn and a half — three times slower than the first attempt, which
+ * was too quick to land on a spot by hand.
  */
-const SCRUB_UNITS_PER_BAR = 12;
+const SCRUB_UNITS_PER_BAR = 36;
 let listenOff = [];         /* [{ pitch, atBeats }] */
 let shiftHeld = false;
 let dirty = true;
@@ -825,7 +826,7 @@ function seekTo(beat) {
 /*
  * Scrub by a knob delta: continuous, so the playhead follows your hand rather
  * than teleporting between bar lines. SCRUB_UNITS_PER_BAR is the sensitivity —
- * roughly half a turn per bar — expressed as a rate now rather than a step.
+ * about a turn and a half per bar — a rate now rather than a step size.
  */
 function scrubBy(delta) {
   if (!chart) return;

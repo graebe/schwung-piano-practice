@@ -456,7 +456,7 @@ test('play pauses, the knob scrubs, and play resumes from there', () => {
  *
  * A gate that blocks everything passes a test that only checks the turn while
  * playing does nothing, and a quantised scrub passes a test that only checks
- * twelve units move a bar. So each is asserted in both directions.
+ * a bar's worth of units moves a bar. So each is asserted in both directions.
  */
 test('the knob scrubs only while paused, and does so continuously', () => {
   const printed = [];
@@ -491,21 +491,22 @@ test('the knob scrubs only while paused, and does so continuously', () => {
   const held = barBeat();
 
   /*
-   * A twelfth of a bar per unit, so three of them is one beat — a move the old
-   * quantiser could not make at all, since it could only land on bar lines.
-   * Three rather than one because the header counts whole beats, and a third
-   * of one does not change the digit even though the scroll has moved.
+   * Derived from the constant rather than restated, so changing the scrub
+   * speed does not silently stop this testing anything. A quarter of a bar is
+   * a whole beat at 4/4 — enough for the header's beat digit to move, which is
+   * the finest thing it can show, while staying inside the bar. The old
+   * quantiser could not land there at all.
    */
-  turn(3);
+  const perBar = 36;
+  turn(perBar / 4);
   const nudged = barBeat();
-  assert.notEqual(nudged, held, 'three units should move it');
+  assert.notEqual(nudged, held, 'a quarter bar of units should move it');
   assert.equal(nudged.split('.')[0], held.split('.')[0],
     'and land inside the same bar — the old scrub could not');
 
-  /* The rate is unchanged: twelve units is still one bar. */
-  turn(9);
+  turn(perBar - perBar / 4);
   assert.equal(Number(barBeat().split('.')[0]), Number(held.split('.')[0]) + 1,
-    'twelve units is one bar');
+    'a full bar of units is one bar');
 
   /* Nothing sounds while paused, so a long scrub must emit no note traffic:
    * allNotesOff is seven host writes and the inject ring holds sixty-four. */
