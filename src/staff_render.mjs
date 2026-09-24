@@ -202,6 +202,48 @@ export function drawBigText(ctx, x, y, text, scale) {
   }
 }
 
+/*
+ * The scrub symbol: a ring broken at the right with a thickened head, read as
+ * an arrow curling round.
+ *
+ * 9x7 where the two buttons are 7x7, because a circle needs the extra width to
+ * read as a circle rather than a blob — and this is the one glyph here that is
+ * a KNOB rather than a button, so looking different is the point.
+ *
+ * Authored as rows like the clef and the accidentals: a 7px curve is decided
+ * by eye at the pixel, not by an arc routine, and draw_arc would have to be
+ * reproduced exactly by the desktop buffer or the render tests would assert a
+ * shape the Move never draws.
+ */
+/*
+ * A ring open at the lower right with the arrowhead pointing into the gap.
+ * The first cut closed the ring and marked the head with one extra pixel,
+ * which at this size read as a plain "C" — an arrow needs a wedge and
+ * somewhere to point, so the bottom arc is cut short to give it one.
+ *
+ * Nine wide rather than the buttons' seven: a circle needs the width, and the
+ * two-pixel stroke is what keeps it from dissolving on a 1-bit panel.
+ */
+const SCRUB_ROWS = [
+  '..#####..',
+  '.##...##.',
+  '##.....##',
+  '##....###',
+  '##.....#.',
+  '.##......',
+  '..####...',
+];
+const SCRUB_RUNS = rowsToRuns(SCRUB_ROWS);
+export const SCRUB_W = 9;
+export const SCRUB_H = SCRUB_ROWS.length;
+
+export function drawScrubGlyph(ctx, x, y) {
+  for (let i = 0; i < SCRUB_RUNS.length; i++) {
+    const r = SCRUB_RUNS[i];
+    ctx.fillRect(x + r[0], y + r[1], r[2], 1, 1);
+  }
+}
+
 /* The Record symbol: a filled disc, to sit beside the play triangle. */
 export function drawRecordGlyph(ctx, x, y, d) {
   const size = d | 1;

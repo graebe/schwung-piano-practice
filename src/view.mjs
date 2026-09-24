@@ -181,7 +181,12 @@ export function drawReadingView(ctx, state) {
  * effect. The Play button also pulses green while this is on screen
  * (controls.mjs), which is the signal that actually gets read.
  */
-export const READY_BOX = { x: 12, y: 19, w: 104, h: 28 };
+/*
+ * Four rows taller than it was, to hold a third line. At the old geometry a
+ * row at +26 ended on screen row 51 — outside a box ending at 46, and across
+ * the name rule at 47.
+ */
+export const READY_BOX = { x: 12, y: 15, w: 104, h: 32 };
 
 export function drawReadyView(ctx, state) {
   drawReadingView(ctx, {
@@ -191,12 +196,21 @@ export function drawReadyView(ctx, state) {
     rightLabel: state.outLabel || '',
   });
 
+  /*
+   * THE BOX GETS OUT OF THE WAY ONCE YOU LEAVE THE START. It is an overlay
+   * across the middle of the staff, so it covers exactly the music you are
+   * scrubbing through; keeping it up would defeat the scrubbing. It comes back
+   * when you scroll home, which is also the only way to find it again.
+   */
+  if ((state.songBeats || 0) > 0) return ctx;
+
   const b = READY_BOX;
   ctx.fillRect(b.x, b.y, b.w, b.h, 0);
   ctx.drawRect(b.x, b.y, b.w, b.h, 1);
 
-  /* Two buttons, two symbols, two words. Which one does what is the thing that
-   * has to be readable without being learned. */
+  /* Three controls, three symbols, three words. Which one does what is the
+   * thing that has to be readable without being learned — and the knob was the
+   * one you could only find by turning it. */
   const gh = 7;
   const gx = b.x + 6;
   const tx = gx + 12;
@@ -204,8 +218,11 @@ export function drawReadyView(ctx, state) {
   R.drawPlayGlyph(ctx, gx, b.y + 4, gh);
   ctx.text(tx, b.y + 4, state.playLabel || 'PLAY  listen', 1);
 
-  R.drawRecordGlyph(ctx, gx, b.y + 15, gh);
-  ctx.text(tx, b.y + 15, state.recLabel || 'REC   practice', 1);
+  R.drawRecordGlyph(ctx, gx, b.y + 13, gh);
+  ctx.text(tx, b.y + 13, state.recLabel || 'REC   practice', 1);
+
+  R.drawScrubGlyph(ctx, gx, b.y + 22);
+  ctx.text(tx, b.y + 22, state.scrubLabel || 'SCRUB view', 1);
 
   /* Where the notes are going is in the header (rightLabel, above), on the one
    * screen you always pass through: a silent channel mismatch is otherwise

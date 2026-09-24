@@ -271,13 +271,23 @@ Four beats count you in, counted down on screen.
 | **Shift + jog click** | settings |
 | **Back** | from a running exercise, **restart it**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
-| **Knob 1** | **scrub**, and only while paused — about a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. Pause with Play, find your spot, Play again to take it from there |
+| **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. Find your spot, then Play or Record from there |
 | **Knob 8** | tempo, 40–200 |
 
 The knobs mean different things in different places, and **only Settings changes settings**: in an
 exercise they are the two above, in Settings they are the four rows on screen, and everywhere else
 they do nothing. **Touching** a knob in Settings moves the cursor to the row it edits, so the
 mapping is something you find rather than memorise.
+
+The ready screen spells all three out — `▶ PLAY listen`, `● REC practice`, `↻ SCRUB view` — and the
+box gets out of the way the moment you scrub, because it sits over the middle of the staff you are
+scrubbing through. Scroll back to the top and it returns; the header's right corner shows the MIDI
+route at the top and your position once you leave it, since only one of the two is worth the space
+at a time.
+
+**Starting mid-piece skips the bars behind you rather than failing them**, and there is no count-in
+— you have just been looking at the bar you picked, and with Wait on the scroll halts at the first
+note anyway. Back returns to the top.
 
 Scrubbing backward puts the notes you pass back, so the bar can be played again. Hits and misses
 already counted stay counted — a run you have scrubbed around in has no meaningful score, and songs

@@ -181,6 +181,10 @@ const SCREENS = {
   'ready': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
   }),
+  /* Scrubbed away from the start: the box is gone and the reading view is bare. */
+  'ready, scrubbed': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 6, pxPerBeat: 48, outLabel: 'trk+USB 16',
+  }),
   'reading': (c) => V.drawReadingView(c, {
     chart, run: createRun(chart), songBeats: 2.5, pxPerBeat: 24,
   }),

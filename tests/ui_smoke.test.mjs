@@ -519,6 +519,71 @@ test('the knob scrubs only while paused, and does so continuously', () => {
   thawClock();
 });
 
+/*
+ * The SCRUB row would advertise a control that does nothing if the ready
+ * screen could not scrub, or if Play threw the position away — which is
+ * exactly what it did before, via armRun.
+ */
+test('the ready screen scrubs, and Play takes it from there', () => {
+  const printed = [];
+  const realPrint = globalThis.print;
+  globalThis.print = (x, y, str) => { printed.push(String(str)); };
+  freezeClock();
+
+  /*
+   * The ready screen repaints only when something changes it, so the frame to
+   * read is the one the input produces: clear, act, tick, look. (The running
+   * screen redraws every tick, which is why the pause test can do it the other
+   * way round.)
+   */
+  const frame = (act) => {
+    printed.length = 0;
+    act();
+    clock += 40;
+    globalThis.tick();
+    return printed;
+  };
+  const scrub = (n, dir) => () => {
+    for (let i = 0; i < n; i++) globalThis.onMidiMessageInternal(CC(KNOB1, dir));
+  };
+  const barBeat = (f) => f.find((t) => /^\d+\.\d+$/.test(t));
+
+  globalThis.init();
+  globalThis.tick();
+  for (let i = 0; i < 7; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+  globalThis.tick();
+
+  const armed = frame(() => globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127)));
+  assert.ok(armed.some((t) => t.includes('SCRUB')),
+    'a freshly armed song offers all three rows');
+
+  /* Two bars forward on the ready screen, which used to be impossible. */
+  const away = frame(scrub(72, 1));
+  assert.equal(away.some((t) => t.includes('SCRUB')), false,
+    'scrubbing hides the box, which sits over the music being scrubbed');
+  assert.equal(barBeat(away), '3.1',
+    'and the header shows the position instead of the MIDI route');
+
+  /* Both directions: a box that never draws would pass a one-way test. */
+  const home = frame(scrub(72, 127));
+  assert.ok(home.some((t) => t.includes('SCRUB')), 'scrolling home brings it back');
+
+  /* And Play begins where you left the playhead, not at bar 1. */
+  const running = frame(() => {
+    scrub(72, 1)();
+    globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  });
+  assert.equal(String(barBeat(running)).split('.')[0], '3',
+    'Play must start from the scrub point');
+
+  /* Skipped, not failed — armRun would have marked two bars of notes missed. */
+  assert.equal(running.some((t) => /^0\/[1-9]/.test(t)), false,
+    'the bars behind the start point are passed over, not counted as misses');
+
+  globalThis.print = realPrint;
+  thawClock();
+});
+
 test('unloading is clean, and resume does not throw', () => {
   globalThis.onResume();
   globalThis.tick();

@@ -1368,3 +1368,58 @@ test('a press during a freeze marks at the hit line, not ahead of it', () => {
       `a phantom ring at x=${x}`);
   }
 });
+
+/* ---- The ready screen's three rows --------------------------------------- */
+
+const READY_CHART = scaleRun({ rootPc: 0, direction: 'updown', bpm: 80 });
+const readyFrame = (songBeats) => {
+  const c = createScreen();
+  V.drawReadyView(c, {
+    chart: READY_CHART, run: createRun(READY_CHART), songBeats,
+    pxPerBeat: 24, outLabel: 'piano all',
+  });
+  return c;
+};
+
+test('the ready box offers three controls, all inside the box', () => {
+  const c = readyFrame(0);
+  const b = V.READY_BOX;
+  /* A glyph and a label on each of the three rows. The box grew for this: at
+   * the old geometry the third row ended on screen row 51, outside a box
+   * ending at 46 and across the name rule at 47. */
+  for (const dy of [4, 13, 22]) {
+    assert.ok(countOn(c, b.x + 4, b.y + dy, 12, L.TEXT_H) > 4, `no glyph on row +${dy}`);
+    assert.ok(countOn(c, b.x + 18, b.y + dy, 80, L.TEXT_H) > 20, `no label on row +${dy}`);
+  }
+  /* Nothing of it below the box, and nothing anywhere near the name rule. */
+  assert.equal(countOn(c, b.x, b.y + b.h, b.w, L.NAME_RULE_Y - b.y - b.h), 0,
+    'the box must not spill past its own edge');
+});
+
+test('the box gets out of the way once you scrub, and comes back', () => {
+  const b = V.READY_BOX;
+  /*
+   * Its top border, not the ink in its area: with the box gone the staff lines
+   * show through that region and there are more of them than the box ever
+   * drew, so counting ink there says the opposite of the truth. Row b.y has no
+   * staff line on it, so a full-width run means the box and nothing else.
+   */
+  const hasBox = (c) => countOn(c, b.x, b.y, b.w, 1) >= b.w - 2;
+  assert.equal(hasBox(readyFrame(0)), true, 'drawn at the start');
+  /* Both directions: a box that never draws passes a test that only checks it
+   * disappears. */
+  assert.equal(hasBox(readyFrame(8)), false, 'gone once scrubbed away');
+  assert.equal(hasBox(readyFrame(0)), true, 'and back when you scroll home');
+});
+
+test('the scrub glyph is a ring, not a blob', () => {
+  /* Drawn alone, so the assertion is about the glyph rather than the box: a
+   * hollow centre and ink on both sides of it. If this ever reads as a smudge
+   * on the device the shape is wrong, not the test. */
+  const c = blank();
+  R.drawScrubGlyph(c, 10, 10);
+  const midY = 10 + ((R.SCRUB_H - 1) >> 1);
+  assert.ok(isOn(c, 10, midY) && isOn(c, 11, midY), 'a left stroke');
+  assert.ok(!isOn(c, 14, midY), 'and a hole in the middle');
+  assert.ok(countOn(c, 10, 10, R.SCRUB_W, R.SCRUB_H) > 20, 'and enough ink to read');
+});

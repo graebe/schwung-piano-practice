@@ -365,18 +365,31 @@ test('Play listens, Record practises, and each PAUSES its own mode', () => {
   assert.ok(!rec.includes('stopRun'), 'Record must not reset the position');
 });
 
-test('the scrub is paused-only and costs no MIDI when nothing sounds', () => {
+test('the scrub is off while running, and costs no MIDI when nothing sounds', () => {
   /*
-   * Seeking under your own feet mid-playback is not wanted, and on the READY
-   * screen it was worse than useless: Play calls armRun, which resets to zero,
-   * so the scrub was silently discarded.
+   * Seeking under your own feet mid-playback is not wanted. The ready screen
+   * was excluded too, because Play called armRun and reset to zero — that is
+   * fixed at the source now, so the screen you pick a passage on can scrub.
    *
    * And seekTo runs several times a frame while the knob turns. allNotesOff is
    * seven host writes against an inject ring of sixty-four, so it has to be
    * conditional — unguarded, a single scrub measured 420 writes.
    */
-  assert.match(code, /view === RUNNING && paused\) scrubBy/);
+  /* Whenever the music is NOT running: paused, or the ready screen. The half
+   * that must not regress is that a running transport is excluded. */
+  assert.match(code, /view === READY \|\| \(view === RUNNING && paused\)\) scrubBy/);
   assert.match(code, /if \(sounding\) allNotesOff\(\)/);
+});
+
+test('Play starts from where the playhead is, not always the top', () => {
+  /* Scrubbing the ready screen picks a passage; resetting would make the SCRUB
+   * row advertise a control that does nothing. Read BEFORE armRun, which is
+   * the thing that resets. */
+  const start = code.match(/function startRun\(listen\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(start, /const from = view === READY && songBeats > 0/);
+  assert.ok(start.indexOf('const from') < start.indexOf('armRun()'),
+    'the playhead must be read before armRun resets it');
+  assert.match(start, /if \(from > 0\) seekTo\(from\)/);
 });
 
 test('the clock stands still while paused', () => {

@@ -764,10 +764,24 @@ function armRun() {
 }
 
 function startRun(listen) {
+  /*
+   * Start where the playhead is, not always at the top: scrubbing the ready
+   * screen is how you pick a passage, and resetting would make that pointless.
+   * Read before armRun, which is what does the resetting.
+   */
+  const from = view === READY && songBeats > 0 ? songBeats : 0;
   armRun();
   listening = Boolean(listen);
   runStartMs = now();
   view = RUNNING;
+  /*
+   * seekTo settles the bars behind the start point rather than counting them
+   * as missed, and moves the reference's cursor so it does not open with a
+   * backlog. No count-in from here: it exists to orient you at the top, you
+   * have just been looking at the bar you chose, and with Wait on the scroll
+   * halts on the first note anyway.
+   */
+  if (from > 0) seekTo(from);
   dirty = true;
   ledDirty = true;
   announce(listen ? 'Listening.' : 'Go.');
@@ -832,7 +846,20 @@ function scrubBy(delta) {
   if (!chart) return;
   const perBar = beatsPerBar(chart);
   const before = Math.floor(songBeats / perBar);
-  seekTo(songBeats + (delta * perBar) / SCRUB_UNITS_PER_BAR);
+  /*
+   * COUNT IN UNITS, NOT IN BEATS. Adding perBar/36 per click accumulates
+   * binary error: 72 clicks of 4/36 lands on 7.999999999999998, so two full
+   * bars of turning showed bar 2 beat 4 and the counter sat one epsilon
+   * behind the hand for the rest of the song. Multiplying once is exact.
+   *
+   * The round also snaps a playhead paused off-grid onto it, by at most half
+   * a unit — a fraction of what the click you just turned is worth.
+   */
+  /* From the count-in, which sits at -countInBeats until the run starts, the
+   * first click would otherwise be spent climbing back to zero. */
+  const base = Math.max(0, songBeats);
+  const units = Math.round((base * SCRUB_UNITS_PER_BAR) / perBar) + delta;
+  seekTo((units * perBar) / SCRUB_UNITS_PER_BAR);
   /* Only on a bar change: this runs several times a frame while the knob is
    * turning, and the screen reader does not want a new position each time. */
   const after = Math.floor(songBeats / perBar);
@@ -1181,10 +1208,19 @@ function draw() {
     VIEW.drawReadyView(ctx, {
       chart,
       run,
-      songBeats: 0,
+      songBeats,
       pxPerBeat: settings.pxPerBeat,
-      outLabel: SET.formatSetting(settings, SET.settingIndex('midiOut')) + ' ' +
-                SET.formatSetting(settings, SET.settingIndex('midiCh')),
+      /*
+       * The header's right slot holds one thing. At the top that is where the
+       * notes are going — a silent channel mismatch is otherwise
+       * indistinguishable from broken, and this is the screen you always pass
+       * through. Once you scrub away it becomes the position, because while
+       * you are navigating "where am I" is the only question, and the scroll
+       * alone cannot answer it in bars.
+       */
+      outLabel: songBeats > 0 ? '' :
+        SET.formatSetting(settings, SET.settingIndex('midiOut')) + ' ' +
+        SET.formatSetting(settings, SET.settingIndex('midiCh')),
     });
   } else {
     VIEW.drawReadingView(ctx, {
@@ -1395,12 +1431,14 @@ function onKnob(index, delta) {
   if (inSong()) {
     if (index === 0) {
       /*
-       * Paused only. Seeking under your own feet mid-playback is not something
-       * anyone wants, and on the READY screen it was worse than useless: Play
-       * calls armRun, which resets to zero, so the scrub was silently thrown
-       * away. Requiring a pause removes the state where that was reachable.
+       * Whenever the music is NOT running: paused, or on the ready screen.
+       * Seeking under your own feet mid-playback is not something anyone
+       * wants; seeking before you start is how you pick a passage to work on.
+       *
+       * The ready screen used to be excluded because startRun reset to zero
+       * and threw the scrub away — that is fixed below rather than avoided.
        */
-      if (view === RUNNING && paused) scrubBy(delta);
+      if (view === READY || (view === RUNNING && paused)) scrubBy(delta);
       return;
     }
     if (index === KNOB_COUNT - 1) editSetting(SET.settingIndex('bpm'), delta);
