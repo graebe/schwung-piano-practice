@@ -19,8 +19,12 @@ do
 done
 
 # The siblings are stamped per build, so check by count rather than by name.
+# The expected count is READ OUT OF package.sh rather than written here: it was
+# a literal 16, and adding a seventeenth module failed this check with a number
+# that said nothing about which file was missing.
+WANT=$(sed -n 's/^MODULES="\(.*\)"$/\1/p' "$ROOT/scripts/package.sh" | wc -w | tr -d ' ')
 MJS=$(echo "$LIST" | grep -c '/[A-Za-z0-9_]*-[0-9][0-9]*\.mjs$' || true)
-[ "$MJS" -eq 16 ] || { echo "expected 16 stamped modules, found $MJS" >&2; exit 1; }
+[ "$MJS" -eq "$WANT" ] || { echo "package.sh names $WANT modules, the tarball has $MJS" >&2; exit 1; }
 
 # Every relative import, from any packaged file, must resolve to a packaged
 # file — and must carry this build's stamp. An unstamped sibling would be

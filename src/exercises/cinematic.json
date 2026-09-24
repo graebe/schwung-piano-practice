@@ -1,0 +1,325 @@
+{
+  "id": "cinematic",
+  "name": "Cinematic",
+  "bpm": 66,
+  "timeSig": [
+    3,
+    4
+  ],
+  "keySig": -3,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 0,
+      "durBeats": 3,
+      "hand": "r",
+      "pitches": [
+        72,
+        75,
+        79
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        75
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        77
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        79
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 3,
+      "hand": "r",
+      "pitches": [
+        72,
+        77
+      ]
+    },
+    {
+      "beat": 7,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        77
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        75
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 3,
+      "hand": "r",
+      "pitches": [
+        70,
+        75,
+        79
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 15,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 15,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        79
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        77
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        75
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 3,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77
+      ]
+    },
+    {
+      "beat": 19,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 3,
+      "hand": "r",
+      "pitches": [
+        72,
+        75,
+        79
+      ]
+    },
+    {
+      "beat": 22,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 23,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    }
+  ]
+}

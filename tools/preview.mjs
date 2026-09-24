@@ -9,6 +9,8 @@
  *   npm run preview -- --beats 2.5      one frame at that point
  *   npm run preview -- --view clef      just the clef on the staff
   *   npm run preview -- --exercise triads --film 0,1,2,3
+ *   npm run preview -- --view levels --song rising-sun          a song's ladder
+ *   npm run preview -- --song rising-sun --level 3 --film 3,6   read it
  */
 import { createScreen, toAscii } from './screen_buffer.mjs';
 import * as R from '../src/staff_render.mjs';
@@ -17,6 +19,9 @@ import { scaleRun, triadDrill, intervalDrill, randomInKey } from '../src/generat
 import { createRun, judgeNoteOn, expireMissed } from '../src/scoring.mjs';
 import { createQuiz, NOTES, CHORDS } from '../src/guess.mjs';
 import { PX_PER_BEAT_DEFAULT } from '../src/layout.mjs';
+import { parseExercise } from '../src/exercise_io.mjs';
+import { availableLevels, projectLevel } from '../src/levels.mjs';
+import { readFileSync } from 'node:fs';
 
 function arg(name, fallback) {
   const i = process.argv.indexOf('--' + name);
@@ -30,7 +35,16 @@ const EXERCISES = {
   reading: () => randomInKey({ rootPc: 0, bars: 4, seed: 11 }),
 };
 
-const chart = (EXERCISES[arg('exercise', 'scale')] || EXERCISES.scale)();
+/* A bundled song, at one rung of its ladder — the only way to look at a real
+ * two-handed chart without a Move. */
+const songId = arg('song', null);
+const song = songId
+  ? parseExercise(readFileSync(new URL(`../src/exercises/${songId}.json`, import.meta.url), 'utf8'), songId).chart
+  : null;
+
+const chart = song
+  ? (projectLevel(song, arg('level', '3')) || song)
+  : (EXERCISES[arg('exercise', 'scale')] || EXERCISES.scale)();
 const px = Number(arg('px', PX_PER_BEAT_DEFAULT));
 const view = arg('view', 'reading');
 
@@ -76,6 +90,15 @@ if (view === 'clef') {
     footer: 'JOG pick  CLICK open',
   });
   show('exercise list', c);
+} else if (view === 'levels') {
+  if (!song) throw new Error('--view levels needs --song <id>');
+  const c = createScreen();
+  V.drawList(c, song.name.toUpperCase(),
+    availableLevels(song).map((lv) => ({ label: lv.label, value: lv.step })), 0, {
+      footer: 'CLICK arm  BACK songs',
+      centreFooter: true,
+    });
+  show(`${song.name} ladder`, c);
 } else if (view === 'ready') {
   const c = createScreen();
   V.drawReadyView(c, {

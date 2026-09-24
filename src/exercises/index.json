@@ -84,6 +84,56 @@
       "id": "korobeiniki",
       "name": "Korobeiniki",
       "file": "korobeiniki.json"
+    },
+    {
+      "id": "lofi-sunday",
+      "name": "Lofi Sunday",
+      "file": "lofi-sunday.json"
+    },
+    {
+      "id": "pop-ballad",
+      "name": "Pop Ballad",
+      "file": "pop-ballad.json"
+    },
+    {
+      "id": "synthwave",
+      "name": "Synthwave",
+      "file": "synthwave.json"
+    },
+    {
+      "id": "house-stabs",
+      "name": "House Stabs",
+      "file": "house-stabs.json"
+    },
+    {
+      "id": "neo-soul",
+      "name": "Neo Soul",
+      "file": "neo-soul.json"
+    },
+    {
+      "id": "funk-clav",
+      "name": "Funk Clav",
+      "file": "funk-clav.json"
+    },
+    {
+      "id": "cinematic",
+      "name": "Cinematic",
+      "file": "cinematic.json"
+    },
+    {
+      "id": "ambient",
+      "name": "Ambient",
+      "file": "ambient.json"
+    },
+    {
+      "id": "minor-trap",
+      "name": "Minor Trap",
+      "file": "minor-trap.json"
+    },
+    {
+      "id": "indie-anthem",
+      "name": "Indie Anthem",
+      "file": "indie-anthem.json"
     }
   ]
 }

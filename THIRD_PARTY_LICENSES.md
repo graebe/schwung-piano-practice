@@ -40,9 +40,25 @@ and its notice is reproduced in full as that licence requires.
 - `src/vendor/host/plugin_api_v1.h` is Schwung's plugin API header
   ([charlesvestal/schwung](https://github.com/charlesvestal/schwung), MIT), kept
   here so the module builds without a checkout of the host.
-- The exercises are traditional melodies in the public domain — Ode to Joy,
-  Greensleeves, Für Elise, Minuet in G, Twinkle, Mary's Lamb, Frère Jacques,
-  Jingle Bells — transcribed for this module.
+- The exercises are traditional and classical melodies in the public domain —
+  Ode to Joy, Twinkle, Mary's Lamb, Frère Jacques, Jingle Bells, Greensleeves,
+  Für Elise, Minuet in G, Amazing Grace, Scarborough Fair, House of the Rising
+  Sun, When the Saints Go Marching In, Auld Lang Syne and Korobeiniki —
+  transcribed for this module.
+
+  Each was transcribed from the **traditional melody**, never from a particular
+  modern arrangement or recording of it. That distinction is the whole question
+  for the folk tunes: the tune itself is out of copyright, while a named
+  arrangement of it carries its own, fresh copyright. So "House of the Rising
+  Sun" here is the traditional song and not The Animals' 1964 arrangement, and
+  "Korobeiniki" is the nineteenth-century Russian folk song and not the
+  arrangement any game shipped.
+
+  The left-hand parts and the harmonisations at levels 2 and 3 were written for
+  this module and are MIT with everything else. So are the genre studies —
+  Ambient, Cinematic, Funk Clav, House Stabs, Indie Anthem, Lofi Sunday, Minor
+  Trap, Neo Soul, Pop Ballad, Synthwave — which are original pieces written to
+  drill a style, not transcriptions of anything.
 
 ## One thing to be aware of, which is not a conflict
 

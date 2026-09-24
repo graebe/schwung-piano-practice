@@ -11,7 +11,7 @@ mkdir -p "$STAGE/exercises"
 cp "$ROOT/src/module.json" "$STAGE/module.json"
 cp "$ROOT/src/ui.js" "$STAGE/ui.js"
 
-MODULES="layout notation staff_render chart scoring generator exercise_io padmap view controls settings_def guess led_paint chords stats choices"
+MODULES="layout notation staff_render chart scoring generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices"
 
 # Cache-bust the sibling modules.
 #
