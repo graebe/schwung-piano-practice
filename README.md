@@ -296,8 +296,7 @@ npm run preview       # dump the screens as ASCII art in the terminal
 | | |
 | --- | --- |
 | `test:js` | unit, rendering, contract and layout tests for the JavaScript |
-| `test:dsp` | `tests/dsp/test_piano.c` against the engine, through the C ABI the Move calls |
-| `test:ab` | the Rust engine against the C, sample by sample |
+| `test:dsp` | `tests/dsp/test_piano.c` against the engine, through the C ABI the Move calls. Kept in C deliberately: it is the only caller that exercises the engine the way the Move does |
 | `test:rust` | the Rust unit tests (`cargo test --no-default-features`) |
 | `test:package` | what the tarball must contain and what the install must not destroy |
 
@@ -321,6 +320,12 @@ unlikely.
 
 Building it needs Docker (or a local `aarch64-unknown-linux-gnu` Rust toolchain plus
 `aarch64-linux-gnu-gcc` as its linker); `scripts/build.sh` picks whichever is present.
+
+It replaced a C engine, which was deleted in 1.0.0 once the Rust matched it. The 33 assertions in
+`tests/dsp/test_piano.c` were written against the C and run unaltered against the Rust, and a
+sample-by-sample comparison of the two — before the C was removed — held at a peak difference of 16
+in 32767 with a correlation of 1.000000. Both halves of that comparison are in the history at
+`af4cba9` if it ever needs re-running.
 
 `tools/preview.mjs` renders the real drawing code into a 128×64 byte buffer and prints it. Because
 every frame is a pure function of `(chart, run, songBeats)`, any instant of any exercise can be
