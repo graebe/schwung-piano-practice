@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 
 import {
   createQuiz, nextPrompt, pressPitch, releasePitch, quizStats,
-  NOTES, CHORDS, CORRECT, WRONG, INCOMPLETE,
+  NOTES, CHORDS, TRIADS, TYPES, CORRECT, WRONG, INCOMPLETE,
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
 import { MODES } from '../src/generator.mjs';
 import { spell } from '../src/notation.mjs';
+import { QUALITIES } from '../src/chords.mjs';
 
 const notesQuiz = (o = {}) => createQuiz({ kind: NOTES, seed: 3, ...o });
 const chordQuiz = (o = {}) => createQuiz({ kind: CHORDS, seed: 3, ...o });
@@ -20,8 +21,8 @@ test('every prompt is in the key, on the staff, and reachable on a pad', () => {
     for (const kind of [NOTES, CHORDS]) {
       const q = createQuiz({ kind, rootPc, mode: 'major', seed: 7 });
       assert.ok(q.pool.length > 0, `${kind} in ${rootPc} has nothing to ask`);
-      for (const prompt of q.pool) {
-        for (const pitch of prompt) {
+      for (const { pitches } of q.pool) {
+        for (const pitch of pitches) {
           assert.ok(inStaffRange(pitch), `${pitch} cannot be drawn`);
           assert.ok(padsForPitch(pitch, DEFAULT_TRANSPOSE).length > 0, `${pitch} has no pad`);
           const rel = (((pitch - rootPc) % 12) + 12) % 12;
@@ -33,13 +34,13 @@ test('every prompt is in the key, on the staff, and reachable on a pad', () => {
 });
 
 test('notes ask one pitch, chords ask three', () => {
-  for (const prompt of notesQuiz().pool) assert.equal(prompt.length, 1);
-  for (const prompt of chordQuiz().pool) assert.equal(prompt.length, 3);
+  for (const e of notesQuiz().pool) assert.equal(e.pitches.length, 1);
+  for (const e of chordQuiz().pool) assert.equal(e.pitches.length, 3);
 });
 
 test('chords are stacked thirds, so they are diatonic by construction', () => {
-  for (const prompt of chordQuiz().pool) {
-    const [a, b, c] = prompt;
+  for (const { pitches } of chordQuiz().pool) {
+    const [a, b, c] = pitches;
     assert.ok(b - a === 3 || b - a === 4, `third is ${b - a}`);
     assert.ok(c - b === 3 || c - b === 4, `fifth is ${c - b}`);
   }
@@ -189,7 +190,7 @@ test('with half tones on, the pool is every semitone in reach', () => {
   const chromatic = createQuiz({ kind: NOTES, halfTones: true, seed: 1 });
   assert.ok(chromatic.pool.length > diatonic.pool.length);
   /* Consecutive prompts are a semitone apart, with no gaps. */
-  const pitches = chromatic.pool.map((p) => p[0]);
+  const pitches = chromatic.pool.map((e) => e.pitches[0]);
   for (let i = 1; i < pitches.length; i++) {
     assert.equal(pitches[i] - pitches[i - 1], 1, 'the chromatic pool must not skip a note');
   }
@@ -197,24 +198,24 @@ test('with half tones on, the pool is every semitone in reach', () => {
 
 test('half tones brings in the black notes, which are the hard ones on this grid', () => {
   const q = createQuiz({ kind: NOTES, rootPc: 0, mode: 'major', halfTones: true, seed: 1 });
-  const altered = q.pool.filter((p) => spell(p[0], 0).alter !== 0);
+  const altered = q.pool.filter((e) => spell(e.pitches[0], 0).alter !== 0);
   assert.ok(altered.length >= 5, 'all five accidentals should appear');
   const plain = createQuiz({ kind: NOTES, rootPc: 0, mode: 'major', halfTones: false, seed: 1 });
-  assert.equal(plain.pool.filter((p) => spell(p[0], 0).alter !== 0).length, 0,
+  assert.equal(plain.pool.filter((e) => spell(e.pitches[0], 0).alter !== 0).length, 0,
     'and none of them when it is off');
 });
 
 test('half tones are still drawable and still reachable on a pad', () => {
   const q = createQuiz({ kind: NOTES, halfTones: true, seed: 1 });
-  for (const prompt of q.pool) {
-    assert.ok(inStaffRange(prompt[0]), prompt[0] + ' cannot be drawn');
-    assert.ok(padsForPitch(prompt[0], DEFAULT_TRANSPOSE).length > 0, prompt[0] + ' has no pad');
+  for (const { pitches } of q.pool) {
+    assert.ok(inStaffRange(pitches[0]), pitches[0] + ' cannot be drawn');
+    assert.ok(padsForPitch(pitches[0], DEFAULT_TRANSPOSE).length > 0, pitches[0] + ' has no pad');
   }
 });
 
 test('the key still spells them: sharps in a sharp key, flats in a flat one', () => {
   const q = createQuiz({ kind: NOTES, halfTones: true, seed: 1 });
-  const black = q.pool.map((p) => p[0]).find((p) => spell(p, 0).alter !== 0);
+  const black = q.pool.map((e) => e.pitches[0]).find((p) => spell(p, 0).alter !== 0);
   assert.equal(spell(black, 2).label.slice(-1), '#', 'D major spells it sharp');
   assert.equal(spell(black, -1).label.slice(-1), 'b', 'F major spells it flat');
 });
@@ -225,4 +226,80 @@ test('chords stay diatonic whatever the note pool does', () => {
   const a = createQuiz({ kind: CHORDS, halfTones: false, seed: 1 });
   const b = createQuiz({ kind: CHORDS, halfTones: true, seed: 1 });
   assert.deepEqual(a.pool, b.pool);
+});
+
+/* ---- Chord qualities -------------------------------------------------------- */
+
+test('the quality drill asks for far more than the seven diatonic triads', () => {
+  const triads = createQuiz({ kind: CHORDS, chordSet: TRIADS, seed: 1 });
+  const types = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, seed: 1 });
+  assert.ok(types.pool.length > triads.pool.length * 5, 'should be a much wider pool');
+});
+
+test('every quality in the table can actually be asked for', () => {
+  const q = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, seed: 1 });
+  const suffixes = new Set(q.pool.map((e) => e.label.replace(/^[A-G][#b]?/, '')));
+  for (const quality of QUALITIES) {
+    assert.ok(suffixes.has(quality.suffix), `${quality.id} never appears`);
+  }
+});
+
+test('a quality chord is spelled exactly as its table says', () => {
+  const q = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, seed: 1 });
+  for (const entry of q.pool) {
+    const suffix = entry.label.replace(/^[A-G][#b]?/, '');
+    const quality = QUALITIES.find((x) => x.suffix === suffix);
+    assert.ok(quality, `unknown suffix in ${entry.label}`);
+    const root = entry.pitches[0];
+    assert.deepEqual(entry.pitches, quality.intervals.map((i) => root + i), entry.label);
+  }
+});
+
+test('every quality chord is drawable and every note of it reachable', () => {
+  for (const halfTones of [false, true]) {
+    const q = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones, seed: 3 });
+    assert.ok(q.pool.length > 0);
+    for (const { pitches } of q.pool) {
+      for (const p of pitches) {
+        assert.ok(inStaffRange(p), `${p} cannot be drawn`);
+        assert.ok(padsForPitch(p, DEFAULT_TRANSPOSE).length > 0, `${p} has no pad`);
+      }
+    }
+  }
+});
+
+test('the prompt carries its symbol, and only where a symbol means something', () => {
+  const types = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, seed: 4 });
+  assert.match(types.label, /^[A-G][#b]?/, 'a quality chord names itself');
+  assert.equal(createQuiz({ kind: CHORDS, chordSet: TRIADS, seed: 4 }).label, null,
+    'a diatonic triad has nothing to add to its note names');
+  assert.equal(createQuiz({ kind: NOTES, seed: 4 }).label, null);
+});
+
+test('the key spells the root: sharps in a sharp key, flats in a flat one', () => {
+  const sharp = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, fifths: 2, seed: 1 });
+  const flat = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, fifths: -1, seed: 1 });
+  assert.ok(sharp.pool.some((e) => e.label.includes('#')));
+  assert.ok(flat.pool.some((e) => e.label.includes('b')));
+  assert.ok(!flat.pool.some((e) => /^[A-G]#/.test(e.label)), 'a flat key must not spell sharps');
+});
+
+test('answering a quality chord works like any other', () => {
+  const q = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, seed: 6 });
+  const wanted = q.prompt.slice();
+  for (let i = 0; i < wanted.length - 1; i++) {
+    assert.equal(pressPitch(q, wanted[i]), INCOMPLETE, 'part of it down is not a mistake');
+  }
+  assert.equal(pressPitch(q, wanted[wanted.length - 1]), CORRECT);
+});
+
+test('four-note chords really do occur, and must be held in full', () => {
+  const q = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, seed: 1 });
+  const seventh = q.pool.find((e) => e.pitches.length === 4);
+  assert.ok(seventh, 'sevenths should be in the pool');
+  const quiz = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, seed: 1 });
+  quiz.prompt = seventh.pitches.slice();
+  quiz.label = seventh.label;
+  for (let i = 0; i < 3; i++) assert.equal(pressPitch(quiz, seventh.pitches[i]), INCOMPLETE);
+  assert.equal(pressPitch(quiz, seventh.pitches[3]), CORRECT);
 });

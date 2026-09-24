@@ -10,10 +10,15 @@
 
 import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './generator.mjs';
 import { inStaffRange } from './notation.mjs';
-import { DEFAULT_TRANSPOSE } from './padmap.mjs';
+import { DEFAULT_TRANSPOSE, padsForPitch } from './padmap.mjs';
+import { QUALITIES, buildChord, chordSymbol, qualitySpan } from './chords.mjs';
 
 export const NOTES = 'notes';
 export const CHORDS = 'chords';
+
+/* Which chords the chord drill asks for. */
+export const TRIADS = 'triads';   /* diatonic triads on scale degrees */
+export const TYPES = 'types';     /* a quality chosen deliberately: dim, sus, 7ths... */
 
 export const CORRECT = 'correct';
 export const WRONG = 'wrong';
@@ -26,21 +31,55 @@ export const INCOMPLETE = 'incomplete';
  * reachable on a pad. A prompt that fails any of those is unanswerable — it
  * would be invisible, or there would be no pad for it.
  */
-function buildPool(kind, rootPc, mode, transpose, halfTones) {
+function playable(pitches, transpose) {
+  for (let i = 0; i < pitches.length; i++) {
+    if (!inStaffRange(pitches[i])) return false;
+    if (!padsForPitch(pitches[i], transpose).length) return false;
+  }
+  return true;
+}
+
+/*
+ * Pool entries are { pitches, label }. The label is null for notes and for
+ * diatonic triads, where the note names say everything there is to say, and a
+ * chord symbol for the quality drill — there, naming the chord IS the exercise
+ * and the notes are already on the staff to be read.
+ */
+function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
   const { lo, hi } = playableRange(transpose);
   const scale = scalePitches(rootPc, MODES[mode] ? mode : 'major', lo, hi);
   const pool = [];
 
+  if (kind === CHORDS && chordSet === TYPES) {
+    /* Roots follow the same setting the note drill uses: chromatic when half
+     * tones are on, otherwise the notes of the key. */
+    const roots = [];
+    if (halfTones) {
+      for (let pitch = lo; pitch <= hi; pitch++) roots.push(pitch);
+    } else {
+      for (let i = 0; i < scale.length; i++) roots.push(scale[i]);
+    }
+    for (let r = 0; r < roots.length; r++) {
+      for (let q = 0; q < QUALITIES.length; q++) {
+        const quality = QUALITIES[q];
+        if (roots[r] + qualitySpan(quality) > hi) continue;
+        const pitches = buildChord(roots[r], quality);
+        if (!playable(pitches, transpose)) continue;
+        pool.push({ pitches, label: chordSymbol(roots[r], quality, fifths) });
+      }
+    }
+    return pool;
+  }
+
   if (kind === CHORDS) {
-    /* Chords stay diatonic whatever the note pool does. A triad is built from
-     * the scale by definition; "a chromatic triad" would mean picking a root
-     * and a quality, which is a different drill from this one. */
+    /* Triads built from the scale: diatonic by construction, so they come out
+     * major, minor or diminished according to where in the key they sit. */
     for (let i = 0; i < scale.length; i++) {
       if (!fitsTriad(scale, i)) continue;
       const chord = triadOn(scale, i);
       if (chord.length < 3) continue;
       if (!chord.every((p) => inStaffRange(p))) continue;
-      pool.push(chord);
+      pool.push({ pitches: chord, label: null });
     }
     return pool;
   }
@@ -51,13 +90,13 @@ function buildPool(kind, rootPc, mode, transpose, halfTones) {
      * them leaves five twelfths of the instrument undrilled. They are spelled
      * by the key signature, so C# in a sharp key and Db in a flat one. */
     for (let pitch = lo; pitch <= hi; pitch++) {
-      if (inStaffRange(pitch)) pool.push([pitch]);
+      if (inStaffRange(pitch)) pool.push({ pitches: [pitch], label: null });
     }
     return pool;
   }
 
   for (let i = 0; i < scale.length; i++) {
-    if (inStaffRange(scale[i])) pool.push([scale[i]]);
+    if (inStaffRange(scale[i])) pool.push({ pitches: [scale[i]], label: null });
   }
   return pool;
 }
@@ -68,13 +107,16 @@ export function createQuiz({
   mode = 'major',
   transpose = DEFAULT_TRANSPOSE,
   halfTones = false,
+  chordSet = TRIADS,
+  fifths = 0,
   seed = 1,
 } = {}) {
   const quiz = {
     kind: kind === CHORDS ? CHORDS : NOTES,
-    pool: buildPool(kind, rootPc, mode, transpose, halfTones),
+    pool: buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths),
     rand: rng(seed),
     prompt: [],
+    label: null,   /* the chord symbol, when the drill is about qualities */
     held: [],
     asked: 0,
     correct: 0,
@@ -93,17 +135,20 @@ export function createQuiz({
 export function nextPrompt(quiz) {
   if (!quiz.pool.length) {
     quiz.prompt = [];
+    quiz.label = null;
     return quiz.prompt;
   }
-  const previous = quiz.prompt.join(',');
+  const previous = quiz.prompt.join(',') + '|' + (quiz.label || '');
+  const same = (e) => e.pitches.join(',') + '|' + (e.label || '') === previous;
   let pick = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
   if (quiz.pool.length > 1) {
     let guard = 8;
-    while (pick.join(',') === previous && guard-- > 0) {
+    while (same(pick) && guard-- > 0) {
       pick = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
     }
   }
-  quiz.prompt = pick.slice();
+  quiz.prompt = pick.pitches.slice();
+  quiz.label = pick.label;
   quiz.held = [];
   quiz.solved = false;
   quiz.penalised = false;

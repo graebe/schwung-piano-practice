@@ -20,7 +20,7 @@ done
 
 # The siblings are stamped per build, so check by count rather than by name.
 MJS=$(echo "$LIST" | grep -c '/[A-Za-z0-9_]*-[0-9][0-9]*\.mjs$' || true)
-[ "$MJS" -eq 13 ] || { echo "expected 13 stamped modules, found $MJS" >&2; exit 1; }
+[ "$MJS" -eq 14 ] || { echo "expected 14 stamped modules, found $MJS" >&2; exit 1; }
 
 # Every relative import, from any packaged file, must resolve to a packaged
 # file — and must carry this build's stamp. An unstamped sibling would be

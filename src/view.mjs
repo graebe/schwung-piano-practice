@@ -204,7 +204,10 @@ export function drawGuessView(ctx, state) {
     return ctx;
   }
 
-  const label = chordLabel(prompt, fifths);
+  /* The chord symbol when the drill is about qualities — naming the chord is
+   * the exercise there, and the notes are already on the staff. Otherwise the
+   * note names, which is all there is to say about a single note or a triad. */
+  const label = state.label || chordLabel(prompt, fifths);
   if (label) {
     const w = ctx.textWidth(label);
     const x = (L.SCREEN_W - w) >> 1;

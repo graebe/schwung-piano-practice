@@ -2,7 +2,7 @@
     "id": "piano-practice",
     "name": "Piano Practice",
     "abbrev": "PNO",
-    "version": "0.5.0",
+    "version": "0.6.0",
     "description": "Scrolling sight-reading trainer: read the staff, hit the pad in time.",
     "author": "graebe",
     "license": "MIT",

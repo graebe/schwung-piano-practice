@@ -321,6 +321,7 @@ const settings = {
   guidance: false, /* sight-reading first — the user's call */
   anyOctave: false,
   halfTones: true,   /* the guesser asks about black notes too */
+  chordSet: 'triads',
   click: true,
   reference: true,   /* hear the line you are meant to be playing */
   midiOut: OUT_INTERNAL, /* our own piano: always works, needs no setup */
@@ -510,6 +511,8 @@ function startQuiz(kind, hear) {
     mode: settings.mode,
     transpose: settings.transpose,
     halfTones: settings.halfTones,
+    chordSet: settings.chordSet,
+    fifths: keyFifths(),
     seed: (Date.now() & 0x7fffffff) || 1,
   });
   quizSolvedAt = 0;
@@ -520,8 +523,14 @@ function startQuiz(kind, hear) {
     hearPrompt();
     announce('Ear training. Listen, then play what you hear.');
   } else {
-    announce('Note guesser. Play ' + NOTATION.chordLabel(quiz.prompt, keyFifths()) + '.');
+    announce('Note guesser. Play ' + promptName() + '.');
   }
+}
+
+/* What the prompt is called: its chord symbol if it has one, else its notes. */
+function promptName() {
+  if (!quiz) return '';
+  return quiz.label || NOTATION.chordLabel(quiz.prompt, keyFifths());
 }
 
 function keyFifths() {
@@ -777,7 +786,7 @@ function serviceGuess() {
       hearPrompt();
       announce('Listen.');
     } else {
-      announce(NOTATION.chordLabel(quiz.prompt, keyFifths()));
+      announce(promptName());
     }
   }
 }
@@ -809,6 +818,7 @@ function draw() {
       fifths: keyFifths(),
       solved: quiz.solved,
       hidden: quizHear && !quiz.solved,
+      label: quiz.label,
       title: quizHear ? 'HEAR' : (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE'),
       score: st.correct + '/' + st.asked,
       footer: 'streak ' + st.streak + (quizHear ? '   PLAY again' : '   PLAY hear'),
@@ -866,7 +876,8 @@ function editSetting(index, delta) {
    * rebuild it. Its menu row has no `build` — it is a mode, not an exercise —
    * and calling one here used to throw the moment you turned the key knob with
    * a quiz open. */
-  if (res.rebuild && view === GUESS_VIEW && quiz) {
+  if ((res.rebuild || res.key === 'halfTones' || res.key === 'chordSet') &&
+      view === GUESS_VIEW && quiz) {
     startQuiz(quiz.kind, quizHear);
   } else if (res.rebuild && CTRL.shouldRebuildChart(view, chart && chart.source)) {
     const row = menuRows[selectedIndex];

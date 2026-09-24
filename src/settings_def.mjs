@@ -42,6 +42,11 @@ export const SETTINGS_DEF = [
      * to find on this grid, so they are in by default. Chords stay diatonic. */
     key: 'halfTones', label: 'Half tones', type: 'bool', format: onOff,
   },
+  {
+    /* Which chords the chord drill asks for: the diatonic triads of the key,
+     * or a deliberately chosen quality — dim, aug, sus, sixths, sevenths, add9. */
+    key: 'chordSet', label: 'Chords', type: 'list', values: ['triads', 'types'],
+  },
   { key: 'waitForNote', label: 'Wait', type: 'bool', format: onOff },
   { key: 'graceBeats', label: 'Grace', type: 'enum', values: GRACE_VALUES, labels: GRACE_LABELS },
   { key: 'click', label: 'Click', type: 'bool', format: onOff },
