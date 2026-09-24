@@ -1,6 +1,15 @@
 FROM debian:bookworm
 
+# gcc is the NATIVE compiler and is not redundant with the cross one below.
+# Cargo builds a dependency's build.rs for the BUILD HOST, and links it with
+# the host triple's linker — plain `cc`. On an arm64 builder that triple is
+# aarch64-unknown-linux-gnu, which .cargo/config.toml already points at the
+# cross gcc, so the omission was invisible; on x86_64 it falls through to `cc`
+# and the build dies compiling libm's build script. Anything that only breaks
+# on a builder of the other architecture is worth naming.
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
     gcc-aarch64-linux-gnu \
     binutils-aarch64-linux-gnu \
     libc6-dev-arm64-cross \
