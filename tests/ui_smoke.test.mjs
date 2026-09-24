@@ -42,8 +42,26 @@ function stageModule() {
   return { dir, uiPath };
 }
 
+/*
+ * A clock a test can take over. ui.js reads performance.now() every frame, so
+ * a transport — where the point is that a pause HOLDS and a resume does not
+ * lurch — cannot be tested against wall time.
+ *
+ * Off by default, and that is not tidiness: the panel's redraw is gated on the
+ * same clock, so freezing it for every test stops anything being drawn at all
+ * and the tests that spin waiting for a frame simply time out.
+ */
+let clock = 0;
+let clockFrozen = false;
+const freezeClock = () => { clock = Date.now(); clockFrozen = true; };
+const thawClock = () => { clockFrozen = false; };
+const advanceMs = (ms, step = 20) => {
+  for (let i = 0; i < Math.ceil(ms / step); i++) { clock += step; globalThis.tick(); }
+};
+
 function installHostStubs() {
-  const calls = { led: 0, midi: 0, writes: [] };
+  const calls = { led: 0, midi: 0, writes: [], notes: [] };
+  globalThis.performance = { now: () => (clockFrozen ? clock : Date.now()) };
   const noop = () => {};
   Object.assign(globalThis, {
     clear_screen: noop,
@@ -56,7 +74,7 @@ function installHostStubs() {
     host_write_file: (p, t) => { calls.writes.push(p); return true; },
     host_exit_module: noop,
     host_send_screenreader: noop,
-    host_module_set_param: () => { calls.midi++; },
+    host_module_set_param: (k, v) => { calls.midi++; if (k === 'n') calls.notes.push(v); },
     move_midi_inject_to_move: () => { calls.midi++; return true; },
     move_midi_external_send: () => { calls.midi++; return true; },
     move_midi_internal_send: () => { calls.led++; return true; },
@@ -69,10 +87,14 @@ function installHostStubs() {
 const PAD = 68;
 const CC = (n, v) => [0xb0, n, v];
 const JOG_TURN = 14, JOG_CLICK = 3, SHIFT = 49, BACK = 51, PLAY = 85, RECORD = 86, MENU = 50;
+const KNOB1 = 71;
 
 let mod;
+/* What the host was told. Most tests here assert only that nothing threw; the
+ * ones that care what actually reached the DSP read this. */
+let hostCalls;
 test('the module loads and installs its lifecycle hooks', async () => {
-  installHostStubs();
+  hostCalls = installHostStubs();
   const { uiPath } = stageModule();
   mod = await import(uiPath);
   for (const hook of ['init', 'tick', 'onMidiMessageInternal', 'onMidiMessageExternal', 'onResume', 'onUnload']) {
@@ -265,6 +287,168 @@ test('pressing pads during a pick does not answer it or throw', () => {
   }
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.tick();
+});
+
+/*
+ * The level ladder, driven the way a player drives it.
+ *
+ * Every other test here stubs host_read_file to null, so no bundled song is
+ * ever loaded and the whole song -> level -> arm path went unexercised. This
+ * one serves the real exercises directory and reads back what was PRINTED, so
+ * it checks the levels actually reach the screen rather than only that nothing
+ * threw on the way.
+ */
+test('a song opens its levels, and a level arms', () => {
+  const printed = [];
+  const exercises = new URL('../src/exercises/', import.meta.url).pathname;
+  globalThis.print = (x, y, str) => { printed.push(String(str)); };
+  globalThis.host_read_file = (path) => {
+    const at = path.indexOf('/exercises/');
+    if (at < 0) return null;
+    try {
+      return readFileSync(exercises + path.slice(at + '/exercises/'.length), 'utf8');
+    } catch { return null; }
+  };
+
+  /* The panel redraws at 50Hz and the gate is wall-clock, so a single tick
+   * after an input usually draws nothing at all. Spin until it does. */
+  const screen = () => {
+    printed.length = 0;
+    const until = Date.now() + 500;
+    while (Date.now() < until && !printed.length) globalThis.tick();
+    return printed.join(' ');
+  };
+
+  globalThis.init();
+  /* To the bottom of the list — the jog clamps, so this lands on the last
+   * bundled song whatever else is added above it. */
+  for (let i = 0; i < 60; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* open the ladder */
+  const ladder = screen();
+  for (const rung of ['RH melody', 'LH bass', 'RH chords', 'Both hands']) {
+    assert.ok(ladder.includes(rung), `the level list does not show "${rung}": ${ladder}`);
+  }
+
+  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));      /* down to LH bass */
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* arm it */
+  screen();
+
+  /* The reading header names the chart, and a projected chart is named for its
+   * rung — so this is where "which level am I playing" actually shows up. */
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  assert.match(screen(), /L1/, 'the reading header does not name the level');
+  for (let i = 0; i < 20; i++) globalThis.tick();
+  globalThis.onMidiMessageInternal([0x90, PAD, 100]);
+  globalThis.onMidiMessageInternal([0x80, PAD, 0]);
+  globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(BACK, 127));        /* stop the run */
+  globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(BACK, 127));        /* back to the ladder */
+  assert.ok(
+    screen().includes('RH melody'),
+    'Back from a song should land on its ladder, not on the song list',
+  );
+});
+
+/*
+ * TWO SOURCES, ONE PITCH — and both of them have to be heard.
+ *
+ * In Listen the reference melody and your own hands play the same tune, so
+ * they collide on a pitch constantly. The refcount used to gate the note ON as
+ * well as off, so whichever asked second got silence: hold a note the
+ * reference is about to play and the reference note vanishes. The same pitch
+ * sits on two pads of an isomorphic grid, which is what this drives — the same
+ * collision, without having to time a run.
+ *
+ * Asserted through what the DSP is actually TOLD, because "nothing threw" is
+ * exactly the kind of green that hid this.
+ */
+test('a second source on the same pitch is heard, and does not cut the first', async () => {
+  const { padsForPitch, DEFAULT_TRANSPOSE } = await import(new URL('../src/padmap.mjs', import.meta.url));
+  const pitch = 64;
+  const pads = padsForPitch(pitch, DEFAULT_TRANSPOSE);
+  assert.ok(pads.length > 1, 'this pitch should have a twin pad to press');
+
+  globalThis.init();
+  globalThis.tick();
+  const struck = () => { const n = hostCalls.notes.slice(); hostCalls.notes.length = 0; return n; };
+  struck();
+
+  globalThis.onMidiMessageInternal([0x90, pads[0], 100]);
+  globalThis.tick();
+  assert.deepEqual(struck(), [`${pitch}:100`], 'the first press sounds');
+
+  globalThis.onMidiMessageInternal([0x90, pads[1], 100]);
+  globalThis.tick();
+  assert.deepEqual(struck(), [`${pitch}:100`], 'and so does the second — this is the bug');
+
+  globalThis.onMidiMessageInternal([0x80, pads[0], 0]);
+  globalThis.tick();
+  assert.deepEqual(struck(), [], 'one letting go must not cut the other off');
+
+  globalThis.onMidiMessageInternal([0x80, pads[1], 0]);
+  globalThis.tick();
+  assert.deepEqual(struck(), [`${pitch}:0`], 'it stops when the last one lets go');
+});
+
+/*
+ * THE TRANSPORT, END TO END. Play holds the position instead of resetting it,
+ * the knob scrubs, and resuming carries on from where you landed. Each of
+ * those is easy to get individually right and still have the sequence drift,
+ * which is why this drives the whole thing rather than the parts.
+ */
+test('play pauses, the knob scrubs, and play resumes from there', () => {
+  const printed = [];
+  const realPrint = globalThis.print;
+  globalThis.print = (x, y, str) => { printed.push(String(str)); };
+  freezeClock();
+  /*
+   * The header's bar.beat is the playhead, read off the screen the way a
+   * player reads it. The clock has to move for the panel to redraw at all —
+   * the draw is throttled on it — so this costs 40ms, which is 0.05 of a beat
+   * and invisible at bar.beat resolution.
+   */
+  const barBeat = () => {
+    printed.length = 0;
+    clock += 40;
+    globalThis.tick();
+    return printed.find((t) => /^\d+\.\d+$/.test(t));
+  };
+  const barOf = (s) => String(s).split('.')[0];
+  globalThis.init();
+  globalThis.tick();
+  for (let i = 0; i < 7; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+  globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.tick();
+
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  advanceMs(6000);
+  assert.ok(barBeat(), 'the run should be on screen');
+  const playing = barBeat();
+  assert.notEqual(playing, '1.1', 'six seconds should have moved the playhead');
+
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));      /* pause */
+  const held = barBeat();
+  advanceMs(4000);
+  assert.equal(barBeat(), held, 'a pause must hold, not drift');
+
+  /* Back two bars, which clamps at the start of this chart. */
+  for (let i = 0; i < 24; i++) globalThis.onMidiMessageInternal(CC(KNOB1, 127));
+  const scrubbed = barBeat();
+  assert.notEqual(scrubbed, held, 'the knob should have moved it');
+
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));      /* resume */
+  /* By the BAR: a lurch would jump the four seconds spent paused, which is
+   * several beats, while the 40ms this read costs is a twentieth of one. */
+  assert.equal(barOf(barBeat()), barOf(scrubbed),
+    'resume must carry on from the scrub, not catch up to wall time');
+  advanceMs(1000);
+  assert.notEqual(barBeat(), scrubbed, 'and then it runs on');
+
+  globalThis.print = realPrint;
+  thawClock();
 });
 
 test('unloading is clean, and resume does not throw', () => {

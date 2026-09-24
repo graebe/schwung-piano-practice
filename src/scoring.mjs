@@ -297,6 +297,42 @@ export function resyncWait(run, songBeats) {
   advanceWaitCursor(run);
 }
 
+/*
+ * The other half of resyncWait: put everything from `songBeats` onward BACK,
+ * so a bar can be attempted again after scrubbing to it.
+ *
+ * The tally is deliberately untouched. A run you have scrubbed around in has
+ * no meaningful score, songs show no scorecard, and rolling hits and misses
+ * back would quietly mean a bar you nailed and then scrubbed past stops
+ * counting. What matters is that the notes are playable again.
+ */
+export function rearmFrom(run, songBeats) {
+  for (let i = 0; i < run.entries.length; i++) {
+    const entry = run.entries[i];
+    if (entry.beat < songBeats) continue;
+    for (let n = 0; n < entry.notes.length; n++) {
+      const note = entry.notes[n];
+      note.state = PENDING;
+      note.played = false;
+      note.offsetBeats = 0;
+    }
+    entry.state = PENDING;
+  }
+  /* Both cursors walk forward only, so they have to be rewound by hand to the
+   * first entry that is unresolved again. */
+  run.cursor = 0;
+  run.waitCursor = 0;
+  advanceCursor(run);
+  advanceWaitCursor(run);
+}
+
+/* Drop markers at or after `beat` — they belong to an attempt being redone. */
+export function dropMarkersFrom(run, beat) {
+  for (let i = run.markers.length - 1; i >= 0; i--) {
+    if (run.markers[i].beat >= beat) run.markers.splice(i, 1);
+  }
+}
+
 /* Record a pad press at the exact moment it happened, for the played markers. */
 export function addMarker(run, pitch, songBeats, limit = 64) {
   run.markers.push({ beat: songBeats, pitch });

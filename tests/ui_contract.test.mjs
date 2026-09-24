@@ -91,7 +91,11 @@ test('note on/off is refcounted, so isomorphic twins cannot cut each other off',
 });
 
 test('input follows the host conventions', () => {
-  assert.match(source, /if \(d1 < 10\) return;/, 'knob capacitive touch is filtered');
+  /* Knob touch is no longer discarded — it points at the row that knob edits —
+   * but it must still never reach the pad handler. */
+  assert.match(source, /if \(d1 < 10\) \{[\s\S]{0,200}return;\n?\s*\}/,
+    'knob capacitive touch must not fall through to the pads');
+  assert.match(source, /onKnobTouch/, 'and it is used, not dropped');
   assert.match(source, /decodeDelta\(d2\)/, 'encoders arrive batched and must be decoded');
   assert.match(source, /CC_JOG_TURN = 14/);
   assert.match(source, /CC_PLAY = 85/);
@@ -345,13 +349,37 @@ test('changing MIDI channel silences the channel being left behind', () => {
   assert.match(code, /res\.key === 'midiCh'[\s\S]{0,260}allNotesOff\(\)[\s\S]{0,120}midiChannel = /);
 });
 
-test('Play listens and Record practises, and each stops its own mode', () => {
+test('Play listens, Record practises, and each PAUSES its own mode', () => {
+  /*
+   * Pressing the button again holds the playhead where it is rather than
+   * throwing the position away, so you can scrub and carry on from where you
+   * land. Back is what restarts; these two only ever toggle.
+   */
   const play = code.match(/if \(d1 === CC_PLAY\) \{([\s\S]*?)\n  \}/)[1];
   const rec = code.match(/if \(d1 === CC_RECORD\) \{([\s\S]*?)\n  \}/)[1];
   assert.match(play, /startRun\(true\)/, 'Play must listen');
-  assert.match(play, /view === RUNNING && listening[\s\S]{0,40}stopRun/);
+  assert.match(play, /view === RUNNING && listening[\s\S]{0,40}togglePause/);
   assert.match(rec, /startRun\(false\)/, 'Record must practise');
-  assert.match(rec, /view === RUNNING && !listening[\s\S]{0,40}stopRun/);
+  assert.match(rec, /view === RUNNING && !listening[\s\S]{0,40}togglePause/);
+  assert.ok(!play.includes('stopRun'), 'Play must not reset the position');
+  assert.ok(!rec.includes('stopRun'), 'Record must not reset the position');
+});
+
+test('the clock stands still while paused', () => {
+  /* Everything else about the frame keeps running — the LEDs, the drawing —
+   * but nothing derived from songBeats may move, or a pause would drift. */
+  /* The CLOCK stops, the frame does not: the draw gate requires `dirty`, which
+   * is set at the bottom of the running block, so gating the whole block would
+   * stop the panel repainting and a scrub while paused would show nothing. */
+  assert.match(code, /if \(!paused\) \{/);
+  assert.match(code, /if \(view === RUNNING\) \{[\s\S]{0,400}if \(!paused\) \{/);
+  assert.match(code, /runStartMs \+= now\(\) - pausedAtMs/, 'resume must not lurch forward');
+});
+
+test('Back restarts, and the press after it leaves', () => {
+  const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}\n/)[1];
+  assert.match(back, /view === RUNNING[\s\S]{0,200}armRun\(\)/, 'Back must restart');
+  assert.match(back, /shiftHeld[\s\S]{0,40}exitModule/, 'Shift+Back still leaves outright');
 });
 
 test('the missed-note rescue keys off the wait pointer, not the scoring cursor', () => {

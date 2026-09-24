@@ -8,6 +8,7 @@ import {
 } from '../src/exercise_io.mjs';
 import { MIN_PITCH as STAFF_LO, MAX_PITCH as STAFF_HI } from '../src/notation.mjs';
 import { pitchRange, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
+import { LEVELS, projectLevel } from '../src/levels.mjs';
 
 const good = {
   id: 'x', name: 'Test', bpm: 90, timeSig: [4, 4], keySig: 0,
@@ -133,6 +134,17 @@ test('every bundled exercise loads, and the manifest matches the folder', () => 
   }
 });
 
+test('hand is optional, and only "l" or "r"', () => {
+  assert.equal(bad({ events: [{ beat: 0, pitches: [60], hand: 'l' }] }).ok, true);
+  assert.equal(bad({ events: [{ beat: 0, pitches: [60] }] }).ok, true);
+  assert.match(bad({ events: [{ beat: 0, pitches: [60], hand: 'left' }] }).errors.join(' '), /hand/);
+});
+
+test('an untagged event normalises to the right hand', () => {
+  const chart = normalizeExercise(good, 'x');
+  assert.equal(chart.events[0].hand, 'r');
+});
+
 /* ---- Playability --------------------------------------------------------- */
 
 const STAFF = { lo: STAFF_LO, hi: STAFF_HI };
@@ -163,6 +175,14 @@ test('a playable exercise warns about nothing', () => {
   assert.deepEqual(playabilityWarnings(chart, STAFF, PADS), []);
 });
 
+/*
+ * Every bundled song, at every rung of its ladder.
+ *
+ * Testing the source file alone would not be enough and never was: what the
+ * player actually reads is a projection, and level 3 is the one that has to fit
+ * BOTH hands inside the 23 semitones the pads reach. This is the assertion that
+ * makes the register rule real rather than a comment in the README.
+ */
 test('every bundled exercise is drawable and reachable, not merely well-formed', () => {
   const dir = new URL('../src/exercises/', import.meta.url);
   const manifest = parseManifest(readFileSync(new URL('index.json', dir), 'utf8'));
@@ -173,5 +193,13 @@ test('every bundled exercise is drawable and reachable, not merely well-formed',
       playabilityWarnings(chart, STAFF, PADS), [],
       `${row.file} ships notes the Move cannot show or play`,
     );
+    for (const lv of LEVELS) {
+      const level = projectLevel(chart, lv.id);
+      if (!level) continue;
+      assert.deepEqual(
+        playabilityWarnings(level, STAFF, PADS), [],
+        `${row.file} at level ${lv.id} ships notes the Move cannot show or play`,
+      );
+    }
   }
 });

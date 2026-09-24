@@ -1,7 +1,7 @@
 {
-  "id": "mary-had-a-lamb",
-  "name": "Marys Lamb",
-  "bpm": 80,
+  "id": "when-the-saints",
+  "name": "The Saints",
+  "bpm": 104,
   "timeSig": [
     4,
     4
@@ -9,29 +9,11 @@
   "keySig": 0,
   "events": [
     {
-      "beat": 0,
-      "durBeats": 4,
-      "hand": "l",
-      "pitches": [
-        60
-      ]
-    },
-    {
-      "beat": 0,
-      "durBeats": 1,
-      "hand": "r",
-      "pitches": [
-        67,
-        72,
-        76
-      ]
-    },
-    {
       "beat": 1,
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        74
+        72
       ]
     },
     {
@@ -39,7 +21,7 @@
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        72
+        76
       ]
     },
     {
@@ -47,12 +29,12 @@
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        74
+        77
       ]
     },
     {
       "beat": 4,
-      "durBeats": 4,
+      "durBeats": 2,
       "hand": "l",
       "pitches": [
         60
@@ -60,33 +42,17 @@
     },
     {
       "beat": 4,
-      "durBeats": 1,
+      "durBeats": 4,
       "hand": "r",
       "pitches": [
-        67,
         72,
-        76
-      ]
-    },
-    {
-      "beat": 5,
-      "durBeats": 1,
-      "hand": "r",
-      "pitches": [
-        76
+        76,
+        79
       ]
     },
     {
       "beat": 6,
       "durBeats": 2,
-      "hand": "r",
-      "pitches": [
-        76
-      ]
-    },
-    {
-      "beat": 8,
-      "durBeats": 4,
       "hand": "l",
       "pitches": [
         67
@@ -94,11 +60,10 @@
     },
     {
       "beat": 8,
-      "durBeats": 1,
-      "hand": "r",
+      "durBeats": 2,
+      "hand": "l",
       "pitches": [
-        71,
-        74
+        60
       ]
     },
     {
@@ -106,20 +71,36 @@
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        74
+        72
       ]
     },
     {
       "beat": 10,
       "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 1,
       "hand": "r",
       "pitches": [
-        74
+        76
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        77
       ]
     },
     {
       "beat": 12,
-      "durBeats": 4,
+      "durBeats": 2,
       "hand": "l",
       "pitches": [
         60
@@ -127,46 +108,28 @@
     },
     {
       "beat": 12,
-      "durBeats": 1,
+      "durBeats": 4,
       "hand": "r",
       "pitches": [
-        67,
         72,
-        76
-      ]
-    },
-    {
-      "beat": 13,
-      "durBeats": 1,
-      "hand": "r",
-      "pitches": [
+        76,
         79
       ]
     },
     {
       "beat": 14,
       "durBeats": 2,
-      "hand": "r",
-      "pitches": [
-        79
-      ]
-    },
-    {
-      "beat": 16,
-      "durBeats": 4,
       "hand": "l",
       "pitches": [
-        60
+        67
       ]
     },
     {
       "beat": 16,
-      "durBeats": 1,
-      "hand": "r",
+      "durBeats": 2,
+      "hand": "l",
       "pitches": [
-        67,
-        72,
-        76
+        65
       ]
     },
     {
@@ -174,7 +137,16 @@
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        74
+        69,
+        72
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        60
       ]
     },
     {
@@ -182,7 +154,7 @@
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        72
+        76
       ]
     },
     {
@@ -190,12 +162,12 @@
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        74
+        77
       ]
     },
     {
       "beat": 20,
-      "durBeats": 4,
+      "durBeats": 2,
       "hand": "l",
       "pitches": [
         60
@@ -206,9 +178,9 @@
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        67,
         72,
-        76
+        76,
+        79
       ]
     },
     {
@@ -221,10 +193,18 @@
     },
     {
       "beat": 22,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 22,
       "durBeats": 1,
       "hand": "r",
       "pitches": [
-        76
+        72
       ]
     },
     {
@@ -237,7 +217,7 @@
     },
     {
       "beat": 24,
-      "durBeats": 4,
+      "durBeats": 2,
       "hand": "l",
       "pitches": [
         67
@@ -245,7 +225,7 @@
     },
     {
       "beat": 24,
-      "durBeats": 1,
+      "durBeats": 2,
       "hand": "r",
       "pitches": [
         71,
@@ -253,11 +233,11 @@
       ]
     },
     {
-      "beat": 25,
-      "durBeats": 1,
-      "hand": "r",
+      "beat": 26,
+      "durBeats": 2,
+      "hand": "l",
       "pitches": [
-        74
+        62
       ]
     },
     {

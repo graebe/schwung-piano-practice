@@ -12,6 +12,9 @@
  * Chart shape (produced by generator.mjs, or loaded by exercise_io.mjs):
  *   { id, name, bpm, timeSig: [num, den], keySig: fifths,
  *     events: [ { beat, durBeats, pitches: [midi, ...] } ] }
+ *
+ * A chart is already flattened: the `hand` tag lives on the SONG file and is
+ * consumed by levels.mjs, so nothing downstream of here has to know about it.
  */
 
 import * as L from './layout.mjs';
@@ -122,12 +125,33 @@ export function isBeatEdge(prevBeats, songBeats) {
  * the click and reference line freeze with it because both are derived from
  * songBeats.
  *
- * `rawBeats` is the unadjusted wall-clock position. Returns the new pair.
+ * TWO CLOCKS, AND THE SECOND ONE IS WHY THIS IS NOT FOUR LINES.
+ *
+ * The scroll stops on the note. The JUDGE must not: expireMissed is driven by
+ * a clock, so one pinned at the note never reaches that note's late window,
+ * the note is never scored, and judgeNoteOn reads an offset of zero — a note
+ * found three seconds later would be a perfect hit and a miss would become
+ * something that cannot happen.
+ *
+ * So `scoreBeats` keeps running in real time while `songBeats` sits still. It
+ * cannot be derived after the fact: the first frozen frame folds the overshoot
+ * into `waitedBeats`, after which `rawBeats - waitedBeats` is pinned at the
+ * block point again. `frozenAt` carries the pre-freeze `waitedBeats` across
+ * frames so the honest clock survives, and is null whenever nothing is frozen.
+ *
+ * `rawBeats` is the unadjusted wall-clock position.
  */
-export function applyWait(rawBeats, waitedBeats, blockBeat) {
+export function applyWait(rawBeats, waitedBeats, blockBeat, frozenAt = null) {
   const t = rawBeats - waitedBeats;
   if (blockBeat === null || blockBeat === undefined || t <= blockBeat) {
-    return { songBeats: t, waitedBeats, blocked: false };
+    return { songBeats: t, waitedBeats, blocked: false, scoreBeats: t, frozenAt: null };
   }
-  return { songBeats: blockBeat, waitedBeats: waitedBeats + (t - blockBeat), blocked: true };
+  const start = frozenAt === null || frozenAt === undefined ? waitedBeats : frozenAt;
+  return {
+    songBeats: blockBeat,
+    waitedBeats: waitedBeats + (t - blockBeat),
+    blocked: true,
+    scoreBeats: rawBeats - start,
+    frozenAt: start,
+  };
 }

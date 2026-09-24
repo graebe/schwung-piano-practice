@@ -101,8 +101,47 @@ test('the beat edge fires once per beat', () => {
 /* ---- Wait-for-note clock -------------------------------------------------- */
 
 test('with nothing blocking, the clock is plain wall time', () => {
-  assert.deepEqual(applyWait(5, 0, null), { songBeats: 5, waitedBeats: 0, blocked: false });
-  assert.deepEqual(applyWait(5, 1, undefined), { songBeats: 4, waitedBeats: 1, blocked: false });
+  assert.deepEqual(applyWait(5, 0, null),
+    { songBeats: 5, waitedBeats: 0, blocked: false, scoreBeats: 5, frozenAt: null });
+  assert.deepEqual(applyWait(5, 1, undefined),
+    { songBeats: 4, waitedBeats: 1, blocked: false, scoreBeats: 4, frozenAt: null });
+});
+
+/*
+ * THE JUDGE IS NOT FROZEN WITH THE SCROLL.
+ *
+ * This is the whole reason applyWait carries a second clock. One frozen frame
+ * proves nothing: the first one folds the overshoot into waitedBeats, and it
+ * is every frame AFTER that where a naive `raw - waitedBeats` is pinned at the
+ * block point and the note can never be scored.
+ */
+test('real time keeps running while the scroll stands still', () => {
+  let waited = 0;
+  let frozen = null;
+  let lastScore = -Infinity;
+  for (let raw = 4.0; raw < 9; raw += 0.11) {
+    const r = applyWait(raw, waited, 4, frozen);
+    waited = r.waitedBeats;
+    frozen = r.frozenAt;
+    if (!r.blocked) continue;
+    assert.equal(r.songBeats, 4, 'the scroll stays on the note');
+    assert.ok(Math.abs(r.scoreBeats - raw) < 1e-9, 'the judge sees real time');
+    assert.ok(r.scoreBeats > lastScore, 'and it never stops advancing');
+    lastScore = r.scoreBeats;
+  }
+  assert.ok(lastScore > 8, `the judge reached ${lastScore}, well past the note`);
+});
+
+test('releasing the freeze resumes in tempo and forgets the freeze', () => {
+  const frozen = applyWait(6, 0, 4, null);
+  assert.equal(frozen.songBeats, 4);
+  assert.equal(frozen.frozenAt, 0);
+  /* The note is played, so nothing blocks: the clock picks up from where the
+   * scroll stopped rather than lurching forward to wall time. */
+  const free = applyWait(6.1, frozen.waitedBeats, null, frozen.frozenAt);
+  assert.ok(Math.abs(free.songBeats - 4.1) < 1e-9);
+  assert.equal(free.frozenAt, null, 'the freeze is over and not remembered');
+  assert.equal(free.scoreBeats, free.songBeats, 'the two clocks agree again');
 });
 
 test('before the block is reached the clock runs freely', () => {

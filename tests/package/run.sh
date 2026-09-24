@@ -18,7 +18,7 @@ node -e '
   if (!release.download_url.includes("/v" + manifest.version + "/")) throw new Error("release URL version mismatch");
 
   const text = help.children.flatMap(s => s.lines).join(" ");
-  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Guide pads", "Any octave", "index.json"]) {
+  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Guide pads", "Any octave", "index.json", "Pick the song", "L3 Both hands"]) {
     if (!text.includes(phrase)) throw new Error("help missing: " + phrase);
   }
 '
@@ -56,7 +56,7 @@ for crate in $(sed -n 's/^name = "\(.*\)"$/\1/p' dsp/Cargo.lock); do
   grep -q "$crate" THIRD_PARTY_LICENSES.md \
     || { echo "THIRD_PARTY_LICENSES.md does not mention $crate" >&2; exit 1; }
 done
-for mod in layout notation staff_render chart scoring generator exercise_io padmap view controls settings_def guess led_paint chords stats choices; do
+for mod in layout notation staff_render chart scoring generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices; do
   test -f "src/$mod.mjs"
 done
 

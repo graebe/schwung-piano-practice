@@ -160,6 +160,16 @@ export function drawReadingView(ctx, state) {
 
   const total = chartTotalBeats(chart) || 1;
   R.drawFooter(ctx, songBeats / total, stats ? stats.hits + '/' + stats.misses : '');
+
+  /* Paused and stuck both show a motionless scroll, and only one of them is
+   * waiting for you to play something. */
+  if (state.paused) {
+    const tag = 'PAUSED';
+    const w = ctx.textWidth(tag);
+    const x = (L.SCREEN_W - w) >> 1;
+    ctx.fillRect(x - 3, L.FOOTER_Y - 3, w + 6, L.TEXT_H + 1, 0);
+    ctx.text(x, L.FOOTER_Y - 2, tag, 1);
+  }
   return ctx;
 }
 

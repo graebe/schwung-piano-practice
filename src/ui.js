@@ -481,6 +481,18 @@ let scoreBeats = 0;
 let blocked = false;   /* frozen right now, waiting for a note */
 let listening = false;      /* Record = hear the exercise instead of playing it */
 let listenIndex = 0;
+/* Transport. `paused` holds the playhead where it is instead of throwing the
+ * position away, so you can scrub and carry on from wherever you land. */
+let paused = false;
+let pausedAtMs = 0;
+/*
+ * Scrub accumulator. These encoders send more than one unit per detent — the
+ * key and octave knobs already clamp to +/-1 for the same reason — so raw
+ * deltas are banked and a bar emitted every SCRUB_UNITS_PER_BAR of them.
+ * Roughly half a turn per bar; the number wants checking on the device.
+ */
+const SCRUB_UNITS_PER_BAR = 12;
+let scrubUnits = 0;
 let listenOff = [];         /* [{ pitch, atBeats }] */
 let shiftHeld = false;
 let dirty = true;
@@ -747,6 +759,8 @@ function armRun() {
   frozenAt = null;
   scoreBeats = songBeats;
   blocked = false;
+  paused = false;
+  scrubUnits = 0;
   lastClickBeat = null;
   listenIndex = 0;
   listenOff = [];
@@ -760,6 +774,73 @@ function startRun(listen) {
   dirty = true;
   ledDirty = true;
   announce(listen ? 'Listening.' : 'Go.');
+}
+
+/*
+ * Put the playhead at `beat`, and everything that follows from it.
+ *
+ * The clock is the easy half. A seek that moves it and forgets the rest leaves
+ * a run that looks right and behaves wrongly: the reference dumps a bar of
+ * backlog, the bar you scrubbed to cannot be played because its notes are
+ * already settled, and markers from the previous attempt hang in the air.
+ */
+function seekTo(beat) {
+  if (!chart || !run) return;
+  const target = Math.max(0, Math.min(beat, chartTotalBeats(chart)));
+  allNotesOff();
+
+  /* Notes behind the playhead are done with; notes at or after it go back so
+   * the bar can be attempted again. */
+  SCORE.resyncWait(run, target);
+  SCORE.rearmFrom(run, target);
+  SCORE.dropMarkersFrom(run, target);
+
+  /* The reference plays from here, not from its backlog. */
+  listenIndex = 0;
+  while (listenIndex < chart.events.length && chart.events[listenIndex].beat < target) listenIndex++;
+
+  /* Solve runStartMs for the position rather than tracking a separate offset:
+   * songBeats is derived from it every frame, so it is the one place a seek
+   * has to land. */
+  waitedBeats = 0;
+  frozenAt = null;
+  blocked = false;
+  songBeats = target;
+  prevBeats = target;
+  scoreBeats = target;
+  lastClickBeat = null;
+  const at = paused ? pausedAtMs : now();
+  runStartMs = at - beatsToMs(target + countInBeats, chart.bpm);
+  dirty = true;
+  ledDirty = true;
+}
+
+/* One bar in the chart's own time signature. */
+function scrubBars(bars) {
+  if (!chart) return;
+  seekTo(songBeats + bars * beatsPerBar(chart));
+  announce('Bar ' + (Math.floor(songBeats / beatsPerBar(chart)) + 1) + '.');
+}
+
+/*
+ * Play and Record toggle their own mode rather than resetting it. Pausing
+ * shifts runStartMs by the time spent stopped, the same trick waitedBeats uses
+ * to resume in tempo instead of lurching forward to catch up.
+ */
+function togglePause() {
+  if (view !== RUNNING) return;
+  if (paused) {
+    runStartMs += now() - pausedAtMs;
+    paused = false;
+    announce('Playing.');
+  } else {
+    paused = true;
+    pausedAtMs = now();
+    allNotesOff();
+    announce('Paused.');
+  }
+  dirty = true;
+  ledDirty = true;
 }
 
 function stopRun() {
@@ -905,9 +986,9 @@ function paintPads() {
    * say so by itself — it pulses. This was once `view === RUNNING ? 127 : 0`,
    * i.e. dark in exactly the state that needs it lit. */
   const ledView = view === GUESS_VIEW ? CTRL.GUESS : view;
-  setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, listening));
+  setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, listening, paused));
   setButtonLED(CC_RECORD, CTRL.recordLedColor(ledView, listening, ledPhase,
-    Boolean(quiz && GUESS.hintsLeft(quiz) === 0)));
+    Boolean(quiz && GUESS.hintsLeft(quiz) === 0), paused));
 }
 
 /* ---- Metronome and listen playback -------------------------------------- */
@@ -1096,6 +1177,7 @@ function draw() {
       pxPerBeat: settings.pxPerBeat,
       beatFlash: now() - beatFlash < 90,
       blocked,
+      paused,
     });
   }
 }
@@ -1269,11 +1351,70 @@ function onJogClick() {
   dirty = true;
 }
 
+/*
+ * The knobs mean different things in different places, and only Settings gets
+ * to change settings.
+ *
+ *   in a song      1 scrubs, 8 sets the tempo
+ *   in Settings    the visible rows, in order
+ *   anywhere else  nothing
+ *
+ * In Settings they follow the rows that are ON SCREEN rather than fixed
+ * setting numbers, so the mapping survives scrolling and a knob can never
+ * point at something you cannot see.
+ */
+const SETTINGS_PER_PAGE = 4;   /* what drawList shows */
+
+function settingsPageTop() {
+  const n = SET.SETTINGS_COUNT;
+  return Math.max(0, Math.min(settingsCursor - (SETTINGS_PER_PAGE >> 1), n - SETTINGS_PER_PAGE));
+}
+
+function inSong() {
+  return view === RUNNING || view === READY;
+}
+
 function onKnob(index, delta) {
-  if (index === 0) editSetting(0, delta);
-  else if (index === 1) editSetting(1, delta);
-  else if (index === 2) editSetting(2, delta > 0 ? 1 : -1);
-  else if (index === 3) editSetting(3, delta > 0 ? 1 : -1);
+  if (inSong()) {
+    if (index === 0) {
+      /* Banked, because one detent of these is several units and a bar per
+       * unit would make the song unnavigable. */
+      scrubUnits += delta;
+      const bars = (scrubUnits / SCRUB_UNITS_PER_BAR) | 0;
+      if (bars) {
+        scrubUnits -= bars * SCRUB_UNITS_PER_BAR;
+        scrubBars(bars);
+      }
+      return;
+    }
+    if (index === KNOB_COUNT - 1) editSetting(SET.settingIndex('bpm'), delta);
+    return;
+  }
+  if (view === SETTINGS) {
+    const row = settingsPageTop() + index;
+    if (index >= SETTINGS_PER_PAGE || row >= SET.SETTINGS_COUNT) return;
+    settingsCursor = row;
+    /* Key and octave wrap through a lot of values; one step per event or a
+     * flick sends them spinning. */
+    const def = SET.SETTINGS_DEF[row];
+    const step = def && (def.type === 'wrap' || def.type === 'list' || def.type === 'enum');
+    editSetting(row, step ? (delta > 0 ? 1 : -1) : delta);
+  }
+}
+
+/*
+ * Knob TOUCH moves the cursor to the row that knob controls.
+ *
+ * These arrive as notes 0-9 and were being dropped on the floor. Without them
+ * the knob-to-row mapping is something you have to know; with them you find it
+ * by resting a finger on a knob.
+ */
+function onKnobTouch(index) {
+  if (view !== SETTINGS || index >= SETTINGS_PER_PAGE) return;
+  const row = settingsPageTop() + index;
+  if (row >= SET.SETTINGS_COUNT) return;
+  settingsCursor = row;
+  dirty = true;
 }
 
 /* ---- Lifecycle ---------------------------------------------------------- */
@@ -1339,6 +1480,13 @@ globalThis.tick = function tick() {
   const t = now();
 
   if (view === RUNNING) {
+   /*
+    * Paused stops the CLOCK, not the frame. The draw gate requires `dirty`,
+    * and `dirty` is set at the bottom of this block — so gating the whole
+    * thing on !paused stopped the panel repainting at all, and a pad press or
+    * a scrub while paused would have changed nothing on screen.
+    */
+   if (!paused) {
     prevBeats = songBeats;
     const raw = msToBeats(t - runStartMs, chart.bpm) - countInBeats;
 
@@ -1378,6 +1526,7 @@ globalThis.tick = function tick() {
       view = READY;
       announce('Done. ' + s.hits + ' of ' + s.total + ', ' + Math.round(s.accuracy * 100) + ' percent.');
     }
+   }
     dirty = true;
   }
 
@@ -1420,7 +1569,12 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
   const d2 = data[2];
 
   if (status === 0x90 || status === 0x80) {
-    if (d1 < 10) return; /* knob capacitive touch */
+    if (d1 < 10) {
+      /* Knob capacitive touch. Used in Settings to point at the row the knob
+       * edits; ignored everywhere else. */
+      if (status === 0x90 && d2 > 0) onKnobTouch(d1);
+      return;
+    }
     if (!PAD.isPad(d1)) return;
     if (status === 0x90 && d2 > 0) onPadDown(d1, d2);
     else onPadUp(d1);
@@ -1461,7 +1615,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       hearPrompt();
       return;
     }
-    if (view === RUNNING && listening) stopRun();
+    if (view === RUNNING && listening) togglePause();
     else if (chart) startRun(true);
     else selectExercise(menuCursor);
     return;
@@ -1475,7 +1629,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       takeHint();
       return;
     }
-    if (view === RUNNING && !listening) stopRun();
+    if (view === RUNNING && !listening) togglePause();
     else if (chart) startRun(false);
     else selectExercise(menuCursor);
     return;
@@ -1502,7 +1656,12 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       return;
     }
     if (view === RUNNING) {
+      /* Restart, not exit. Back from the READY screen this lands on already
+       * goes to the list, so pressing it twice leaves without inventing a
+       * second gesture. */
       stopRun();
+      armRun();
+      announce('Back to the start.');
       return;
     }
     if (view === RESULT_VIEW || view === PROGRESS_VIEW || view === LEVEL_VIEW) {

@@ -26,7 +26,7 @@ import * as V from '../src/view.mjs';
 import * as L from '../src/layout.mjs';
 import { makeRecord } from '../src/stats.mjs';
 import { scaleRun } from '../src/generator.mjs';
-import { createRun } from '../src/scoring.mjs';
+import { createRun, expireMissed } from '../src/scoring.mjs';
 
 /*
  * A ctx that draws normally and keeps a transcript of what it was asked to.
@@ -184,6 +184,14 @@ const SCREENS = {
   'reading': (c) => V.drawReadingView(c, {
     chart, run: createRun(chart), songBeats: 2.5, pxPerBeat: 24,
   }),
+  'reading, paused': (c) => V.drawReadingView(c, {
+    chart, run: createRun(chart), songBeats: 2.5, pxPerBeat: 24, paused: true,
+  }),
+  'reading, stuck on a chord': (c) => {
+    const run = createRun(chart, { bpm: 80, graceBeats: 1 });
+    expireMissed(run, 3, true);
+    return V.drawReadingView(c, { chart, run, songBeats: 0, pxPerBeat: 24, blocked: true });
+  },
 };
 
 for (const [name, draw] of Object.entries(SCREENS)) {

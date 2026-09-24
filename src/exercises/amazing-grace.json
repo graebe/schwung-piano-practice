@@ -1,0 +1,203 @@
+{
+  "id": "amazing-grace",
+  "name": "Amazing Grace",
+  "bpm": 76,
+  "timeSig": [
+    3,
+    4
+  ],
+  "keySig": 0,
+  "events": [
+    {
+      "beat": 2,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 3,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        67,
+        72
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 5.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 3,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        67,
+        72,
+        76
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 3,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        69,
+        72
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 3,
+      "hand": "l",
+      "pitches": [
+        59
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 15,
+      "durBeats": 3,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 15,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        67,
+        72
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 17.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 3,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        71,
+        76
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 3,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 3,
+      "hand": "r",
+      "pitches": [
+        67,
+        72
+      ]
+    }
+  ]
+}

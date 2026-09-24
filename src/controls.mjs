@@ -16,6 +16,7 @@
 
 /* Views, mirrored from ui.js. */
 export const MENU = 'menu';
+export const LEVEL = 'level';
 export const READY = 'ready';
 export const RUNNING = 'running';
 export const SUMMARY = 'summary';
@@ -50,7 +51,10 @@ export function pulsePhase(nowMs, periodMs = PULSE_MS) {
  * Whatever else changes here, READY must never be OFF for either: that was the
  * shipped bug this module exists to prevent, and both tests below guard it.
  */
-export function playLedColor(view, phase, listening = false) {
+export function playLedColor(view, phase, listening = false, paused = false) {
+  /* Paused pulses: the button is the way out of the state it put you in, and
+   * a steady light there says "running" when nothing is running. */
+  if (view === RUNNING && paused) return listening ? (phase ? GREEN : GREEN_DIM) : GREEN_DIM;
   if (view === RUNNING) return listening ? GREEN : GREEN_DIM;
   /* Steady in a quiz: it sounds the prompt, and nothing there is urgent. Both
    * buttons used to fall through to OFF here, so two live controls sat dark. */
@@ -59,7 +63,9 @@ export function playLedColor(view, phase, listening = false) {
   return OFF;
 }
 
-export function recordLedColor(view, listening = false, phase = 1, hintExhausted = false) {
+export function recordLedColor(view, listening = false, phase = 1, hintExhausted = false,
+                               paused = false) {
+  if (view === RUNNING && paused) return listening ? RED_DIM : (phase ? RED : RED_DIM);
   if (view === RUNNING) return listening ? RED_DIM : RED;
   /* In a quiz Record is the help button, and it dims once the ladder is used
    * up — so the button itself says whether there is more help to be had. */
@@ -81,10 +87,13 @@ export function recordLedColor(view, listening = false, phase = 1, hintExhausted
  *
  * The move clamps rather than wraps: on a short list, wrapping from the last
  * entry back to the first feels like a misfire.
+ *
+ * LEVEL is a list like any other — the four rungs of one song's ladder — so it
+ * moves a highlight here and opens on a click below.
  */
 export function jogAction(view, delta, index, count) {
   if (count <= 0) return { action: 'ignore', index };
-  if (view !== MENU && view !== SETTINGS) return { action: 'ignore', index };
+  if (view !== MENU && view !== LEVEL && view !== SETTINGS) return { action: 'ignore', index };
   const next = Math.max(0, Math.min(count - 1, index + (delta > 0 ? 1 : -1)));
   return { action: 'cursor', index: next };
 }
@@ -108,11 +117,14 @@ export function shouldRebuildChart(view, chartSource) {
  * Where a jog click goes. The settings page has nine rows but only four knobs,
  * so the rest are reachable the way Move does it everywhere else: click to
  * enter edit, turn to change, click to leave.
+ *
+ * MENU and LEVEL both answer 'open'; which of the two is on screen decides
+ * whether that opens a song's levels or arms one of them.
  */
 export function jogClickAction(view, shiftHeld, hasChart) {
   if (shiftHeld) return view === SETTINGS ? (hasChart ? 'ready' : 'menu') : 'settings';
   if (view === SETTINGS) return 'toggle-edit';
-  if (view === MENU) return 'open';
+  if (view === MENU || view === LEVEL) return 'open';
   return 'menu';
 }
 

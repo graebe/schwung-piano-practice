@@ -6,6 +6,10 @@
  * There is no directory-listing binding in the host, so the bundled exercises
  * are enumerated by `exercises/index.json`. Drop a file in the folder and add
  * a line to the manifest.
+ *
+ * Each event may carry `hand: "l" | "r"` (default "r"). That tag is not read
+ * while playing — a pad press is a pitch whichever hand made it — it is what
+ * levels.mjs projects the four lesson levels out of.
  */
 
 export const MIN_PITCH = 21;
@@ -50,6 +54,9 @@ export function validateExercise(obj) {
     if (e.durBeats != null && (typeof e.durBeats !== 'number' || e.durBeats <= 0)) {
       errors.push(`${at}.durBeats must be > 0`);
     }
+    if (e.hand != null && e.hand !== 'l' && e.hand !== 'r') {
+      errors.push(`${at}.hand must be "l" or "r"`);
+    }
     if (!Array.isArray(e.pitches) || e.pitches.length === 0) {
       errors.push(`${at}.pitches must be a non-empty array`);
       continue;
@@ -70,6 +77,7 @@ export function normalizeExercise(obj, id) {
     .map((e) => ({
       beat: e.beat,
       durBeats: e.durBeats == null ? 1 : e.durBeats,
+      hand: e.hand === 'l' ? 'l' : 'r',
       pitches: e.pitches.slice().sort((a, b) => a - b),
     }))
     .sort((a, b) => a.beat - b.beat);

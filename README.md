@@ -41,6 +41,9 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   error, read straight off the staff.
 - **Generates its own material.** Scales, intervals, triad progressions and random reading lines in
   any key and mode, seeded so you can re-attempt the exact drill you just fluffed.
+- **Teaches a piece in four steps.** Fourteen public-domain tunes, each arranged for two hands and
+  playable at four levels: right hand alone, left hand alone, right hand with its chords, then both
+  together. Pick the song, then pick the level.
 - **Takes hand-written exercises** as JSON, interchangeable with the generated ones.
 - **Sounds like a piano, with no setup** — the module renders its own polyphonic piano and mixes it
   into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
@@ -50,6 +53,61 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   line whatever your read-ahead, so you can always see what you are being asked for.
 - **Gets out of your way.** Target-pad lighting exists, but it is off by default: this is a reading
   trainer first.
+
+## Levels
+
+Every bundled tune is one file with both hands written into it, and the four levels are cut out of
+that one file. Click a song in the exercise list and you get its ladder:
+
+| | | |
+| --- | --- | --- |
+| **L1** | RH melody | the right hand alone, one note at a time |
+| **L1** | LH bass | the left hand alone — the bass line |
+| **L2** | RH chords | the melody with its chords under it |
+| **L3** | Both hands | the two together |
+
+**All four sit in the same register.** Nothing is transposed between levels, so the pads you learn
+playing the right hand at L1 are the pads you play at L3 — what you learn transfers literally rather
+than by analogy. **Back** from a song returns to its ladder rather than all the way out, because
+having just played the right hand the next thing you want is the left hand of the same piece.
+
+A file with nothing to split — the three technique drills — shows only the levels it actually has,
+and arms straight away if that is one. `Triads I-IV-V-I` keeps two: the top line of its triads is a
+genuinely different exercise from the triads.
+
+### Why the arrangements are in the keys they are
+
+The pads reach **23 semitones**, MIDI 57–79. That is the whole budget, and at L3 both hands have to
+live inside it — there is no second octave to put a bass line in. So the bass is not really a bass:
+it is a tenor line sitting an octave under the tune, which is what 32 pads allow.
+
+It also decides the keys. Twinkle in C puts its top A at MIDI 81, two semitones off the end of the
+grid, so it is in A major here, where it is 78 and the bass gets A3–D4–E4 down at the bottom of the
+grid. Frère Jacques spans a ninth and is in B flat for the same reason. Für Elise is re-barred:
+Beethoven writes sixteenths, a note more than 180 ms late is gone, so every sixteenth is written as
+an eighth and two of his bars make one of these.
+
+The bundled songs, and what their left hand does at L3:
+
+| Song | Key | L3 left hand |
+| --- | --- | --- |
+| Ode to Joy | C | the descending C–B–A–B line; four notes, a step apart |
+| Twinkle | A | root per bar |
+| Marys Lamb | C | one whole note a bar, only ever C4 or G4 — the gentlest L3 here |
+| Frere Jacques | B♭ | a tonic pedal for four bars before it moves at all |
+| Jingle Bells | A | oom-pah, root then fifth |
+| Greensleeves | Am | broken chord, one note per dotted beat |
+| Fur Elise | Am | his A–E–A figure, thinned to two notes a bar |
+| Minuet in G | G | Petzold's walking line, every G taken over B |
+| Amazing Grace | C | root per bar, I–IV–V |
+| Scarborough | A dorian | a walking line rather than a set of anchors |
+| Rising Sun | Am | six eighths a bar, arpeggiated — the riff *is* the song |
+| The Saints | C | oom-pah, I–IV–V |
+| Auld Lang Syne | A | root and fifth, a half-bar each |
+| Korobeiniki | Am | a driving crotchet root, four to the bar |
+
+Marys Lamb, Frere Jacques and The Saints are the easy end of L3; Fur Elise, Rising Sun and the
+Minuet the hard end.
 
 ## Note guesser and ear training
 
@@ -205,18 +263,25 @@ Four beats count you in, counted down on screen.
 
 | Control | Does |
 | --- | --- |
-| **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored |
-| **Record** | **practice** — you play it, it scores you |
+| **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored. Press it again to **pause where you are**; again to carry on from wherever you have scrubbed to |
+| **Record** | **practice** — you play it, it scores you. Pauses and resumes the same way |
 | **Jog turn** | moves the highlight in the exercise list and in settings, and does nothing anywhere else — a knock cannot change what you are playing. To pick something else, Back to the list first |
-| **Jog click** | open the list / pick an exercise; in settings, edit the selected row |
+| **Jog click** | open the list / pick an exercise; on a song, open its levels; in settings, edit the selected row |
 | **Menu** | open the exercise list |
 | **Shift + jog click** | settings |
-| **Back** | up a level, then out of the module |
+| **Back** | from a running exercise, **restart it**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
-| **Knob 1** | tempo, 40–200 |
-| **Knob 2** | read ahead — pixels per beat, 12–48 |
-| **Knob 3** | key |
-| **Knob 4** | octave |
+| **Knob 1** | **scrub** — about half a turn per bar, deliberately slow. Works while playing and while paused, so you can drop on a bar and take it again |
+| **Knob 8** | tempo, 40–200 |
+
+The knobs mean different things in different places, and **only Settings changes settings**: in an
+exercise they are the two above, in Settings they are the four rows on screen, and everywhere else
+they do nothing. **Touching** a knob in Settings moves the cursor to the row it edits, so the
+mapping is something you find rather than memorise.
+
+Scrubbing backward puts the notes you pass back, so the bar can be played again. Hits and misses
+already counted stay counted — a run you have scrubbed around in has no meaningful score, and songs
+show no scorecard.
 
 Changing tempo, key or octave rebuilds the armed exercise straight away, so the staff always shows
 what you have dialled in. Hand-written exercises are left alone — they are fixed notes, not a recipe
@@ -241,7 +306,7 @@ shortcuts to the first four.
 | Click | on | MIDI metronome (see the caveat above) |
 | Reference | **on** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along. Off for unaided reading |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
-| Grace | **1** | how late you may be before the scroll stops and waits, in beats, so the tolerance scales with tempo. A beat is 750 ms at 80bpm — long enough to find the key. Raise it to 2 or 4 while a piece is new; drop it to 1/4 once the rhythm is the point. Never shorter than the 180 ms scoring window |
+| Grace | **1** | how late you may play a note and still be scored in time, in beats, so the tolerance scales with tempo. A beat is 750 ms at 80bpm — long enough to find the key. Raise it to 2 or 4 while a piece is new; drop it to 1/4 once the rhythm is the point. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself, so you can see what is being asked for. Play later than Grace and the scroll still releases — it just scores a miss |
 | Count in | 4 | beats before the first note |
 | MIDI ch | 1 | which channel the Move track listens on |
 
@@ -258,12 +323,26 @@ directory-listing call in the host, which is why the manifest exists.
   "timeSig": [4, 4],
   "keySig": -1,
   "events": [
-    { "beat": 0, "durBeats": 1, "pitches": [65] },
-    { "beat": 1, "durBeats": 1, "pitches": [69] },
-    { "beat": 2, "durBeats": 2, "pitches": [65, 69, 72] }
+    { "beat": 0, "durBeats": 4, "hand": "l", "pitches": [53] },
+    { "beat": 0, "durBeats": 1, "hand": "r", "pitches": [65] },
+    { "beat": 1, "durBeats": 1, "hand": "r", "pitches": [69] },
+    { "beat": 2, "durBeats": 2, "hand": "r", "pitches": [65, 69, 72] }
   ]
 }
 ```
+
+`hand` is `"l"` or `"r"`, and defaults to `"r"` — so a melody-only file written before this existed
+still reads, and simply offers one level. Tag both hands and you get all four for free: the right
+hand's top note is L1, the left hand is L1 LH, the right hand as written is L2, and everything
+together is L3. Nothing is transposed between them.
+
+Two events on the same beat become one at L3, which is what lets a held bass note sit under several
+melody notes. The merged event takes the longer duration, so in **Listen** a melody note under a
+held bass note rings as long as the bass note does — inaudible on a decaying piano, and the only
+thing the merge gives up.
+
+Write the file in beat order, both hands interleaved. Beats must run forwards; two events may share
+a beat.
 
 `keySig` is the signature in fifths (`-1` = F major, `2` = D major). It sets how black notes are
 **spelled** — sharp keys read `A#`, flat keys read `Bb`. No key signature is drawn on the staff:
@@ -283,9 +362,17 @@ sixteenths at anything past walking pace a losing fight; write them as eighths a
 
 Keep every pitch between **57 and 79 (A3–G5)**. That is what the 32 pads reach at the default
 octave, so a piece inside it plays without ever touching the octave knob, and it sits inside the
-staff's A3–C6 window too. The bundled tunes — Ode to Joy, Twinkle, Mary Had a Lamb, Frere
-Jacques, Jingle Bells, Greensleeves, Fur Elise and a Minuet in G — are all transcribed to fit it,
-melody only apart from a few block chords at the cadences.
+staff's A3–C6 window too.
+
+With two hands that budget is the whole design, not a guideline: 23 semitones is barely two octaves,
+and at L3 the bass line and the tune share it. In practice the left hand lives around 57–67 and the
+right around 64–79, they may meet in the middle, and **they must never cross** — on one staff a
+crossed voice reads as a mistake rather than as counterpoint. `npm test` asserts all of this for
+every bundled song at every level, which is what stops a comfortable-looking arrangement shipping
+with a bass note no pad can play.
+
+The fourteen bundled tunes are all public-domain melodies transcribed to fit, with harmonisations
+written for this module.
 
 ## Development
 
