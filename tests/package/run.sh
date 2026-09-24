@@ -24,8 +24,14 @@ node -e '
 '
 
 test -f src/ui.js
-test -f src/dsp/piano.c
 test -f src/vendor/host/plugin_api_v1.h
+
+# The DSP is Rust. The reusable half must stay separable from the synth — that
+# split is what makes the next module an impl rather than a copy.
+test -f dsp/Cargo.toml
+test -f dsp/schwung-plugin/src/lib.rs
+test -f dsp/piano/src/lib.rs
+! grep -rq 'unsafe' dsp/piano/src/   # every FFI hazard lives in schwung-plugin
 test -f Dockerfile
 test -f src/module.json
 test -f src/help.json
@@ -41,8 +47,16 @@ test -f tests/ui_smoke.test.mjs   # ui.js must be executed by the suite, not onl
 for mod in src/*.mjs tools/*.mjs; do node --check "$mod"; done
 sh -n scripts/package.sh scripts/install.sh scripts/verify-package.sh scripts/build.sh scripts/build-dsp.sh
 
-# The shipped binary must be for the Move, not the machine that built it.
+# The shipped binary must be for the Move, not the machine that built it —
+# and must not out-run the device's glibc or balloon in size. Each of these is
+# a guard whose absence is invisible until a device refuses to load the module.
 grep -q 'ARM aarch64' scripts/build-dsp.sh
+grep -q 'GLIBC_MAX' scripts/build-dsp.sh
+grep -q 'SIZE_MAX' scripts/build-dsp.sh
+
+# A Rust panic must abort, never unwind out through extern "C".
+grep -q 'panic = "abort"' dsp/Cargo.toml
+grep -q 'clippy::indexing_slicing' dsp/piano/src/lib.rs
 if [ -f dist/dsp.so ]; then
   file dist/dsp.so | grep -q 'ARM aarch64' || { echo "dist/dsp.so is not aarch64" >&2; exit 1; }
 fi

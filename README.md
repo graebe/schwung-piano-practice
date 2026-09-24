@@ -152,9 +152,9 @@ schwung-manager.
 ## Hearing it
 
 **The module has its own piano, and it is the default.** Nothing has to be set up: no Move track, no
-instrument loaded on it, no MIDI channel to match. It is rendered by `src/dsp/piano.c` in the
-overtake generator slot and *mixed into* Move's audio, so it plays alongside whatever else is going
-on rather than replacing it.
+instrument loaded on it, no MIDI channel to match. It is rendered by the Rust engine in `dsp/` in
+the overtake generator slot and *mixed into* Move's audio, so it plays alongside whatever else is
+going on rather than replacing it.
 
 It is a synthesised piano, not a recorded one. Each voice is a small stack of partials whose higher
 ones decay faster — that property, more than the waveform, is what the ear reads as a struck,
@@ -289,9 +289,38 @@ melody only apart from a few block chords at the cadences.
 ## Development
 
 ```sh
-npm test              # unit, rendering, contract and package tests — no Move needed
+npm test              # everything below, in order — no Move needed
 npm run preview       # dump the screens as ASCII art in the terminal
 ```
+
+| | |
+| --- | --- |
+| `test:js` | unit, rendering, contract and layout tests for the JavaScript |
+| `test:dsp` | `tests/dsp/test_piano.c` against the engine, through the C ABI the Move calls |
+| `test:ab` | the Rust engine against the C, sample by sample |
+| `test:rust` | the Rust unit tests (`cargo test --no-default-features`) |
+| `test:package` | what the tarball must contain and what the install must not destroy |
+
+### The DSP
+
+The piano is Rust, in `dsp/`, as two crates: `schwung-plugin` — the reusable Schwung plugin-API
+binding, where every FFI hazard is paid for once — and `piano`, the synth, which contains no
+`unsafe` at all.
+
+It is `no_std` over libc. Not for elegance: the Move runs **glibc 2.35** and the build image is
+Debian bookworm at **2.36**, so `std` could reference a symbol that links here and fails to load
+there. `no_std` removes the hazard instead of guarding it — the shipped object needs only
+`GLIBC_2.17` and `libc.so.6`, and comes to 67KB. `scripts/build-dsp.sh` refuses any build that is
+not aarch64, needs a glibc above the ceiling, or has ballooned in size.
+
+`panic = "abort"`, a `#[panic_handler]` that calls `abort()`, and
+`#![deny(clippy::indexing_slicing, unwrap_used, expect_used, panic)]` on both crates. `render_block`
+runs on the SPI callback: unwinding out through `extern "C"` is undefined behaviour and a fault
+there takes Move's firmware down with it, so a Rust panic has to be unreachable rather than merely
+unlikely.
+
+Building it needs Docker (or a local `aarch64-unknown-linux-gnu` Rust toolchain plus
+`aarch64-linux-gnu-gcc` as its linker); `scripts/build.sh` picks whichever is present.
 
 `tools/preview.mjs` renders the real drawing code into a 128×64 byte buffer and prints it. Because
 every frame is a pure function of `(chart, run, songBeats)`, any instant of any exercise can be
