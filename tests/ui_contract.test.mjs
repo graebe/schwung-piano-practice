@@ -515,3 +515,20 @@ test('the lit pad is the question, so pressing pads does not answer it', () => {
   assert.match(fn, /quizPick/);
   assert.doesNotMatch(fn, /settings\.guidance/, 'the question is not a hint');
 });
+
+test('Record is the help button in a quiz, and no longer skips the question', () => {
+  const rec = code.match(/if \(d1 === CC_RECORD\) \{([\s\S]*?)\n  \}/)[1];
+  assert.match(rec, /view === GUESS_VIEW[\s\S]{0,60}takeHint\(\)/);
+  assert.doesNotMatch(rec, /GUESS\.nextPrompt/, 'skipping was dropped when help took the button');
+});
+
+test('the top rung lights the pads, and only there', () => {
+  const fn = code.match(/function collectPrompt\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(fn, /quiz\.hint < GUESS\.MAX_HINT/, 'below the top rung the pads stay dark');
+  assert.match(fn, /quizPick/, 'except in the picking drill, where the pad is the question');
+});
+
+test('hints are recorded, so the score does not quietly overstate the round', () => {
+  assert.match(code, /hints: quiz\.hintsUsed/);
+  assert.match(code, /GUESS\.hintsLeft\(quiz\)/);
+});

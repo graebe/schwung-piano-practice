@@ -6,6 +6,7 @@ import {
   NOTES, CHORDS, TRIADS, TYPES, CORRECT, WRONG, INCOMPLETE,
   roundComplete, roundElapsed, roundProgress,
   moveChoice, pickChoice, optionLabel, PICK_COUNT,
+  takeHint, hintsLeft, isEliminated, MAX_HINT,
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
@@ -437,4 +438,77 @@ test('chord options are the chord symbols, not lists of note names', () => {
     assert.ok(c.label && !c.label.includes(' '), `${c.label} looks like a note list`);
   }
   assert.ok(q.prompt.length >= 3, 'and several pads light at once');
+});
+
+/* ---- Help -------------------------------------------------------------------- */
+
+test('the ladder climbs twice and then stops', () => {
+  const q = notesQuiz();
+  assert.equal(hintsLeft(q), MAX_HINT);
+  assert.equal(takeHint(q, q.rand), 1);
+  assert.equal(takeHint(q, q.rand), 2);
+  assert.equal(takeHint(q, q.rand), 2, 'a third press changes nothing');
+  assert.equal(hintsLeft(q), 0);
+});
+
+test('a third press does not inflate the count', () => {
+  const q = notesQuiz();
+  for (let i = 0; i < 6; i++) takeHint(q, q.rand);
+  assert.equal(q.hintsUsed, MAX_HINT, 'only the rungs actually climbed are counted');
+});
+
+test('the ladder resets per prompt but the tally does not', () => {
+  const q = notesQuiz();
+  takeHint(q, q.rand);
+  takeHint(q, q.rand);
+  nextPrompt(q);
+  assert.equal(q.hint, 0, 'a new question starts unaided');
+  assert.equal(hintsLeft(q), MAX_HINT);
+  assert.equal(q.hintsUsed, 2, 'but the round remembers');
+});
+
+test('a hinted answer still counts and keeps the streak', () => {
+  /* A hint you are afraid to use is a hint that does not help you learn. */
+  const q = notesQuiz();
+  pressPitch(q, q.prompt[0], 100);
+  releasePitch(q, q.prompt[0]);
+  nextPrompt(q);
+  takeHint(q, q.rand);
+  pressPitch(q, q.prompt[0], 200);
+  assert.equal(q.correct, 2);
+  assert.equal(quizStats(q).streak, 2, 'the streak survives asking for help');
+});
+
+test('a hint in the picking drill strikes out a wrong option, never the right one', () => {
+  for (let seed = 1; seed < 12; seed++) {
+    const q = createQuiz({ kind: NOTES, halfTones: true, pick: true, seed });
+    const answer = q.choices.indexOf(q.entry);
+    takeHint(q, q.rand);
+    assert.equal(q.eliminated.length, 1);
+    assert.ok(!isEliminated(q, answer), 'the answer must never be struck out');
+    takeHint(q, q.rand);
+    assert.equal(q.eliminated.length, 2);
+    assert.ok(!isEliminated(q, answer));
+    /* Two rungs on three options leaves exactly the right one standing. */
+    let standing = 0;
+    for (let i = 0; i < q.choices.length; i++) if (!isEliminated(q, i)) standing++;
+    assert.equal(standing, 1);
+  }
+});
+
+test('the cursor cannot rest on a struck-out option', () => {
+  const q = createQuiz({ kind: NOTES, halfTones: true, pick: true, seed: 4 });
+  takeHint(q, q.rand);
+  for (let i = 0; i < 12; i++) {
+    moveChoice(q, i % 2 ? 1 : -1);
+    assert.ok(!isEliminated(q, q.choiceIndex), 'landing on it would make the hint pointless');
+  }
+});
+
+test('the picking ladder ends with the answer selectable and correct', () => {
+  const q = createQuiz({ kind: NOTES, halfTones: true, pick: true, seed: 6 });
+  takeHint(q, q.rand);
+  takeHint(q, q.rand);
+  moveChoice(q, 1);
+  assert.equal(pickChoice(q, 1000), CORRECT);
 });

@@ -20,6 +20,7 @@ export const CHORDS = 'chords';
 
 /* Which chords the chord drill asks for. */
 export const PICK_COUNT = 3;      /* options in the multiple-choice mode */
+export const MAX_HINT = 2;        /* rungs on the help ladder */
 
 export const TRIADS = 'triads';   /* diatonic triads on scale degrees */
 export const TYPES = 'types';     /* a quality chosen deliberately: dim, sus, 7ths... */
@@ -128,6 +129,9 @@ export function createQuiz({
     entry: null,        /* the pool entry behind the current prompt */
     choices: [],        /* the options offered, when picking */
     choiceIndex: 0,
+    eliminated: [],     /* options a hint has struck out */
+    hint: 0,            /* rungs taken on this prompt */
+    hintsUsed: 0,       /* across the round, for the record */
     held: [],
     asked: 0,
     correct: 0,
@@ -177,6 +181,8 @@ export function nextPrompt(quiz) {
   quiz.held = [];
   quiz.solved = false;
   quiz.penalised = false;
+  quiz.hint = 0;
+  quiz.eliminated = [];
   quiz.asked++;
   return quiz.prompt;
 }
@@ -284,11 +290,21 @@ export function optionLabel(quiz, entry) {
   return entry.label || labelFor(quiz, entry.pitches);
 }
 
+export function isEliminated(quiz, index) {
+  return quiz.eliminated.indexOf(index) >= 0;
+}
+
+/* Skips anything a hint has struck out — landing on a crossed-out option and
+ * being allowed to pick it would make the hint pointless. */
 export function moveChoice(quiz, delta, nowMs = 0) {
   if (quiz.startedAt === null && nowMs) quiz.startedAt = nowMs;
-  if (!quiz.choices.length) return quiz.choiceIndex;
   const n = quiz.choices.length;
-  quiz.choiceIndex = ((quiz.choiceIndex + (delta > 0 ? 1 : -1)) % n + n) % n;
+  if (!n) return quiz.choiceIndex;
+  const step = delta > 0 ? 1 : -1;
+  for (let i = 0; i < n; i++) {
+    quiz.choiceIndex = ((quiz.choiceIndex + step) % n + n) % n;
+    if (!isEliminated(quiz, quiz.choiceIndex)) break;
+  }
   return quiz.choiceIndex;
 }
 
@@ -319,4 +335,47 @@ export function pickChoice(quiz, nowMs = 0) {
     quiz.streak = 0;
   }
   return WRONG;
+}
+
+/* ---- Help -------------------------------------------------------------------- */
+/*
+ * Two rungs, and what each does depends on what the drill is withholding:
+ *
+ *   hearing   1: show the name it would normally show   2: light the pads
+ *   reading   1: sound the notes                        2: light the pads
+ *   picking   1: strike out one wrong option            2: strike out the other
+ *
+ * The picking ladder is the same escalation in that mode's terms: its level 2
+ * leaves one option standing, which is what "show me the answer" means there.
+ *
+ * A hinted answer still counts and keeps the streak — a hint you are afraid to
+ * use is a hint that does not help you learn — but they are counted and shown,
+ * so the score does not quietly overstate how you did.
+ */
+export function takeHint(quiz, rand) {
+  if (quiz.hint >= MAX_HINT) return quiz.hint;
+  quiz.hint++;
+  quiz.hintsUsed++;
+
+  if (quiz.pick) eliminateOne(quiz, rand);
+  return quiz.hint;
+}
+
+export function hintsLeft(quiz) {
+  return MAX_HINT - quiz.hint;
+}
+
+/* Strike out a wrong option, never the right one. */
+function eliminateOne(quiz, rand) {
+  const wrong = [];
+  for (let i = 0; i < quiz.choices.length; i++) {
+    if (quiz.choices[i] === quiz.entry) continue;
+    if (isEliminated(quiz, i)) continue;
+    wrong.push(i);
+  }
+  if (!wrong.length) return;
+  const at = wrong[Math.floor((rand ? rand() : Math.random()) * wrong.length)];
+  quiz.eliminated.push(at);
+  /* If the cursor was sitting on it, move off. */
+  if (quiz.choiceIndex === at) moveChoice(quiz, 1);
 }

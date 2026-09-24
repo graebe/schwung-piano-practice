@@ -20,6 +20,7 @@ export const READY = 'ready';
 export const RUNNING = 'running';
 export const SUMMARY = 'summary';
 export const SETTINGS = 'settings';
+export const GUESS = 'guess';
 
 /* Palette indices (src/shared/constants.mjs). */
 export const OFF = 0;
@@ -51,12 +52,18 @@ export function pulsePhase(nowMs, periodMs = PULSE_MS) {
  */
 export function playLedColor(view, phase, listening = false) {
   if (view === RUNNING) return listening ? GREEN : GREEN_DIM;
+  /* Steady in a quiz: it sounds the prompt, and nothing there is urgent. Both
+   * buttons used to fall through to OFF here, so two live controls sat dark. */
+  if (view === GUESS) return GREEN;
   if (view === READY || view === SUMMARY) return phase ? GREEN : GREEN_DIM;
   return OFF;
 }
 
-export function recordLedColor(view, listening = false, phase = 1) {
+export function recordLedColor(view, listening = false, phase = 1, hintExhausted = false) {
   if (view === RUNNING) return listening ? RED_DIM : RED;
+  /* In a quiz Record is the help button, and it dims once the ladder is used
+   * up — so the button itself says whether there is more help to be had. */
+  if (view === GUESS) return hintExhausted ? RED_DIM : RED;
   if (view === READY || view === SUMMARY) return phase ? RED : RED_DIM;
   return OFF;
 }

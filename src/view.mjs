@@ -225,6 +225,12 @@ export function drawGuessView(ctx, state) {
    * as "yes" without costing a pause. */
   if (state.hidden) {
     drawCentreCallout(ctx, '?', 4);
+    /* A hint names it without giving back the notation: you asked what it was,
+     * not to be shown the staff. */
+    if (state.hint > 0) {
+      const named = state.label || chordLabel(prompt, fifths);
+      if (named) ctx.text((L.SCREEN_W - ctx.textWidth(named)) >> 1, L.NAME_LANE_Y, named, 1);
+    }
     if (state.footer) drawFooterHint(ctx, state.footer);
     return ctx;
   }
@@ -293,7 +299,8 @@ export function drawRoundResult(ctx, state) {
 
   const secs = (state.ms / 1000).toFixed(1) + 's';
   ctx.text(4, 36, state.n + ' in ' + secs, 1);
-  ctx.text(4, 45, 'wrong ' + state.wrong + '   streak ' + state.bestStreak, 1);
+  ctx.text(4, 45, 'wrong ' + state.wrong + '   streak ' + state.bestStreak
+    + (state.hints ? '   hints ' + state.hints : ''), 1);
 
   const note = state.isBest ? 'best yet' : 'best ' + Math.round(state.best) + '/min';
   ctx.text(L.SCREEN_W - ctx.textWidth(note) - 3, 45, note, 1);
@@ -372,12 +379,16 @@ export function drawPick(ctx, state) {
     const text = options[i];
     const tw = ctx.textWidth(text);
     const x = (L.SCREEN_W - tw) >> 1;
+    const struck = state.eliminated && state.eliminated.indexOf(i) >= 0;
     if (selected) {
       ctx.fillRect(x - 5, y - 2, tw + 10, rowH - 1, 1);
       ctx.text(x, y, text, 0);
     } else {
       ctx.text(x, y, text, 1);
     }
+    /* A hint strikes an option through rather than removing it: the list
+     * keeps its shape, so the remaining choice does not jump under your hand. */
+    if (struck) ctx.fillRect(x - 3, y + 3, tw + 6, 1, selected ? 0 : 1);
   }
 
   if (state.footer) drawFooterHint(ctx, state.footer);

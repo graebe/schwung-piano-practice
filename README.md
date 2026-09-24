@@ -79,7 +79,20 @@ It is the only drill that goes pad → name, and the only one you can do without
 and the staff shows a `?` until you get it right, then reveals what it was — which is where the
 teaching is. **Play** repeats it.
 
-**Play** sounds the answer, **Record** skips it, **Back** returns to the list.
+**Play** sounds the prompt. **Record** is help, two presses deep, and what each press does depends
+on what the drill is withholding:
+
+| | first press | second press |
+| --- | --- | --- |
+| **Hear** | names it, staff still hidden | lights the pads |
+| **Guess** | sounds the notes | lights the pads |
+| **Pick** | strikes out one wrong option | strikes out the other |
+
+A hinted answer still counts and keeps your streak — a hint you are afraid to use is a hint that
+does not help you learn — but the round records how many you took, and the result screen shows it.
+Record dims once the help is used up, so the button itself tells you whether there is more.
+
+**Back** returns to the list.
 
 **The answer is never lit on the pads**, not even with **Guide pads** on. That setting is a playing
 aid for the reading mode, where the music is moving and a hint keeps you with it; in a quiz the hint

@@ -551,7 +551,7 @@ function finishRound() {
   const drill = currentDrill();
   const ms = GUESS.roundElapsed(quiz, now());
   const rec = STATS.makeRecord({
-    drill, n: quiz.correct, ms, wrong: quiz.wrong, at: Date.now(),
+    drill, n: quiz.correct, ms, wrong: quiz.wrong, hints: quiz.hintsUsed, at: Date.now(),
   });
   const best = STATS.summarise(STATS.forDrill(stats, drill)).best;
   lastResult = {
@@ -560,6 +560,7 @@ function finishRound() {
     ms,
     n: quiz.correct,
     wrong: quiz.wrong,
+    hints: quiz.hintsUsed,
     bestStreak: quiz.bestStreak,
     isBest: STATS.isPersonalBest(stats, rec),
     best,
@@ -739,7 +740,10 @@ const promptBuf = [];
 
 function collectPrompt() {
   promptBuf.length = 0;
-  if (!quizPick || !quiz || view !== GUESS_VIEW) return;
+  if (!quiz || view !== GUESS_VIEW) return;
+  /* Lit always in the picking drill, where the pad IS the question; and in the
+   * others only once you have climbed to the top of the help ladder. */
+  if (!quizPick && quiz.hint < GUESS.MAX_HINT) return;
   for (let i = 0; i < quiz.prompt.length; i++) promptBuf.push(quiz.prompt[i]);
 }
 
@@ -800,8 +804,10 @@ function paintPads() {
   /* The Play button is the only thing that starts a run, so in READY it has to
    * say so by itself — it pulses. This was once `view === RUNNING ? 127 : 0`,
    * i.e. dark in exactly the state that needs it lit. */
-  setButtonLED(CC_PLAY, CTRL.playLedColor(view, ledPhase, listening));
-  setButtonLED(CC_RECORD, CTRL.recordLedColor(view, listening, ledPhase));
+  const ledView = view === GUESS_VIEW ? CTRL.GUESS : view;
+  setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, listening));
+  setButtonLED(CC_RECORD, CTRL.recordLedColor(ledView, listening, ledPhase,
+    Boolean(quiz && GUESS.hintsLeft(quiz) === 0)));
 }
 
 /* ---- Metronome and listen playback -------------------------------------- */
@@ -853,6 +859,25 @@ function serviceReference() {
 }
 
 /* Play the prompt so you can hear what you are hunting for. */
+/*
+ * Help, a rung at a time. What each rung does depends on what the drill is
+ * withholding — see takeHint in guess.mjs. The count is kept and shown; a hint
+ * you are afraid to use is a hint that does not help you learn.
+ */
+function takeHint() {
+  if (!quiz || quiz.solved) return;
+  const before = quiz.hint;
+  const level = GUESS.takeHint(quiz, quiz.rand);
+  if (level === before) return;         /* ladder already used up */
+
+  /* Reading: rung one sounds it. Hearing withholds the name, so rung one is
+   * purely what the screen now shows. Picking strikes an option, done above. */
+  if (level === 1 && !quizHear && !quizPick) hearPrompt();
+
+  dirty = true;
+  ledDirty = true;
+}
+
 function hearPrompt() {
   if (!quiz || !quiz.prompt.length) return;
   const until = now() + 900;
@@ -926,8 +951,11 @@ function draw() {
         : String(GUESS.quizStats(quiz).correct),
       options: quiz.choices.map((c) => GUESS.optionLabel(quiz, c)),
       index: quiz.choiceIndex,
+      eliminated: quiz.eliminated,
       hint: quiz.solved ? 'right' : 'which pad is lit?',
-      footer: 'jog choose   click answer',
+      footer: GUESS.hintsLeft(quiz)
+        ? 'jog choose   REC help'
+        : 'jog choose   click answer',
     });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
@@ -936,12 +964,15 @@ function draw() {
       fifths: keyFifths(),
       solved: quiz.solved,
       hidden: quizHear && !quiz.solved,
+      hint: quiz.hint,
       label: quiz.label,
       title: quizHear ? 'HEAR' : (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE'),
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : st.correct + '/' + st.asked,
-      footer: 'streak ' + st.streak + (quizHear ? '   PLAY again' : '   PLAY hear'),
+      footer: GUESS.hintsLeft(quiz)
+        ? 'streak ' + st.streak + '   REC help'
+        : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
     });
   } else if (view === SUMMARY) {
     VIEW.drawSummary(ctx, chart, run);
@@ -1305,11 +1336,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       return;
     }
     if (view === GUESS_VIEW) {
-      GUESS.nextPrompt(quiz);
-      quizSolvedAt = 0;
-      dirty = true;
-      ledDirty = true;
-      if (quizHear) hearPrompt();
+      takeHint();
       return;
     }
     if (view === RUNNING && !listening) stopRun();

@@ -80,7 +80,7 @@
         "do without playing.",
         "",
         "PLAY   hear it",
-        "REC    skip it",
+        "REC    help, twice",
         "BACK   back to the list",
         "",
         "Half tones adds the black",
@@ -101,7 +101,21 @@
         "The answer is never lit",
         "on the pads. Guide pads is",
         "a playing aid, not a",
-        "hint for a quiz."
+        "hint for a quiz.",
+        "",
+        "REC gives help, two",
+        "presses deep. Hearing:",
+        "names it, then lights the",
+        "pads. Reading: sounds it,",
+        "then lights the pads.",
+        "Picking: strikes out one",
+        "wrong option, then the",
+        "other.",
+        "",
+        "Hinted answers still count",
+        "and keep the streak, but",
+        "the round records how many",
+        "you took."
       ]
     },
     {

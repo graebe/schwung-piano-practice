@@ -1172,3 +1172,31 @@ test('a long chord symbol still fits on its line', () => {
   }
   assert.ok(countOn(c, 0, 18, W, 38) > 40, 'the options should actually be drawn');
 });
+
+test('a struck-out option is marked but stays in place', () => {
+  const plain = createScreen();
+  V.drawPick(plain, { options: ['Gaug', 'Gdim', 'G'], index: 0 });
+  const struck = createScreen();
+  V.drawPick(struck, { options: ['Gaug', 'Gdim', 'G'], index: 0, eliminated: [1] });
+  assert.notEqual(plain.pixels.join(''), struck.pixels.join(''));
+  /* The list keeps its shape, so the remaining option does not jump. */
+  assert.ok(countOn(struck, 0, 21, W, 10) > 0, 'the first option is still there');
+  assert.ok(countOn(struck, 0, 43, W, 10) > 0, 'and so is the third');
+});
+
+test('hearing mode names the note once a hint is taken, keeping the staff hidden', () => {
+  const none = createScreen();
+  V.drawGuessView(none, { prompt: [65], fifths: 0, hidden: true, hint: 0 });
+  const hinted = createScreen();
+  V.drawGuessView(hinted, { prompt: [65], fifths: 0, hidden: true, hint: 1 });
+  assert.ok(countOn(hinted, 0, L.NAME_LANE_Y, W, 8) > countOn(none, 0, L.NAME_LANE_Y, W, 8),
+    'the name should appear');
+  /* But the notation stays withheld — you asked what it was, not to be shown.
+   * Compared whole-area rather than by probing a point: the "?" callout sits
+   * over the staff and would be mistaken for a notehead. */
+  for (let y = L.STAFF_AREA_TOP_Y; y <= L.STAFF_AREA_BOTTOM_Y; y++) {
+    for (let x = 0; x < W; x++) {
+      assert.equal(isOn(hinted, x, y), isOn(none, x, y), `staff differs at ${x},${y}`);
+    }
+  }
+});

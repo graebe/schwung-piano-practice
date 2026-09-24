@@ -14,7 +14,7 @@ import {
   MENU, READY, RUNNING, SUMMARY, SETTINGS,
   OFF, GREEN, GREEN_DIM, RED, RED_DIM, PULSE_MS,
   pulsePhase, playLedColor, recordLedColor,
-  jogAction, jogClickAction, shouldRebuildChart, countInRemaining,
+  jogAction, jogClickAction, shouldRebuildChart, countInRemaining, GUESS,
   referenceVelocity, referenceAudible,
 } from '../src/controls.mjs';
 
@@ -215,4 +215,23 @@ test('nothing sounds during the count-in', () => {
   assert.equal(referenceAudible(0, false, true), true);
   assert.equal(referenceAudible(1, false, false), false, 'off is off');
   assert.equal(referenceAudible(1, true, false), true, 'Listen overrides the setting');
+});
+
+test('both buttons are live in a quiz — they used to fall through to dark', () => {
+  /* playLedColor and recordLedColor only answered for RUNNING, READY and
+   * SUMMARY, so in a quiz two working controls sat unlit. */
+  for (const phase of [0, 1]) {
+    assert.notEqual(playLedColor(GUESS, phase), OFF, 'Play sounds the prompt there');
+    assert.notEqual(recordLedColor(GUESS, false, phase, false), OFF, 'Record is the help button');
+  }
+});
+
+test('neither pulses in a quiz — nothing there is urgent', () => {
+  assert.equal(playLedColor(GUESS, 0), playLedColor(GUESS, 1));
+  assert.equal(recordLedColor(GUESS, false, 0, false), recordLedColor(GUESS, false, 1, false));
+});
+
+test('Record dims once the help is used up, so the button says so', () => {
+  assert.notEqual(recordLedColor(GUESS, false, 1, true), recordLedColor(GUESS, false, 1, false));
+  assert.notEqual(recordLedColor(GUESS, false, 1, true), OFF, 'dim, not dark');
 });
