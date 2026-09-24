@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = ["schwung-plugin", "piano"]
+
+# panic = "abort" is not a size preference. render_block runs ON THE SPI
+# CALLBACK, and unwinding across an `extern "C"` boundary is undefined
+# behaviour; a fault there takes MoveOriginal with it and boot-loops the
+# device. Aborting is the honest failure. It must be set on BOTH profiles —
+# the dev profile builds the host library the C test suite links against, and
+# a test binary that unwinds is testing something we do not ship.
+[profile.release]
+panic = "abort"
+lto = true
+codegen-units = 1
+# opt-level 3 rather than "z": this is a realtime audio path and the C it
+# replaces is -O2. no_std already keeps the artifact small.
+opt-level = 3
+# Explicitly none. Cargo defaults release to strip = "debuginfo", which shells
+# out to rust-objcopy — one more toolchain that has to be present and working.
+# build-dsp.sh strips with the cross binutils the image already carries.
+strip = "none"
+
+[profile.dev]
+panic = "abort"

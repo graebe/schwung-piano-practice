@@ -1,0 +1,17 @@
+[package]
+name = "schwung-plugin"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Rust bindings for Schwung's native DSP plugin API (v2)."
+
+[features]
+# The freestanding runtime: the global allocator and the panic handler.
+# On for the shipped cdylib; OFF when a dependent is built as a `cargo test`
+# binary, because std supplies both and two panic handlers is a link error.
+# It cannot be `#[cfg(not(test))]` — a dependency is not compiled under the
+# dependent's test cfg, so the crate under test would still bring its own.
+default = ["rt"]
+rt = []
+
+[dependencies]

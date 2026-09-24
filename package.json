@@ -4,11 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "npm run test:js && npm run test:dsp && npm run test:package",
+    "test": "npm run test:js && npm run test:dsp && npm run test:ab && npm run test:package",
     "test:js": "node --test tests/*.test.mjs",
     "test:dsp": "sh tests/dsp/run.sh",
     "test:package": "sh tests/package/run.sh",
     "build": "sh scripts/build.sh",
-    "preview": "node tools/preview.mjs"
+    "preview": "node tools/preview.mjs",
+    "test:ab": "sh tests/dsp/ab.sh",
+    "test:rust": "cd dsp && cargo test --no-default-features"
   }
 }
