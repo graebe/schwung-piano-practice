@@ -68,6 +68,23 @@ export function recordRate(rec) {
   return ratePerMinute(rec.n, rec.ms);
 }
 
+/*
+ * Wrong answers as a share of attempts, 0..1.
+ *
+ * A round is always exactly n correct answers, so attempts are n + w and this
+ * is comparable between a 10-prompt round and a 30-prompt one — which is the
+ * whole point of a rate rather than a count, since the round size is a setting.
+ */
+export function errorFraction(correct, wrong) {
+  const attempts = correct + wrong;
+  if (!attempts) return 0;
+  return wrong / attempts;
+}
+
+export function recordError(rec) {
+  return errorFraction(rec.n, rec.w);
+}
+
 export function emptyStats() {
   return { version: STATS_VERSION, records: [] };
 }
@@ -138,19 +155,30 @@ export function drillsWithHistory(stats) {
 }
 
 export function summarise(records) {
-  if (!records.length) return { count: 0, best: 0, average: 0, last: 0 };
+  if (!records.length) {
+    return { count: 0, best: 0, average: 0, last: 0, errorRate: 0, lastError: 0 };
+  }
   let best = 0;
   let total = 0;
+  let correct = 0;
+  let wrong = 0;
   for (let i = 0; i < records.length; i++) {
     const r = recordRate(records[i]);
     if (r > best) best = r;
     total += r;
+    correct += records[i].n;
+    wrong += records[i].w;
   }
+  const last = records[records.length - 1];
   return {
     count: records.length,
     best,
     average: total / records.length,
-    last: recordRate(records[records.length - 1]),
+    last: recordRate(last),
+    /* Pooled over every attempt, not the mean of the per-round percentages:
+     * a short round would otherwise weigh as heavily as a long one. */
+    errorRate: correct + wrong ? wrong / (correct + wrong) : 0,
+    lastError: recordError(last),
   };
 }
 
@@ -188,6 +216,9 @@ export function sparkline(records, w, h, limit = 40) {
   return rates.map((rate, i) => {
     const x = rates.length === 1 ? lastX : Math.round((i * lastX) / (rates.length - 1));
     const t = flat ? 0.5 : (rate - lo) / span;
-    return { x, y: Math.round(lastY - t * lastY), rate };
+    /* The error series rides on the same points rather than being computed by a
+     * sibling function: two functions would each take their own `limit` and the
+     * bars would silently stop lining up with the line they sit under. */
+    return { x, y: Math.round(lastY - t * lastY), rate, err: recordError(use[i]) };
   });
 }

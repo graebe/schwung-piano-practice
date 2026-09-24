@@ -1115,9 +1115,11 @@ test('the plot stays inside its box for one, two and forty rounds', () => {
     V.drawProgress(c, { drill: 'guess:notes:half', records: someRecords(mss), drillIndex: 0, drillCount: 1 });
     /* Nothing drawn above the plot box or below its baseline, apart from the
      * chrome, the title and the summary lines that belong there. */
-    const above = countOn(c, V.PLOT.x, L.HEADER_RULE_Y + 1, V.PLOT.w, V.PLOT.y - L.HEADER_RULE_Y - 1);
-    assert.ok(above >= 0);
-    assert.ok(countOn(c, V.PLOT.x, V.PLOT.y, V.PLOT.w, V.PLOT.h + 1) > 0, `${n} rounds drew nothing`);
+    const box = L.PROGRESS_PLOT;
+    assert.ok(countOn(c, box.x, box.y, box.w, box.h + 1) > 0, `${n} rounds drew nothing`);
+    /* The band between the plot's baseline and the summary row stays clear, so
+     * the chart cannot grow into the text under it. */
+    assert.equal(countOn(c, 0, box.y + box.h + 1, W, L.PROGRESS_ROW_Y - box.y - box.h - 1), 0);
   }
 });
 
@@ -1144,13 +1146,34 @@ test('the pick screen shows three options with exactly one highlighted', () => {
   for (let idx = 0; idx < 3; idx++) {
     const c = createScreen();
     V.drawPick(c, { title: 'NAME NOTE', score: '7/20', options: ['C5', 'D5', 'C#5'], index: idx });
-    /* A highlight is a filled band; there must be exactly one. */
-    let bands = 0;
+    /*
+     * A highlight is a filled band behind one option. Measured as a RUN rather
+     * than as a count of lit pixels in a fixed window: the old form asked for
+     * 40 of 48 pixels at x=40..87, which the 22px band never reached — it was
+     * matching the full-width rule at y=47 instead, and so reported a highlight
+     * on every index while testing nothing.
+     */
+    const solid = [];
     for (let y = 18; y < 56; y++) {
-      const row = countOn(c, 40, y, 48, 1);
-      if (row > 40) { bands++; y += 8; }
+      let run = 0;
+      let best = 0;
+      for (let x = 30; x <= 98; x++) {
+        run = isOn(c, x, y) ? run + 1 : 0;
+        if (run > best) best = run;
+      }
+      if (best >= 20) solid.push(y);
     }
-    assert.equal(bands, 1, `index ${idx} produced ${bands} highlights`);
+    /* The knocked-out option text breaks the middle rows up, so a band is its
+     * solid top and bottom edges with the text between them. Rows are 11 apart,
+     * so a gap of 9 cannot fall inside one band and always separates two. */
+    const bands = [];
+    for (const y of solid) {
+      if (!bands.length || y - bands[bands.length - 1].to > 9) bands.push({ from: y, to: y });
+      else bands[bands.length - 1].to = y;
+    }
+    assert.equal(bands.length, 1, `index ${idx} produced ${bands.length} highlights`);
+    /* ...and it is the band behind the option the jog is on. */
+    assert.equal(bands[0].from, 21 + idx * 11 - 2, `index ${idx} highlighted the wrong row`);
   }
 });
 
@@ -1199,4 +1222,100 @@ test('hearing mode names the note once a hint is taken, keeping the staff hidden
       assert.equal(isOn(hinted, x, y), isOn(none, x, y), `staff differs at ${x},${y}`);
     }
   }
+});
+
+/* ---- The chart, on both screens it appears on ---------------------------- */
+
+const plotRecords = (spec) => spec.map(([ms, wrong], i) =>
+  makeRecord({ drill: 'd', n: 20, ms, wrong, at: i * 86400000 }));
+
+test('the chart draws a baseline even with no rounds to plot', () => {
+  const c = blank();
+  V.drawPlot(c, L.PROGRESS_PLOT, []);
+  const base = L.PROGRESS_PLOT.y + L.PROGRESS_PLOT.h;
+  assert.equal(countOn(c, L.PROGRESS_PLOT.x, base, L.PROGRESS_PLOT.w, 1), L.PROGRESS_PLOT.w);
+  assert.equal(countOn(c, 0, L.PROGRESS_PLOT.y, W, L.PROGRESS_PLOT.h), 0, 'nothing above it');
+});
+
+test('one round is a point and no line; two are joined', () => {
+  const one = blank();
+  V.drawPlot(one, L.PROGRESS_PLOT, plotRecords([[60000, 0]]));
+  const two = blank();
+  V.drawPlot(two, L.PROGRESS_PLOT, plotRecords([[60000, 0], [30000, 0]]));
+  const box = L.PROGRESS_PLOT;
+  assert.ok(countOn(two, box.x, box.y, box.w, box.h) > countOn(one, box.x, box.y, box.w, box.h));
+});
+
+test('the error bars stand under the line, never in it', () => {
+  const c = blank();
+  const box = L.PROGRESS_PLOT;
+  /* Every round wholly wrong, so the bars are as tall as they can be. */
+  V.drawPlot(c, box, plotRecords([[60000, 99], [30000, 99], [20000, 99]]));
+  const errH = Math.max(L.PLOT_ERR_MIN_H, Math.round(box.h * L.PLOT_ERR_FRACTION));
+  const lineH = box.h - errH - 1;
+  /* Whatever the bars do, the band the line lives in is untouched by them. */
+  const clean = blank();
+  V.drawPlot(clean, box, plotRecords([[60000, 0], [30000, 0], [20000, 0]]));
+  for (let y = box.y; y <= box.y + lineH; y++) {
+    assert.equal(countOn(c, box.x, y, box.w, 1), countOn(clean, box.x, y, box.w, 1),
+      `row ${y} of the line band was changed by the error bars`);
+  }
+  /* And they start below it. */
+  assert.equal(countOn(c, box.x, box.y, box.w, box.h - errH), countOn(clean, box.x, box.y, box.w, box.h - errH));
+});
+
+test('a single wrong answer still draws a visible bar', () => {
+  const box = L.RESULT_PLOT;
+  const clean = blank();
+  V.drawPlot(clean, box, plotRecords([[60000, 0]]));
+  const one = blank();
+  V.drawPlot(one, box, plotRecords([[60000, 1]]));
+  const errH = Math.max(L.PLOT_ERR_MIN_H, Math.round(box.h * L.PLOT_ERR_FRACTION));
+  const band = box.y + box.h - errH;
+  assert.equal(countOn(clean, box.x, band, box.w, errH), 0, 'a clean round draws no bar');
+  assert.ok(countOn(one, box.x, band, box.w, errH) > 0, 'one mistake must not round away');
+});
+
+test('a worse round draws a taller bar than a better one', () => {
+  const box = L.PROGRESS_PLOT;
+  const heights = [1, 5, 10].map((wrong) => {
+    const c = blank();
+    V.drawPlot(c, box, plotRecords([[60000, wrong]]));
+    return countOn(c, box.x, box.y, box.w, box.h);
+  });
+  assert.ok(heights[0] < heights[1] && heights[1] < heights[2], heights.join(' '));
+});
+
+test('the chart never draws outside the box it was given', () => {
+  const box = L.RESULT_PLOT;
+  const c = blank();
+  V.drawPlot(c, box, plotRecords([[60000, 20], [10000, 0], [30000, 9], [15000, 3]]));
+  /* Above the box, below its baseline, and to either side. */
+  assert.equal(countOn(c, 0, 0, W, box.y), 0);
+  assert.equal(countOn(c, 0, box.y + box.h + 1, W, H - box.y - box.h - 1), 0);
+  assert.equal(countOn(c, 0, box.y, box.x, box.h + 1), 0);
+  assert.equal(countOn(c, box.x + box.w, box.y, W - box.x - box.w, box.h + 1), 0);
+});
+
+test('the result screen plots the history it is given', () => {
+  const base = {
+    drill: 'd', rate: 20, ms: 60000, n: 20, wrong: 2, bestStreak: 20, hints: 0, best: 25, isBest: false,
+  };
+  const without = createScreen();
+  V.drawRoundResult(without, { ...base, records: [] });
+  const with_ = createScreen();
+  V.drawRoundResult(with_, { ...base, records: plotRecords([[70000, 4], [60000, 2]]) });
+  assert.notEqual(without.pixels.join(''), with_.pixels.join(''));
+});
+
+test('the progress screen states the latest error rate as a number', () => {
+  const clean = createScreen();
+  V.drawProgress(clean, { drill: 'd', records: plotRecords([[60000, 0]]), drillIndex: 0, drillCount: 1 });
+  const messy = createScreen();
+  V.drawProgress(messy, { drill: 'd', records: plotRecords([[60000, 9]]), drillIndex: 0, drillCount: 1 });
+  /* The row under the plot differs: 0% against 31%. */
+  const rowH = L.TEXT_H;
+  assert.notEqual(
+    countOn(clean, 0, L.PROGRESS_ROW_Y, W, rowH),
+    countOn(messy, 0, L.PROGRESS_ROW_Y, W, rowH));
 });

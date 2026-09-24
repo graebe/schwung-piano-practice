@@ -15,19 +15,42 @@ import {
 } from './chart.mjs';
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
-import { drillLabel, sparkline, summarise, recordRate } from './stats.mjs';
+import { drillLabel, sparkline, summarise, errorFraction } from './stats.mjs';
 
 export const SETTINGS_HINT = 'shift + jog: settings';
 
-/* Centred one-liner along the bottom edge. */
+/*
+ * Centred one-liner along the bottom edge.
+ *
+ * Fitted, because a line past 21 characters runs off both sides and the host
+ * says nothing about it — four footers shipped that way, one of them losing its
+ * last two words. Shortening the strings is the real fix; this is what stops
+ * the next one being wrong.
+ */
 export function drawFooterHint(ctx, text) {
-  ctx.text((L.SCREEN_W - ctx.textWidth(text)) >> 1, L.FOOTER_Y - 2, text, 1);
+  const s = truncate(ctx, text, L.TEXT_MAX_PX);
+  ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, L.FOOTER_Y - 2, s, 1);
 }
 
 function truncate(ctx, text, maxPx) {
   let s = text;
   while (s.length > 1 && ctx.textWidth(s) > maxPx) s = s.slice(0, -1);
   return s;
+}
+
+/*
+ * One line of a two-column row: `left` from x0, `right` ending at x1.
+ *
+ * The right cell is capped at half the row and the left one gets what is left
+ * minus a gutter, so the pair cannot collide however long the numbers grow.
+ * Both used to be drawn at their natural width on one baseline, which is how
+ * "wrong 3   streak 9   hints 2" (167px) came to be printed over "best 31/min".
+ */
+function twoCell(ctx, y, left, right, x0, x1) {
+  const r = right ? truncate(ctx, right, (x1 - x0) >> 1) : '';
+  const rw = r ? ctx.textWidth(r) : 0;
+  if (r) ctx.text(x1 - rw, y, r, 1);
+  if (left) ctx.text(x0, y, truncate(ctx, left, x1 - x0 - rw - (rw ? 6 : 0)), 1);
 }
 
 /*
@@ -128,9 +151,15 @@ export function drawReadingView(ctx, state) {
 
   const bb = barBeatOf(chart, songBeats);
   const stats = run ? runStats(run) : null;
+  /* One slot, one owner. The ready view used to print its MIDI-out label over
+   * the top of bar.beat here, leaving the corner an unreadable smudge; it
+   * passes rightLabel instead, and at beat 0 the bar.beat it displaces always
+   * read "1.1" anyway. */
+  const right = state.rightLabel || (bb.bar + '.' + bb.beat);
   R.drawChrome(ctx, {
-    left: truncate(ctx, chart.name || 'Practice', 74),
-    right: bb.bar + '.' + bb.beat,
+    left: truncate(ctx, chart.name || 'Practice', L.SCREEN_W - ctx.textWidth(right) - 6),
+    right,
+    lane: true,
   });
 
   const total = chartTotalBeats(chart) || 1;
@@ -149,7 +178,12 @@ export function drawReadingView(ctx, state) {
 export const READY_BOX = { x: 12, y: 19, w: 104, h: 28 };
 
 export function drawReadyView(ctx, state) {
-  drawReadingView(ctx, { ...state, songBeats: state.songBeats || 0, run: state.run });
+  drawReadingView(ctx, {
+    ...state,
+    songBeats: state.songBeats || 0,
+    run: state.run,
+    rightLabel: state.outLabel || '',
+  });
 
   const b = READY_BOX;
   ctx.fillRect(b.x, b.y, b.w, b.h, 0);
@@ -167,11 +201,9 @@ export function drawReadyView(ctx, state) {
   R.drawRecordGlyph(ctx, gx, b.y + 15, gh);
   ctx.text(tx, b.y + 15, state.recLabel || 'REC   practice', 1);
 
-  /* Where the notes are going, on the one screen you always pass through. A
-   * silent channel mismatch is otherwise indistinguishable from broken. */
-  if (state.outLabel) {
-    ctx.text(L.SCREEN_W - ctx.textWidth(state.outLabel) - 2, 0, state.outLabel, 0);
-  }
+  /* Where the notes are going is in the header (rightLabel, above), on the one
+   * screen you always pass through: a silent channel mismatch is otherwise
+   * indistinguishable from broken. */
 
   /* Replace the progress bar with the one thing here you cannot discover by
    * trying it: turning the jog swaps exercise and shows you it did, but
@@ -218,6 +250,7 @@ export function drawGuessView(ctx, state) {
   R.drawChrome(ctx, {
     left: state.title || 'GUESS',
     right: state.score || '',
+    lane: true,
   });
 
   /* The name is always shown: this drills finding the pitch on the grid, not
@@ -265,7 +298,7 @@ export function drawSummary(ctx, chart, run) {
   ctx.text(2, 39, 'Streak ' + s.bestCombo, 1);
   const pct = Math.round(s.accuracy * 100) + '%';
   ctx.text(L.SCREEN_W - ctx.textWidth(pct) - 3, 22, pct, 1);
-  ctx.text(2, L.FOOTER_Y - 1, 'PLAY again  JOG pick', 1);
+  drawFooterHint(ctx, 'PLAY again  JOG pick');
   return ctx;
 }
 
@@ -282,29 +315,85 @@ export function drawCentreCallout(ctx, text, scale) {
 }
 
 /*
+ * The chart, at whatever size the caller has room for.
+ *
+ * Two series on a 1-bit screen: the rate as a connected line across the upper
+ * band, the error rate as bars growing from the baseline below it. They are
+ * drawn from ONE call to sparkline() rather than from a line function and a bar
+ * function — two calls would each take their own `limit`, and the bars would
+ * silently stop lining up with the line they sit under.
+ */
+export function drawPlot(ctx, box, records) {
+  const baseY = box.y + box.h;
+  /* A baseline, so a flat run still reads as a chart rather than a stray line. */
+  ctx.fillRect(box.x, baseY, box.w, 1, 1);
+  if (!records.length) return ctx;
+
+  const errH = Math.max(L.PLOT_ERR_MIN_H, Math.round(box.h * L.PLOT_ERR_FRACTION));
+  /* One row spare below the line band, so a point's 3x3 marker can never reach
+   * into the bars and be read as one. */
+  const lineH = Math.max(1, box.h - errH - 1);
+  const pts = sparkline(records, box.w, lineH);
+
+  /* Two pixels wide while the rounds are far enough apart to stay distinct, so
+   * a short history reads as bars rather than as specks. */
+  const barW = pts.length > 1 && pts[1].x - pts[0].x >= 4 ? 2 : 1;
+  for (let i = 0; i < pts.length; i++) {
+    const px = box.x + pts[i].x;
+    /* A round with any wrong answer gets at least one pixel: rounding a single
+     * mistake away to nothing is the one error the bars must not make. */
+    const t = Math.min(1, pts[i].err / L.PLOT_ERR_FULL);
+    const h = pts[i].err > 0 ? Math.max(1, Math.round(t * errH)) : 0;
+    if (h) ctx.fillRect(Math.min(px, box.x + box.w - barW), baseY - h, barW, h, 1);
+  }
+
+  for (let i = 0; i < pts.length; i++) {
+    const px = box.x + pts[i].x;
+    const py = box.y + pts[i].y;
+    if (i > 0) ctx.line(box.x + pts[i - 1].x, box.y + pts[i - 1].y, px, py, 1);
+    /* Mark each round, so a two-round history is visibly two rounds. The 3px
+     * mark is clamped rather than centred at the edges: the last point sits on
+     * the box's final column and the best one on its top row, so a centred mark
+     * would hang a pixel outside the rect the caller reserved — which is how it
+     * came to be drawn over the row above the plot on both screens. */
+    ctx.fillRect(
+      Math.min(Math.max(px - 1, box.x), box.x + box.w - 3),
+      Math.min(Math.max(py - 1, box.y), box.y + box.h - 3), 3, 3, 1);
+  }
+  return ctx;
+}
+
+/*
  * The end of a round. The rate is the headline, so it gets the big font; the
- * rest is context for it. "best yet" or the number to beat, because a rate on
- * its own tells you nothing about whether you are improving.
+ * rest is context for it, laid out as a two-column grid so no pair of numbers
+ * can ever collide. The chart underneath answers the question a single rate
+ * cannot — whether this was better than last time.
  */
 export function drawRoundResult(ctx, state) {
   ctx.clear();
-  R.drawChrome(ctx, { left: 'ROUND', right: state.drill ? '' : '' });
+  R.drawChrome(ctx, {
+    left: 'ROUND',
+    right: state.isBest ? 'BEST YET' : 'best ' + Math.round(state.best) + '/min',
+  });
 
-  const rate = Math.round(state.rate);
-  const big = String(rate);
-  const scale = 4;
-  const w = R.bigTextWidth(big, scale);
-  R.drawBigText(ctx, 4, 12, big, scale);
-  ctx.text(4 + w + 4, 12 + R.bigDigitHeight(scale) - 7, 'per min', 1);
+  /* Scale 3 rather than 4: the 5px it gives up is exactly what the chart below
+   * is drawn in, and two digits at 9x15 are still the largest thing on screen. */
+  const big = String(Math.round(state.rate));
+  const w = R.bigTextWidth(big, L.RESULT_BIG_SCALE);
+  R.drawBigText(ctx, L.RESULT_LEFT_X, L.RESULT_BIG_Y, big, L.RESULT_BIG_SCALE);
+  ctx.text(L.RESULT_LEFT_X + w + 5,
+    L.RESULT_BIG_Y + R.bigDigitHeight(L.RESULT_BIG_SCALE) - L.TEXT_H, 'per min', 1);
 
-  const secs = (state.ms / 1000).toFixed(1) + 's';
-  ctx.text(4, 36, state.n + ' in ' + secs, 1);
-  ctx.text(4, 45, 'wrong ' + state.wrong + '   streak ' + state.bestStreak
-    + (state.hints ? '   hints ' + state.hints : ''), 1);
+  const pct = Math.round(errorFraction(state.n, state.wrong) * 100);
+  twoCell(ctx, L.RESULT_ROW_A_Y,
+    state.n + ' in ' + Math.round(state.ms / 1000) + 's',
+    'streak ' + state.bestStreak, L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
+  twoCell(ctx, L.RESULT_ROW_B_Y,
+    'wrong ' + state.wrong + '  ' + pct + '%',
+    state.hints ? 'hints ' + state.hints : '', L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
 
-  const note = state.isBest ? 'best yet' : 'best ' + Math.round(state.best) + '/min';
-  ctx.text(L.SCREEN_W - ctx.textWidth(note) - 3, 45, note, 1);
-  drawFooterHint(ctx, 'PLAY again   BACK list');
+  drawPlot(ctx, L.RESULT_PLOT, state.records || []);
+  drawFooterHint(ctx, 'PLAY again  BACK list');
   return ctx;
 }
 
@@ -313,20 +402,17 @@ export function drawRoundResult(ctx, state) {
  * meaningless — hearing seventh chords is not the same task as naming a white
  * note — so the plot only ever shows one, and the jog changes which.
  */
-export const PLOT = { x: 4, y: 18, w: 120, h: 24 };
-
 export function drawProgress(ctx, state) {
   const records = state.records || [];
   ctx.clear();
+  const s = summarise(records);
   R.drawChrome(ctx, {
     left: 'PROGRESS',
-    right: state.drillIndex != null && state.drillCount
-      ? state.drillIndex + 1 + '/' + state.drillCount
-      : '',
+    right: records.length ? 'best ' + Math.round(s.best) : '',
   });
 
   const title = state.drill ? drillLabel(state.drill) : 'nothing yet';
-  ctx.text(2, 9, title.length > 21 ? title.slice(0, 21) : title, 1);
+  ctx.text(2, L.PROGRESS_TITLE_Y, truncate(ctx, title, L.TEXT_MAX_PX), 1);
 
   if (!records.length) {
     const msg = 'no rounds yet';
@@ -335,24 +421,14 @@ export function drawProgress(ctx, state) {
     return ctx;
   }
 
-  const pts = sparkline(records, PLOT.w, PLOT.h);
-  /* A baseline, so a flat run still reads as a chart rather than a stray line. */
-  ctx.fillRect(PLOT.x, PLOT.y + PLOT.h, PLOT.w, 1, 1);
-  for (let i = 0; i < pts.length; i++) {
-    const px = PLOT.x + pts[i].x;
-    const py = PLOT.y + pts[i].y;
-    if (i > 0) {
-      ctx.line(PLOT.x + pts[i - 1].x, PLOT.y + pts[i - 1].y, px, py, 1);
-    }
-    /* Mark each round, so a two-round history is visibly two rounds. */
-    ctx.fillRect(px - 1, py - 1, 3, 3, 1);
-  }
-
-  const s = summarise(records);
-  const line = 'best ' + Math.round(s.best) + '  avg ' + Math.round(s.average)
-    + '  now ' + Math.round(s.last);
-  ctx.text(2, L.FOOTER_Y - 9, line, 1);
-  drawFooterHint(ctx, state.drillCount > 1 ? 'jog: another drill' : String(s.count) + ' rounds');
+  drawPlot(ctx, L.PROGRESS_PLOT, records);
+  /* The plot shows the trend; the row states the two numbers it cannot — where
+   * you are now, and what it cost you in wrong answers to get there. */
+  twoCell(ctx, L.PROGRESS_ROW_Y, 'now ' + Math.round(s.last),
+    'err ' + Math.round(s.lastError * 100) + '%', 2, L.SCREEN_W - 2);
+  drawFooterHint(ctx, state.drillCount > 1
+    ? 'jog: drill ' + (state.drillIndex + 1) + '/' + state.drillCount
+    : String(s.count) + ' rounds');
   return ctx;
 }
 
@@ -368,7 +444,7 @@ export function drawPick(ctx, state) {
   ctx.clear();
   R.drawChrome(ctx, { left: state.title || 'NAME', right: state.score || '' });
 
-  const msg = state.hint || 'which pad is lit?';
+  const msg = truncate(ctx, state.hint || 'which pad is lit?', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(msg)) >> 1, 10, msg, 1);
 
   const rowH = 11;
@@ -415,14 +491,16 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
     /* Brackets mark the row the jog is currently changing, so "turn to change"
      * has something to point at. */
     if (value && selected && opts.editing) value = '[' + value + ']';
-    ctx.text(2, y, truncate(ctx, label, 84), selected ? 0 : 1);
-    if (value) {
-      ctx.text(L.SCREEN_W - ctx.textWidth(value) - 2, y, value, selected ? 0 : 1);
-    }
+    /* The label is fitted against what the value actually takes, not against a
+     * fixed budget: the widest real row is 114px, but a longer value added
+     * later would otherwise be printed over the end of its own label. */
+    const vw = value ? ctx.textWidth(value) : 0;
+    ctx.text(2, y, truncate(ctx, label, L.SCREEN_W - 4 - vw - (vw ? 4 : 0)), selected ? 0 : 1);
+    if (value) ctx.text(L.SCREEN_W - vw - 2, y, value, selected ? 0 : 1);
   }
   if (opts.footer) {
     if (opts.centreFooter) drawFooterHint(ctx, opts.footer);
-    else ctx.text(2, L.FOOTER_Y - 1, opts.footer, 1);
+    else ctx.text(2, L.FOOTER_Y - 1, truncate(ctx, opts.footer, L.SCREEN_W - 4), 1);
   }
   return ctx;
 }

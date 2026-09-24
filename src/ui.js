@@ -566,6 +566,10 @@ function finishRound() {
     best,
   };
   STATS.addRecord(stats, rec);
+  /* After the append, so the chart's last point is the round you just played.
+   * `best` above is deliberately taken before it — that is the number you were
+   * trying to beat, not the one you have just set. */
+  lastResult.records = STATS.forDrill(stats, drill);
   saveStats();
   allNotesOff();
   view = RESULT_VIEW;
@@ -930,7 +934,7 @@ function draw() {
     });
   } else if (view === SETTINGS) {
     VIEW.drawList(ctx, 'SETTINGS', settingsRows(), settingsCursor, {
-      footer: settingsEditing ? 'turn to change  CLICK done' : 'CLICK edit  SHIFT+CLICK back',
+      footer: settingsEditing ? 'turn change  CLICK ok' : 'CLICK edit SHIFT back',
       editing: settingsEditing,
     });
   } else if (view === RESULT_VIEW) {
@@ -954,8 +958,8 @@ function draw() {
       eliminated: quiz.eliminated,
       hint: quiz.solved ? 'right' : 'which pad is lit?',
       footer: GUESS.hintsLeft(quiz)
-        ? 'jog choose   REC help'
-        : 'jog choose   click answer',
+        ? 'JOG pick  REC help'
+        : 'JOG pick  CLICK ok',
     });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);

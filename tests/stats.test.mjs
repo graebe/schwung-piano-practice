@@ -2,9 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  drillId, drillLabel, ratePerMinute, makeRecord, recordRate, emptyStats, addRecord,
-  parseStats, serialiseStats, forDrill, drillsWithHistory, summarise, isPersonalBest,
-  sparkline, MAX_RECORDS,
+  drillId, drillLabel, ratePerMinute, makeRecord, recordRate, emptyStats, addRecord, parseStats, serialiseStats, forDrill, drillsWithHistory, summarise, isPersonalBest, sparkline, MAX_RECORDS, errorFraction,
 } from '../src/stats.mjs';
 
 const rec = (drill, ms, n = 20, at = 0) => makeRecord({ drill, n, ms, at });
@@ -124,7 +122,8 @@ test('the drill list is most recently played first, without duplicates', () => {
 });
 
 test('summarise handles none, one and many', () => {
-  assert.deepEqual(summarise([]), { count: 0, best: 0, average: 0, last: 0 });
+  assert.deepEqual(summarise([]),
+    { count: 0, best: 0, average: 0, last: 0, errorRate: 0, lastError: 0 });
   const one = summarise([rec('d', 60000)]);
   assert.equal(one.count, 1);
   assert.equal(one.best, one.average);
@@ -223,4 +222,50 @@ test('the multiple-choice drills get their own trends', () => {
   assert.equal(ids.size, 12, 'eight existing drills plus four new ones');
   assert.ok(ids.has('pick:notes:half'));
   assert.ok(ids.has('pick:chords:types'));
+});
+
+/* ---- The error rate ------------------------------------------------------ */
+
+test('the error rate is wrong over attempts, not wrong over prompts', () => {
+  /* 20 correct and 5 wrong is 25 attempts, so 20%. Dividing by the round size
+   * instead would read 25% and would not be comparable between round sizes. */
+  assert.equal(errorFraction(20, 5), 0.2);
+  assert.equal(errorFraction(20, 0), 0);
+  assert.equal(errorFraction(0, 0), 0, 'no attempts must not be NaN');
+});
+
+test('a 10-prompt and a 30-prompt round with the same accuracy score the same', () => {
+  assert.equal(errorFraction(10, 2), errorFraction(30, 6));
+});
+
+test('summarise pools errors over attempts rather than averaging percentages', () => {
+  /* One long clean round and one short bad one. The mean of the two rates
+   * would be 25%; pooled over the 33 attempts it is 9%. */
+  const recs = [
+    { t: 0, d: 'd', n: 30, ms: 60000, w: 0, h: 0 },
+    { t: 1, d: 'd', n: 0 + 1, ms: 60000, w: 2, h: 0 },
+  ];
+  const s = summarise(recs);
+  assert.equal(Math.round(s.errorRate * 100), 6);
+  assert.equal(Math.round(s.lastError * 100), 67, 'lastError is the latest round alone');
+});
+
+test('sparkline carries the error of each point it plots', () => {
+  const recs = [];
+  for (let i = 0; i < 3; i++) recs.push(makeRecord({ drill: 'd', n: 20, ms: 60000, wrong: i, at: i }));
+  const pts = sparkline(recs, 60, 12);
+  assert.equal(pts.length, 3);
+  assert.equal(pts[0].err, 0);
+  assert.equal(pts[2].err, 2 / 22);
+});
+
+test('the error series is sliced with the line, never separately', () => {
+  /* Past the limit the oldest rounds are dropped. Both series must drop the
+   * same ones or the bars stop standing under the points they belong to. */
+  const recs = [];
+  for (let i = 0; i < 50; i++) recs.push(makeRecord({ drill: 'd', n: 20, ms: 60000, wrong: i, at: i }));
+  const pts = sparkline(recs, 60, 12, 10);
+  assert.equal(pts.length, 10);
+  assert.equal(pts[0].err, 40 / 60, 'the first point kept is record 40');
+  assert.equal(pts[9].err, 49 / 69);
 });

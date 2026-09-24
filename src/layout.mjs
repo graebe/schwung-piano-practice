@@ -87,3 +87,51 @@ export const NAME_LANE_Y = 49;
 /* ---- Footer ------------------------------------------------------------- */
 export const FOOTER_Y = 58;
 export const PROGRESS_H = 3;
+
+/* ---- Text metrics ------------------------------------------------------- */
+/*
+ * The host font is a 5px glyph on a 6px advance, and a line occupies 7 rows
+ * once descenders are counted. TEXT_H is what every band below is measured
+ * against, and what the layout audit uses to decide that two lines collide.
+ *
+ * 21 characters is 126px, so TEXT_MAX_PX is the real limit on any single line:
+ * past it the host simply stops plotting and a number goes missing in silence.
+ */
+export const TEXT_H = 7;
+export const TEXT_MAX_PX = SCREEN_W - 2;
+
+/* ---- Round result ------------------------------------------------------- */
+/*
+ * Two columns, so no pair of cells can collide whatever the numbers do: the
+ * left cell starts at RESULT_LEFT_X, the right one is right-aligned to
+ * RESULT_RIGHT_X, and each is fitted to its own budget before it is drawn.
+ *
+ *   y 10..24  the rate, big        y 26..32  row A
+ *   y 34..40  row B                y 42..53  the chart
+ */
+export const RESULT_BIG_Y = 10;
+export const RESULT_BIG_SCALE = 3;          /* 15px tall; scale 4 left no room */
+export const RESULT_LEFT_X = 3;
+export const RESULT_RIGHT_X = SCREEN_W - 3;
+export const RESULT_ROW_A_Y = 26;
+export const RESULT_ROW_B_Y = 34;
+export const RESULT_PLOT = { x: 3, y: 42, w: SCREEN_W - 6, h: 12 };
+
+/* ---- Progress ----------------------------------------------------------- */
+export const PROGRESS_TITLE_Y = 9;
+export const PROGRESS_PLOT = { x: 3, y: 17, w: SCREEN_W - 6, h: 30 };
+export const PROGRESS_ROW_Y = 48;
+
+/* The share of a plot's height given to the error bars, which grow up from the
+ * baseline while the rate line lives above them. A third leaves the line the
+ * two thirds it needs to read as a trend at either box size. */
+export const PLOT_ERR_FRACTION = 1 / 3;
+export const PLOT_ERR_MIN_H = 3;
+/*
+ * What a full-height error bar means. Against the true 0..100% the band is
+ * ~10px, so a typical 13% round drew one pixel and the series read as noise.
+ * A fixed ceiling keeps two visits comparable — scaling to the series maximum
+ * would redraw the same history differently every time a bad round dropped off
+ * the end — and 50% wrong is already far worse than any drill should get.
+ */
+export const PLOT_ERR_FULL = 0.5;

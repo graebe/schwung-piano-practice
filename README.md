@@ -106,10 +106,17 @@ moment of orientation is not part of the score. Because a prompt waits until you
 round is always exactly N correct answers — a wrong answer costs you *time* rather than needing a
 penalty of its own, the same way a typing test treats a typo.
 
-The result is **correct answers per minute**, with your best for that drill beside it.
+The result is **correct answers per minute**, with your best for that drill beside it, the round's
+**error rate**, and a chart of the drill's recent rounds so the number has something to be measured
+against.
 
-**Progress**, at the top of the exercise list, plots how one drill has developed — a sparkline of
-recent rounds with best, average and latest. The jog changes drill.
+**Progress**, at the top of the exercise list, plots how one drill has developed: the rate as a
+line, and the **error rate** as bars growing under it, so you can see whether speed came at the cost
+of accuracy. A full-height bar is 50% wrong — a fixed ceiling, so two visits are comparable. The jog
+changes drill.
+
+Error rate is wrong answers over *attempts* (`wrong / (correct + wrong)`), not over prompts, so a
+10-prompt round and a 30-prompt one sit on the same chart.
 
 Rates only ever compare **within a drill**: hearing seventh chords is not the same task as naming a
 white note, so every round is recorded against a drill id (`guess:notes:half`, `hear:chords:types`)

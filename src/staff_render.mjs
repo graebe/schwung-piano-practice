@@ -367,7 +367,11 @@ export function drawChrome(ctx, info) {
     ctx.text(((L.SCREEN_W - ctx.textWidth(info.mid)) >> 1), 0, info.mid, 0);
   }
   ctx.fillRect(0, L.HEADER_RULE_Y, L.SCREEN_W, 1, 1);
-  ctx.fillRect(0, L.NAME_RULE_Y, L.SCREEN_W, 1, 1);
+  /* The lower rule belongs to the scrolling name lane, so only the two views
+   * that HAVE one ask for it. It used to be unconditional, which put a solid
+   * 128px bar across five screens that divide nothing there — and the result
+   * and pick screens drew text straight through it. */
+  if (info.lane) ctx.fillRect(0, L.NAME_RULE_Y, L.SCREEN_W, 1, 1);
 }
 
 export function drawFooter(ctx, progress, right) {
