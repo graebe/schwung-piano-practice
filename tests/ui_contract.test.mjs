@@ -144,6 +144,15 @@ test('settings are persisted next to the module and survive a bad file', () => {
   assert.match(source, /SETTINGS_PATH = MODULE_DIR \+ '\/settings\.json'/);
   assert.match(source, /function loadSettings\(\)[\s\S]{0,400}try \{[\s\S]{0,120}JSON\.parse/);
   assert.match(source, /function saveSettings\(\)/);
+  /* Load in one pass from the table, THEN migrate. Interleaving the two is how
+   * v3 came to be overwritten by the value it was meant to replace. */
+  assert.match(code, /SET\.coerceInto\(settings, obj\)/);
+  const load = code.match(/function loadSettings\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.ok(load.indexOf('coerceInto') < load.indexOf('storedVersion'),
+    'every stored value must be read before any migration runs');
+  assert.doesNotMatch(load, /clamp\(obj\./, 'no second copy of the ranges');
+  /* And only write when something actually changed. */
+  assert.match(load, /if \(migrated\) saveSettings\(\)/);
   /* Encoder steps arrive up to once per 500Hz tick, so the write must not be
    * inline: a knob spin would put blocking eMMC I/O in the frame path. */
   assert.match(code, /function saveSettings\(\)\s*\{\s*settingsDirty = true;\s*\}/);
@@ -314,19 +323,35 @@ test('Play listens and Record practises, and each stops its own mode', () => {
 test('the missed-note rescue keys off the wait pointer, not the scoring cursor', () => {
   /* The scoring cursor moves past a note the moment it is missed, so anything
    * reading it can never light the note you actually need shown. */
-  const fn = code.match(/function blockedPads\(\) \{([\s\S]*?)\n\}/)[1];
+  const fn = code.match(/function collectStuck\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(fn, /SCORE\.blockingNotes\(run\)/);
   assert.doesNotMatch(fn, /run\.cursor/);
-  assert.doesNotMatch(fn, /SCORE\.PENDING/);
   assert.match(fn, /settings\.guidance/, 'scoped to Guide pads, as chosen');
-  assert.match(fn, /blocked/, 'only while actually stuck');
+  assert.match(fn, /view !== RUNNING/, 'and it cannot fire in a quiz');
 });
 
-test('the rescue pad outranks the base colouring but not a live press', () => {
+test('the LED decision lives in led_paint.mjs, where it can be tested', () => {
+  /* It shipped three bugs while it was inline here, reachable only by regex. */
+  assert.match(code, /LEDS\.padColors\(ledState, ledWorkspace, padColorBuf\)/);
   const paint = code.match(/function paintPads\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.ok(paint.indexOf('heldPads[pad]') < paint.indexOf('stuckSet[pad]'), 'a press wins');
-  assert.ok(paint.indexOf('stuckSet[pad]') < paint.indexOf('targetSet[pad]'), 'stuck beats guidance');
-  assert.match(paint, /stuckSet\[pad\][\s\S]{0,120}ledPhase \? PAD\.LED_ROOT/, 'pulsing white');
+  assert.doesNotMatch(paint, /LED_PRESSED|LED_TARGET_NEAR|ledPhase \?/, 'no colours decided inline');
+});
+
+test('the LED repaint is throttled, but a press still lights instantly', () => {
+  /* It used to run at the full 500Hz tick, allocating ~68 objects a call, to
+   * animate a pulse that changes twice a second. */
+  assert.match(code, /LED_INTERVAL_MS = \d+/);
+  assert.match(code, /if \(ledDirty \|\| \(view === RUNNING && t - lastLedMs >= LED_INTERVAL_MS\)\)/);
+  const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(down, /ledDirty = true/, 'a press must bypass the throttle');
+});
+
+test('the frame path reuses its buffers rather than rebuilding them', () => {
+  assert.match(code, /const ledWorkspace = LEDS\.createLedState\(\)/);
+  assert.match(code, /const padColorBuf = new Array\(PAD\.PAD_COUNT\)/);
+  for (const buf of ['targetBuf', 'stuckBuf', 'soundingBuf']) {
+    assert.match(code, new RegExp(buf + '\\.length = 0'), buf + ' must be reused');
+  }
 });
 
 test('the frame keeps repainting while stuck, or the pulse would stall', () => {
@@ -385,14 +410,10 @@ test('chords reach the DSP in one write — the param channel is a single slot',
 test('Listen lights the pads it is playing, ungated', () => {
   /* Watching the notes light up is the whole point of the mode, so unlike the
    * guidance hint this must not sit behind Guide pads. */
-  const fn = code.match(/function soundingPads\(\) \{([\s\S]*?)\n\}/)[1];
+  const fn = code.match(/function collectSounding\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(fn, /listening/);
   assert.doesNotMatch(fn, /settings\.guidance/, 'must not be gated on a setting');
   assert.match(fn, /pitchRefcount/, 'exactly what is sounding, not what is scheduled');
-  assert.match(fn, /PAD\.padsForPitch/, 'all isomorphic twins light');
-  const paint = code.match(/function paintPads\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(paint, /soundingSet\[pad\][\s\S]{0,60}PAD\.LED_TARGET_NEAR/);
-  assert.ok(paint.indexOf('heldPads[pad]') < paint.indexOf('soundingSet[pad]'), 'a press still wins');
 });
 
 test('the guesser runs no clock — it waits for you, it does not time you', () => {
@@ -410,12 +431,11 @@ test('nothing ever lights the answer in the quiz modes', () => {
    * hint keeps you with it. In a quiz the hint is the answer, so the setting
    * must not reach here at all — not even when it is on. */
   assert.doesNotMatch(code, /guessPads/, 'no answer-lighting path may exist');
-  const paint = code.match(/function paintPads\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.doesNotMatch(paint, /quiz\.prompt/, 'paintPads must not read the prompt');
-  /* The miss rescue keeps its gate, because that is the reading mode. */
-  const blocked = code.match(/function blockedPads\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(blocked, /settings\.guidance/);
-  assert.match(blocked, /view !== RUNNING/, 'and it cannot fire in a quiz');
+  for (const fn of ['collectTarget', 'collectStuck', 'collectSounding']) {
+    const body = code.match(new RegExp('function ' + fn + '\\(\\) \\{([\\s\\S]*?)\\n\\}'))[1];
+    assert.doesNotMatch(body, /quiz/, fn + ' must not read the quiz');
+    assert.match(body, /view !== RUNNING|!listening/, fn + ' is confined to the reading mode');
+  }
 });
 
 test('the mode is entered from the list, and picks notes or chords by which row', () => {

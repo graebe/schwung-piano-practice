@@ -4,7 +4,8 @@ A scrolling sight-reading trainer for [Schwung](https://github.com/charlesvestal
 
 A treble clef and five staff lines sit still on the left of the 128×64 screen. Notes and bar lines
 scroll in from the right, cross the hit line, and vanish just before the clef. Play the right pad at
-the right moment and the notehead **gets fatter**. Miss it, or play it late, and it turns into an **✗**.
+the right moment and the notehead opens into a **ring**. Miss it, or play it late, and it turns into an
+**✗**. A second ring marks where you actually played, so the gap between the two is your timing error.
 Under each note its name scrolls along — `F#` for a single note, `F# C E` for a chord.
 
 Piano Practice is an independent module for Schwung. It is not made or supported by Ableton.
@@ -41,7 +42,9 @@ Piano Practice is an independent module for Schwung. It is not made or supported
 - **Generates its own material.** Scales, intervals, triad progressions and random reading lines in
   any key and mode, seeded so you can re-attempt the exact drill you just fluffed.
 - **Takes hand-written exercises** as JSON, interchangeable with the generated ones.
-- **Sounds like a piano** — pads, playback and the click all go out to a Move track instrument.
+- **Sounds like a piano, with no setup** — the module renders its own polyphonic piano and mixes it
+  into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
+  computer is there if you want it.
 - **Rescues you when you are stuck.** Miss a note and the scroll stops, names it large on screen,
   and — with Guide pads on — pulses the pad you need. The note no longer scrolls away unseen, which
   is the rescue even with the pad hint off.
@@ -230,7 +233,7 @@ npm run preview -- --beats 2.5 --px 36
 
 That is also how the rendering tests work: they draw into the same buffer and assert on pixels,
 because the interesting failures in a 1-bit staff are geometric — a ledger line one step out, a
-notehead that does not read as fatter, a note that scrolls into the clef instead of vanishing
+notehead that does not read as a ring, a note that scrolls into the clef instead of vanishing
 before it.
 
 ### Layout

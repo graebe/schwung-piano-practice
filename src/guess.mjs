@@ -140,11 +140,6 @@ export function releasePitch(quiz, pitch) {
   if (!quiz.solved && quiz.held.length === 0) quiz.penalised = false;
 }
 
-/* True once the answer is complete and the hands are off it again. */
-export function readyForNext(quiz) {
-  return quiz.solved;
-}
-
 export function quizStats(quiz) {
   return {
     asked: quiz.asked,

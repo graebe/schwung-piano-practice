@@ -32,7 +32,7 @@ test -f src/help.json
 test -f release.json
 test -f LICENSE
 test -f README.md
-for mod in layout notation staff_render chart scoring generator exercise_io padmap view controls settings_def guess; do
+for mod in layout notation staff_render chart scoring generator exercise_io padmap view controls settings_def guess led_paint; do
   test -f "src/$mod.mjs"
 done
 

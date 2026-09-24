@@ -18,7 +18,6 @@ export const MODES = {
   pentatonic: [0, 2, 4, 7, 9],
 };
 
-export const MODE_NAMES = Object.keys(MODES);
 export const PC_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 /* The pitches both the staff and the pad grid can reach at a given transpose. */
@@ -53,7 +52,7 @@ export function scalePitches(rootPc, mode, lo, hi) {
 }
 
 /* The scale degree `steps` on from `index`, clamped to the ends of the range. */
-export function stepInScale(pitches, index, steps) {
+function stepInScale(pitches, index, steps) {
   const i = index + steps;
   return pitches[Math.max(0, Math.min(pitches.length - 1, i))];
 }

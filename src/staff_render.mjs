@@ -155,7 +155,7 @@ const GLYPH_ROWS = {
 };
 
 export const DIGIT_W = 3;
-export const DIGIT_H = 5;
+const DIGIT_H = 5;
 export const BIG_GAP = 1;   /* columns between characters, before scaling */
 
 export function bigDigitWidth(scale) {
@@ -213,10 +213,6 @@ export function drawRecordGlyph(ctx, x, y, d) {
   }
 }
 
-export function recordGlyphWidth(d) {
-  return d | 1;
-}
-
 /* ---- Staff -------------------------------------------------------------- */
 export function drawStaff(ctx) {
   for (let i = 0; i < L.STAFF_LINE_YS.length; i++) {
@@ -254,7 +250,7 @@ export function drawBarLine(ctx, x) {
  * have to reproduce its rasterisation exactly or the rendering tests would be
  * asserting a shape the Move never draws.
  */
-export const RING_ROWS = [
+const RING_ROWS = [
   '.###.',
   '#...#',
   '#...#',
@@ -264,7 +260,7 @@ export const RING_ROWS = [
 
 const RING_RUNS = rowsToRuns(RING_ROWS);
 
-export function drawRing(ctx, cx, cy) {
+function drawRing(ctx, cx, cy) {
   const half = L.RING >> 1;
   for (let i = 0; i < RING_RUNS.length; i++) {
     const r = RING_RUNS[i];

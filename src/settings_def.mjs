@@ -41,6 +41,7 @@ export const SETTINGS_DEF = [
   { key: 'graceBeats', label: 'Grace', type: 'enum', values: GRACE_VALUES, labels: GRACE_LABELS },
   { key: 'click', label: 'Click', type: 'bool', format: onOff },
   { key: 'reference', label: 'Reference', type: 'bool', format: onOff },
+  { key: 'refVel', label: 'Ref vol', type: 'int', min: 0, max: 127 },
   {
     key: 'midiOut', label: 'MIDI out', type: 'enum',
     /* 4 is the module's own piano — no track, instrument or channel to get
@@ -117,4 +118,37 @@ export function applySetting(settings, index, delta) {
 
   const changed = settings[def.key] !== before;
   return { changed, rebuild: Boolean(def.rebuild) && changed, key: def.key };
+}
+
+/*
+ * Apply a stored settings object, taking only values this table recognises and
+ * bounding them by its own declaration.
+ *
+ * This replaces a hand-written per-key loader in ui.js that repeated every
+ * range a second time. Keeping the two in step by hand had already failed
+ * once: the migrations ran in the middle of that loader, so v3's "broadcast on
+ * every channel" was set and then immediately overwritten by the stored
+ * channel a few lines later, and the migration silently never happened.
+ * Loading is now one pass, and migrations run after it.
+ */
+export function coerceInto(settings, stored) {
+  if (!stored || typeof stored !== 'object') return settings;
+  for (let i = 0; i < SETTINGS_DEF.length; i++) {
+    const def = SETTINGS_DEF[i];
+    const v = stored[def.key];
+    if (v === undefined || v === null) continue;
+
+    if (def.type === 'bool') {
+      if (typeof v === 'boolean') settings[def.key] = v;
+    } else if (def.type === 'int') {
+      if (typeof v === 'number' && isFinite(v)) settings[def.key] = clamp(Math.round(v), def.min, def.max);
+    } else if (def.type === 'wrap') {
+      if (typeof v === 'number' && isFinite(v)) {
+        settings[def.key] = (((Math.round(v) % def.modulo) + def.modulo) % def.modulo);
+      }
+    } else if (def.type === 'list' || def.type === 'enum') {
+      if (def.values.indexOf(v) >= 0) settings[def.key] = v;
+    }
+  }
+  return settings;
 }

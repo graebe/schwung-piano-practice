@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   SETTINGS_DEF, SETTINGS_COUNT, GRACE_VALUES, GRACE_LABELS,
-  settingIndex, formatSetting, settingsRows, applySetting,
+  settingIndex, formatSetting, settingsRows, applySetting, coerceInto,
 } from '../src/settings_def.mjs';
 import { MODES } from '../src/generator.mjs';
 import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX } from '../src/layout.mjs';
@@ -11,7 +11,7 @@ import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX } from '../src/layout.mjs';
 const fresh = () => ({
   bpm: 80, pxPerBeat: 24, rootPc: 0, transpose: 12, mode: 'major',
   guidance: false, anyOctave: false, waitForNote: true, graceBeats: 1 / 3,
-  click: true, reference: true, midiOut: 4, midiCh: 0, countIn: 4,
+  click: true, reference: true, refVel: 70, midiOut: 4, midiCh: 0, countIn: 4,
 });
 
 test('every row has a key the settings object actually holds', () => {
@@ -162,4 +162,77 @@ test('channel 0 reads as "all" — a mismatch is what makes a setup silent', () 
   assert.equal(formatSetting(s, i), '1');
   applySetting(s, i, 99);
   assert.equal(s.midiCh, 16);
+});
+
+/* ---- Loading a stored file ------------------------------------------------- */
+/*
+ * The loader is driven from this table. It used to be written out a second time
+ * by hand in ui.js, and keeping the two in step failed: the migrations ran in
+ * the middle of that loader, so v3's "broadcast on every channel" was applied
+ * and then overwritten by the stored channel a few lines further down. The
+ * migration silently never happened for anyone who had a settings file.
+ */
+
+test('a stored value is taken when it is valid', () => {
+  const s = fresh();
+  coerceInto(s, { bpm: 120, guidance: true, mode: 'dorian', midiCh: 7 });
+  assert.equal(s.bpm, 120);
+  assert.equal(s.guidance, true);
+  assert.equal(s.mode, 'dorian');
+  assert.equal(s.midiCh, 7);
+});
+
+test('out-of-range numbers are clamped, not rejected outright', () => {
+  const s = fresh();
+  coerceInto(s, { bpm: 9999, countIn: -5, midiCh: 99 });
+  assert.equal(s.bpm, 200);
+  assert.equal(s.countIn, 0);
+  assert.equal(s.midiCh, 16);
+});
+
+test('the key wraps rather than clamping, as it does when edited', () => {
+  const s = fresh();
+  coerceInto(s, { rootPc: 25 });
+  assert.equal(s.rootPc, 1);
+});
+
+test('values of the wrong type, or off an enum, are ignored', () => {
+  const s = fresh();
+  const before = { ...s };
+  coerceInto(s, {
+    bpm: 'fast', guidance: 'yes', mode: 'klingon', graceBeats: 0.7, midiOut: 99, countIn: null,
+  });
+  assert.deepEqual(s, before, 'a corrupt file must not move anything');
+});
+
+test('unknown keys are ignored rather than adopted', () => {
+  const s = fresh();
+  coerceInto(s, { somethingElse: 1, version: 3 });
+  assert.equal(s.somethingElse, undefined);
+});
+
+test('a missing or junk file leaves the defaults alone', () => {
+  const s = fresh();
+  const before = { ...s };
+  for (const junk of [null, undefined, 42, 'x', []]) coerceInto(s, junk);
+  assert.deepEqual(s, before);
+});
+
+test('every editable setting survives a round trip through a stored file', () => {
+  const s = fresh();
+  for (let i = 0; i < SETTINGS_COUNT; i++) applySetting(s, i, 1);
+  const restored = coerceInto(fresh(), JSON.parse(JSON.stringify(s)));
+  for (const def of SETTINGS_DEF) {
+    assert.deepEqual(restored[def.key], s[def.key], def.key + ' did not survive the round trip');
+  }
+});
+
+test('the reference volume is reachable — it was in the file but on no row', () => {
+  const s = fresh();
+  const i = settingIndex('refVel');
+  assert.ok(i >= 0);
+  applySetting(s, i, 10);
+  assert.equal(s.refVel, 80);
+  applySetting(s, i, 999);
+  assert.equal(s.refVel, 127);
 });

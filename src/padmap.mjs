@@ -80,7 +80,7 @@ export const LED_TARGET_NEAR = 16;/* AzureBlue  */
 export const LED_HIT = 126;       /* Green      */
 export const LED_MISS = 127;      /* Red        */
 
-export const MAJOR_PCS = [0, 2, 4, 5, 7, 9, 11];
+const MAJOR_PCS = [0, 2, 4, 5, 7, 9, 11];
 
 export function scalePcSet(rootPc, intervals = MAJOR_PCS) {
   const set = {};

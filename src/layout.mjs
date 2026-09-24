@@ -65,8 +65,6 @@ export const PX_PER_BEAT_MAX = 48;
 /* ---- Note glyphs -------------------------------------------------------- */
 export const HEAD_W = 5;            /* pending notehead                      */
 export const HEAD_H = 3;
-export const HEAD_HIT_W = 7;        /* "fatter" once you nail it             */
-export const HEAD_HIT_H = 5;
 export const HEAD_MISS = 5;         /* the X is HEAD_MISS square             */
 export const RING = 5;              /* hit notehead, and the played marker   */
 export const LEDGER_W = 9;

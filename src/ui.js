@@ -34,6 +34,7 @@ import * as VIEW from './view.mjs';
 import * as CTRL from './controls.mjs';
 import * as SET from './settings_def.mjs';
 import * as GUESS from './guess.mjs';
+import * as LEDS from './led_paint.mjs';
 import * as NOTATION from './notation.mjs';
 import {
   msToBeats, beatsToMs, chartTotalBeats, beatsPerBar, isBeatEdge, applyWait, xToBeat,
@@ -339,45 +340,44 @@ function loadSettings() {
     return;
   }
   if (!obj || typeof obj !== 'object') return;
-  if (typeof obj.bpm === 'number') settings.bpm = clamp(obj.bpm, 40, 200);
-  if (typeof obj.pxPerBeat === 'number') {
-    settings.pxPerBeat = clamp(obj.pxPerBeat, L.PX_PER_BEAT_MIN, L.PX_PER_BEAT_MAX);
-  }
-  if (typeof obj.rootPc === 'number') settings.rootPc = ((obj.rootPc % 12) + 12) % 12;
-  if (typeof obj.mode === 'string' && GEN.MODES[obj.mode]) settings.mode = obj.mode;
-  if (typeof obj.transpose === 'number') settings.transpose = clamp(obj.transpose, -24, 24);
-  if (typeof obj.guidance === 'boolean') settings.guidance = obj.guidance;
-  if (typeof obj.anyOctave === 'boolean') settings.anyOctave = obj.anyOctave;
-  if (typeof obj.click === 'boolean') settings.click = obj.click;
-  if (typeof obj.reference === 'boolean') settings.reference = obj.reference;
-  if (typeof obj.midiOut === 'number' && obj.midiOut >= 1 && obj.midiOut <= 7) {
-    settings.midiOut = obj.midiOut;
-  }
-  /* v2 moved the default off "both" and onto the Move's own instrument: sending
-   * to USB as well meant a DAW on a connected computer picked the notes up and
-   * played them there. Anyone carrying the old default gets moved over; anyone
-   * who deliberately chose USB keeps it. */
+
+  /* Everything the table knows about, bounded by the table. One pass, before
+   * any migration runs — the previous hand-written loader interleaved the two
+   * and v3 was overwritten by the value it was meant to replace. */
+  SET.coerceInto(settings, obj);
+
   const storedVersion = typeof obj.version === 'number' ? obj.version : 1;
+  let migrated = false;
+
+  /* v2 moved the default off "both" and onto the Move's own instrument:
+   * sending to USB as well meant a DAW on a connected computer picked the
+   * notes up and played them there. Anyone carrying the old default is moved
+   * over; a deliberate USB choice is left alone. */
   if (storedVersion < 2 && settings.midiOut === (OUT_TRACK | OUT_USB)) {
     settings.midiOut = OUT_TRACK;
+    migrated = true;
   }
   /* v3: a fixed channel only sounds if a Move track happens to be listening on
    * exactly it, and a mismatch is silent with nothing on screen to explain it.
-   * Broadcasting removes the question, so anyone on a single channel moves to
-   * "all". Pick a channel again if several tracks answer at once. */
-  if (storedVersion < 3) settings.midiCh = 0;
-  /* v4: the module now carries its own piano, so nothing outside it has to be
-   * set up for a note to be heard. Anyone still pointed at a Move track or a
-   * computer is moved onto it; it is one setting to go back. */
-  if (storedVersion < 4) settings.midiOut = OUT_INTERNAL;
-  settings.version = SETTINGS_VERSION;
-  saveSettings();
-  if (typeof obj.waitForNote === 'boolean') settings.waitForNote = obj.waitForNote;
-  if (typeof obj.graceBeats === 'number' && SET.GRACE_VALUES.indexOf(obj.graceBeats) >= 0) {
-    settings.graceBeats = obj.graceBeats;
+   * Broadcasting removes the question. */
+  if (storedVersion < 3 && settings.midiCh !== 0) {
+    settings.midiCh = 0;
+    migrated = true;
   }
-  if (typeof obj.midiCh === 'number') settings.midiCh = clamp(obj.midiCh, 0, 16);
-  if (typeof obj.countIn === 'number') settings.countIn = clamp(obj.countIn, 0, 8);
+  /* v4: the module carries its own piano, so nothing outside it has to be set
+   * up for a note to be heard. */
+  if (storedVersion < 4 && settings.midiOut !== OUT_INTERNAL) {
+    settings.midiOut = OUT_INTERNAL;
+    migrated = true;
+  }
+  if (storedVersion !== SETTINGS_VERSION) {
+    settings.version = SETTINGS_VERSION;
+    migrated = true;
+  }
+  /* Only write when something actually changed: opening the module used to
+   * cost a flash write every time. */
+  if (migrated) saveSettings();
+
   midiChannel = settings.midiCh > 0 ? settings.midiCh - 1 : 0;
 }
 
@@ -434,6 +434,8 @@ let dirty = true;
 let beatFlash = 0;          /* ms timestamp the current beat marker started */
 let lastDrawMs = 0;
 const DRAW_INTERVAL_MS = 20; /* ~50Hz; the panel cannot show more */
+const LED_INTERVAL_MS = 20;
+let lastLedMs = 0;
 
 let quiz = null;
 let quizHear = false;        /* ear training: the prompt is played, not shown */
@@ -594,103 +596,93 @@ function targetPadsNow() {
 }
 
 /*
- * The pads for the note the scroll is stuck on.
+ * Which pitches want lighting, as three small reused arrays. led_paint turns
+ * pitches into pads; this only decides which ones qualify.
+ */
+const targetBuf = [];
+const stuckBuf = [];
+const soundingBuf = [];
+
+/* Guidance ahead of time: the next unresolved entry, if Guide pads is on. */
+function collectTarget() {
+  targetBuf.length = 0;
+  if (!settings.guidance || !run || view !== RUNNING) return false;
+  const entry = run.entries[run.cursor];
+  if (!entry) return false;
+  const lead = entry.beat - songBeats;
+  if (lead < -0.5 || lead > 2) return false;
+  for (let i = 0; i < entry.notes.length; i++) {
+    if (entry.notes[i].state === SCORE.PENDING) targetBuf.push(entry.notes[i].pitch);
+  }
+  return lead < 0.75;
+}
+
+/*
+ * The note the scroll is stuck on.
  *
  * Keyed off the WAIT pointer, not the scoring cursor: the instant a note is
  * missed, advanceCursor moves the scoring cursor past it and its state stops
- * being PENDING, so targetPadsNow below can never light a missed note — which
- * is exactly the note you need shown. "Only if missed" then comes for free,
- * because an entry only starts blocking once its window has closed.
+ * being PENDING, so collectTarget above can never light a missed note — which
+ * is exactly the note you need shown. "Only if missed" comes for free, because
+ * an entry only starts blocking once its window has closed.
  */
-function blockedPads() {
-  if (!settings.guidance || !run || view !== RUNNING || !blocked) return null;
+function collectStuck() {
+  stuckBuf.length = 0;
+  if (!settings.guidance || !run || view !== RUNNING || !blocked) return;
   const stuck = SCORE.blockingNotes(run);
-  const pads = [];
-  for (let i = 0; i < stuck.length; i++) {
-    const forPitch = PAD.padsForPitch(stuck[i].pitch, settings.transpose);
-    for (let p = 0; p < forPitch.length; p++) pads.push(forPitch[p]);
-  }
-  return pads.length ? pads : null;
+  for (let i = 0; i < stuck.length; i++) stuckBuf.push(stuck[i].pitch);
 }
 
 /*
- * The pads for whatever is sounding right now.
+ * Whatever is sounding right now, for Listen — watching the notes light up is
+ * the whole point of that mode, so unlike the guidance hint it is never gated
+ * on a setting. Read from pitchRefcount, which is exactly what is down; the
+ * metronome click lives there too but its pitches sit outside the grid.
  *
- * Used in Listen, where the exercise plays itself: watching the notes light up
- * is the entire point of the mode, so unlike the guidance hint this is never
- * gated on a setting — a demonstration you cannot see demonstrates nothing.
- *
- * Read from pitchRefcount, which is exactly what is currently down. The
- * metronome click lives there too, but its pitches sit outside the grid's
- * range so padsForPitch finds nothing for them.
+ * Nothing lights the answer in the guessing and hearing modes. Guide pads is a
+ * playing aid; in a quiz the hint IS the answer.
  */
-/*
- * Nothing lights the answer in the guessing and hearing modes — not even with
- * Guide pads on. That setting is a playing aid for the reading mode, where the
- * music is moving and a hint keeps you with it. In a quiz the "hint" IS the
- * answer, and a guessing game that shows you the answer is not a game.
- *
- * The only pad feedback here is what you press: green when right, red when
- * wrong, over the usual in-key colouring.
- */
-function soundingPads() {
-  if (!listening || view !== RUNNING) return null;
-  const pads = [];
-  for (const key in pitchRefcount) {
-    const forPitch = PAD.padsForPitch(+key, settings.transpose);
-    for (let i = 0; i < forPitch.length; i++) pads.push(forPitch[i]);
-  }
-  return pads.length ? pads : null;
+function collectSounding() {
+  soundingBuf.length = 0;
+  if (!listening || view !== RUNNING) return;
+  for (const key in pitchRefcount) soundingBuf.push(+key);
 }
+
+/* One reused descriptor and one reused output array: this runs in the frame
+ * path and must not produce garbage. */
+const ledState = {
+  transpose: 0, rootPc: 0, intervals: null, phase: 0, now: 0,
+  heldPads: null, flashes: null,
+  soundingPitches: null, stuckPitches: null, targetPitches: null, targetNear: false,
+};
+const ledWorkspace = LEDS.createLedState();
+const padColorBuf = new Array(PAD.PAD_COUNT);
 
 function paintPads() {
-  const scaleSet = PAD.scalePcSet(settings.rootPc, GEN.MODES[settings.mode] || GEN.MODES.major);
-  const target = targetPadsNow();
-  const targetSet = {};
-  if (target) for (let i = 0; i < target.pads.length; i++) targetSet[target.pads[i]] = 1;
-  /* Pulsing white, distinct from the steady blue of guidance ahead of time and
-   * from the red of a miss flash: "this one, now". */
-  const stuck = blockedPads();
-  const stuckSet = {};
-  if (stuck) for (let i = 0; i < stuck.length; i++) stuckSet[stuck[i]] = 1;
-  const sounding = soundingPads();
-  const soundingSet = {};
-  if (sounding) for (let i = 0; i < sounding.length; i++) soundingSet[sounding[i]] = 1;
-  const t = now();
+  const near = collectTarget();
+  collectStuck();
+  collectSounding();
 
-  for (let pad = PAD.PAD_FIRST; pad <= PAD.PAD_LAST; pad++) {
-    let color;
-    const flash = padFlash[pad];
-    if (flash && flash.untilMs > t) {
-      color = flash.color;
-    } else if (heldPads[pad]) {
-      color = PAD.LED_PRESSED;
-    } else if (soundingSet[pad]) {
-      color = PAD.LED_TARGET_NEAR;
-    } else if (stuckSet[pad]) {
-      color = ledPhase ? PAD.LED_ROOT : PAD.LED_OFF;
-    } else if (targetSet[pad]) {
-      color = target.color;
-    } else {
-      color = PAD.padBaseColor(pad, settings.transpose, scaleSet, settings.rootPc);
-    }
-    setLED(pad, color);
-  }
+  ledState.transpose = settings.transpose;
+  ledState.rootPc = settings.rootPc;
+  ledState.intervals = GEN.MODES[settings.mode] || GEN.MODES.major;
+  ledState.phase = ledPhase;
+  ledState.now = now();
+  ledState.heldPads = heldPads;
+  ledState.flashes = padFlash;
+  ledState.soundingPitches = soundingBuf.length ? soundingBuf : null;
+  ledState.stuckPitches = stuckBuf.length ? stuckBuf : null;
+  ledState.targetPitches = targetBuf.length ? targetBuf : null;
+  ledState.targetNear = near;
+
+  LEDS.padColors(ledState, ledWorkspace, padColorBuf);
+  for (let i = 0; i < PAD.PAD_COUNT; i++) setLED(PAD.PAD_FIRST + i, padColorBuf[i]);
+
   /* The Play button is the only thing that starts a run, so in READY it has to
-   * say so by itself — it pulses. This used to be `view === RUNNING ? 127 : 0`,
+   * say so by itself — it pulses. This was once `view === RUNNING ? 127 : 0`,
    * i.e. dark in exactly the state that needs it lit. */
   setButtonLED(CC_PLAY, CTRL.playLedColor(view, ledPhase, listening));
   setButtonLED(CC_RECORD, CTRL.recordLedColor(view, listening, ledPhase));
-}
-
-function flashPad(pad, color, ms) {
-  padFlash[pad] = { color, untilMs: now() + (ms || 150) };
-  ledDirty = true;
-}
-
-function flashPitch(pitch, color) {
-  const pads = PAD.padsForPitch(pitch, settings.transpose);
-  for (let i = 0; i < pads.length; i++) flashPad(pads[i], color);
 }
 
 /* ---- Metronome and listen playback -------------------------------------- */
@@ -974,6 +966,7 @@ globalThis.init = function init() {
   ledPhase = -1;
   lastClickBeat = null;
   lastDrawMs = 0;
+  lastLedMs = 0;
   settingsDirty = false;
   lastSaveMs = 0;
   pendingExitAt = 0;
@@ -1050,7 +1043,12 @@ globalThis.tick = function tick() {
 
   if (view === GUESS_VIEW) serviceGuess();
   if (blocked) dirty = true;   /* keep the callout and the pulse alive */
-  if (ledDirty || view === RUNNING) {
+  /* A press repaints immediately — not seeing your own pad light up feels
+   * broken. Only the time-driven repaint is capped, to the panel's rate: it
+   * used to run at the full 500Hz tick to animate a pulse that changes twice a
+   * second. */
+  if (ledDirty || (view === RUNNING && t - lastLedMs >= LED_INTERVAL_MS)) {
+    lastLedMs = t;
     paintPads();
     ledDirty = false;
   }

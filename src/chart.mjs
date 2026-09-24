@@ -44,7 +44,7 @@ export function chartTotalBeats(chart) {
 }
 
 /* The beat window currently on screen, from the despawn edge to the right edge. */
-export function visibleRange(songBeats, pxPerBeat) {
+function visibleRange(songBeats, pxPerBeat) {
   return {
     fromBeat: xToBeat(L.DESPAWN_X, songBeats, pxPerBeat),
     toBeat: xToBeat(L.SPAWN_X, songBeats, pxPerBeat),

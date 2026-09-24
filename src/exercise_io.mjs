@@ -8,9 +8,6 @@
  * a line to the manifest.
  */
 
-export const EXERCISE_DIR = 'exercises';
-export const MANIFEST = 'exercises/index.json';
-
 export const MIN_PITCH = 21;
 export const MAX_PITCH = 108;
 
