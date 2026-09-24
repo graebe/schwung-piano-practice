@@ -655,6 +655,21 @@ const ledState = {
   heldPads: null, flashes: null,
   soundingPitches: null, stuckPitches: null, targetPitches: null, targetNear: false,
 };
+/*
+ * Momentary pad feedback: a judgement that just landed. Outranks everything
+ * else in led_paint, including a held pad, for as long as it lasts.
+ */
+function flashPad(pad, color, ms) {
+  padFlash[pad] = { color, untilMs: now() + (ms || 150) };
+  ledDirty = true;
+}
+
+/* Every pad that sounds this pitch — the grid has twins. */
+function flashPitch(pitch, color) {
+  const pads = PAD.padsForPitch(pitch, settings.transpose);
+  for (let i = 0; i < pads.length; i++) flashPad(pads[i], color);
+}
+
 const ledWorkspace = LEDS.createLedState();
 const padColorBuf = new Array(PAD.PAD_COUNT);
 
@@ -844,9 +859,16 @@ function editSetting(index, delta) {
   }
 
   saveSettings();
-  if (res.rebuild && CTRL.shouldRebuildChart(view, chart && chart.source)) {
+
+  /* A quiz draws its questions from the key, scale and octave, so those have to
+   * rebuild it. Its menu row has no `build` — it is a mode, not an exercise —
+   * and calling one here used to throw the moment you turned the key knob with
+   * a quiz open. */
+  if (res.rebuild && view === GUESS_VIEW && quiz) {
+    startQuiz(quiz.kind, quizHear);
+  } else if (res.rebuild && CTRL.shouldRebuildChart(view, chart && chart.source)) {
     const row = menuRows[selectedIndex];
-    if (row) {
+    if (row && row.build) {
       chart = row.build();
       if (chart.source !== 'file') chart.bpm = settings.bpm;
       armRun();

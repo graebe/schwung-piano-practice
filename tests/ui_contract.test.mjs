@@ -460,3 +460,17 @@ test('hearing mode plays the prompt and withholds the notation', () => {
   /* And the screen reader must not simply read the answer out. */
   assert.match(code, /announce\('Listen\.'\)/);
 });
+
+test('the quiz rebuilds itself on a key change, rather than calling a build it has no', () => {
+  /* A quiz row is a mode, not an exercise, so it carries no build(). Turning
+   * the key knob with one open used to throw. */
+  const edit = code.match(/function editSetting\(index, delta\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(edit, /view === GUESS_VIEW && quiz[\s\S]{0,60}startQuiz\(quiz\.kind, quizHear\)/);
+  assert.match(edit, /row && row\.build/, 'and the exercise path is guarded too');
+});
+
+test('the feedback flashes exist — they were deleted once and shipped', () => {
+  /* "ReferenceError: 'flashPad' is not defined" on the first pad press. */
+  assert.match(code, /function flashPad\(pad, color, ms\)/);
+  assert.match(code, /function flashPitch\(pitch, color\)/);
+});

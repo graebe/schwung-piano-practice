@@ -37,6 +37,7 @@ for mod in layout notation staff_render chart scoring generator exercise_io padm
 done
 
 node --check src/ui.js
+test -f tests/ui_smoke.test.mjs   # ui.js must be executed by the suite, not only read
 for mod in src/*.mjs tools/*.mjs; do node --check "$mod"; done
 sh -n scripts/package.sh scripts/install.sh scripts/verify-package.sh scripts/build.sh scripts/build-dsp.sh
 
