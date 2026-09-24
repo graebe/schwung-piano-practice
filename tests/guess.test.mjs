@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   createQuiz, nextPrompt, pressPitch, releasePitch, quizStats,
   NOTES, CHORDS, TRIADS, TYPES, CORRECT, WRONG, INCOMPLETE,
+  roundComplete, roundElapsed, roundProgress,
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
@@ -302,4 +303,59 @@ test('four-note chords really do occur, and must be held in full', () => {
   quiz.label = seventh.label;
   for (let i = 0; i < 3; i++) assert.equal(pressPitch(quiz, seventh.pitches[i]), INCOMPLETE);
   assert.equal(pressPitch(quiz, seventh.pitches[3]), CORRECT);
+});
+
+/* ---- Rounds ------------------------------------------------------------------ */
+
+function answer(q, at) {
+  for (const p of q.prompt.slice()) { pressPitch(q, p, at); }
+  for (const p of q.prompt.slice()) { releasePitch(q, p); }
+}
+
+test('the clock starts on the first press, not when the screen appears', () => {
+  const q = createQuiz({ kind: NOTES, roundSize: 3, seed: 1 });
+  assert.equal(q.startedAt, null, 'time spent getting your bearings is not part of the score');
+  assert.equal(roundElapsed(q, 9999), 0);
+  pressPitch(q, q.prompt[0], 5000);
+  assert.equal(q.startedAt, 5000);
+});
+
+test('a round ends on exactly N correct answers', () => {
+  const q = createQuiz({ kind: NOTES, roundSize: 3, seed: 1 });
+  let t = 1000;
+  for (let i = 0; i < 3; i++) {
+    assert.equal(roundComplete(q), false, 'not before the last one');
+    answer(q, t);
+    t += 1000;
+    if (!roundComplete(q)) nextPrompt(q);
+  }
+  assert.equal(roundComplete(q), true);
+  assert.deepEqual(roundProgress(q), { done: 3, total: 3 });
+});
+
+test('a wrong answer costs time but does not advance the round', () => {
+  const q = createQuiz({ kind: NOTES, roundSize: 2, seed: 1 });
+  const wrong = q.prompt[0] + 1;
+  pressPitch(q, wrong, 1000);
+  releasePitch(q, wrong);
+  assert.equal(roundProgress(q).done, 0, 'still nothing achieved');
+  answer(q, 3000);
+  assert.equal(roundProgress(q).done, 1);
+  assert.ok(roundElapsed(q, 3000) >= 2000, 'and the two seconds were spent');
+});
+
+test('elapsed stops at the last correct answer, not whenever you look', () => {
+  const q = createQuiz({ kind: NOTES, roundSize: 1, seed: 1 });
+  answer(q, 4000);
+  assert.equal(roundComplete(q), true);
+  const a = roundElapsed(q, 99999);
+  const b = roundElapsed(q, 500000);
+  assert.equal(a, b, 'a finished round has a fixed duration');
+});
+
+test('endless practice never completes and is never recorded', () => {
+  const q = createQuiz({ kind: NOTES, roundSize: 0, seed: 1 });
+  for (let i = 0; i < 50; i++) { answer(q, 1000 + i * 100); nextPrompt(q); }
+  assert.equal(roundComplete(q), false);
+  assert.equal(roundProgress(q).total, 0);
 });

@@ -35,6 +35,7 @@ import * as CTRL from './controls.mjs';
 import * as SET from './settings_def.mjs';
 import * as GUESS from './guess.mjs';
 import * as LEDS from './led_paint.mjs';
+import * as STATS from './stats.mjs';
 import * as NOTATION from './notation.mjs';
 import {
   msToBeats, beatsToMs, chartTotalBeats, beatsPerBar, isBeatEdge, applyWait, xToBeat,
@@ -46,6 +47,7 @@ import { parseExercise, parseManifest } from './exercise_io.mjs';
 
 const MODULE_DIR = '/data/UserData/schwung/modules/tools/piano-practice';
 const SETTINGS_PATH = MODULE_DIR + '/settings.json';
+const STATS_PATH = MODULE_DIR + '/stats.json';
 
 /* CCs and notes (src/shared/constants.mjs). */
 const CC_JOG_CLICK = 3;
@@ -321,6 +323,7 @@ const settings = {
   guidance: false, /* sight-reading first — the user's call */
   anyOctave: false,
   halfTones: true,   /* the guesser asks about black notes too */
+  roundSize: 20,     /* prompts per round; 0 = endless practice, unrecorded */
   chordSet: 'triads',
   click: true,
   reference: true,   /* hear the line you are meant to be playing */
@@ -398,6 +401,15 @@ function saveSettings() {
   settingsDirty = true;
 }
 
+function loadStats() {
+  stats = STATS.parseStats(readFile(STATS_PATH));
+}
+
+/* One write per finished round — small, and rare enough not to need pacing. */
+function saveStats() {
+  writeFile(STATS_PATH, STATS.serialiseStats(stats));
+}
+
 function flushSettings(force) {
   if (!settingsDirty) return;
   const t = now();
@@ -418,6 +430,8 @@ const RUNNING = 'running';
 const SUMMARY = 'summary';
 const SETTINGS = 'settings';
 const GUESS_VIEW = 'guess';
+const RESULT_VIEW = 'result';
+const PROGRESS_VIEW = 'progress';
 
 let view = MENU;
 let chart = null;
@@ -439,6 +453,10 @@ const DRAW_INTERVAL_MS = 20; /* ~50Hz; the panel cannot show more */
 const LED_INTERVAL_MS = 20;
 let lastLedMs = 0;
 
+let stats = STATS.emptyStats();
+let lastResult = null;       /* the round just finished, for the result screen */
+let progressDrills = [];     /* drills with history, most recent first */
+let progressIndex = 0;
 let quiz = null;
 let quizHear = false;        /* ear training: the prompt is played, not shown */
 let quizSolvedAt = 0;        /* brief confirmation before the next prompt */
@@ -488,6 +506,7 @@ function rebuildMenu() {
    * already open means no new screen and no new gesture — and which entry you
    * pick is also how you choose notes or chords. */
   menuRows = [
+    { label: 'Progress', progress: true, value: '~' },
     { label: 'Guess: notes', guess: GUESS.NOTES, value: '?' },
     { label: 'Guess: chords', guess: GUESS.CHORDS, value: '?' },
     { label: 'Hear: notes', guess: GUESS.NOTES, hear: true, value: '♪' },
@@ -502,6 +521,55 @@ function rebuildMenu() {
   if (menuCursor >= menuRows.length) menuCursor = Math.max(0, menuRows.length - 1);
 }
 
+function currentDrill() {
+  return STATS.drillId({
+    hear: quizHear,
+    kind: quiz ? quiz.kind : GUESS.NOTES,
+    chordSet: settings.chordSet,
+    halfTones: settings.halfTones,
+  });
+}
+
+function openProgress() {
+  progressDrills = STATS.drillsWithHistory(stats);
+  progressIndex = 0;
+  view = PROGRESS_VIEW;
+  dirty = true;
+  ledDirty = true;
+  announce('Progress.');
+}
+
+/*
+ * A round is over. Record it, then show the result — the rate on its own says
+ * nothing, so the screen also says whether it beat the drill's best.
+ */
+function finishRound() {
+  const drill = currentDrill();
+  const ms = GUESS.roundElapsed(quiz, now());
+  const rec = STATS.makeRecord({
+    drill, n: quiz.correct, ms, wrong: quiz.wrong, at: Date.now(),
+  });
+  const best = STATS.summarise(STATS.forDrill(stats, drill)).best;
+  lastResult = {
+    drill,
+    rate: STATS.recordRate(rec),
+    ms,
+    n: quiz.correct,
+    wrong: quiz.wrong,
+    bestStreak: quiz.bestStreak,
+    isBest: STATS.isPersonalBest(stats, rec),
+    best,
+  };
+  STATS.addRecord(stats, rec);
+  saveStats();
+  allNotesOff();
+  view = RESULT_VIEW;
+  dirty = true;
+  ledDirty = true;
+  announce('Round done. ' + Math.round(lastResult.rate) + ' per minute.'
+    + (lastResult.isBest ? ' Best yet.' : ''));
+}
+
 function startQuiz(kind, hear) {
   allNotesOff();
   quizHear = Boolean(hear);
@@ -512,6 +580,7 @@ function startQuiz(kind, hear) {
     transpose: settings.transpose,
     halfTones: settings.halfTones,
     chordSet: settings.chordSet,
+    roundSize: settings.roundSize,
     fifths: keyFifths(),
     seed: (Date.now() & 0x7fffffff) || 1,
   });
@@ -542,6 +611,10 @@ function selectExercise(index) {
   if (!row) return;
   selectedIndex = index;
   menuCursor = index;
+  if (row.progress) {
+    openProgress();
+    return;
+  }
   if (row.guess) {
     startQuiz(row.guess, row.hear);
     return;
@@ -779,6 +852,10 @@ function serviceGuess() {
   }
   if (quizSolvedAt && t - quizSolvedAt >= GUESS_ADVANCE_MS) {
     quizSolvedAt = 0;
+    if (GUESS.roundComplete(quiz)) {
+      finishRound();
+      return;
+    }
     GUESS.nextPrompt(quiz);
     dirty = true;
     ledDirty = true;
@@ -811,6 +888,16 @@ function draw() {
       footer: settingsEditing ? 'turn to change  CLICK done' : 'CLICK edit  SHIFT+CLICK back',
       editing: settingsEditing,
     });
+  } else if (view === RESULT_VIEW) {
+    VIEW.drawRoundResult(ctx, lastResult);
+  } else if (view === PROGRESS_VIEW) {
+    const drill = progressDrills[progressIndex] || null;
+    VIEW.drawProgress(ctx, {
+      drill,
+      records: drill ? STATS.forDrill(stats, drill) : [],
+      drillIndex: progressIndex,
+      drillCount: progressDrills.length,
+    });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
     VIEW.drawGuessView(ctx, {
@@ -820,7 +907,9 @@ function draw() {
       hidden: quizHear && !quiz.solved,
       label: quiz.label,
       title: quizHear ? 'HEAR' : (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE'),
-      score: st.correct + '/' + st.asked,
+      score: quiz.roundSize > 0
+        ? quiz.correct + '/' + quiz.roundSize
+        : st.correct + '/' + st.asked,
       footer: 'streak ' + st.streak + (quizHear ? '   PLAY again' : '   PLAY hear'),
     });
   } else if (view === SUMMARY) {
@@ -900,7 +989,7 @@ function onPadDown(pad, vel) {
   noteOn(pitch, vel);
 
   if (view === GUESS_VIEW) {
-    const res = GUESS.pressPitch(quiz, pitch);
+    const res = GUESS.pressPitch(quiz, pitch, now());
     if (res === GUESS.WRONG) flashPad(pad, PAD.LED_MISS, 200);
     else if (res === GUESS.CORRECT) {
       quizSolvedAt = now();
@@ -931,6 +1020,14 @@ function onPadUp(pad) {
 }
 
 function onJog(delta) {
+  if (view === PROGRESS_VIEW) {
+    if (progressDrills.length > 1) {
+      progressIndex = (progressIndex + (delta > 0 ? 1 : -1) + progressDrills.length)
+        % progressDrills.length;
+      dirty = true;
+    }
+    return;
+  }
   if (view === SETTINGS) {
     if (settingsEditing) editSetting(settingsCursor, delta);
     else settingsCursor = clamp(settingsCursor + delta, 0, settingsRows().length - 1);
@@ -991,6 +1088,9 @@ globalThis.init = function init() {
   settingsEditing = false;
   quiz = null;
   quizHear = false;
+  lastResult = null;
+  progressDrills = [];
+  progressIndex = 0;
   quizSolvedAt = 0;
   guessOff.length = 0;
   ledPhase = -1;
@@ -1006,6 +1106,7 @@ globalThis.init = function init() {
   for (const k in pitchRefcount) delete pitchRefcount[k];
 
   loadSettings();
+  loadStats();
   loadFileExercises();
   rebuildMenu();
   invalidateLedCache();
@@ -1135,6 +1236,10 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
    * me, and "record" means capture what I do. Pressing the running mode's own
    * button stops it; pressing the other switches, so no press is ever a no-op. */
   if (d1 === CC_PLAY) {
+    if (view === RESULT_VIEW) {
+      startQuiz(quiz.kind, quizHear);
+      return;
+    }
     if (view === GUESS_VIEW) {
       hearPrompt();
       return;
@@ -1145,6 +1250,10 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
     return;
   }
   if (d1 === CC_RECORD) {
+    if (view === RESULT_VIEW) {
+      startQuiz(quiz.kind, quizHear);
+      return;
+    }
     if (view === GUESS_VIEW) {
       GUESS.nextPrompt(quiz);
       quizSolvedAt = 0;
@@ -1181,6 +1290,12 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
     }
     if (view === RUNNING) {
       stopRun();
+      return;
+    }
+    if (view === RESULT_VIEW || view === PROGRESS_VIEW) {
+      view = MENU;
+      dirty = true;
+      ledDirty = true;
       return;
     }
     if (view === READY || view === GUESS_VIEW) {

@@ -47,6 +47,12 @@ export const SETTINGS_DEF = [
      * or a deliberately chosen quality — dim, aug, sus, sixths, sevenths, add9. */
     key: 'chordSet', label: 'Chords', type: 'list', values: ['triads', 'types'],
   },
+  {
+    /* Prompts per round. A fixed count makes two rounds cover the same work, so
+     * the rates are comparable; 0 is open-ended practice that records nothing. */
+    key: 'roundSize', label: 'Round', type: 'enum',
+    values: [0, 10, 20, 30], labels: ['endless', '10', '20', '30'],
+  },
   { key: 'waitForNote', label: 'Wait', type: 'bool', format: onOff },
   { key: 'graceBeats', label: 'Grace', type: 'enum', values: GRACE_VALUES, labels: GRACE_LABELS },
   { key: 'click', label: 'Click', type: 'bool', format: onOff },

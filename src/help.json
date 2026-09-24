@@ -89,6 +89,38 @@
       ]
     },
     {
+      "title": "Rounds",
+      "lines": [
+        "A quiz is a round of 20",
+        "prompts (10/20/30 in",
+        "settings, or endless).",
+        "",
+        "The clock starts on your",
+        "first press, not when the",
+        "screen appears. A prompt",
+        "waits until you get it",
+        "right, so a wrong answer",
+        "costs you time rather",
+        "than a penalty - the same",
+        "way a typing test treats",
+        "a typo.",
+        "",
+        "The result is correct",
+        "answers per minute, and",
+        "whether it beat your best.",
+        "",
+        "Progress, at the top of",
+        "the list, plots how one",
+        "drill has developed. Jog",
+        "changes drill. Rates only",
+        "compare within a drill -",
+        "hearing 7th chords is not",
+        "naming a white note.",
+        "",
+        "endless records nothing."
+      ]
+    },
+    {
       "title": "Play",
       "lines": [
         "PLAY   listen. The",

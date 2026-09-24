@@ -76,6 +76,26 @@ teaching is. **Play** repeats it.
 aid for the reading mode, where the music is moving and a hint keeps you with it; in a quiz the hint
 is the answer. The only pad feedback here is what you press — green when right, red when wrong.
 
+## Rounds and progress
+
+A quiz is a **round** of 20 prompts (10/20/30 in settings, or `endless` for open practice that
+records nothing). The clock starts on your **first press**, not when the screen appears, so the
+moment of orientation is not part of the score. Because a prompt waits until you get it right, a
+round is always exactly N correct answers — a wrong answer costs you *time* rather than needing a
+penalty of its own, the same way a typing test treats a typo.
+
+The result is **correct answers per minute**, with your best for that drill beside it.
+
+**Progress**, at the top of the exercise list, plots how one drill has developed — a sparkline of
+recent rounds with best, average and latest. The jog changes drill.
+
+Rates only ever compare **within a drill**: hearing seventh chords is not the same task as naming a
+white note, so every round is recorded against a drill id (`guess:notes:half`, `hear:chords:types`)
+and the plot never mixes them.
+
+History lives in `stats.json` beside the module, capped at 200 rounds, and `scripts/install.sh`
+carries it across updates.
+
 ## Requirements
 
 - Ableton Move with [Schwung](https://github.com/charlesvestal/schwung) installed

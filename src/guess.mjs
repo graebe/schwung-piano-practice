@@ -109,6 +109,7 @@ export function createQuiz({
   halfTones = false,
   chordSet = TRIADS,
   fifths = 0,
+  roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
   seed = 1,
 } = {}) {
   const quiz = {
@@ -125,6 +126,14 @@ export function createQuiz({
     bestStreak: 0,
     solved: false,
     penalised: false,
+    roundSize,
+    /*
+     * Null until the first press. A round is timed from when you start
+     * playing, not from when the screen appeared — the seconds spent getting
+     * your bearings are not part of how fast you can answer.
+     */
+    startedAt: null,
+    finishedAt: null,
   };
   nextPrompt(quiz);
   return quiz;
@@ -175,7 +184,8 @@ function evaluate(quiz) {
  * A wrong answer is counted but does NOT move on: the prompt stays until it is
  * played, which is the point of the mode.
  */
-export function pressPitch(quiz, pitch) {
+export function pressPitch(quiz, pitch, nowMs = 0) {
+  if (quiz.startedAt === null && nowMs) quiz.startedAt = nowMs;
   if (quiz.solved) return CORRECT;
   /* Two pads can be the same pitch on this grid; count it once. */
   if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
@@ -186,6 +196,9 @@ export function pressPitch(quiz, pitch) {
     quiz.correct++;
     quiz.streak++;
     if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
+    if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
+      quiz.finishedAt = nowMs || quiz.startedAt || 0;
+    }
   } else if (result === WRONG && !quiz.penalised) {
     /* Once per prompt: holding a wrong note down should not keep scoring. */
     quiz.penalised = true;
@@ -209,4 +222,28 @@ export function quizStats(quiz) {
     streak: quiz.streak,
     bestStreak: quiz.bestStreak,
   };
+}
+
+/* ---- Rounds ------------------------------------------------------------------ */
+/*
+ * A round is a fixed number of prompts — a sprint over a fixed distance, so two
+ * rounds cover the same work and can be compared. Since a prompt stays until
+ * you get it right, finishing means exactly `roundSize` correct answers, and a
+ * wrong answer costs time rather than needing a penalty of its own.
+ */
+
+export function roundComplete(quiz) {
+  return quiz.roundSize > 0 && quiz.correct >= quiz.roundSize;
+}
+
+/* Milliseconds of actual playing: first press to last correct answer. */
+export function roundElapsed(quiz, nowMs = 0) {
+  if (quiz.startedAt === null) return 0;
+  const end = quiz.finishedAt !== null ? quiz.finishedAt : nowMs;
+  return Math.max(0, end - quiz.startedAt);
+}
+
+/* How far through the round, for the header. */
+export function roundProgress(quiz) {
+  return { done: quiz.correct, total: quiz.roundSize };
 }

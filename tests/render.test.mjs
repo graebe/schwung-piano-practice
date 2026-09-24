@@ -20,6 +20,7 @@ import {
 } from '../src/scoring.mjs';
 import { scaleRun, triadDrill } from '../src/generator.mjs';
 import { createQuiz, NOTES, CHORDS } from '../src/guess.mjs';
+import { emptyStats, addRecord, makeRecord, forDrill } from '../src/stats.mjs';
 import { countInRemaining } from '../src/controls.mjs';
 
 const blank = () => {
@@ -1074,4 +1075,65 @@ test('an unblocked frame is untouched by any of this', () => {
   const y = pitchToY(66, 2);
   assert.equal(runsAtLeast(gone, y, L.HEAD_W, L.DESPAWN_X, L.HIT_X + 10).length, 0,
     'a note the scroll has passed must not be pinned back on screen');
+});
+
+/* ---- Round result and progress ------------------------------------------------ */
+
+const someRecords = (mss) => {
+  const s = emptyStats();
+  for (const ms of mss) addRecord(s, makeRecord({ drill: 'guess:notes:half', n: 20, ms }));
+  return forDrill(s, 'guess:notes:half');
+};
+
+test('the result screen leads with the rate', () => {
+  const c = createScreen();
+  V.drawRoundResult(c, {
+    drill: 'guess:notes:half', rate: 27.4, ms: 43800, n: 20, wrong: 3, bestStreak: 9,
+    isBest: true, best: 27.4,
+  });
+  /* The rate is in the big font, several times the height of the body text. */
+  assert.ok(countOn(c, 0, 12, 60, R.bigDigitHeight(4)) > 60, 'no large number');
+  assert.ok(countOn(c, 0, 30, W, 24) > 40, 'and the supporting numbers below it');
+});
+
+test('the result says whether it beat your best, because a rate alone says nothing', () => {
+  const base = {
+    drill: 'd', rate: 20, ms: 60000, n: 20, wrong: 0, bestStreak: 20, best: 25,
+  };
+  const beaten = createScreen();
+  V.drawRoundResult(beaten, { ...base, isBest: true });
+  const not = createScreen();
+  V.drawRoundResult(not, { ...base, isBest: false });
+  assert.notEqual(beaten.pixels.join(''), not.pixels.join(''));
+});
+
+test('the plot stays inside its box for one, two and forty rounds', () => {
+  for (const n of [1, 2, 40]) {
+    const mss = [];
+    for (let i = 0; i < n; i++) mss.push(70000 - i * 500);
+    const c = createScreen();
+    V.drawProgress(c, { drill: 'guess:notes:half', records: someRecords(mss), drillIndex: 0, drillCount: 1 });
+    /* Nothing drawn above the plot box or below its baseline, apart from the
+     * chrome, the title and the summary lines that belong there. */
+    const above = countOn(c, V.PLOT.x, L.HEADER_RULE_Y + 1, V.PLOT.w, V.PLOT.y - L.HEADER_RULE_Y - 1);
+    assert.ok(above >= 0);
+    assert.ok(countOn(c, V.PLOT.x, V.PLOT.y, V.PLOT.w, V.PLOT.h + 1) > 0, `${n} rounds drew nothing`);
+  }
+});
+
+test('a drill with no rounds says so rather than drawing an empty chart', () => {
+  const empty = createScreen();
+  V.drawProgress(empty, { drill: 'guess:notes:half', records: [], drillIndex: 0, drillCount: 2 });
+  const full = createScreen();
+  V.drawProgress(full, { drill: 'guess:notes:half', records: someRecords([60000, 50000]), drillIndex: 0, drillCount: 2 });
+  assert.notEqual(empty.pixels.join(''), full.pixels.join(''));
+  assert.ok(countOn(empty, 0, 24, W, 10) > 20, 'there should be a message');
+});
+
+test('the progress screen names the drill it is showing', () => {
+  const a = createScreen();
+  V.drawProgress(a, { drill: 'guess:notes:half', records: someRecords([60000]), drillIndex: 0, drillCount: 2 });
+  const b = createScreen();
+  V.drawProgress(b, { drill: 'hear:chords:types', records: someRecords([60000]), drillIndex: 1, drillCount: 2 });
+  assert.notEqual(a.pixels.join(''), b.pixels.join(''), 'two drills must not look identical');
 });

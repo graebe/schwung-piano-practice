@@ -43,6 +43,12 @@ tar -xzf "$archive" -C "$stage" --strip-components=1
 if [ -f "$remote/settings.json" ]; then
   cp "$remote/settings.json" "$stage/settings.json"
 fi
+# And their progress history. Forgetting this would wipe every recorded round
+# on the next install, silently, and nobody would notice until they went
+# looking for a trend that was no longer there.
+if [ -f "$remote/stats.json" ]; then
+  cp "$remote/stats.json" "$stage/stats.json"
+fi
 # Keep any exercises they added by hand.
 if [ -d "$remote/exercises" ]; then
   for f in "$remote/exercises/"*.json; do

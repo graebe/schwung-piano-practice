@@ -481,3 +481,20 @@ test('the jog cannot change what you are playing', () => {
   assert.doesNotMatch(jog, /'select'/);
   assert.match(jog, /next\.action !== 'cursor'/);
 });
+
+test('a finished round is recorded, and the history survives an update', () => {
+  assert.match(code, /STATS\.makeRecord\(/);
+  assert.match(code, /STATS\.addRecord\(stats, rec\)/);
+  assert.match(code, /function saveStats\(\)[\s\S]{0,200}writeFile\(STATS_PATH/);
+  assert.match(code, /STATS_PATH = MODULE_DIR \+ '\/stats\.json'/);
+  /* The rate only means something within one drill. */
+  assert.match(code, /function currentDrill\(\)[\s\S]{0,240}STATS\.drillId/);
+});
+
+test('the round clock is the module clock, not wall time', () => {
+  /* performance.now() is monotonic; Date.now() can jump mid-round. */
+  assert.match(code, /GUESS\.pressPitch\(quiz, pitch, now\(\)\)/);
+  assert.match(code, /GUESS\.roundElapsed\(quiz, now\(\)\)/);
+  /* The timestamp on the record is wall time, which is what a date needs. */
+  assert.match(code, /at: Date\.now\(\)/);
+});

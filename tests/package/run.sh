@@ -32,7 +32,7 @@ test -f src/help.json
 test -f release.json
 test -f LICENSE
 test -f README.md
-for mod in layout notation staff_render chart scoring generator exercise_io padmap view controls settings_def guess led_paint chords; do
+for mod in layout notation staff_render chart scoring generator exercise_io padmap view controls settings_def guess led_paint chords stats; do
   test -f "src/$mod.mjs"
 done
 
@@ -51,6 +51,9 @@ fi
 grep -q 'piano-practice.install' scripts/install.sh
 grep -q 'trap rollback' scripts/install.sh
 grep -q 'settings.json' scripts/install.sh
+# The progress history must survive an update. This is invisible when broken
+# until someone's trend is already gone, so it is asserted rather than trusted.
+grep -q 'stats.json' scripts/install.sh
 grep -q 'exercises' scripts/install.sh
 grep -q 'verify-package.sh' scripts/package.sh
 

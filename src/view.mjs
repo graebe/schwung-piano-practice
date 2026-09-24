@@ -15,6 +15,7 @@ import {
 } from './chart.mjs';
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
+import { drillLabel, sparkline, summarise, recordRate } from './stats.mjs';
 
 export const SETTINGS_HINT = 'shift + jog: settings';
 
@@ -272,6 +273,80 @@ export function drawCentreCallout(ctx, text, scale) {
   ctx.drawRect(x - 3, y - 2, w + 6, h + 4, 1);
   R.drawBigText(ctx, x, y, text, scale);
   return { x: x - 3, y: y - 2, w: w + 6, h: h + 4 };
+}
+
+/*
+ * The end of a round. The rate is the headline, so it gets the big font; the
+ * rest is context for it. "best yet" or the number to beat, because a rate on
+ * its own tells you nothing about whether you are improving.
+ */
+export function drawRoundResult(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: 'ROUND', right: state.drill ? '' : '' });
+
+  const rate = Math.round(state.rate);
+  const big = String(rate);
+  const scale = 4;
+  const w = R.bigTextWidth(big, scale);
+  R.drawBigText(ctx, 4, 12, big, scale);
+  ctx.text(4 + w + 4, 12 + R.bigDigitHeight(scale) - 7, 'per min', 1);
+
+  const secs = (state.ms / 1000).toFixed(1) + 's';
+  ctx.text(4, 36, state.n + ' in ' + secs, 1);
+  ctx.text(4, 45, 'wrong ' + state.wrong + '   streak ' + state.bestStreak, 1);
+
+  const note = state.isBest ? 'best yet' : 'best ' + Math.round(state.best) + '/min';
+  ctx.text(L.SCREEN_W - ctx.textWidth(note) - 3, 45, note, 1);
+  drawFooterHint(ctx, 'PLAY again   BACK list');
+  return ctx;
+}
+
+/*
+ * How you have developed, one drill at a time. Comparing across drills would be
+ * meaningless — hearing seventh chords is not the same task as naming a white
+ * note — so the plot only ever shows one, and the jog changes which.
+ */
+export const PLOT = { x: 4, y: 18, w: 120, h: 24 };
+
+export function drawProgress(ctx, state) {
+  const records = state.records || [];
+  ctx.clear();
+  R.drawChrome(ctx, {
+    left: 'PROGRESS',
+    right: state.drillIndex != null && state.drillCount
+      ? state.drillIndex + 1 + '/' + state.drillCount
+      : '',
+  });
+
+  const title = state.drill ? drillLabel(state.drill) : 'nothing yet';
+  ctx.text(2, 9, title.length > 21 ? title.slice(0, 21) : title, 1);
+
+  if (!records.length) {
+    const msg = 'no rounds yet';
+    ctx.text((L.SCREEN_W - ctx.textWidth(msg)) >> 1, 28, msg, 1);
+    drawFooterHint(ctx, state.drillCount > 1 ? 'jog: another drill' : 'play a round');
+    return ctx;
+  }
+
+  const pts = sparkline(records, PLOT.w, PLOT.h);
+  /* A baseline, so a flat run still reads as a chart rather than a stray line. */
+  ctx.fillRect(PLOT.x, PLOT.y + PLOT.h, PLOT.w, 1, 1);
+  for (let i = 0; i < pts.length; i++) {
+    const px = PLOT.x + pts[i].x;
+    const py = PLOT.y + pts[i].y;
+    if (i > 0) {
+      ctx.line(PLOT.x + pts[i - 1].x, PLOT.y + pts[i - 1].y, px, py, 1);
+    }
+    /* Mark each round, so a two-round history is visibly two rounds. */
+    ctx.fillRect(px - 1, py - 1, 3, 3, 1);
+  }
+
+  const s = summarise(records);
+  const line = 'best ' + Math.round(s.best) + '  avg ' + Math.round(s.average)
+    + '  now ' + Math.round(s.last);
+  ctx.text(2, L.FOOTER_Y - 9, line, 1);
+  drawFooterHint(ctx, state.drillCount > 1 ? 'jog: another drill' : String(s.count) + ' rounds');
+  return ctx;
 }
 
 /* Scrolling list used for both the exercise picker and the settings page. */

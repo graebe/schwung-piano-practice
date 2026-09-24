@@ -192,6 +192,46 @@ test('a long run ticks thousands of times without throwing', () => {
   }
 });
 
+test('a whole round can be played to its result screen', () => {
+  globalThis.init();
+  /* Row 0 is Progress; open it, then come back and play a quiz. */
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.tick();
+  for (const cc of [JOG_TURN]) globalThis.onMidiMessageInternal(CC(cc, 1));
+  globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  globalThis.tick();
+
+  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));   /* Guess: notes */
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.tick();
+  /* Hammer every pad repeatedly: whatever the prompt is, this answers it. */
+  for (let round = 0; round < 60; round++) {
+    for (let pad = PAD; pad < PAD + 32; pad++) {
+      globalThis.onMidiMessageInternal([0x90, pad, 100]);
+      globalThis.onMidiMessageInternal([0x80, pad, 0]);
+    }
+    for (let i = 0; i < 40; i++) globalThis.tick();
+  }
+  /* Whatever state that left us in, the transport and Back must still work. */
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  globalThis.tick();
+});
+
+test('the progress screen opens and the jog cycles drills without throwing', () => {
+  globalThis.init();
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* row 0 = Progress */
+  for (let i = 0; i < 6; i++) {
+    globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+    globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
+    globalThis.tick();
+  }
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  globalThis.tick();
+});
+
 test('unloading is clean, and resume does not throw', () => {
   globalThis.onResume();
   globalThis.tick();
