@@ -232,6 +232,41 @@ test('the progress screen opens and the jog cycles drills without throwing', () 
   globalThis.tick();
 });
 
+test('a multiple-choice round can be played entirely with the jog', () => {
+  globalThis.init();
+  /* Rows: 0 Progress, 1-4 Guess/Hear, 5 Pick: notes, 6 Pick: chords. */
+  for (const row of [5, 6]) {
+    globalThis.init();
+    for (let i = 0; i < row; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+    globalThis.tick();
+    /* Turn and answer repeatedly: one of the three is right each time. */
+    for (let i = 0; i < 200; i++) {
+      globalThis.onMidiMessageInternal(CC(JOG_TURN, i % 2 ? 1 : 127));
+      globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+      for (let t = 0; t < 30; t++) globalThis.tick();
+    }
+    globalThis.onMidiMessageInternal(CC(PLAY, 127));
+    globalThis.tick();
+    globalThis.onMidiMessageInternal(CC(BACK, 127));
+    globalThis.tick();
+  }
+});
+
+test('pressing pads during a pick does not answer it or throw', () => {
+  globalThis.init();
+  for (let i = 0; i < 5; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.tick();
+  for (let pad = PAD; pad < PAD + 8; pad++) {
+    globalThis.onMidiMessageInternal([0x90, pad, 100]);
+    globalThis.onMidiMessageInternal([0x80, pad, 0]);
+    globalThis.tick();
+  }
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  globalThis.tick();
+});
+
 test('unloading is clean, and resume does not throw', () => {
   globalThis.onResume();
   globalThis.tick();

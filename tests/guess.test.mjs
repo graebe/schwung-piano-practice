@@ -5,6 +5,7 @@ import {
   createQuiz, nextPrompt, pressPitch, releasePitch, quizStats,
   NOTES, CHORDS, TRIADS, TYPES, CORRECT, WRONG, INCOMPLETE,
   roundComplete, roundElapsed, roundProgress,
+  moveChoice, pickChoice, optionLabel, PICK_COUNT,
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
@@ -358,4 +359,82 @@ test('endless practice never completes and is never recorded', () => {
   for (let i = 0; i < 50; i++) { answer(q, 1000 + i * 100); nextPrompt(q); }
   assert.equal(roundComplete(q), false);
   assert.equal(roundProgress(q).total, 0);
+});
+
+/* ---- Multiple choice ----------------------------------------------------------- */
+
+const pickQuiz = (o = {}) => createQuiz({ kind: NOTES, halfTones: true, pick: true, seed: 2, ...o });
+
+test('a pick prompt comes with its options, one of them right', () => {
+  const q = pickQuiz();
+  assert.equal(q.choices.length, PICK_COUNT);
+  assert.ok(q.choices.includes(q.entry));
+  assert.equal(q.choiceIndex, 0);
+});
+
+test('the jog moves between the options and wraps', () => {
+  const q = pickQuiz();
+  assert.equal(moveChoice(q, 1), 1);
+  assert.equal(moveChoice(q, 1), 2);
+  assert.equal(moveChoice(q, 1), 0, 'wraps forward');
+  assert.equal(moveChoice(q, -1), 2, 'and back');
+});
+
+test('a wrong pick is counted and the question stays', () => {
+  const q = pickQuiz();
+  const right = q.choices.indexOf(q.entry);
+  const prompt = q.prompt.slice();
+  q.choiceIndex = (right + 1) % PICK_COUNT;
+  assert.equal(pickChoice(q, 1000), WRONG);
+  assert.equal(q.wrong, 1);
+  assert.equal(q.solved, false);
+  assert.deepEqual(q.prompt, prompt, 'it must wait until you get it right');
+  /* And only counted once, however many times you pick wrong. */
+  q.choiceIndex = (right + 2) % PICK_COUNT;
+  pickChoice(q, 1100);
+  assert.equal(q.wrong, 1);
+});
+
+test('the right pick solves it and counts toward the round', () => {
+  const q = pickQuiz({ roundSize: 2 });
+  q.choiceIndex = q.choices.indexOf(q.entry);
+  assert.equal(pickChoice(q, 1000), CORRECT);
+  assert.equal(q.correct, 1);
+  assert.equal(roundProgress(q).done, 1);
+});
+
+test('a round of picks completes on N correct, like every other drill', () => {
+  const q = pickQuiz({ roundSize: 3 });
+  let t = 1000;
+  for (let i = 0; i < 3; i++) {
+    q.choiceIndex = q.choices.indexOf(q.entry);
+    pickChoice(q, t);
+    t += 1000;
+    if (!roundComplete(q)) nextPrompt(q);
+  }
+  assert.equal(roundComplete(q), true);
+  assert.ok(roundElapsed(q) > 0);
+});
+
+test('the clock starts on the first jog move, since there are no pad presses', () => {
+  const q = pickQuiz();
+  assert.equal(q.startedAt, null);
+  moveChoice(q, 1, 4242);
+  assert.equal(q.startedAt, 4242);
+});
+
+test('note options carry their octave — the grid has the same name in several places', () => {
+  const q = pickQuiz();
+  for (const c of q.choices) assert.match(optionLabel(q, c), /[0-9]$/);
+});
+
+test('chord options are the chord symbols, not lists of note names', () => {
+  /* Asserted against the entry's own symbol rather than by pattern: "G6" is a
+   * perfectly good chord symbol that also looks like a note in octave 6. */
+  const q = createQuiz({ kind: CHORDS, chordSet: TYPES, halfTones: true, pick: true, seed: 2 });
+  for (const c of q.choices) {
+    assert.equal(optionLabel(q, c), c.label);
+    assert.ok(c.label && !c.label.includes(' '), `${c.label} looks like a note list`);
+  }
+  assert.ok(q.prompt.length >= 3, 'and several pads light at once');
 });

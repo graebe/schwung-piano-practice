@@ -442,7 +442,7 @@ test('the mode is entered from the list, and picks notes or chords by which row'
   const menu = code.match(/function rebuildMenu\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(menu, /guess: GUESS\.NOTES/);
   assert.match(menu, /guess: GUESS\.CHORDS/);
-  assert.match(code, /if \(row\.guess\)[\s\S]{0,80}startQuiz\(row\.guess, row\.hear\)/);
+  assert.match(code, /if \(row\.guess\)[\s\S]{0,100}startQuiz\(row\.guess, row\.hear, row\.pick\)/);
   assert.match(menu, /hear: true/, 'and the hearing rows are there too');
 });
 
@@ -497,4 +497,21 @@ test('the round clock is the module clock, not wall time', () => {
   assert.match(code, /GUESS\.roundElapsed\(quiz, now\(\)\)/);
   /* The timestamp on the record is wall time, which is what a date needs. */
   assert.match(code, /at: Date\.now\(\)/);
+});
+
+test('the jog answers in the multiple-choice drill, and only there', () => {
+  /* Everywhere else the jog only moves a highlight; here it is the input. */
+  const jog = code.match(/function onJog\(delta\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(jog, /quizPick && quiz && !quiz\.solved[\s\S]{0,80}GUESS\.moveChoice/);
+  const click = code.match(/function onJogClick\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(click, /quizPick[\s\S]{0,160}GUESS\.pickChoice/);
+});
+
+test('the lit pad is the question, so pressing pads does not answer it', () => {
+  const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(down, /quizPick[\s\S]{0,140}return;/);
+  /* And the prompt is lit deliberately — the one place a quiz lights pads. */
+  const fn = code.match(/function collectPrompt\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(fn, /quizPick/);
+  assert.doesNotMatch(fn, /settings\.guidance/, 'the question is not a hint');
 });

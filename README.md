@@ -66,6 +66,15 @@ A chord has to be **held all at once**. Part of it down is *incomplete*, not a m
 isn't in the chord is what makes it wrong. A wrong answer is counted once and the question stays
 until you get it.
 
+**Pick: notes** and **Pick: chords** run the other way round: a pad lights up — several for a chord
+— and you name it, choosing one of three options with the jog and confirming with a click. The two
+wrong options are near misses: a semitone either side for a note, or the same root with a different
+quality for a chord (`Cm7` against `C7` against `Cmaj7`), so answering from a rough sense of high or
+low will not get you through. Note options carry their octave, because on an isomorphic grid the
+same name sits in several places and knowing *which* A♯ you are on is most of the skill.
+
+It is the only drill that goes pad → name, and the only one you can do without playing a note.
+
 **Hear** is the same quiz with the notation withheld: you hear the note or chord and play it back,
 and the staff shows a `?` until you get it right, then reveals what it was — which is where the
 teaching is. **Play** repeats it.

@@ -30,6 +30,12 @@ const TARGET_FAR = 1;
 const TARGET_NEAR = 2;
 const STUCK = 3;
 const SOUNDING = 4;
+/*
+ * The multiple-choice drill lights the pad you have to NAME. That is the
+ * question, not a hint — "never light the answer in a quiz" still holds, since
+ * the answer there is the name. Top of the pile so nothing dims the question.
+ */
+const PROMPT = 5;
 
 /*
  * A reusable workspace. One per caller, created once and handed back on every
@@ -81,7 +87,7 @@ function mark(layer, pads, value) {
  * `state` is plain data so this can be exercised without a Move:
  *   { transpose, rootPc, intervals, phase, now,
  *     heldPads, flashes,                     // maps keyed by pad number
- *     soundingPitches, stuckPitches, targetPitches, targetNear }
+ *     soundingPitches, stuckPitches, targetPitches, targetNear, promptPitches }
  */
 export function padColors(state, ws, out) {
   const layer = ws.layer;
@@ -91,6 +97,7 @@ export function padColors(state, ws, out) {
 
   if (state.soundingPitches) markPitches(layer, state.soundingPitches, state.transpose, SOUNDING);
   if (state.stuckPitches) markPitches(layer, state.stuckPitches, state.transpose, STUCK);
+  if (state.promptPitches) markPitches(layer, state.promptPitches, state.transpose, PROMPT);
   if (state.targetPitches) {
     markPitches(layer, state.targetPitches, state.transpose,
       state.targetNear ? TARGET_NEAR : TARGET_FAR);
@@ -112,6 +119,9 @@ export function padColors(state, ws, out) {
       continue;
     }
     switch (layer[idx]) {
+      case PROMPT:
+        out[idx] = LED_ROOT;
+        break;
       case SOUNDING:
         out[idx] = LED_TARGET_NEAR;
         break;
@@ -145,4 +155,4 @@ function markPitches(layer, pitches, transpose, value) {
   }
 }
 
-export { NONE, SOUNDING, STUCK, TARGET_FAR, TARGET_NEAR };
+export { NONE, SOUNDING, STUCK, TARGET_FAR, TARGET_NEAR, PROMPT };

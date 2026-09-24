@@ -349,6 +349,41 @@ export function drawProgress(ctx, state) {
   return ctx;
 }
 
+/*
+ * Multiple choice: the grid is the question, the screen is the answer sheet.
+ *
+ * Three options stacked with the chosen one inverted, exactly as the settings
+ * list marks its row, so the jog behaves the way it already does everywhere
+ * else. The staff plays no part — what is being asked is lit on the pads.
+ */
+export function drawPick(ctx, state) {
+  const options = state.options || [];
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title || 'NAME', right: state.score || '' });
+
+  const msg = state.hint || 'which pad is lit?';
+  ctx.text((L.SCREEN_W - ctx.textWidth(msg)) >> 1, 10, msg, 1);
+
+  const rowH = 11;
+  const top = 21;
+  for (let i = 0; i < options.length; i++) {
+    const y = top + i * rowH;
+    const selected = i === state.index;
+    const text = options[i];
+    const tw = ctx.textWidth(text);
+    const x = (L.SCREEN_W - tw) >> 1;
+    if (selected) {
+      ctx.fillRect(x - 5, y - 2, tw + 10, rowH - 1, 1);
+      ctx.text(x, y, text, 0);
+    } else {
+      ctx.text(x, y, text, 1);
+    }
+  }
+
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
 /* Scrolling list used for both the exercise picker and the settings page. */
 export function drawList(ctx, title, rows, cursor, opts = {}) {
   const lineH = 9;

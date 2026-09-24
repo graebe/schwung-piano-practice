@@ -21,14 +21,15 @@ export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound *
  * changes the difficulty has to be in here, or two unlike tasks would share a
  * trend line and the plot would be measuring the wrong thing.
  */
-export function drillId({ hear = false, kind = 'notes', chordSet = 'triads', halfTones = false } = {}) {
-  const mode = hear ? 'hear' : 'guess';
+export function drillId({ hear = false, pick = false, kind = 'notes',
+                          chordSet = 'triads', halfTones = false } = {}) {
+  const mode = pick ? 'pick' : (hear ? 'hear' : 'guess');
   if (kind === 'chords') return mode + ':chords:' + (chordSet === 'types' ? 'types' : 'triads');
   return mode + ':notes:' + (halfTones ? 'half' : 'key');
 }
 
 const DRILL_WORDS = {
-  guess: 'Guess', hear: 'Hear',
+  guess: 'Guess', hear: 'Hear', pick: 'Name',
   notes: 'notes', chords: 'chords',
   half: 'chromatic', key: 'in key', types: 'types', triads: 'triads',
 };

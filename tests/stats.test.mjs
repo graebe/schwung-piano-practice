@@ -207,3 +207,20 @@ test('a long history is trimmed to the most recent, left to right', () => {
 test('an empty history plots nothing rather than throwing', () => {
   assert.deepEqual(sparkline([], 100, 20), []);
 });
+
+test('the multiple-choice drills get their own trends', () => {
+  const ids = new Set();
+  for (const pick of [false, true]) {
+    for (const hear of [false, true]) {
+      for (const kind of ['notes', 'chords']) {
+        for (const v of [false, true]) {
+          ids.add(drillId({ pick, hear, kind, halfTones: v, chordSet: v ? 'types' : 'triads' }));
+        }
+      }
+    }
+  }
+  /* pick overrides hear, so the pick half collapses to four, not eight. */
+  assert.equal(ids.size, 12, 'eight existing drills plus four new ones');
+  assert.ok(ids.has('pick:notes:half'));
+  assert.ok(ids.has('pick:chords:types'));
+});

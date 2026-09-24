@@ -459,6 +459,7 @@ let progressDrills = [];     /* drills with history, most recent first */
 let progressIndex = 0;
 let quiz = null;
 let quizHear = false;        /* ear training: the prompt is played, not shown */
+let quizPick = false;        /* multiple choice: the pad is lit, you name it */
 let quizSolvedAt = 0;        /* brief confirmation before the next prompt */
 const guessOff = [];         /* ms-scheduled note-offs; the quiz has no clock */
 const GUESS_ADVANCE_MS = 450;
@@ -511,6 +512,8 @@ function rebuildMenu() {
     { label: 'Guess: chords', guess: GUESS.CHORDS, value: '?' },
     { label: 'Hear: notes', guess: GUESS.NOTES, hear: true, value: '♪' },
     { label: 'Hear: chords', guess: GUESS.CHORDS, hear: true, value: '♪' },
+    { label: 'Pick: notes', guess: GUESS.NOTES, pick: true, value: '3' },
+    { label: 'Pick: chords', guess: GUESS.CHORDS, pick: true, value: '3' },
   ];
   const gen = GEN.builtins(generatorOptions());
   for (const g of gen) menuRows.push({ label: g.label, build: g.build, value: '' });
@@ -524,6 +527,7 @@ function rebuildMenu() {
 function currentDrill() {
   return STATS.drillId({
     hear: quizHear,
+    pick: quizPick,
     kind: quiz ? quiz.kind : GUESS.NOTES,
     chordSet: settings.chordSet,
     halfTones: settings.halfTones,
@@ -570,9 +574,10 @@ function finishRound() {
     + (lastResult.isBest ? ' Best yet.' : ''));
 }
 
-function startQuiz(kind, hear) {
+function startQuiz(kind, hear, pick) {
   allNotesOff();
   quizHear = Boolean(hear);
+  quizPick = Boolean(pick);
   quiz = GUESS.createQuiz({
     kind,
     rootPc: settings.rootPc,
@@ -580,6 +585,7 @@ function startQuiz(kind, hear) {
     transpose: settings.transpose,
     halfTones: settings.halfTones,
     chordSet: settings.chordSet,
+    pick: quizPick,
     roundSize: settings.roundSize,
     fifths: keyFifths(),
     seed: (Date.now() & 0x7fffffff) || 1,
@@ -588,7 +594,9 @@ function startQuiz(kind, hear) {
   view = GUESS_VIEW;
   dirty = true;
   ledDirty = true;
-  if (quizHear) {
+  if (quizPick) {
+    announce('Name the lit pad. Jog to choose, click to answer.');
+  } else if (quizHear) {
     hearPrompt();
     announce('Ear training. Listen, then play what you hear.');
   } else {
@@ -616,7 +624,7 @@ function selectExercise(index) {
     return;
   }
   if (row.guess) {
-    startQuiz(row.guess, row.hear);
+    startQuiz(row.guess, row.hear, row.pick);
     return;
   }
   chart = row.build();
@@ -726,6 +734,15 @@ function collectStuck() {
  * Nothing lights the answer in the guessing and hearing modes. Guide pads is a
  * playing aid; in a quiz the hint IS the answer.
  */
+/* The lit pad IS the question in the multiple-choice drill. */
+const promptBuf = [];
+
+function collectPrompt() {
+  promptBuf.length = 0;
+  if (!quizPick || !quiz || view !== GUESS_VIEW) return;
+  for (let i = 0; i < quiz.prompt.length; i++) promptBuf.push(quiz.prompt[i]);
+}
+
 function collectSounding() {
   soundingBuf.length = 0;
   if (!listening || view !== RUNNING) return;
@@ -738,6 +755,7 @@ const ledState = {
   transpose: 0, rootPc: 0, intervals: null, phase: 0, now: 0,
   heldPads: null, flashes: null,
   soundingPitches: null, stuckPitches: null, targetPitches: null, targetNear: false,
+  promptPitches: null,
 };
 /*
  * Momentary pad feedback: a judgement that just landed. Outranks everything
@@ -761,6 +779,7 @@ function paintPads() {
   const near = collectTarget();
   collectStuck();
   collectSounding();
+  collectPrompt();
 
   ledState.transpose = settings.transpose;
   ledState.rootPc = settings.rootPc;
@@ -772,6 +791,7 @@ function paintPads() {
   ledState.soundingPitches = soundingBuf.length ? soundingBuf : null;
   ledState.stuckPitches = stuckBuf.length ? stuckBuf : null;
   ledState.targetPitches = targetBuf.length ? targetBuf : null;
+  ledState.promptPitches = promptBuf.length ? promptBuf : null;
   ledState.targetNear = near;
 
   LEDS.padColors(ledState, ledWorkspace, padColorBuf);
@@ -898,6 +918,17 @@ function draw() {
       drillIndex: progressIndex,
       drillCount: progressDrills.length,
     });
+  } else if (view === GUESS_VIEW && quizPick) {
+    VIEW.drawPick(ctx, {
+      title: quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE',
+      score: quiz.roundSize > 0
+        ? quiz.correct + '/' + quiz.roundSize
+        : String(GUESS.quizStats(quiz).correct),
+      options: quiz.choices.map((c) => GUESS.optionLabel(quiz, c)),
+      index: quiz.choiceIndex,
+      hint: quiz.solved ? 'right' : 'which pad is lit?',
+      footer: 'jog choose   click answer',
+    });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
     VIEW.drawGuessView(ctx, {
@@ -988,6 +1019,10 @@ function onPadDown(pad, vel) {
   const pitch = PAD.padPitch(pad, settings.transpose);
   noteOn(pitch, vel);
 
+  if (view === GUESS_VIEW && quizPick) {
+    /* The pads are the question here; pressing one just sounds it. */
+    return;
+  }
   if (view === GUESS_VIEW) {
     const res = GUESS.pressPitch(quiz, pitch, now());
     if (res === GUESS.WRONG) flashPad(pad, PAD.LED_MISS, 200);
@@ -1020,6 +1055,12 @@ function onPadUp(pad) {
 }
 
 function onJog(delta) {
+  /* The one view where the jog is the answer rather than navigation. */
+  if (view === GUESS_VIEW && quizPick && quiz && !quiz.solved) {
+    GUESS.moveChoice(quiz, delta, now());
+    dirty = true;
+    return;
+  }
   if (view === PROGRESS_VIEW) {
     if (progressDrills.length > 1) {
       progressIndex = (progressIndex + (delta > 0 ? 1 : -1) + progressDrills.length)
@@ -1044,6 +1085,14 @@ function onJog(delta) {
 }
 
 function onJogClick() {
+  if (view === GUESS_VIEW && quizPick && quiz && !shiftHeld) {
+    if (quiz.solved) return;
+    const res = GUESS.pickChoice(quiz, now());
+    if (res === GUESS.CORRECT) quizSolvedAt = now();
+    dirty = true;
+    ledDirty = true;
+    return;
+  }
   switch (CTRL.jogClickAction(view, shiftHeld, Boolean(chart))) {
     case 'settings':
       view = SETTINGS;
@@ -1088,6 +1137,7 @@ globalThis.init = function init() {
   settingsEditing = false;
   quiz = null;
   quizHear = false;
+  quizPick = false;
   lastResult = null;
   progressDrills = [];
   progressIndex = 0;
@@ -1237,7 +1287,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
    * button stops it; pressing the other switches, so no press is ever a no-op. */
   if (d1 === CC_PLAY) {
     if (view === RESULT_VIEW) {
-      startQuiz(quiz.kind, quizHear);
+      startQuiz(quiz.kind, quizHear, quizPick);
       return;
     }
     if (view === GUESS_VIEW) {
@@ -1251,7 +1301,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
   }
   if (d1 === CC_RECORD) {
     if (view === RESULT_VIEW) {
-      startQuiz(quiz.kind, quizHear);
+      startQuiz(quiz.kind, quizHear, quizPick);
       return;
     }
     if (view === GUESS_VIEW) {

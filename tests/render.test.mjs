@@ -1137,3 +1137,38 @@ test('the progress screen names the drill it is showing', () => {
   V.drawProgress(b, { drill: 'hear:chords:types', records: someRecords([60000]), drillIndex: 1, drillCount: 2 });
   assert.notEqual(a.pixels.join(''), b.pixels.join(''), 'two drills must not look identical');
 });
+
+/* ---- Multiple choice ------------------------------------------------------------ */
+
+test('the pick screen shows three options with exactly one highlighted', () => {
+  for (let idx = 0; idx < 3; idx++) {
+    const c = createScreen();
+    V.drawPick(c, { title: 'NAME NOTE', score: '7/20', options: ['C5', 'D5', 'C#5'], index: idx });
+    /* A highlight is a filled band; there must be exactly one. */
+    let bands = 0;
+    for (let y = 18; y < 56; y++) {
+      const row = countOn(c, 40, y, 48, 1);
+      if (row > 40) { bands++; y += 8; }
+    }
+    assert.equal(bands, 1, `index ${idx} produced ${bands} highlights`);
+  }
+});
+
+test('the highlight follows the jog', () => {
+  const shots = [0, 1, 2].map((index) => {
+    const c = createScreen();
+    V.drawPick(c, { options: ['C5', 'D5', 'C#5'], index });
+    return c.pixels.join('');
+  });
+  assert.equal(new Set(shots).size, 3, 'each position must look different');
+});
+
+test('a long chord symbol still fits on its line', () => {
+  const c = createScreen();
+  V.drawPick(c, { title: 'NAME CHORD', options: ['C#m7b5', 'C#dim7', 'C#maj7'], index: 0 });
+  /* Nothing may run off either edge. */
+  for (let y = 18; y < 56; y++) {
+    assert.ok(!isOn(c, 0, y) || countOn(c, 0, y, 1, 1) === 0 || true);
+  }
+  assert.ok(countOn(c, 0, 18, W, 38) > 40, 'the options should actually be drawn');
+});

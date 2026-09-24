@@ -186,3 +186,18 @@ test('the scale set is only rebuilt when the key actually changes', () => {
 test('a pitch with no pad on the grid is simply not lit', () => {
   assert.doesNotThrow(() => paint({ soundingPitches: [12, 126], stuckPitches: [0] }));
 });
+
+test('the multiple-choice prompt is lit, because there it is the question', () => {
+  /* "Never light the answer in a quiz" still holds: in that drill the answer is
+   * the NAME, and the lit pad is what you are being asked about. */
+  const out = paint({ promptPitches: [62] });
+  assert.equal(colourOf(out, 62), LED_ROOT);
+  /* It outranks guidance and the key, and is beaten by a press. */
+  assert.equal(colourOf(paint({ promptPitches: [62], targetPitches: [62] }), 62), LED_ROOT);
+  const pad = padsForPitch(62, DEFAULT_TRANSPOSE)[0];
+  assert.equal(paint({ promptPitches: [62], heldPads: { [pad]: 1 } })[pad - PAD_FIRST], LED_PRESSED);
+});
+
+test('the prompt does not blink — it is a question, not an urgency', () => {
+  assert.deepEqual(paint({ promptPitches: [62], phase: 0 }), paint({ promptPitches: [62], phase: 1 }));
+});

@@ -12,11 +12,15 @@ import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './g
 import { inStaffRange } from './notation.mjs';
 import { DEFAULT_TRANSPOSE, padsForPitch } from './padmap.mjs';
 import { QUALITIES, buildChord, chordSymbol, qualitySpan } from './chords.mjs';
+import { buildChoices } from './choices.mjs';
+import { spell, chordLabel } from './notation.mjs';
 
 export const NOTES = 'notes';
 export const CHORDS = 'chords';
 
 /* Which chords the chord drill asks for. */
+export const PICK_COUNT = 3;      /* options in the multiple-choice mode */
+
 export const TRIADS = 'triads';   /* diatonic triads on scale degrees */
 export const TYPES = 'types';     /* a quality chosen deliberately: dim, sus, 7ths... */
 
@@ -109,6 +113,7 @@ export function createQuiz({
   halfTones = false,
   chordSet = TRIADS,
   fifths = 0,
+  pick = false,         /* multiple choice: a pad lights, you name it */
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
   seed = 1,
 } = {}) {
@@ -118,6 +123,11 @@ export function createQuiz({
     rand: rng(seed),
     prompt: [],
     label: null,   /* the chord symbol, when the drill is about qualities */
+    pick: Boolean(pick),
+    fifths,
+    entry: null,        /* the pool entry behind the current prompt */
+    choices: [],        /* the options offered, when picking */
+    choiceIndex: 0,
     held: [],
     asked: 0,
     correct: 0,
@@ -149,15 +159,21 @@ export function nextPrompt(quiz) {
   }
   const previous = quiz.prompt.join(',') + '|' + (quiz.label || '');
   const same = (e) => e.pitches.join(',') + '|' + (e.label || '') === previous;
-  let pick = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+  let chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
   if (quiz.pool.length > 1) {
     let guard = 8;
-    while (same(pick) && guard-- > 0) {
-      pick = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+    while (same(chosen) && guard-- > 0) {
+      chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
     }
   }
-  quiz.prompt = pick.pitches.slice();
-  quiz.label = pick.label;
+  quiz.prompt = chosen.pitches.slice();
+  quiz.label = chosen.label;
+  quiz.entry = chosen;
+  if (quiz.pick) {
+    quiz.choices = buildChoices(quiz.pool, chosen, quiz.rand, PICK_COUNT,
+      (pitches) => labelFor(quiz, pitches));
+    quiz.choiceIndex = 0;
+  }
   quiz.held = [];
   quiz.solved = false;
   quiz.penalised = false;
@@ -246,4 +262,61 @@ export function roundElapsed(quiz, nowMs = 0) {
 /* How far through the round, for the header. */
 export function roundProgress(quiz) {
   return { done: quiz.correct, total: quiz.roundSize };
+}
+
+/* ---- Multiple choice ---------------------------------------------------------- */
+/*
+ * The other drills run name -> pad. This one runs pad -> name: the grid lights
+ * and you say what it is, choosing with the jog. Recognising is easier than
+ * recalling, so it is where someone starts.
+ *
+ * Note options carry their octave. On an isomorphic grid the same name sits in
+ * several places, so knowing WHICH A# you are on is most of the skill — and
+ * without the octave two options could read alike and the question would have
+ * two right answers.
+ */
+export function labelFor(quiz, pitches) {
+  if (pitches.length === 1) return spell(pitches[0], quiz.fifths).name;
+  return chordLabel(pitches, quiz.fifths);
+}
+
+export function optionLabel(quiz, entry) {
+  return entry.label || labelFor(quiz, entry.pitches);
+}
+
+export function moveChoice(quiz, delta, nowMs = 0) {
+  if (quiz.startedAt === null && nowMs) quiz.startedAt = nowMs;
+  if (!quiz.choices.length) return quiz.choiceIndex;
+  const n = quiz.choices.length;
+  quiz.choiceIndex = ((quiz.choiceIndex + (delta > 0 ? 1 : -1)) % n + n) % n;
+  return quiz.choiceIndex;
+}
+
+/*
+ * Answer. A wrong pick is counted and the question STAYS, exactly as a wrong
+ * pad does elsewhere, so "a round is N correct answers" holds and the rate is
+ * comparable with every other drill.
+ */
+export function pickChoice(quiz, nowMs = 0) {
+  if (quiz.startedAt === null && nowMs) quiz.startedAt = nowMs;
+  if (quiz.solved) return CORRECT;
+  const chosen = quiz.choices[quiz.choiceIndex];
+  if (!chosen) return WRONG;
+
+  if (chosen === quiz.entry) {
+    quiz.solved = true;
+    quiz.correct++;
+    quiz.streak++;
+    if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
+    if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
+      quiz.finishedAt = nowMs || quiz.startedAt || 0;
+    }
+    return CORRECT;
+  }
+  if (!quiz.penalised) {
+    quiz.penalised = true;
+    quiz.wrong++;
+    quiz.streak = 0;
+  }
+  return WRONG;
 }
