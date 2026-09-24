@@ -439,16 +439,6 @@ test('the ready view keeps the staff and adds a start prompt', () => {
   assert.ok(countOn(ready, 30, 26, 68, 11) > 0, 'a prompt box in the middle');
 });
 
-test('the summary reports the run', () => {
-  const run = createRun(chart);
-  judgeNoteOn(run, chart.events[0].pitches[0], 0);
-  expireMissed(run, 99);
-  const c = createScreen();
-  V.drawSummary(c, chart, run);
-  assert.ok(countOn(c, 0, 10, W, 40) > 100, 'the card has text');
-  assert.equal(countOn(c, 0, L.HEADER_RULE_Y, W, 1), W);
-});
-
 test('the list highlights the selected row by inverting it', () => {
   const rows = [
     { label: 'Scale up/down', value: '' },

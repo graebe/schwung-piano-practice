@@ -12,7 +12,7 @@
  * armed exercise has to be regenerated to match.
  */
 
-import { MODES, PC_NAMES } from './generator.mjs';
+import { MODES, MODE_LABELS, PC_NAMES } from './generator.mjs';
 import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX, PX_PER_BEAT_DEFAULT } from './layout.mjs';
 
 /* Tolerance before the scroll freezes, as a fraction of a beat. Tempo-relative
@@ -41,12 +41,18 @@ export const SETTINGS_DEF = [
     min: PX_PER_BEAT_MIN, max: PX_PER_BEAT_MAX,
   },
   {
+    /* The pitch class alone. It used to print "C# Hungarian Min" and the Scale
+     * row directly below said the same thing — and at Move's longer scale
+     * names the pair pushed the row's own label off the screen. */
     key: 'rootPc', label: 'Key', type: 'wrap', modulo: 12, rebuild: true,
-    format: (v, s) => PC_NAMES[v] + ' ' + s.mode,
+    format: (v) => PC_NAMES[v],
   },
   { key: 'transpose', label: 'Octave', type: 'int', min: -24, max: 24, rebuild: true,
     format: (v) => (v >= 0 ? '+' : '') + v },
-  { key: 'mode', label: 'Scale', type: 'list', values: Object.keys(MODES), rebuild: true },
+  {
+    key: 'mode', label: 'Scale', type: 'list', values: Object.keys(MODES), rebuild: true,
+    format: (v) => MODE_LABELS[v] || v,
+  },
   { key: 'guidance', label: 'Guide pads', type: 'bool', format: onOff },
   { key: 'anyOctave', label: 'Any octave', type: 'bool', format: onOff },
   {
@@ -57,7 +63,7 @@ export const SETTINGS_DEF = [
   {
     /* Which chords the chord drill asks for: the diatonic triads of the key,
      * or a deliberately chosen quality — dim, aug, sus, sixths, sevenths, add9. */
-    key: 'chordSet', label: 'Chords', type: 'list', values: ['triads', 'types'],
+    key: 'chordSet', label: 'Chords', type: 'list', values: ['triads', 'types', 'advanced'],
   },
   {
     /* Prompts per round. A fixed count makes two rounds cover the same work, so

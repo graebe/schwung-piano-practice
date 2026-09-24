@@ -1,8 +1,10 @@
 {
   "name": "schwung-piano-practice",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
+  "license": "GPL-3.0-or-later",
+  "author": "Torben Gräber",
   "scripts": {
     "test": "npm run test:js && npm run test:dsp && npm run test:rust && npm run test:package",
     "test:js": "node --test tests/*.test.mjs",

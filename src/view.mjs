@@ -10,6 +10,7 @@
 import * as L from './layout.mjs';
 import * as R from './staff_render.mjs';
 import { spell, pitchToY, chordLabel, inStaffRange } from './notation.mjs';
+import { nameChord } from './chords.mjs';
 import {
   visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX,
 } from './chart.mjs';
@@ -223,6 +224,32 @@ export function drawReadyView(ctx, state) {
  */
 export const GUESS_X = 72;
 
+/*
+ * What the name lane says about a prompt: the chord symbol AND its notes.
+ *
+ * Both, because each drill used to show only the half it happened to have. The
+ * triads drill builds from scale degrees, so it had note names and never said
+ * "Em" — you could play the chord correctly for weeks without learning what it
+ * was called. The types drill chose a quality, so it had "Em7" and not the
+ * notes. A single note keeps its name alone; there is no chord to name.
+ *
+ * ONE space between them, and that is measured rather than chosen: across all
+ * 2568 combinations of quality, root and key signature, one space peaks at
+ * 125px against the 126px lane and never overflows, while two peak at 131 and
+ * overflow sixteen of them.
+ */
+function promptLabel(state, prompt, fifths) {
+  const notes = state.label && prompt.length < 2
+    ? state.label
+    : chordLabel(prompt, fifths);
+  if (prompt.length < 2) return notes;
+  const symbol = state.label || nameChord(prompt, fifths);
+  /* No symbol is a real answer, not a gap: in a chromatic or whole-tone scale
+   * the triad drill stacks degrees that are not a chord, and the notes without
+   * a name beat the nearest invented one. */
+  return symbol ? symbol + ' ' + notes : notes;
+}
+
 export function drawGuessView(ctx, state) {
   const { prompt, fifths = 0 } = state;
   ctx.clear();
@@ -261,17 +288,14 @@ export function drawGuessView(ctx, state) {
     /* A hint names it without giving back the notation: you asked what it was,
      * not to be shown the staff. */
     if (state.hint > 0) {
-      const named = state.label || chordLabel(prompt, fifths);
+      const named = promptLabel(state, prompt, fifths);
       if (named) ctx.text((L.SCREEN_W - ctx.textWidth(named)) >> 1, L.NAME_LANE_Y, named, 1);
     }
     if (state.footer) drawFooterHint(ctx, state.footer);
     return ctx;
   }
 
-  /* The chord symbol when the drill is about qualities — naming the chord is
-   * the exercise there, and the notes are already on the staff. Otherwise the
-   * note names, which is all there is to say about a single note or a triad. */
-  const label = state.label || chordLabel(prompt, fifths);
+  const label = promptLabel(state, prompt, fifths);
   if (label) {
     const w = ctx.textWidth(label);
     const x = (L.SCREEN_W - w) >> 1;
@@ -284,21 +308,6 @@ export function drawGuessView(ctx, state) {
   }
 
   if (state.footer) drawFooterHint(ctx, state.footer);
-  return ctx;
-}
-
-/* End-of-run card. */
-export function drawSummary(ctx, chart, run) {
-  const s = runStats(run);
-  ctx.clear();
-  R.drawChrome(ctx, { left: 'RESULT', right: chart.name ? '' : '' });
-  ctx.text(2, 12, 'Hit    ' + s.hits + '/' + s.total, 1);
-  ctx.text(2, 21, 'Perfect ' + s.perfects, 1);
-  ctx.text(2, 30, 'Missed ' + s.misses, 1);
-  ctx.text(2, 39, 'Streak ' + s.bestCombo, 1);
-  const pct = Math.round(s.accuracy * 100) + '%';
-  ctx.text(L.SCREEN_W - ctx.textWidth(pct) - 3, 22, pct, 1);
-  drawFooterHint(ctx, 'PLAY again  JOG pick');
   return ctx;
 }
 

@@ -8,8 +8,7 @@
  *   npm run preview                     a few frames of the C major scale
  *   npm run preview -- --beats 2.5      one frame at that point
  *   npm run preview -- --view clef      just the clef on the staff
- *   npm run preview -- --view summary
- *   npm run preview -- --exercise triads --film 0,1,2,3
+  *   npm run preview -- --exercise triads --film 0,1,2,3
  */
 import { createScreen, toAscii } from './screen_buffer.mjs';
 import * as R from '../src/staff_render.mjs';
@@ -71,10 +70,6 @@ if (view === 'clef') {
     footer: 'streak 5   PLAY hear',
   });
   show(`guess ${kind}: ${quiz.prompt.join(' ')}`, c);
-} else if (view === 'summary') {
-  const c = createScreen();
-  V.drawSummary(c, chart, playedRun(99));
-  show('summary', c);
 } else if (view === 'menu') {
   const c = createScreen();
   V.drawList(c, 'EXERCISE', Object.keys(EXERCISES).map((k) => ({ label: k, value: '' })), 1, {

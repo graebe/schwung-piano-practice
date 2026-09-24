@@ -10,9 +10,9 @@ import {
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
-import { MODES } from '../src/generator.mjs';
+import { MODES, scalePitches, triadOn, fitsTriad } from '../src/generator.mjs';
 import { spell } from '../src/notation.mjs';
-import { QUALITIES } from '../src/chords.mjs';
+import { QUALITIES, ALL_QUALITIES, buildChord, nameChord } from '../src/chords.mjs';
 
 const notesQuiz = (o = {}) => createQuiz({ kind: NOTES, seed: 3, ...o });
 const chordQuiz = (o = {}) => createQuiz({ kind: CHORDS, seed: 3, ...o });
@@ -511,4 +511,120 @@ test('the picking ladder ends with the answer selectable and correct', () => {
   takeHint(q, q.rand);
   moveChoice(q, 1);
   assert.equal(pickChoice(q, 1000), CORRECT);
+});
+
+/* ---- Naming a chord ------------------------------------------------------ */
+
+test('every quality names itself back from its own pitches', () => {
+  for (const q of ALL_QUALITIES) {
+    const pitches = buildChord(60, q);
+    assert.equal(nameChord(pitches, 0), 'C' + q.suffix, q.id);
+  }
+});
+
+/*
+ * The TERTIAN scales: the ones where stacking every other degree gives a chord
+ * built of thirds. Seven notes is not the test — Bhairav and Hungarian Minor
+ * have seven and an augmented second, which stacks to 0,2,6 and 0,4,6.
+ */
+const TERTIAN = ['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian',
+  'locrian', 'harmonicMinor', 'melodicMinor'];
+
+test('every triad the drill can build in a tertian scale has a name', () => {
+  for (const name of TERTIAN) {
+    const scale = scalePitches(0, name, 57, 79);
+    for (let i = 0; fitsTriad(scale, i); i++) {
+      const chord = triadOn(scale, i);
+      if (chord.length < 3) continue;
+      assert.ok(nameChord(chord, 0), `${name} degree ${i} went unnamed: ${chord}`);
+    }
+  }
+});
+
+test('a scale with an augmented second stacks something that is not a chord', () => {
+  /* Not a defect, and worth pinning so it is not "fixed" later: Bhairav and
+   * Hungarian Minor are seven-note scales whose augmented second makes
+   * triadOn produce a root, a second and a tritone. nameChord returning null
+   * is what puts the notes on screen without a symbol over them. */
+  let unnamed = 0;
+  for (const name of ['bhairav', 'hungarianMinor']) {
+    const scale = scalePitches(0, name, 57, 79);
+    for (let i = 0; fitsTriad(scale, i); i++) {
+      const chord = triadOn(scale, i);
+      if (chord.length === 3 && !nameChord(chord, 0)) unnamed++;
+    }
+  }
+  assert.ok(unnamed > 0, 'these scales are the reason nameChord may answer null');
+});
+
+test('a cluster is not given the nearest plausible name', () => {
+  /* Chromatic stacks root +2 +4, which is three adjacent whole tones and not a
+   * chord. Naming it something would be worse than saying nothing. */
+  const scale = scalePitches(0, 'chromatic', 57, 79);
+  assert.equal(nameChord(triadOn(scale, 0), 0), null);
+  assert.equal(nameChord([60, 61, 62], 0), null);
+  assert.equal(nameChord([60], 0), null, 'a single note is not a chord');
+  assert.equal(nameChord([], 0), null);
+});
+
+test('naming follows the key signature, like every other spelling', () => {
+  /* F# in a sharp key, Gb in a flat one — the symbol and the notehead must not
+   * be able to disagree. */
+  assert.equal(nameChord([66, 70, 73], 5), 'F#');
+  assert.equal(nameChord([66, 70, 73], -5), 'Gb');
+});
+
+/* ---- The advanced set ---------------------------------------------------- */
+
+test('advanced adds ninths and altered dominants, and stays playable', () => {
+  const quiz = createQuiz({ kind: CHORDS, chordSet: 'advanced', halfTones: true });
+  assert.ok(quiz.pool.length > 0, 'the pool is not empty');
+  const suffixes = new Set(quiz.pool.map((e) => e.label.replace(/^[A-G][#b]?/, '')));
+  for (const want of ['9', 'maj9', 'm9', '7b9', '7#9', '7sus4', 'mMaj7']) {
+    assert.ok(suffixes.has(want), `advanced should offer ${want}`);
+  }
+  for (const entry of quiz.pool) {
+    assert.ok(entry.pitches.length <= 5, `${entry.label} needs ${entry.pitches.length} fingers`);
+    for (const p of entry.pitches) {
+      assert.ok(inStaffRange(p), `${entry.label} runs off the staff`);
+      assert.ok(padsForPitch(p, DEFAULT_TRANSPOSE).length, `${entry.label} has no pad`);
+    }
+  }
+});
+
+test('advanced is a superset of types, and types is unchanged', () => {
+  const opts = { kind: CHORDS, halfTones: true };
+  const types = new Set(createQuiz({ ...opts, chordSet: 'types' }).pool.map((e) => e.label));
+  const adv = new Set(createQuiz({ ...opts, chordSet: 'advanced' }).pool.map((e) => e.label));
+  for (const label of types) assert.ok(adv.has(label), `advanced dropped ${label}`);
+  assert.ok(adv.size > types.size, 'advanced must actually add something');
+});
+
+/* ---- Move's scales ------------------------------------------------------- */
+
+test('every one of Move\'s scales can be drilled', () => {
+  const names = Object.keys(MODES);
+  assert.equal(names.length, 22, 'the list is what the firmware carries');
+  for (const mode of names) {
+    const notes = createQuiz({ kind: NOTES, mode });
+    assert.ok(notes.pool.length > 0, `${mode} has no notes to ask about`);
+    /* And nothing throws on the chord drills, whatever the scale does to
+     * triad stacking. */
+    for (const chordSet of ['triads', 'types', 'advanced']) {
+      const q = createQuiz({ kind: CHORDS, mode, chordSet });
+      nextPrompt(q);
+      assert.ok(Array.isArray(q.prompt), `${mode}/${chordSet} broke`);
+    }
+  }
+});
+
+test('the multiple-choice drill offers chord names, not note spellings', () => {
+  const quiz = createQuiz({ kind: CHORDS, chordSet: 'triads', pick: true, seed: 4 });
+  nextPrompt(quiz);
+  assert.equal(quiz.choices.length, PICK_COUNT);
+  for (const c of quiz.choices) {
+    const label = optionLabel(quiz, c);
+    assert.match(label, /^[A-G][#b]?/, `"${label}" should be a chord symbol`);
+    assert.ok(!label.includes(' '), `"${label}" is a note list, not a name`);
+  }
 });

@@ -143,11 +143,21 @@ const SCREENS = {
     prompt: [60, 64, 67], fifths: 0, title: 'CHORD', score: '19/20',
     footer: 'hint 2/2   streak 100',
   }),
+  /* The widest name lane the advanced set can produce: a five-note chord with
+   * a long suffix, in a flat key where every note carries an accidental.
+   * Measured across all 2568 quality x root x key combinations. */
+  'guess, widest advanced chord': (c) => V.drawGuessView(c, {
+    prompt: [61, 66, 68, 71, 75], fifths: -5, title: 'CHORD', score: '19/20',
+    label: 'Db9sus4', footer: 'hint 2/2   streak 100',
+  }),
+  'guess, a chord with no name': (c) => V.drawGuessView(c, {
+    prompt: [60, 62, 64], fifths: 0, title: 'CHORD', score: '1/20',
+    footer: 'streak 0   REC help',
+  }),
   'guess, hidden with a hint': (c) => V.drawGuessView(c, {
     prompt: [60, 64, 67], fifths: 0, hidden: true, hint: 1, label: 'Cmaj7',
     title: 'HEAR', score: '19/20', footer: 'streak 100   REC help',
   }),
-  'summary': (c) => V.drawSummary(c, chart, createRun(chart)),
   'exercise list': (c) => V.drawList(c, 'EXERCISE', [
     { label: 'Guess: chords all types', value: 'q' },
     { label: 'Hear: chords all types', value: 'q' },
@@ -158,11 +168,12 @@ const SCREENS = {
    * at 114px; the second fixture is past anything real, to prove the label is
    * fitted against the value rather than against a fixed budget. */
   'settings list': (c) => V.drawList(c, 'SETTINGS', [
-    { label: 'Key', value: 'C# mixolydian' },
+    { label: 'Scale', value: 'Maj Pentatonic' },
+    { label: 'Chords', value: 'advanced' },
     { label: 'MIDI out', value: 'trk+USB' },
   ], 0, { footer: 'CLICK edit SHIFT back' }),
   'settings list, editing': (c) => V.drawList(c, 'SETTINGS', [
-    { label: 'Key', value: 'C# mixolydian' },
+    { label: 'Scale', value: 'Maj Pentatonic' },
   ], 0, { footer: 'turn change  CLICK ok', editing: true }),
   'settings list, an implausibly long value': (c) => V.drawList(c, 'SETTINGS', [
     { label: 'Read ahead', value: '48 pixels per beat' },

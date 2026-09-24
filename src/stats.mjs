@@ -24,7 +24,10 @@ export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound *
 export function drillId({ hear = false, pick = false, kind = 'notes',
                           chordSet = 'triads', halfTones = false } = {}) {
   const mode = pick ? 'pick' : (hear ? 'hear' : 'guess');
-  if (kind === 'chords') return mode + ':chords:' + (chordSet === 'types' ? 'types' : 'triads');
+  if (kind === 'chords') {
+    const set = chordSet === 'types' || chordSet === 'advanced' ? chordSet : 'triads';
+    return mode + ':chords:' + set;
+  }
   return mode + ':notes:' + (halfTones ? 'half' : 'key');
 }
 
@@ -32,6 +35,7 @@ const DRILL_WORDS = {
   guess: 'Guess', hear: 'Hear', pick: 'Name',
   notes: 'notes', chords: 'chords',
   half: 'chromatic', key: 'in key', types: 'types', triads: 'triads',
+  advanced: 'advanced',
 };
 
 /* Readable, and inside 21 characters — the widest the 6px font fits on a

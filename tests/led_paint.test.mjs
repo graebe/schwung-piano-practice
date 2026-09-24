@@ -45,7 +45,12 @@ const colourOf = (out, pitch, transpose = DEFAULT_TRANSPOSE) => {
 /* ---- The base layer -------------------------------------------------------- */
 
 test('every pad gets a colour, in every configuration', () => {
-  for (const over of [{}, { rootPc: 7 }, { transpose: 0 }, { intervals: MODES.pentatonic }]) {
+  const overrides = [{}, { rootPc: 7 }, { transpose: 0 }];
+  /* Every one of Move's scales, not a chosen example: they range from five
+   * notes to twelve, and the painter caches its pitch-class set by a key built
+   * from the interval list. */
+  for (const name of Object.keys(MODES)) overrides.push({ intervals: MODES[name] });
+  for (const over of overrides) {
     const out = paint(over);
     assert.equal(out.length, PAD_COUNT);
     for (let i = 0; i < PAD_COUNT; i++) assert.equal(typeof out[i], 'number', `pad ${i} unset`);

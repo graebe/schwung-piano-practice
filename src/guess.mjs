@@ -11,7 +11,9 @@
 import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './generator.mjs';
 import { inStaffRange } from './notation.mjs';
 import { DEFAULT_TRANSPOSE, padsForPitch } from './padmap.mjs';
-import { QUALITIES, buildChord, chordSymbol, qualitySpan } from './chords.mjs';
+import {
+  QUALITIES, ADVANCED_QUALITIES, buildChord, chordSymbol, qualitySpan, nameChord,
+} from './chords.mjs';
 import { buildChoices } from './choices.mjs';
 import { spell, chordLabel } from './notation.mjs';
 
@@ -24,6 +26,7 @@ export const MAX_HINT = 2;        /* rungs on the help ladder */
 
 export const TRIADS = 'triads';   /* diatonic triads on scale degrees */
 export const TYPES = 'types';     /* a quality chosen deliberately: dim, sus, 7ths... */
+export const ADVANCED = 'advanced'; /* ...and ninths, and altered dominants */
 
 export const CORRECT = 'correct';
 export const WRONG = 'wrong';
@@ -55,7 +58,10 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
   const scale = scalePitches(rootPc, MODES[mode] ? mode : 'major', lo, hi);
   const pool = [];
 
-  if (kind === CHORDS && chordSet === TYPES) {
+  if (kind === CHORDS && (chordSet === TYPES || chordSet === ADVANCED)) {
+    const qualities = chordSet === ADVANCED
+      ? QUALITIES.concat(ADVANCED_QUALITIES)
+      : QUALITIES;
     /* Roots follow the same setting the note drill uses: chromatic when half
      * tones are on, otherwise the notes of the key. */
     const roots = [];
@@ -65,8 +71,8 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
       for (let i = 0; i < scale.length; i++) roots.push(scale[i]);
     }
     for (let r = 0; r < roots.length; r++) {
-      for (let q = 0; q < QUALITIES.length; q++) {
-        const quality = QUALITIES[q];
+      for (let q = 0; q < qualities.length; q++) {
+        const quality = qualities[q];
         if (roots[r] + qualitySpan(quality) > hi) continue;
         const pitches = buildChord(roots[r], quality);
         if (!playable(pitches, transpose)) continue;
@@ -283,7 +289,11 @@ export function roundProgress(quiz) {
  */
 export function labelFor(quiz, pitches) {
   if (pitches.length === 1) return spell(pitches[0], quiz.fifths).name;
-  return chordLabel(pitches, quiz.fifths);
+  /* Name the chord when it has a name. The triads drill carries no label of
+   * its own — it builds from scale degrees rather than choosing a quality — so
+   * without this the multiple-choice options were three note spellings and the
+   * question was which letters, not which chord. */
+  return nameChord(pitches, quiz.fifths) || chordLabel(pitches, quiz.fifths);
 }
 
 export function optionLabel(quiz, entry) {

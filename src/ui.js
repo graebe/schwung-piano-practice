@@ -311,7 +311,7 @@ function allNotesOff() {
  * A saved settings.json always wins over a default, so changing one silently
  * does nothing for anybody who has already used the module.
  */
-const SETTINGS_VERSION = 5;
+const SETTINGS_VERSION = 6;
 
 const settings = {
   version: SETTINGS_VERSION,
@@ -382,6 +382,14 @@ function loadSettings() {
     settings.graceBeats = 1;
     migrated = true;
   }
+  /* v6: the scale list became Move's own twenty-two, and `pentatonic` is
+   * `majorPent` in it. coerceInto drops a stored value that is no longer in
+   * the list, so without this anyone who had chosen it would silently be
+   * playing in major. */
+  if (storedVersion < 6 && settings.mode === 'pentatonic') {
+    settings.mode = 'majorPent';
+    migrated = true;
+  }
   if (storedVersion !== SETTINGS_VERSION) {
     settings.version = SETTINGS_VERSION;
     migrated = true;
@@ -434,7 +442,6 @@ function clamp(v, lo, hi) {
 const MENU = 'menu';
 const READY = 'ready';
 const RUNNING = 'running';
-const SUMMARY = 'summary';
 const SETTINGS = 'settings';
 const GUESS_VIEW = 'guess';
 const RESULT_VIEW = 'result';
@@ -985,8 +992,6 @@ function draw() {
         ? 'streak ' + st.streak + '   REC help'
         : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
     });
-  } else if (view === SUMMARY) {
-    VIEW.drawSummary(ctx, chart, run);
   } else if (view === READY) {
     VIEW.drawReadyView(ctx, {
       chart,
@@ -1047,7 +1052,6 @@ function editSetting(index, delta) {
       chart = row.build();
       if (chart.source !== 'file') chart.bpm = settings.bpm;
       armRun();
-      if (view === SUMMARY) view = READY;
     }
   }
   ledDirty = true;
@@ -1249,8 +1253,13 @@ globalThis.tick = function tick() {
         (listening && songBeats > chartTotalBeats(chart))) {
       allNotesOff();
       listening = false;
-      view = SUMMARY;
       const s = SCORE.runStats(run);
+      /* Back to the ready screen, armed, rather than a scorecard. Hits and
+       * perfects and streak are quiz furniture; at the end of a piece you
+       * wanted to play it again, and Back from the card went here anyway. The
+       * spoken result stays — it costs nothing and is where it still helps. */
+      armRun();
+      view = READY;
       announce('Done. ' + s.hits + ' of ' + s.total + ', ' + Math.round(s.accuracy * 100) + ' percent.');
     }
     dirty = true;
@@ -1371,7 +1380,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       exitModule();
       return;
     }
-    if (view === SETTINGS || view === SUMMARY) {
+    if (view === SETTINGS) {
       view = chart ? READY : MENU;
       dirty = true;
       return;

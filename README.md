@@ -236,7 +236,8 @@ shortcuts to the first four.
 | Guide pads | **off** | lights the pad you need next while reading, brightening as it approaches. Has no effect in the guessing and hearing modes |
 | Any octave | off | accept the right note in the wrong register |
 | Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid |
-| Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9 — and names it on screen as a chord symbol, so you read `Cm7` and play it. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
+| Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
+| Scale | **Major** | all 22 of Move's own scales, taken from the device's firmware so the pads light the way Move would |
 | Click | on | MIDI metronome (see the caveat above) |
 | Reference | **on** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along. Off for unaided reading |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
@@ -366,4 +367,10 @@ human maintainer. Please validate functionality and licence compatibility before
 
 ## Licence
 
-MIT
+**GPL-3.0-or-later**, copyright © 2026 Torben Gräber. See [LICENSE](LICENSE).
+
+This was MIT until the project standardised on GPL-3.0-or-later across every
+module and plugin. Nothing here forces it: the only third-party code is
+[`libm`](https://crates.io/crates/libm) (**MIT**, © 2018 Jorge Aparicio), whose
+notice travels with it in the vendored source. There are no JavaScript
+dependencies at all.
