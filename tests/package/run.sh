@@ -60,5 +60,17 @@ grep -q 'verify-package.sh' scripts/package.sh
 # Nothing in src/ may import the desktop-only test harness.
 ! grep -rq 'screen_buffer' src/
 
-sh scripts/package.sh >/dev/null
-sh scripts/verify-package.sh
+# Packaging needs a cross-compiled dist/dsp.so, which takes Docker and an ARM
+# toolchain. Everything above is static and must run anywhere — on a fresh
+# clone and on a CI runner that has not built — so the tarball assertions run
+# only when there is something to assert about, and say when they do not.
+#
+# Nothing is lost by skipping them there: scripts/build.sh runs package.sh and
+# verify-package.sh itself, so the release job proves the tarball before it
+# ever attaches one.
+if [ -f dist/dsp.so ]; then
+  sh scripts/package.sh >/dev/null
+  sh scripts/verify-package.sh
+else
+  echo "package: skipped the tarball checks — no dist/dsp.so (run scripts/build.sh first)"
+fi
