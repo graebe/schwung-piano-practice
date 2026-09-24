@@ -15,7 +15,9 @@ import * as R from '../src/staff_render.mjs';
 import * as V from '../src/view.mjs';
 import * as L from '../src/layout.mjs';
 import { pitchToY, spell } from '../src/notation.mjs';
-import { createRun, judgeNoteOn, expireMissed, addMarker } from '../src/scoring.mjs';
+import {
+  createRun, judgeNoteOn, expireMissed, addMarker, effectiveGrace,
+} from '../src/scoring.mjs';
 import { scaleRun, triadDrill } from '../src/generator.mjs';
 import { createQuiz, NOTES, CHORDS } from '../src/guess.mjs';
 import { countInRemaining } from '../src/controls.mjs';
@@ -980,4 +982,96 @@ test('answering reveals the notation, which is where the teaching is', () => {
   const y = pitchToY(65, 0);
   assert.ok(countOn(answered, V.GUESS_X - 3, y - 2, 7, 5) > 0, 'the note appears');
   assert.ok(countOn(answered, 0, L.NAME_LANE_Y - 1, W, 9) > 20, 'and so does its name');
+});
+
+/* ---- The note you are stuck on stays on screen ------------------------------ */
+/*
+ * A frozen note sits at hitX - grace*pxPerBeat. At a wide read-ahead that lands
+ * past DESPAWN_X, and visibleEvents dropped it — so the one note you were being
+ * asked to play was the one not drawn. Only reproducible above the default
+ * read-ahead, which is why it reached hardware.
+ */
+
+const STUCK = {
+  bpm: 60, timeSig: [4, 4], keySig: 2,
+  events: [{ beat: 2, durBeats: 1, pitches: [66] }],   /* F#4, so it has an accidental */
+};
+
+function frozenFrame(pxPerBeat) {
+  const run = createRun(STUCK);
+  expireMissed(run, 3, true);
+  const songBeats = 2 + effectiveGrace(run, 1 / 3);
+  const c = createScreen();
+  V.drawReadingView(c, { chart: STUCK, run, songBeats, pxPerBeat, blocked: true });
+  return c;
+}
+
+test('the missed note is drawn at every read-ahead, not just the default', () => {
+  const y = pitchToY(66, 2);
+  for (const px of [12, 24, 36, 48]) {
+    const c = frozenFrame(px);
+    /* An X centred on the pinned position: its two diagonals cross there. */
+    const cx = L.BLOCKED_MIN_X;
+    const r = L.HEAD_MISS >> 1;
+    assert.ok(isOn(c, cx - r, y - r) && isOn(c, cx + r, y + r),
+      `read ahead ${px}: no missed notehead on screen`);
+    assert.ok(cx >= L.DESPAWN_X, 'and never past the despawn edge');
+  }
+});
+
+test('it looks the same at every read-ahead', () => {
+  /* Clamped whether or not the filter kept it, so a missed F# does not show its
+   * sharp at one setting and a bare notehead at another. */
+  const shots = [12, 24, 36, 48].map((px) => {
+    const c = frozenFrame(px);
+    let sig = '';
+    for (let x = L.DESPAWN_X; x < L.HIT_X + 4; x++) {
+      for (let yy = L.STAFF_AREA_TOP_Y; yy <= L.STAFF_AREA_BOTTOM_Y; yy++) {
+        sig += isOn(c, x, yy) ? '1' : '0';
+      }
+    }
+    return sig;
+  });
+  for (let i = 1; i < shots.length; i++) assert.equal(shots[i], shots[0]);
+});
+
+test('the accidental survives the pin — a missed F# is not a bare notehead', () => {
+  const c = frozenFrame(48);
+  const y = pitchToY(66, 2);
+  assert.ok(L.BLOCKED_MIN_X >= L.ACCIDENTAL_MIN_X, 'the pin must clear the clipping threshold');
+  assert.ok(
+    countOn(c, L.BLOCKED_MIN_X + L.ACCIDENTAL_DX, y - 2, L.ACCIDENTAL_W, L.ACCIDENTAL_H) > 0,
+    'no sharp drawn beside the missed note',
+  );
+});
+
+test('the callout still names it, and the two agree', () => {
+  const c = frozenFrame(48);
+  const expected = blank();
+  V.drawCentreCallout(expected, 'F#4', 3);
+  let overlap = 0;
+  let total = 0;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (isOn(expected, x, y)) { total++; if (isOn(c, x, y)) overlap++; }
+    }
+  }
+  assert.ok(total > 0 && overlap / total > 0.95, 'the callout should name the pinned note');
+});
+
+test('an unblocked frame is untouched by any of this', () => {
+  const run = createRun(STUCK);
+  const a = createScreen();
+  V.drawReadingView(a, { chart: STUCK, run, songBeats: 1, pxPerBeat: 48, blocked: false });
+  const b = createScreen();
+  V.drawReadingView(b, { chart: STUCK, run, songBeats: 1, pxPerBeat: 48 });
+  assert.equal(a.pixels.join(''), b.pixels.join(''));
+  /* And nothing is dragged on screen that the scroll had legitimately passed.
+   * Look for a notehead, not for ink: the staff lines and the hit line cross
+   * that band and are supposed to. */
+  const gone = createScreen();
+  V.drawReadingView(gone, { chart: STUCK, run, songBeats: 9, pxPerBeat: 48, blocked: false });
+  const y = pitchToY(66, 2);
+  assert.equal(runsAtLeast(gone, y, L.HEAD_W, L.DESPAWN_X, L.HIT_X + 10).length, 0,
+    'a note the scroll has passed must not be pinned back on screen');
 });

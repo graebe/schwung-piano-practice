@@ -182,6 +182,12 @@ function blockingEntry(run) {
   return run.waitCursor < run.entries.length ? run.waitCursor : -1;
 }
 
+/* Which entry the scroll is stuck on, or -1. Shared by the pads, the callout
+ * and the notehead, so all three name the same note. */
+export function blockingEntryIndex(run) {
+  return blockingEntry(run);
+}
+
 /*
  * The beat the scroll must freeze at, or null when nothing is holding it up.
  * `graceBeats` is the tolerance: play within it and the clock never stops, so

@@ -101,17 +101,30 @@ test('the jog moves the highlight in a list', () => {
   assert.deepEqual(jogAction(SETTINGS, 1, 0, 9), { action: 'cursor', index: 1 });
 });
 
-test('from READY the jog swaps the exercise without leaving READY', () => {
-  assert.deepEqual(jogAction(READY, 1, 2, 7), { action: 'select', index: 3 });
-  assert.deepEqual(jogAction(SUMMARY, -1, 2, 7), { action: 'select', index: 1 });
+test('the jog does nothing outside the lists', () => {
+  /* It used to swap the exercise straight from the ready screen and from inside
+   * a quiz, so a knock changed what you were playing. To pick something else
+   * you go Back to the list first. */
+  for (const view of [READY, SUMMARY, RUNNING, 'guess']) {
+    for (const delta of [1, -1, 9, -9]) {
+      assert.deepEqual(jogAction(view, delta, 2, 7), { action: 'ignore', index: 2 }, view);
+    }
+  }
+});
+
+test('no call anywhere can return the old select action', () => {
+  for (const view of [MENU, READY, RUNNING, SUMMARY, SETTINGS, 'guess']) {
+    for (const delta of [1, -1]) {
+      for (const [i, n] of [[0, 0], [0, 7], [3, 7], [6, 7]]) {
+        assert.notEqual(jogAction(view, delta, i, n).action, 'select');
+      }
+    }
+  }
 });
 
 test('the list clamps rather than wraps', () => {
   assert.deepEqual(jogAction(MENU, 1, 6, 7), { action: 'cursor', index: 6 });
   assert.deepEqual(jogAction(MENU, -1, 0, 7), { action: 'cursor', index: 0 });
-  /* At an end in READY nothing was selected, so nothing should be rebuilt. */
-  assert.equal(jogAction(READY, 1, 6, 7).action, 'ignore');
-  assert.equal(jogAction(READY, -1, 0, 7).action, 'ignore');
 });
 
 test('any accumulated delta counts as one step', () => {

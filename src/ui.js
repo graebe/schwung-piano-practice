@@ -940,15 +940,10 @@ function onJog(delta) {
   /* A nudge mid-exercise used to drop straight back to the menu and abandon the
    * run. jogAction ignores it while RUNNING and steps to the neighbouring
    * exercise from READY, rather than leaving. */
-  const index = view === MENU ? menuCursor : selectedIndex;
-  const next = CTRL.jogAction(view, delta, index < 0 ? 0 : index, menuRows.length);
-  if (next.action === 'ignore') return;
-  if (next.action === 'cursor') {
-    menuCursor = next.index;
-    dirty = true;
-    return;
-  }
-  selectExercise(next.index);
+  const next = CTRL.jogAction(view, delta, menuCursor, menuRows.length);
+  if (next.action !== 'cursor') return;
+  menuCursor = next.index;
+  dirty = true;
 }
 
 function onJogClick() {

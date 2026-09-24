@@ -46,8 +46,8 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
   computer is there if you want it.
 - **Rescues you when you are stuck.** Miss a note and the scroll stops, names it large on screen,
-  and — with Guide pads on — pulses the pad you need. The note no longer scrolls away unseen, which
-  is the rescue even with the pad hint off.
+  and — with Guide pads on — pulses the pad you need. The missed note itself stays pinned by the hit
+  line whatever your read-ahead, so you can always see what you are being asked for.
 - **Gets out of your way.** Target-pad lighting exists, but it is off by default: this is a reading
   trainer first.
 
@@ -137,7 +137,7 @@ Four beats count you in, counted down on screen.
 | --- | --- |
 | **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored |
 | **Record** | **practice** — you play it, it scores you |
-| **Jog turn** | in the list, move the highlight; with an exercise armed, swap to the next one. Ignored mid-run, so a knock cannot abandon your attempt |
+| **Jog turn** | moves the highlight in the exercise list and in settings, and does nothing anywhere else — a knock cannot change what you are playing. To pick something else, Back to the list first |
 | **Jog click** | open the list / pick an exercise; in settings, edit the selected row |
 | **Menu** | open the exercise list |
 | **Shift + jog click** | settings |

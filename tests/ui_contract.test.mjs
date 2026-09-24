@@ -474,3 +474,10 @@ test('the feedback flashes exist — they were deleted once and shipped', () => 
   assert.match(code, /function flashPad\(pad, color, ms\)/);
   assert.match(code, /function flashPitch\(pitch, color\)/);
 });
+
+test('the jog cannot change what you are playing', () => {
+  const jog = code.match(/function onJog\(delta\) \{([\s\S]*?)\n\}/)[1];
+  assert.doesNotMatch(jog, /selectExercise/, 'only Back then the list may do that');
+  assert.doesNotMatch(jog, /'select'/);
+  assert.match(jog, /next\.action !== 'cursor'/);
+});

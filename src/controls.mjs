@@ -64,20 +64,22 @@ export function recordLedColor(view, listening = false, phase = 1) {
 /*
  * Where a jog turn goes.
  *
- *   ignore  nothing happens — a nudge mid-exercise must not abandon the run
  *   cursor  move the highlight in a list
- *   select  step to the neighbouring exercise and arm it, staying put
+ *   ignore  nothing happens
  *
- * Both list moves clamp rather than wrap: on a short list, wrapping from the
- * last entry back to the first feels like a misfire.
+ * The jog moves a highlight and nothing else. It used to swap the exercise
+ * straight from the ready screen and from inside a quiz, so a knock changed
+ * what you were playing without you asking; to pick something else you now go
+ * Back to the list first.
+ *
+ * The move clamps rather than wraps: on a short list, wrapping from the last
+ * entry back to the first feels like a misfire.
  */
 export function jogAction(view, delta, index, count) {
-  if (view === RUNNING) return { action: 'ignore', index };
   if (count <= 0) return { action: 'ignore', index };
+  if (view !== MENU && view !== SETTINGS) return { action: 'ignore', index };
   const next = Math.max(0, Math.min(count - 1, index + (delta > 0 ? 1 : -1)));
-  if (view === MENU || view === SETTINGS) return { action: 'cursor', index: next };
-  if (next === index) return { action: 'ignore', index };
-  return { action: 'select', index: next };
+  return { action: 'cursor', index: next };
 }
 
 /*

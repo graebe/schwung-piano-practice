@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import {
   createRun, judgeNoteOn, expireMissed, runStats, runFinished,
-  blockingBeat, blockingNotes, resyncWait, effectiveGrace, addMarker, pruneMarkers,
+  blockingBeat, blockingNotes, blockingEntryIndex, resyncWait, effectiveGrace,
+  addMarker, pruneMarkers,
   DEFAULT_WINDOWS, PENDING, HIT, MISSED,
 } from '../src/scoring.mjs';
 import { msToBeats } from '../src/chart.mjs';
@@ -349,4 +350,19 @@ test('with wait off nothing is ever reported stuck', () => {
   const run = createRun(single);
   expireMissed(run, 99, false);
   assert.deepEqual(blockingNotes(run), []);
+});
+
+test('the blocking entry index agrees with the notes it reports', () => {
+  const run = createRun(single);
+  expireMissed(run, 0.5, true);
+  const at = blockingEntryIndex(run);
+  assert.equal(at, 0);
+  assert.equal(run.entries[at].notes[0], blockingNotes(run)[0],
+    'the pads, the callout and the notehead must name one note');
+});
+
+test('nothing is blocking once everything is played', () => {
+  const run = createRun(single);
+  for (const [p, b] of [[60, 0], [62, 1], [64, 2]]) judgeNoteOn(run, p, b);
+  assert.equal(blockingEntryIndex(run), -1);
 });

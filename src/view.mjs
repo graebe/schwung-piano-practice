@@ -13,7 +13,7 @@ import { spell, pitchToY, chordLabel, inStaffRange } from './notation.mjs';
 import {
   visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX,
 } from './chart.mjs';
-import { runStats, blockingNotes } from './scoring.mjs';
+import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
 
 export const SETTINGS_HINT = 'shift + jog: settings';
@@ -45,6 +45,30 @@ export function drawReadingView(ctx, state) {
   for (let i = 0; i < bars.length; i++) R.drawBarLine(ctx, bars[i].x);
 
   const visible = visibleEvents(chart, songBeats, pxPerBeat);
+
+  /*
+   * The note the scroll is frozen on is drawn whatever visibleEvents decided.
+   *
+   * A frozen note sits at hitX - grace*pxPerBeat. At a wide read-ahead that is
+   * past DESPAWN_X, so the filter dropped it and the one note you were being
+   * asked to play was the one not on screen. Capping the grace cannot fix it:
+   * at fast tempos the grace is already floored at the late window to avoid a
+   * deadlock, so the two clamps would fight. Pinning it is the honest fix, and
+   * nothing is moving while frozen, so there is no jump to notice.
+   */
+  if (state.blocked && run) {
+    const at = blockingEntryIndex(run);
+    if (at >= 0 && chart.events[at]) {
+      const x = Math.max(beatToX(chart.events[at].beat, songBeats, pxPerBeat), L.BLOCKED_MIN_X);
+      const already = visible.find((v) => v.index === at);
+      /* Clamp it whether or not the filter kept it, so the note looks the same
+       * at every read-ahead — otherwise a missed F# shows its sharp at one
+       * setting and a bare notehead at another. */
+      if (already) already.x = x;
+      else visible.unshift({ index: at, event: chart.events[at], x });
+    }
+  }
+
   for (let i = 0; i < visible.length; i++) {
     const v = visible[i];
     const entry = run ? run.entries[v.index] : null;

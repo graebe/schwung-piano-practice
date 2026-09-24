@@ -52,6 +52,14 @@ export const HIT_X = 30;            /* the "now" line                        */
 export const SPAWN_X = SCREEN_W;    /* notes enter here                      */
 export const DESPAWN_X = 20;        /* ...and vanish shortly before the clef */
 export const ACCIDENTAL_MIN_X = 26; /* below this the accidental is clipped  */
+/*
+ * Where a note the scroll is frozen on is pinned, if its own position would put
+ * it off screen. A frozen note sits at hitX - grace*pxPerBeat, which at a wide
+ * read-ahead lands past DESPAWN_X and is filtered out — so the one note you are
+ * being asked to play is the one that is not drawn. At or above
+ * ACCIDENTAL_MIN_X on purpose, so a missed F# still shows its sharp.
+ */
+export const BLOCKED_MIN_X = 27;
 /* Bar lines sit just before their downbeat, as engraved, so they do not cut
  * through the notehead that falls on beat 1. */
 export const BAR_OFFSET_PX = -4;

@@ -25,7 +25,12 @@
         "scroll stops and names",
         "it on screen. With Guide",
         "pads on, the pad you",
-        "need pulses white."
+        "need pulses white.",
+        "",
+        "Miss a note and the",
+        "scroll stops on it. The X",
+        "stays by the line however",
+        "far ahead you are reading."
       ]
     },
     {
@@ -99,7 +104,7 @@
         "The one that is running",
         "goes solid.",
         "",
-        "JOG    swap exercise",
+        "JOG    pick, in the list",
         "CLICK  open the list",
         "MENU   open the list",
         "BACK   up one level",
