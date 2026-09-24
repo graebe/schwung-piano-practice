@@ -213,16 +213,22 @@ test("Move's Menu button opens the exercise list", () => {
   assert.match(code, /d1 === CC_MENU[\s\S]{0,120}view = MENU/);
 });
 
-test('the clock resolves notes before deciding where it may be', () => {
-  /* A note only blocks once its window has closed, and expireMissed is what
-   * closes it. Freezing first would stop the clock a frame early, and since
-   * expireMissed is driven by the clock, nothing could ever release it. */
+test('the scroll freezes on the note and the judge keeps real time', () => {
+  /*
+   * The order is now freeze-then-resolve, the reverse of what it was. Expiring
+   * used to have to come first because a frozen clock could never reach the
+   * note's late window; scoreBeats reaches it frozen or not, so the freeze is
+   * decided from the run and the judgement follows on real time.
+   */
   const tickBody = code.match(/globalThis\.tick = function tick\(\) \{([\s\S]*?)\n\};/)[1];
   const expireAt = tickBody.indexOf('SCORE.expireMissed');
   const blockAt = tickBody.indexOf('SCORE.blockingBeat');
   assert.ok(expireAt >= 0 && blockAt >= 0);
-  assert.ok(expireAt < blockAt, 'expireMissed must run before blockingBeat');
-  assert.match(tickBody, /applyWait\(raw, waitedBeats, block\)/);
+  assert.ok(blockAt < expireAt, 'the freeze is decided before the judgement');
+  assert.match(tickBody, /applyWait\(raw, waitedBeats, block, frozenAt\)/);
+  /* Scored on the honest clock, drawn on the frozen one. Getting these the
+   * wrong way round makes every press during a freeze a perfect hit. */
+  assert.match(tickBody, /expireMissed\(run, scoreBeats/);
   assert.match(tickBody, /runFinished\(run, songBeats, blocked\)/);
 });
 
@@ -232,7 +238,16 @@ test('switching wait on mid-run resyncs instead of dragging time backwards', () 
 
 test('every press is marked, at the moment it happened', () => {
   const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
+  /*
+   * songBeats for the MARKER, scoreBeats for the JUDGEMENT, and the split is
+   * the point. A marker is a statement about the picture — a ring clear of its
+   * notehead is the timing error made visible — so it goes where the press was
+   * seen. On the honest clock it landed RIGHT of the hit line during a freeze,
+   * drawing a ring over notes not yet reached, and a ring is the same glyph as
+   * a hit notehead.
+   */
   assert.match(down, /SCORE\.addMarker\(run, pitch, songBeats\)/);
+  assert.match(down, /judgeNoteOn\(run, pitch, scoreBeats\)/);
   /* Before the judgement, so a stray is marked too. */
   assert.ok(down.indexOf('addMarker') < down.indexOf('judgeNoteOn'));
   assert.match(code, /SCORE\.pruneMarkers\(/, 'markers must not accumulate forever');

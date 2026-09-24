@@ -142,12 +142,7 @@ export function drawReadingView(ctx, state) {
   if (countIn > 0) {
     drawCentreCallout(ctx, String(Math.min(9, countIn)), 4);
   } else if (state.blocked && run) {
-    const stuck = blockingNotes(run).map((n) => spell(n.pitch, fifths).name);
-    if (stuck.length) drawCentreCallout(ctx, stuck.slice(0, 3).join(' '), 3);
-    /* Stuck. Name the note: reading the staff is the skill, but once you have
-     * missed it you need telling, not testing again. Shares the count-in's box
-     * and can never collide with it — the count-in is before the first note,
-     * a freeze is during. */
+    drawStuckLabel(ctx, blockingNotes(run).map((n) => n.pitch), fifths);
   }
 
   const bb = barBeatOf(chart, songBeats);
@@ -309,6 +304,38 @@ export function drawGuessView(ctx, state) {
 
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
+}
+
+/*
+ * What you are stuck on, named, in the name lane.
+ *
+ * It used to be a big boxed callout across the middle of the staff — which
+ * covered the notes it was describing, so the chord you were being asked for
+ * was invisible behind its own label while the lane below already repeated the
+ * note names in small text. Reading the staff is the skill; once you have
+ * missed it you need telling, not hiding.
+ *
+ * So: the chord symbol AND its notes, inverted so it still reads as "this one,
+ * now", in the lane where names already live. The lane is cleared first
+ * because the frozen entry's own scrolling label is drawn there too, and the
+ * two would overprint.
+ */
+export function drawStuckLabel(ctx, pitches, fifths) {
+  if (!pitches.length) return;
+  const notes = chordLabel(pitches, fifths);
+  /* nameChord answers null for a stack that is not a chord — a cluster from
+   * stacking degrees of a non-tertian scale — and the notes alone are the
+   * honest answer there rather than the nearest invented symbol. */
+  const symbol = pitches.length > 1 ? nameChord(pitches, fifths) : null;
+  const text = truncate(ctx, symbol ? symbol + '  ' + notes : notes, L.TEXT_MAX_PX - 4);
+  const w = ctx.textWidth(text);
+  const x = (L.SCREEN_W - w) >> 1;
+  /* TEXT_H + 1: the lane's own scrolling label is drawn at NAME_LANE_Y and
+   * runs to NAME_LANE_Y + TEXT_H - 1, one row below where a TEXT_H-tall clear
+   * starting at the rule would reach — so its descenders survived underneath. */
+  ctx.fillRect(0, L.NAME_RULE_Y + 1, L.SCREEN_W, L.TEXT_H + 1, 0);
+  ctx.fillRect(x - 2, L.NAME_LANE_Y - 1, w + 4, L.TEXT_H + 1, 1);
+  ctx.text(x, L.NAME_LANE_Y, text, 0);
 }
 
 /* A boxed, knocked-out line of big text across the middle of the staff. */
@@ -486,7 +513,15 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
   const top = 11;
   const perPage = 4;
   ctx.clear();
-  R.drawChrome(ctx, { left: title, right: rows.length ? cursor + 1 + '/' + rows.length : '' });
+  /* The title is fitted against the counter, not printed at its natural width:
+   * the level list is titled with the song's name, and drawChrome does not
+   * clip, so 'SCARBOROUGH FAIR' would have been printed straight through the
+   * '2/4' in the corner. */
+  const count = rows.length ? cursor + 1 + '/' + rows.length : '';
+  R.drawChrome(ctx, {
+    left: truncate(ctx, title, L.SCREEN_W - ctx.textWidth(count) - 4),
+    right: count,
+  });
   const first = Math.max(0, Math.min(cursor - (perPage >> 1), rows.length - perPage));
   for (let i = 0; i < perPage; i++) {
     const idx = first + i;

@@ -16,7 +16,7 @@ import * as V from '../src/view.mjs';
 import * as L from '../src/layout.mjs';
 import { pitchToY, spell } from '../src/notation.mjs';
 import {
-  createRun, judgeNoteOn, expireMissed, addMarker, effectiveGrace,
+  createRun, judgeNoteOn, expireMissed, addMarker,
 } from '../src/scoring.mjs';
 import { scaleRun, triadDrill } from '../src/generator.mjs';
 import { createQuiz, NOTES, CHORDS } from '../src/guess.mjs';
@@ -769,11 +769,27 @@ test('the callout names the note only while the scroll is stuck', () => {
   V.drawReadingView(freeFrame, { chart: SOLO, run, songBeats: 2.4, pxPerBeat: 24, blocked: false });
 
   assert.notEqual(stuckFrame.pixels.join(''), freeFrame.pixels.join(''));
+
+  /*
+   * IT MUST NOT COVER THE STAFF. The label used to be a boxed block of big
+   * text across the middle of it, which hid the very notes it was naming — so
+   * the assertion is now the opposite of what it was: the staff area is
+   * UNCHANGED by being stuck, and the difference is all below the rule.
+   */
   const mid = L.STAFF_TOP_Y + 2;
-  assert.ok(
-    countOn(stuckFrame, 20, mid, 90, 14) > countOn(freeFrame, 20, mid, 90, 14) + 40,
-    'the callout should dominate the middle of the staff',
-  );
+  /* A few pixels, not a box: being stuck pins the blocking note so it is drawn
+   * whatever the scroll filter decided, which is a notehead's worth. The old
+   * assertion here was the opposite — that the callout DOMINATED this region
+   * by 40 pixels or more — and that is exactly what was hiding the music. */
+  const added = countOn(stuckFrame, 20, mid, 90, 14) - countOn(freeFrame, 20, mid, 90, 14);
+  assert.ok(added < 40, `being stuck added ${added} pixels over the staff`);
+  /* SOLO is one note, so the label is short — "F" against the lane's own
+   * scrolling label. It roughly triples the lane's ink; the margin is set for
+   * the shortest label there is rather than a comfortable chord. */
+  const laneStuck = countOn(stuckFrame, 0, L.NAME_LANE_Y, W, L.TEXT_H);
+  const laneFree = countOn(freeFrame, 0, L.NAME_LANE_Y, W, L.TEXT_H);
+  assert.ok(laneStuck > laneFree + 20,
+    `the label belongs in the name lane (${laneFree} -> ${laneStuck})`);
 });
 
 test('the callout says the note that is actually owed', () => {
@@ -782,18 +798,30 @@ test('the callout says the note that is actually owed', () => {
   const c = createScreen();
   V.drawReadingView(c, { chart: SOLO, run, songBeats: 2.4, pxPerBeat: 24, blocked: true });
 
-  /* SOLO is a single F4. Render "F4" alone and check that ink appears. */
+  /* SOLO is a single F4. Draw the label alone and compare the lane. */
   const expected = blank();
-  V.drawCentreCallout(expected, 'F4', 3);
-  let overlap = 0;
-  let total = 0;
-  for (let y = 0; y < H; y++) {
+  V.drawStuckLabel(expected, [65], 0);
+  for (let y = L.NAME_RULE_Y + 1; y < L.FOOTER_Y - 2; y++) {
     for (let x = 0; x < W; x++) {
-      if (isOn(expected, x, y)) { total++; if (isOn(c, x, y)) overlap++; }
+      assert.equal(isOn(c, x, y), isOn(expected, x, y), `lane differs at ${x},${y}`);
     }
   }
-  assert.ok(total > 0);
-  assert.ok(overlap / total > 0.95, `callout does not match "F4" (${overlap}/${total})`);
+});
+
+test('a stuck chord is named, not just spelled', () => {
+  /* The report: "when I miss a chord, show the chord name (Em) not just the
+   * notes". The staff shows the notes; the lane now says which chord they are. */
+  const seen = [];
+  const c = createScreen();
+  const text = c.text.bind(c);
+  c.text = (x, y, str, v) => { if (str) seen.push(str); return text(x, y, str, v); };
+  V.drawStuckLabel(c, [64, 67, 71], 0);
+  assert.deepEqual(seen, ['Em  E G B']);
+
+  /* And a stack that is not a chord gets no invented symbol. */
+  seen.length = 0;
+  V.drawStuckLabel(c, [60, 61, 62], 0);
+  assert.deepEqual(seen, ['C C# D']);
 });
 
 test('the count-in and the stuck callout never fight over the same frame', () => {
@@ -977,10 +1005,14 @@ test('answering reveals the notation, which is where the teaching is', () => {
 
 /* ---- The note you are stuck on stays on screen ------------------------------ */
 /*
- * A frozen note sits at hitX - grace*pxPerBeat. At a wide read-ahead that lands
- * past DESPAWN_X, and visibleEvents dropped it — so the one note you were being
- * asked to play was the one not drawn. Only reproducible above the default
- * read-ahead, which is why it reached hardware.
+ * A frozen note used to sit at hitX - grace*pxPerBeat. At a wide read-ahead
+ * that landed past DESPAWN_X and visibleEvents dropped it, so the one note you
+ * were being asked to play was the one not drawn — only reproducible above the
+ * default read-ahead, which is why it reached hardware.
+ *
+ * The freeze is on the note's own beat now, so it lands on the hit line at
+ * every read-ahead and that drift cannot happen. These assert the stronger
+ * thing: not merely that it is on screen, but that it is ON THE LINE.
  */
 
 const STUCK = {
@@ -991,7 +1023,8 @@ const STUCK = {
 function frozenFrame(pxPerBeat) {
   const run = createRun(STUCK);
   expireMissed(run, 3, true);
-  const songBeats = 2 + effectiveGrace(run, 1 / 3);
+  /* Where applyWait pins the scroll: the blocking note's own beat. */
+  const songBeats = 2;
   const c = createScreen();
   V.drawReadingView(c, { chart: STUCK, run, songBeats, pxPerBeat, blocked: true });
   return c;
@@ -1002,10 +1035,11 @@ test('the missed note is drawn at every read-ahead, not just the default', () =>
   for (const px of [12, 24, 36, 48]) {
     const c = frozenFrame(px);
     /* An X centred on the pinned position: its two diagonals cross there. */
-    const cx = L.BLOCKED_MIN_X;
+    /* ON THE HIT LINE, which is the whole point of halting at the note. */
+    const cx = L.HIT_X;
     const r = L.HEAD_MISS >> 1;
     assert.ok(isOn(c, cx - r, y - r) && isOn(c, cx + r, y + r),
-      `read ahead ${px}: no missed notehead on screen`);
+      `read ahead ${px}: the missed note is not on the hit line`);
     assert.ok(cx >= L.DESPAWN_X, 'and never past the despawn edge');
   }
 });
@@ -1016,7 +1050,7 @@ test('it looks the same at every read-ahead', () => {
   const shots = [12, 24, 36, 48].map((px) => {
     const c = frozenFrame(px);
     let sig = '';
-    for (let x = L.DESPAWN_X; x < L.HIT_X + 4; x++) {
+    for (let x = L.DESPAWN_X; x <= L.HIT_X + 4; x++) {
       for (let yy = L.STAFF_AREA_TOP_Y; yy <= L.STAFF_AREA_BOTTOM_Y; yy++) {
         sig += isOn(c, x, yy) ? '1' : '0';
       }
@@ -1036,18 +1070,15 @@ test('the accidental survives the pin — a missed F# is not a bare notehead', (
   );
 });
 
-test('the callout still names it, and the two agree', () => {
+test('the label still names it, and the staff stays visible', () => {
   const c = frozenFrame(48);
   const expected = blank();
-  V.drawCentreCallout(expected, 'F#4', 3);
-  let overlap = 0;
-  let total = 0;
-  for (let y = 0; y < H; y++) {
+  V.drawStuckLabel(expected, [66], 2);
+  for (let y = L.NAME_RULE_Y + 1; y < L.FOOTER_Y - 2; y++) {
     for (let x = 0; x < W; x++) {
-      if (isOn(expected, x, y)) { total++; if (isOn(c, x, y)) overlap++; }
+      assert.equal(isOn(c, x, y), isOn(expected, x, y), `lane differs at ${x},${y}`);
     }
   }
-  assert.ok(total > 0 && overlap / total > 0.95, 'the callout should name the pinned note');
 });
 
 test('an unblocked frame is untouched by any of this', () => {
@@ -1308,4 +1339,32 @@ test('the progress screen states the latest error rate as a number', () => {
   assert.notEqual(
     countOn(clean, 0, L.PROGRESS_ROW_Y, W, rowH),
     countOn(messy, 0, L.PROGRESS_ROW_Y, W, rowH));
+});
+
+/*
+ * PHANTOM RINGS. A press during a freeze used to be stored on the honest
+ * clock and drawn against the frozen one, so the marker landed to the RIGHT of
+ * the hit line — a ring floating over notes not yet reached, and a ring is the
+ * same glyph as a hit notehead.
+ */
+test('a press during a freeze marks at the hit line, not ahead of it', () => {
+  const chart = {
+    bpm: 80, timeSig: [4, 4], keySig: 0,
+    events: [{ beat: 0, durBeats: 1, pitches: [60] }, { beat: 1, durBeats: 1, pitches: [62] }],
+  };
+  const run = createRun(chart, { bpm: 80 });
+  /* Frozen on beat 0; the press happens two beats of real time later. */
+  addMarker(run, 60, 0);
+  const c = createScreen();
+  V.drawReadingView(c, { chart, run, songBeats: 0, pxPerBeat: 24, blocked: true });
+
+  const y = pitchToY(60, 0);
+  const r = L.RING >> 1;
+  assert.ok(isOn(c, L.HIT_X - r, y) && isOn(c, L.HIT_X + r, y),
+    'the marker ring should sit on the hit line');
+  /* And nothing ring-shaped anywhere to the right of it. */
+  for (let x = L.HIT_X + L.RING; x < W; x++) {
+    assert.ok(!(isOn(c, x, y) && isOn(c, x, y - r) && isOn(c, x, y + r)),
+      `a phantom ring at x=${x}`);
+  }
 });

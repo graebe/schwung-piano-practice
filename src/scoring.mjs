@@ -59,7 +59,22 @@ export function createRun(chart, opts = {}) {
     windows,
     good: msToBeats(windows.goodMs, bpm),
     perfect: msToBeats(windows.perfectMs, bpm),
-    late: msToBeats(windows.lateMs, bpm),
+    /* Twice the good window. Playing ahead of the beat is the commonest way to
+     * be wrong about a note you actually know, and 120ms was punishing it as a
+     * stray. The late side is Grace and far wider; see the match loop for why
+     * the two directions are not the same number. */
+    early: 2 * msToBeats(windows.goodMs, bpm),
+    /*
+     * How late a note may be and still count. The Grace setting widens it:
+     * that setting used to move the point the SCROLL stopped at, which is why
+     * a missed note sailed a beat past the hit line before the display
+     * halted. The scroll now stops on the note whatever Grace says, and Grace
+     * decides only how forgiving the judgement is.
+     *
+     * Never narrower than lateMs, so turning Grace down cannot make the drill
+     * stricter than the scoring windows it is graded against.
+     */
+    late: Math.max(msToBeats(windows.lateMs, bpm), opts.graceBeats || 0),
     entries,
     cursor: 0,      /* first entry with a note still unscored */
     waitCursor: 0,  /* first entry with a note still unplayed  */
@@ -90,11 +105,26 @@ export function judgeNoteOn(run, pitch, songBeats) {
   let bestNote = -1;
   let bestDist = Infinity;
 
+  /*
+   * ASYMMETRIC, AND THAT IS THE POINT OF GRACE.
+   *
+   * Early is still the tight window: a press well before a note is a mistake,
+   * and a wide early window would let it swallow the note AFTER the one you
+   * meant. Late is the Grace setting, because "how long a late note still
+   * counts" is exactly what Grace now means.
+   *
+   * It also closes a hole this created. The scroll freezes ON the note now,
+   * so the note is PENDING while you hunt for it — and releaseBlocked only
+   * releases a note already scored MISSED. With the match window at `good`,
+   * a press between 120ms and Grace matched nothing, released nothing, and
+   * scored a stray: the right pad, pressed, with the scroll sitting there
+   * doing nothing until the note finally expired.
+   */
   for (let i = run.cursor; i < run.entries.length; i++) {
     const entry = run.entries[i];
     const dist = entry.beat - songBeats;
-    if (dist > run.good) break; /* everything further out is further out */
-    if (Math.abs(dist) > run.good) continue;
+    if (dist > run.early) break; /* everything further out is further out */
+    if (dist > 0 ? dist > run.early : -dist > run.late) continue;
     for (let n = 0; n < entry.notes.length; n++) {
       const note = entry.notes[n];
       if (note.state !== PENDING) continue;
@@ -158,6 +188,15 @@ export function judgeNoteOn(run, pitch, songBeats) {
 export function expireMissed(run, songBeats, waiting = false) {
   let expired = 0;
   for (let i = run.cursor; i < run.entries.length; i++) {
+    /*
+     * A NOTE THE SCROLL NEVER REACHED CANNOT BE MISSED.
+     *
+     * This clock is real time, and in wait mode it keeps running while the
+     * display sits frozen on one note — so without this the windows of every
+     * note BEHIND the freeze close too, and a single stall X-ed out the next
+     * five notes before the scroll had shown any of them.
+     */
+    if (waiting && i > run.waitCursor) break;
     const entry = run.entries[i];
     if (entry.beat + run.late >= songBeats) break;
     for (let n = 0; n < entry.notes.length; n++) {
@@ -190,26 +229,19 @@ export function blockingEntryIndex(run) {
 
 /*
  * The beat the scroll must freeze at, or null when nothing is holding it up.
- * `graceBeats` is the tolerance: play within it and the clock never stops, so
- * a slightly late note does not break the rhythm.
+ *
+ * The note's OWN beat: beatToX maps songBeats to HIT_X, so freezing here puts
+ * the note exactly on the hit line. It used to be `beat + grace`, which is the
+ * same constant that buys the timing tolerance — so widening the tolerance
+ * also pushed the halt further past the line, and at a full beat of grace the
+ * note visibly scrolled by before anything stopped.
+ *
+ * The judge is not frozen with it; see applyWait's scoreBeats.
  */
-export function blockingBeat(run, graceBeats) {
+export function blockingBeat(run) {
   const i = blockingEntry(run);
   if (i < 0) return null;
-  return run.entries[i].beat + effectiveGrace(run, graceBeats);
-}
-
-/*
- * The grace can never be shorter than the late window, or the clock would
- * freeze while the note is still PENDING — and since expireMissed is driven by
- * the clock, the note could never reach its late window and be marked missed,
- * so the only thing that releases the freeze could never happen. A deadlock,
- * and at 200bpm a 1/3-beat grace (100ms) really is shorter than the 180ms
- * window. Clamping means the note is always already scored by the time the
- * scroll stops for it.
- */
-export function effectiveGrace(run, graceBeats) {
-  return Math.max(graceBeats, run.late);
+  return run.entries[i].beat;
 }
 
 /*
@@ -326,10 +358,11 @@ export function runStats(run) {
 
 /* The run is over once the chart has scrolled past and nothing is pending. */
 /*
- * `blocked` is true while the scroll is frozen waiting for a note. Without it
- * the run would report finished mid-freeze: the clock is pinned at
- * beat + grace, which already exceeds beat + late, so the summary would pop up
- * over a note you are still being asked to play.
+ * `blocked` is true while the scroll is frozen waiting for a note, and the run
+ * cannot be over while one is still being asked for. The freeze now pins the
+ * clock at the note's own beat rather than past it, so this no longer guards
+ * against an early finish on the LAST note — but it still says the true thing,
+ * and the true thing is the reason to keep it.
  */
 export function runFinished(run, songBeats, blocked = false) {
   if (blocked) return false;

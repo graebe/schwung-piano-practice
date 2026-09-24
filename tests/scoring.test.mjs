@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   createRun, judgeNoteOn, expireMissed, runStats, runFinished,
-  blockingBeat, blockingNotes, blockingEntryIndex, resyncWait, effectiveGrace,
+  blockingBeat, blockingNotes, blockingEntryIndex, resyncWait,
   addMarker, pruneMarkers,
   DEFAULT_WINDOWS, PENDING, HIT, MISSED,
 } from '../src/scoring.mjs';
@@ -42,14 +42,32 @@ test('the perfect window ends where the good window begins', () => {
   assert.equal(judgeNoteOn(run, 60, -ms(DEFAULT_WINDOWS.perfectMs)).result, 'perfect');
 });
 
-test('outside the good window the press is a stray, not a hit', () => {
+test('the window is tight early and as wide as Grace late', () => {
+  /*
+   * Asymmetric on purpose. A press well BEFORE a note is a mistake, and a wide
+   * early window would let it swallow the note after the one you meant. Late
+   * is Grace, because "how long a late note still counts" is what Grace means.
+   */
   let run = createRun(single);
   assert.equal(judgeNoteOn(run, 60, ms(DEFAULT_WINDOWS.goodMs)).result, 'good');
+
+  /* Early is TWICE the good window: playing ahead of the beat is the commonest
+   * way to be wrong about a note you actually know, and 120ms punished it. */
   run = createRun(single);
-  const j = judgeNoteOn(run, 60, ms(DEFAULT_WINDOWS.goodMs + 1));
-  assert.equal(j.result, 'stray');
-  assert.equal(runStats(run).strays, 1);
-  assert.equal(run.entries[0].notes[0].state, PENDING, 'the note is still up for grabs');
+  assert.equal(judgeNoteOn(run, 60, -ms(2 * DEFAULT_WINDOWS.goodMs - 1)).result, 'good',
+    'inside twice the good window, early counts');
+  run = createRun(single);
+  const early = judgeNoteOn(run, 60, -ms(2 * DEFAULT_WINDOWS.goodMs + 1));
+  assert.equal(early.result, 'stray', 'beyond it, too early is still a stray');
+  assert.equal(run.entries[0].notes[0].state, PENDING, 'and the note is still up for grabs');
+
+  /* Late, inside Grace: it counts. */
+  run = createRun(single, { graceBeats: 1 });
+  assert.equal(judgeNoteOn(run, 60, 0.9).result, 'good');
+
+  /* Late, past Grace: it does not. */
+  run = createRun(single, { graceBeats: 1 });
+  assert.equal(judgeNoteOn(run, 60, 1.1).result, 'stray');
 });
 
 test('a wrong pitch inside the window is a stray', () => {
@@ -170,16 +188,15 @@ const GRACE = 1 / 3;
 
 test('nothing blocks before a note is due', () => {
   const run = createRun(single);
-  assert.equal(blockingBeat(run, GRACE), 0 + effectiveGrace(run, GRACE));
-  /* ...and the clock only stops once it passes that point, which is the
-   * caller's comparison, not this function's. */
-  assert.ok(blockingBeat(run, GRACE) > 0);
+  /* The note's OWN beat: freezing here puts it exactly on the hit line.
+   * beatToX maps songBeats to HIT_X, so any offset would be visible drift. */
+  assert.equal(blockingBeat(run), 0);
 });
 
 test('a note played in time never blocks', () => {
   const run = createRun(single);
   for (const [p, b] of [[60, 0], [62, 1], [64, 2]]) judgeNoteOn(run, p, b);
-  assert.equal(blockingBeat(run, GRACE), null);
+  assert.equal(blockingBeat(run), null);
 });
 
 test('an expired note is scored a miss and still blocks the scroll', () => {
@@ -188,7 +205,7 @@ test('an expired note is scored a miss and still blocks the scroll', () => {
   assert.equal(run.entries[0].notes[0].state, MISSED, 'it counts as a miss');
   assert.equal(run.entries[0].notes[0].played, false, 'but it has not been played');
   assert.equal(runStats(run).misses, 1);
-  assert.equal(blockingBeat(run, GRACE), 0 + effectiveGrace(run, GRACE), 'and it holds the scroll');
+  assert.equal(blockingBeat(run), 0, 'and it holds the scroll');
 });
 
 test('playing the blocking note releases it and scores nothing more', () => {
@@ -197,7 +214,7 @@ test('playing the blocking note releases it and scores nothing more', () => {
   const before = runStats(run);
   const j = judgeNoteOn(run, 60, 0.5);
   assert.equal(j.result, 'late');
-  assert.equal(blockingBeat(run, GRACE), 1 + effectiveGrace(run, GRACE), 'moved on to the next note');
+  assert.equal(blockingBeat(run), 1, 'moved on to the next note');
   const after = runStats(run);
   assert.equal(after.hits, before.hits, 'a late release is not a hit');
   assert.equal(after.misses, before.misses, 'and does not double-count the miss');
@@ -209,45 +226,85 @@ test('the wrong pad does not release the block', () => {
   const run = createRun(single);
   expireMissed(run, 0.5, true);
   assert.equal(judgeNoteOn(run, 61, 0.5).result, 'stray');
-  assert.equal(blockingBeat(run, GRACE), 0 + effectiveGrace(run, GRACE), 'still stuck');
+  assert.equal(blockingBeat(run), 0, 'still stuck');
 });
 
-test('a still-pending note is never swallowed by the release path', () => {
-  /* Pressing outside the good window must stay a stray — releasing a PENDING
-   * note would rob it of its own judgement. */
-  const run = createRun(single);
-  const j = judgeNoteOn(run, 60, ms(DEFAULT_WINDOWS.goodMs + 1));
-  assert.equal(j.result, 'stray');
-  assert.equal(run.entries[0].notes[0].state, PENDING);
-  assert.equal(run.entries[0].notes[0].played, false);
+/*
+ * THE DEAD ZONE. A regression test for a hole that no existing test saw.
+ *
+ * The scroll freezes ON the note now, so the note is PENDING while you hunt
+ * for it. releaseBlocked only releases a note already scored MISSED, and the
+ * match window used to be `good` — so a press between 120ms and Grace matched
+ * nothing and released nothing. The right pad, pressed, with the scroll
+ * sitting frozen and no feedback, until the note expired on its own. At the
+ * default Grace that was 600ms of the instrument appearing to be broken.
+ */
+test('the right pad always releases the scroll, at every lateness', () => {
+  for (const [lateBeats, wantResult] of [
+    [0.02, 'perfect'], [0.3, 'good'], [0.8, 'good'], [1.5, 'late'], [4.0, 'late'],
+  ]) {
+    const run = createRun(single, { graceBeats: 1 });
+    /* What the frame loop does: the judge sees real time even though the
+     * scroll is pinned on the note. */
+    expireMissed(run, lateBeats, true);
+    const j = judgeNoteOn(run, 60, lateBeats);
+    assert.equal(j.result, wantResult, `${lateBeats} beats late`);
+    assert.equal(run.entries[0].notes[0].played, true,
+      `${lateBeats} beats late: the press did not release the scroll`);
+    assert.notEqual(blockingBeat(run), 0, 'and the scroll has moved on');
+  }
 });
 
-test('the grace can never be shorter than the late window', () => {
-  /* Otherwise the clock freezes while the note is still PENDING, and since
-   * expireMissed is driven by the clock the note can never be marked missed —
-   * so the only thing that would release the freeze can never happen. */
-  const fast = createRun({ ...single, bpm: 200 });
-  assert.ok(effectiveGrace(fast, 1 / 3) >= fast.late, 'deadlock');
-  const slow = createRun({ ...single, bpm: 60 });
-  assert.equal(effectiveGrace(slow, 1 / 3), 1 / 3, 'at a normal tempo the grace is honoured');
+test('grace widens how late still counts, and never narrows it', () => {
+  /*
+   * Grace used to move the point the SCROLL stopped at, which is why a missed
+   * note sailed a beat past the hit line. It is the scoring window now: the
+   * halt is always the note, and this decides how forgiving the judgement is.
+   */
+  const plain = createRun(single);
+  const forgiving = createRun(single, { graceBeats: 1 });
+  assert.ok(forgiving.late > plain.late, 'a beat of grace is more than 180ms');
+  assert.equal(forgiving.late, 1);
+
+  /* Turning it down cannot make the drill stricter than the scoring windows
+   * it is graded against. */
+  const strict = createRun(single, { graceBeats: 1 / 64 });
+  assert.equal(strict.late, plain.late, 'floored at the late window');
+
+  /* And it moves neither halt point. */
+  assert.equal(blockingBeat(plain), blockingBeat(forgiving));
+});
+
+test('a note found long after the freeze is a miss, not a perfect hit', () => {
+  /*
+   * The scroll stops on the note, so the DISPLAY clock is pinned there. If the
+   * judge read that clock every press would land at offset zero and a miss
+   * could never happen. It reads real time instead, which is what scoreBeats
+   * carries — this is that contract, from the scoring side.
+   */
+  const run = createRun(single, { graceBeats: 1 / 3 });
+  expireMissed(run, 3, true);   /* three beats of real time went by */
+  assert.equal(run.entries[0].notes[0].state, MISSED);
+  assert.equal(judgeNoteOn(run, 60, 3).result, 'late', 'not scored as on time');
+  assert.equal(runStats(run).hits, 0);
 });
 
 test('with wait off an expired note is gone and blocks nothing', () => {
   const run = createRun(single);
   expireMissed(run, 0.5, false);
   assert.equal(run.entries[0].notes[0].played, true, 'marked gone, not awaited');
-  assert.equal(blockingBeat(run, GRACE), 1 + effectiveGrace(run, GRACE));
+  assert.equal(blockingBeat(run), 1);
 });
 
 test('a chord blocks until every note of it is played', () => {
   const run = createRun(chordChart);
   expireMissed(run, 1, true);
-  assert.equal(blockingBeat(run, GRACE), 0 + effectiveGrace(run, GRACE));
+  assert.equal(blockingBeat(run), 0);
   judgeNoteOn(run, 60, 1);
-  assert.notEqual(blockingBeat(run, GRACE), null, 'two notes still missing');
+  assert.notEqual(blockingBeat(run), null, 'two notes still missing');
   judgeNoteOn(run, 64, 1);
   judgeNoteOn(run, 67, 1);
-  assert.equal(blockingBeat(run, GRACE), null);
+  assert.equal(blockingBeat(run), null);
 });
 
 test('resyncWait clears a backlog so the clock cannot jump backwards', () => {
@@ -256,26 +313,43 @@ test('resyncWait clears a backlog so the clock cannot jump backwards', () => {
   /* Simulate having been in wait-off mode with notes left unplayed. */
   for (const e of run.entries) for (const n of e.notes) n.played = false;
   run.waitCursor = 0;
-  assert.equal(blockingBeat(run, GRACE), 0 + effectiveGrace(run, GRACE), 'parked in the past');
+  assert.equal(blockingBeat(run), 0, 'parked in the past');
   resyncWait(run, 5);
-  assert.equal(blockingBeat(run, GRACE), null, 'caught up to the playhead');
+  assert.equal(blockingBeat(run), null, 'caught up to the playhead');
 });
 
 test('resyncWait leaves notes still ahead of the playhead alone', () => {
   const run = createRun(single);
   resyncWait(run, 1.5);
   assert.equal(run.entries[2].notes[0].played, false, 'beat 2 has not happened yet');
-  assert.equal(blockingBeat(run, GRACE), 2 + effectiveGrace(run, GRACE));
+  assert.equal(blockingBeat(run), 2);
 });
 
 test('the run cannot finish while the scroll is frozen', () => {
+  /*
+   * With wait OFF the whole chart expires, so the scoring cursor really is
+   * done. With it ON only the blocking note can expire — a note the scroll
+   * never reached cannot be missed — which is why this uses the unwaited run
+   * to reach the finished state at all.
+   */
+  const done = createRun(single);
+  expireMissed(done, 99, false);
+  assert.equal(done.cursor, done.entries.length, 'everything is scored');
+  assert.equal(runFinished(done, 99, false), true);
+  /* ...but a frozen scroll is never finished, whatever the cursor says. */
+  assert.equal(runFinished(done, 99, true), false);
+});
+
+test('waiting stops the expiry at the note the scroll is on', () => {
+  /*
+   * The regression that mattered: this clock is real time and keeps running
+   * while the display sits frozen, so without the bound a single stall X-ed
+   * out every note behind it. Five misses for one stall, none of them shown.
+   */
   const run = createRun(single);
   expireMissed(run, 99, true);
-  /* Everything is scored, so the scoring cursor is done... */
-  assert.equal(run.cursor, run.entries.length);
-  /* ...but the summary must not appear over a note you are still asked to play. */
-  assert.equal(runFinished(run, 99, true), false);
-  assert.equal(runFinished(run, 99, false), true);
+  assert.equal(runStats(run).misses, 1, 'only the note being waited for');
+  assert.equal(run.entries[1].notes[0].state, PENDING, 'the next one was never reached');
 });
 
 /* ---- Played markers ------------------------------------------------------ */

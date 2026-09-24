@@ -41,6 +41,7 @@ import {
   msToBeats, beatsToMs, chartTotalBeats, beatsPerBar, isBeatEdge, applyWait, xToBeat,
 } from './chart.mjs';
 import { parseExercise, parseManifest } from './exercise_io.mjs';
+import { availableLevels, projectLevel } from './levels.mjs';
 
 /* ---- Host bindings ------------------------------------------------------ */
 /* Several documented host_* functions do not exist on device; guard them all. */
@@ -264,14 +265,28 @@ function panicChannel(ch) {
   }
 }
 
+/*
+ * ALWAYS STRIKE. The refcount decides when a note STOPS, never whether it
+ * starts.
+ *
+ * It used to gate both, and that swallowed notes whenever two sources wanted
+ * one pitch — which is the normal case in Listen, where the reference melody
+ * and your own hands are playing the same tune. Whichever asked second got
+ * silence: hold a note the reference is about to play and the reference note
+ * vanishes; press a note it is already holding and your press makes no sound.
+ * The same pitch also sits on two pads of an isomorphic grid, so two fingers
+ * on the same note did it too.
+ *
+ * A piano re-strikes, so re-striking is also the musically right answer, and
+ * the DSP is built for it: pick_voice reuses the voice already on that pitch
+ * rather than stacking a second one. Downstream MIDI sees two note-ons and
+ * one note-off, which is what any keyboard sends when you repeat a held note.
+ */
 function noteOn(pitch, vel) {
   if (pitch < 0 || pitch > 127) return;
-  const prev = pitchRefcount[pitch] || 0;
-  pitchRefcount[pitch] = prev + 1;
-  if (prev === 0) {
-    if (settings.midiOut & OUT_INTERNAL) dspNote(pitch, vel || 100);
-    if (settings.midiOut & (OUT_TRACK | OUT_USB)) midiOutCh(0x90, pitch, vel || 100);
-  }
+  pitchRefcount[pitch] = (pitchRefcount[pitch] || 0) + 1;
+  if (settings.midiOut & OUT_INTERNAL) dspNote(pitch, vel || 100);
+  if (settings.midiOut & (OUT_TRACK | OUT_USB)) midiOutCh(0x90, pitch, vel || 100);
 }
 
 function noteOff(pitch) {
@@ -440,6 +455,7 @@ function clamp(v, lo, hi) {
 
 /* ---- State machine ------------------------------------------------------ */
 const MENU = 'menu';
+const LEVEL_VIEW = 'level';
 const READY = 'ready';
 const RUNNING = 'running';
 const SETTINGS = 'settings';
@@ -455,6 +471,13 @@ let prevBeats = 0;
 let runStartMs = 0;
 let countInBeats = 0;
 let waitedBeats = 0;   /* time absorbed while the scroll was frozen */
+/* `waitedBeats` as it was when the current freeze began, or null when nothing
+ * is frozen. It is what lets the judge keep real time while the scroll sits
+ * on the note — see applyWait. */
+let frozenAt = null;
+/* The honest clock: equal to songBeats except while frozen, when it runs on.
+ * Everything that SCORES reads this; everything that DRAWS reads songBeats. */
+let scoreBeats = 0;
 let blocked = false;   /* frozen right now, waiting for a note */
 let listening = false;      /* Record = hear the exercise instead of playing it */
 let listenIndex = 0;
@@ -482,6 +505,12 @@ let menuRows = [];
 let menuCursor = 0;
 let selectedIndex = -1;   /* the armed exercise, which the cursor may have left */
 let fileExercises = [];
+/* The song whose ladder is on screen, and the rungs it actually has. Held
+ * rather than recomputed each frame because availableLevels projects the whole
+ * song four times to find out. */
+let levelSong = null;
+let levelRows = [];
+let levelCursor = 0;
 let ledPhase = -1;        /* Play-button pulse, so we only write on a change */
 
 let settingsCursor = 0;
@@ -531,9 +560,15 @@ function rebuildMenu() {
   ];
   const gen = GEN.builtins(generatorOptions());
   for (const g of gen) menuRows.push({ label: g.label, build: g.build, value: '' });
+  /* A song opens its ladder rather than arming straight away, so the value
+   * column is a chevron: the row leads somewhere. A file with only one rung —
+   * the three technique drills — keeps the old behaviour and the old 'f'. */
   for (let i = 0; i < fileExercises.length; i++) {
     const c = fileExercises[i];
-    menuRows.push({ label: c.name, build: () => c, value: 'f' });
+    const levels = availableLevels(c);
+    menuRows.push(levels.length > 1
+      ? { label: c.name, song: c, levels, value: '>' }
+      : { label: c.name, build: () => projectLevel(c, levels[0].id) || c, value: 'f' });
   }
   if (menuCursor >= menuRows.length) menuCursor = Math.max(0, menuRows.length - 1);
 }
@@ -638,12 +673,21 @@ function selectExercise(index) {
   if (!row) return;
   selectedIndex = index;
   menuCursor = index;
+  /* Anything opened from the song list leaves the previous ladder behind, or
+   * Back from a generated exercise would drop onto the rungs of whichever song
+   * was played before it. openLevels sets it again. */
+  levelSong = null;
+  levelRows = [];
   if (row.progress) {
     openProgress();
     return;
   }
   if (row.guess) {
     startQuiz(row.guess, row.hear, row.pick);
+    return;
+  }
+  if (row.song) {
+    openLevels(row.song, row.levels);
     return;
   }
   chart = row.build();
@@ -655,15 +699,53 @@ function selectExercise(index) {
   ledDirty = true;
 }
 
+/*
+ * One song's ladder: right hand alone, left hand alone, right hand with its
+ * chords, then both.
+ *
+ * A submenu rather than a setting, because the level is a property of what you
+ * are about to play and not of the module — you want the right hand of one
+ * piece and both hands of another in the same sitting, and a setting would make
+ * that a trip to the settings page each time.
+ */
+function openLevels(song, levels) {
+  levelSong = song;
+  levelRows = (levels || availableLevels(song))
+    .map((lv) => ({ label: lv.label, value: lv.step, level: lv.id }));
+  levelCursor = 0;
+  view = LEVEL_VIEW;
+  dirty = true;
+  ledDirty = true;
+  announce(song.name + '. Pick a level.');
+}
+
+function selectLevel(index) {
+  const row = levelRows[index];
+  if (!row || !levelSong) return;
+  levelCursor = index;
+  const built = projectLevel(levelSong, row.level);
+  if (!built) return;
+  chart = built;
+  armRun();
+  view = READY;
+  announce(chart.name + '. Press play to start.');
+  dirty = true;
+  ledDirty = true;
+}
+
 function armRun() {
   run = SCORE.createRun(chart, {
     bpm: chart.bpm,
     anyOctave: settings.anyOctave,
+    /* Grace is the scoring window now, not the halt point. */
+    graceBeats: settings.graceBeats,
   });
   songBeats = -settings.countIn;
   prevBeats = songBeats;
   countInBeats = settings.countIn;
   waitedBeats = 0;
+  frozenAt = null;
+  scoreBeats = songBeats;
   blocked = false;
   lastClickBeat = null;
   listenIndex = 0;
@@ -946,6 +1028,11 @@ function draw() {
       footer: VIEW.SETTINGS_HINT,
       centreFooter: true,
     });
+  } else if (view === LEVEL_VIEW) {
+    VIEW.drawList(ctx, (levelSong ? levelSong.name : 'LEVEL').toUpperCase(), levelRows, levelCursor, {
+      footer: 'CLICK arm  BACK songs',
+      centreFooter: true,
+    });
   } else if (view === SETTINGS) {
     VIEW.drawList(ctx, 'SETTINGS', settingsRows(), settingsCursor, {
       footer: settingsEditing ? 'turn change  CLICK ok' : 'CLICK edit SHIFT back',
@@ -1082,8 +1169,21 @@ function onPadDown(pad, vel) {
   if (view !== RUNNING || listening) return;
   /* Every press leaves a mark at the exact moment it happened, right or wrong —
    * seeing what you actually played, and when, is the point. */
+  /*
+   * TWO CLOCKS, AND THEY ARE NOT INTERCHANGEABLE HERE.
+   *
+   * The marker is a statement about the PICTURE — a ring sitting clear of its
+   * notehead is the timing error made visible — so it goes where the press was
+   * seen to happen. On the honest clock it landed to the RIGHT of the hit line
+   * while the scroll was frozen, which draws a ring over notes not yet
+   * reached, and a ring is the same glyph as a hit notehead.
+   *
+   * The judgement is a statement about TIME, so it keeps the honest clock:
+   * against the frozen one every press reads as perfectly on time however long
+   * it took.
+   */
   SCORE.addMarker(run, pitch, songBeats);
-  const j = SCORE.judgeNoteOn(run, pitch, songBeats);
+  const j = SCORE.judgeNoteOn(run, pitch, scoreBeats);
   if (j.result === 'stray') {
     flashPad(pad, PAD.LED_MISS, 120);
   } else {
@@ -1124,6 +1224,13 @@ function onJog(delta) {
   /* A nudge mid-exercise used to drop straight back to the menu and abandon the
    * run. jogAction ignores it while RUNNING and steps to the neighbouring
    * exercise from READY, rather than leaving. */
+  if (view === LEVEL_VIEW) {
+    const step = CTRL.jogAction(view, delta, levelCursor, levelRows.length);
+    if (step.action !== 'cursor') return;
+    levelCursor = step.index;
+    dirty = true;
+    return;
+  }
   const next = CTRL.jogAction(view, delta, menuCursor, menuRows.length);
   if (next.action !== 'cursor') return;
   menuCursor = next.index;
@@ -1152,7 +1259,8 @@ function onJogClick() {
       settingsEditing = !settingsEditing;
       break;
     case 'open':
-      selectExercise(menuCursor);
+      if (view === LEVEL_VIEW) selectLevel(levelCursor);
+      else selectExercise(menuCursor);
       break;
     default:
       view = MENU;
@@ -1179,6 +1287,9 @@ globalThis.init = function init() {
   shiftHeld = false;
   menuCursor = 0;
   selectedIndex = -1;
+  levelSong = null;
+  levelRows = [];
+  levelCursor = 0;
   settingsCursor = 0;
   settingsEditing = false;
   quiz = null;
@@ -1231,19 +1342,24 @@ globalThis.tick = function tick() {
     prevBeats = songBeats;
     const raw = msToBeats(t - runStartMs, chart.bpm) - countInBeats;
 
-    /* Resolve first, then decide where the clock may be. A note only blocks
-     * once its own window has closed, and expireMissed is what closes it — the
-     * other order would freeze the clock a frame before the note was scored,
-     * leaving nothing able to release it. */
+    /*
+     * Freeze first, then resolve — the reverse of the old order, and the
+     * reason is that there are two clocks now. Expiring used to have to run
+     * first because a frozen clock could never reach the note's late window;
+     * scoreBeats reaches it whether the scroll is frozen or not, so the freeze
+     * can be decided from the run as it stands and the judgement follows on
+     * real time.
+     */
     const waiting = settings.waitForNote && !listening;
-    const provisional = raw - waitedBeats;
-    if (!listening && provisional >= 0) SCORE.expireMissed(run, provisional, waiting);
-
-    const block = waiting ? SCORE.blockingBeat(run, settings.graceBeats) : null;
-    const clock = applyWait(raw, waitedBeats, block);
+    const block = waiting ? SCORE.blockingBeat(run) : null;
+    const clock = applyWait(raw, waitedBeats, block, frozenAt);
     songBeats = clock.songBeats;
     waitedBeats = clock.waitedBeats;
+    frozenAt = clock.frozenAt;
+    scoreBeats = clock.scoreBeats;
     blocked = clock.blocked;
+
+    if (!listening && scoreBeats >= 0) SCORE.expireMissed(run, scoreBeats, waiting);
 
     if (isBeatEdge(prevBeats, songBeats)) serviceClick();
     serviceReference();
@@ -1389,8 +1505,19 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       stopRun();
       return;
     }
-    if (view === RESULT_VIEW || view === PROGRESS_VIEW) {
+    if (view === RESULT_VIEW || view === PROGRESS_VIEW || view === LEVEL_VIEW) {
       view = MENU;
+      dirty = true;
+      ledDirty = true;
+      return;
+    }
+    /* Back from a song's ready screen lands on its ladder, not on the song
+     * list: having just played the right hand, the next thing you want is the
+     * left hand of the same piece, and that is one rung away rather than a
+     * scroll back through seventeen entries. */
+    if (view === READY && levelSong && levelRows.length) {
+      allNotesOff();
+      view = LEVEL_VIEW;
       dirty = true;
       ledDirty = true;
       return;
