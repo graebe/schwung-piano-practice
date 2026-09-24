@@ -625,19 +625,14 @@ function blockedPads() {
  * range so padsForPitch finds nothing for them.
  */
 /*
- * The answer, but only if Guide pads is on — lighting it otherwise would BE
- * the answer, and the whole mode is finding the pitch yourself.
+ * Nothing lights the answer in the guessing and hearing modes — not even with
+ * Guide pads on. That setting is a playing aid for the reading mode, where the
+ * music is moving and a hint keeps you with it. In a quiz the "hint" IS the
+ * answer, and a guessing game that shows you the answer is not a game.
+ *
+ * The only pad feedback here is what you press: green when right, red when
+ * wrong, over the usual in-key colouring.
  */
-function guessPads() {
-  if (!settings.guidance || view !== GUESS_VIEW || !quiz || quiz.solved) return null;
-  const pads = [];
-  for (let i = 0; i < quiz.prompt.length; i++) {
-    const forPitch = PAD.padsForPitch(quiz.prompt[i], settings.transpose);
-    for (let n = 0; n < forPitch.length; n++) pads.push(forPitch[n]);
-  }
-  return pads.length ? pads : null;
-}
-
 function soundingPads() {
   if (!listening || view !== RUNNING) return null;
   const pads = [];
@@ -658,12 +653,6 @@ function paintPads() {
   const stuck = blockedPads();
   const stuckSet = {};
   if (stuck) for (let i = 0; i < stuck.length; i++) stuckSet[stuck[i]] = 1;
-  /* Steady, not pulsing. The pulse in the reading mode means "this one, NOW",
-   * because the music has stopped and is waiting. The guesser has no clock and
-   * nothing is urgent, so a blinking pad is just noise to play against. */
-  const answer = guessPads();
-  const answerSet = {};
-  if (answer) for (let i = 0; i < answer.length; i++) answerSet[answer[i]] = 1;
   const sounding = soundingPads();
   const soundingSet = {};
   if (sounding) for (let i = 0; i < sounding.length; i++) soundingSet[sounding[i]] = 1;
@@ -678,8 +667,6 @@ function paintPads() {
       color = PAD.LED_PRESSED;
     } else if (soundingSet[pad]) {
       color = PAD.LED_TARGET_NEAR;
-    } else if (answerSet[pad]) {
-      color = PAD.LED_ROOT;
     } else if (stuckSet[pad]) {
       color = ledPhase ? PAD.LED_ROOT : PAD.LED_OFF;
     } else if (targetSet[pad]) {

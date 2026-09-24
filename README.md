@@ -67,10 +67,11 @@ until you get it.
 and the staff shows a `?` until you get it right, then reveals what it was — which is where the
 teaching is. **Play** repeats it.
 
-**Play** sounds the answer, **Record** skips it, **Back** returns to the list. The answer is never
-lit on the pads unless **Guide pads** is on — lighting it would be the answer — and when it is lit
-it sits steady rather than pulsing. The pulse is reserved for the reading mode's "this one, now",
-where the music has stopped and is waiting; nothing here is urgent.
+**Play** sounds the answer, **Record** skips it, **Back** returns to the list.
+
+**The answer is never lit on the pads**, not even with **Guide pads** on. That setting is a playing
+aid for the reading mode, where the music is moving and a hint keeps you with it; in a quiz the hint
+is the answer. The only pad feedback here is what you press — green when right, red when wrong.
 
 ## Requirements
 
@@ -159,7 +160,7 @@ shortcuts to the first four.
 
 | Setting | Default | |
 | --- | --- | --- |
-| Guide pads | **off** | lights the pad you need next, brightening as it approaches |
+| Guide pads | **off** | lights the pad you need next while reading, brightening as it approaches. Has no effect in the guessing and hearing modes |
 | Any octave | off | accept the right note in the wrong register |
 | Click | on | MIDI metronome (see the caveat above) |
 | Reference | **on** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along. Off for unaided reading |

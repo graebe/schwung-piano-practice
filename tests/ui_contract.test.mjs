@@ -405,10 +405,17 @@ test('the guesser runs no clock — it waits for you, it does not time you', () 
   assert.match(svc, /atMs/);
 });
 
-test('the guesser never lights the answer unless Guide pads is on', () => {
-  const fn = code.match(/function guessPads\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(fn, /settings\.guidance/, 'lighting it otherwise would be the answer');
-  assert.match(fn, /quiz\.solved/, 'and it goes out once solved');
+test('nothing ever lights the answer in the quiz modes', () => {
+  /* Guide pads is a PLAYING aid: in the reading mode the music is moving and a
+   * hint keeps you with it. In a quiz the hint is the answer, so the setting
+   * must not reach here at all — not even when it is on. */
+  assert.doesNotMatch(code, /guessPads/, 'no answer-lighting path may exist');
+  const paint = code.match(/function paintPads\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.doesNotMatch(paint, /quiz\.prompt/, 'paintPads must not read the prompt');
+  /* The miss rescue keeps its gate, because that is the reading mode. */
+  const blocked = code.match(/function blockedPads\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(blocked, /settings\.guidance/);
+  assert.match(blocked, /view !== RUNNING/, 'and it cannot fire in a quiz');
 });
 
 test('the mode is entered from the list, and picks notes or chords by which row', () => {
@@ -422,17 +429,6 @@ test('the mode is entered from the list, and picks notes or chords by which row'
 test('leaving the guesser silences it', () => {
   const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}/)[1];
   assert.match(back, /view === READY \|\| view === GUESS_VIEW[\s\S]{0,80}allNotesOff\(\)/);
-});
-
-test('the guesser lights its answer steadily, not blinking', () => {
-  /* The pulse in the reading mode means "this one, NOW" — the music has
-   * stopped and is waiting. The guesser has no clock, so a blinking pad is
-   * just something to play against. */
-  const paint = code.match(/function paintPads\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(paint, /answerSet\[pad\][\s\S]{0,40}color = PAD\.LED_ROOT;/);
-  assert.doesNotMatch(paint, /answerSet\[pad\][\s\S]{0,40}ledPhase/, 'must not pulse');
-  /* ...while the miss rescue keeps its pulse. */
-  assert.match(paint, /stuckSet\[pad\][\s\S]{0,60}ledPhase \? PAD\.LED_ROOT/);
 });
 
 test('hearing mode plays the prompt and withholds the notation', () => {

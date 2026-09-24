@@ -63,7 +63,9 @@
         "BACK   back to the list",
         "",
         "The answer is never lit",
-        "unless Guide pads is on."
+        "on the pads. Guide pads is",
+        "a playing aid, not a",
+        "hint for a quiz."
       ]
     },
     {
@@ -147,7 +149,9 @@
         "Guide pads lights the",
         "pad you need next. Off",
         "by default so you read",
-        "rather than follow.",
+        "rather than follow. It",
+        "does nothing in the",
+        "guessing modes.",
         "",
         "Any octave accepts the",
         "right note in the wrong",
