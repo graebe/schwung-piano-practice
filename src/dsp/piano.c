@@ -41,7 +41,8 @@
 
 #define EV_NOTE_ON 1
 #define EV_NOTE_OFF 2
-#define EV_PANIC 3
+#define EV_PANIC 3        /* cut now, tails included  — CC 120, 0xFF */
+#define EV_RELEASE_ALL 4  /* let go, so it rings out  — CC 123       */
 
 typedef struct {
     uint8_t type;
@@ -170,6 +171,15 @@ static void apply_event(piano_t *p, const event_t *e) {
         for (int i = 0; i < MAX_VOICES; i++) p->voices[i].active = 0;
         return;
     }
+    if (e->type == EV_RELEASE_ALL) {
+        /* Released rather than cut. All Notes Off is the polite one, and it is
+         * what a host broadcasts on the way out — cutting sixteen voices dead
+         * there would click on every close. */
+        for (int i = 0; i < MAX_VOICES; i++) {
+            if (p->voices[i].active) voice_release(&p->voices[i]);
+        }
+        return;
+    }
     if (e->type == EV_NOTE_ON) {
         voice_start(p, pick_voice(p, e->pitch), e->pitch, e->vel ? e->vel : 1);
         return;
@@ -238,6 +248,40 @@ static void set_param(void *instance, const char *key, const char *val) {
         if (g >= 0.0f && g <= 1.0f) p->gain = g;
         return;
     }
+}
+
+/*
+ * The panic messages, and deliberately nothing else.
+ *
+ * Notes arrive through set_param("n", ...), because the overtake parameter
+ * channel is a single-slot mailbox and one write has to carry a whole chord.
+ * Handling note on/off here as well would sound every note twice. What MIDI is
+ * for is the thing the parameter channel cannot express: somebody ELSE asking
+ * for silence.
+ *
+ *   CC 120  All Sound Off   cut now
+ *   CC 123  All Notes Off   release
+ *   0xFF    System Reset    cut now
+ *
+ * Never channel-scoped. This instrument occupies no channel, so honouring one
+ * and ignoring another would make the silence conditional on a number nobody
+ * set — and a panic that works on 1 of 16 channels is worse than none, because
+ * it looks like it should have worked.
+ *
+ * Runs on the SPI callback, like set_param, so the ring keeps its single
+ * producer. Nothing here allocates, blocks or logs.
+ */
+static void on_midi(void *instance, const uint8_t *msg, int len, int source) {
+    piano_t *p = (piano_t *)instance;
+    (void)source;
+    if (!p || !msg || len < 1) return;
+    if (msg[0] == 0xFF) {
+        push_event(p, EV_PANIC, 0, 0);
+        return;
+    }
+    if (len < 3 || (msg[0] & 0xF0) != 0xB0) return;
+    if (msg[1] == 120) push_event(p, EV_PANIC, 0, 0);
+    else if (msg[1] == 123) push_event(p, EV_RELEASE_ALL, 0, 0);
 }
 
 static int get_param(void *instance, const char *key, char *buf, int buf_len) {
@@ -331,7 +375,7 @@ static plugin_api_v2_t g_api = {
     .api_version = MOVE_PLUGIN_API_VERSION_2,
     .create_instance = create_instance,
     .destroy_instance = destroy_instance,
-    .on_midi = NULL,
+    .on_midi = on_midi,
     .set_param = set_param,
     .get_param = get_param,
     .get_error = get_error,

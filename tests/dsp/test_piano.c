@@ -143,6 +143,80 @@ int main(void) {
     api->set_param(inst, "panic", "1");
     render_peak(api, inst, 1);
 
+    /*
+     * The panic messages arriving as MIDI.
+     *
+     * This is the path something ELSE uses to ask for silence — the host on the
+     * way out, Move's own MIDI_OUT, a System Reset. It was unreachable until
+     * now: .on_midi was NULL, so every one of these was dropped on the floor
+     * and only the module's own set_param("panic") could stop the piano.
+     */
+    {
+        const uint8_t all_sound_off[3] = { 0xB0, 120, 0 };
+        const uint8_t all_notes_off[3] = { 0xB3, 123, 0 };   /* channel 4 */
+        const uint8_t sustain[3]       = { 0xB0, 64, 127 };
+        const uint8_t note_on[3]       = { 0x90, 60, 100 };
+        const uint8_t system_reset[1]  = { 0xFF };
+
+        check(api->on_midi != NULL, "the DSP accepts MIDI at all");
+
+        api->set_param(inst, "n", "60:100,64:100,67:100");
+        render_peak(api, inst, 1);
+        api->on_midi(inst, all_sound_off, 3, 0);
+        render_peak(api, inst, 1);
+        check(voice_count(api, inst) == 0, "CC 120 cuts every voice");
+        check(render_peak(api, inst, 4) == 0, "and the output is silent");
+
+        /* All Notes Off RELEASES: the voices ring out rather than clicking off,
+         * so they are still sounding on the very next block and gone later. */
+        api->set_param(inst, "n", "60:100,64:100,67:100");
+        render_peak(api, inst, 1);
+        api->on_midi(inst, all_notes_off, 3, 0);
+        render_peak(api, inst, 1);
+        check(voice_count(api, inst) > 0, "CC 123 releases rather than cutting");
+        for (int i = 0; i < 400; i++) render_peak(api, inst, 1);
+        check(voice_count(api, inst) == 0, "and the release runs to silence");
+
+        /* On any channel: this instrument occupies none, so a panic that
+         * worked on channel 1 and not channel 4 would be worse than none. */
+        api->set_param(inst, "n", "60:100");
+        render_peak(api, inst, 1);
+        const uint8_t off_ch16[3] = { 0xBF, 120, 0 };
+        api->on_midi(inst, off_ch16, 3, 0);
+        render_peak(api, inst, 1);
+        check(voice_count(api, inst) == 0, "a panic on channel 16 counts too");
+
+        api->set_param(inst, "n", "60:100");
+        render_peak(api, inst, 1);
+        api->on_midi(inst, system_reset, 1, 0);
+        render_peak(api, inst, 1);
+        check(voice_count(api, inst) == 0, "System Reset cuts every voice");
+
+        /*
+         * And nothing else may. Notes come through the parameter channel
+         * because one write has to carry a whole chord; if a note-on here
+         * started a voice as well, every note would sound twice.
+         */
+        api->set_param(inst, "n", "60:100");
+        render_peak(api, inst, 1);
+        int before = voice_count(api, inst);
+        api->on_midi(inst, note_on, 3, 0);
+        api->on_midi(inst, sustain, 3, 0);
+        render_peak(api, inst, 1);
+        check(voice_count(api, inst) == before, "a MIDI note-on starts nothing");
+
+        /* Malformed input must not crash or panic by accident. */
+        api->on_midi(inst, NULL, 3, 0);
+        api->on_midi(inst, all_sound_off, 0, 0);
+        api->on_midi(inst, all_sound_off, 1, 0);   /* truncated CC */
+        api->on_midi(NULL, all_sound_off, 3, 0);
+        render_peak(api, inst, 1);
+        check(voice_count(api, inst) == before, "malformed MIDI is ignored, not obeyed");
+
+        api->set_param(inst, "panic", "1");
+        render_peak(api, inst, 1);
+    }
+
     /* A retrigger reuses its voice instead of stacking. */
     api->set_param(inst, "n", "72:100");
     render_peak(api, inst, 1);

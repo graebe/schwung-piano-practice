@@ -136,8 +136,8 @@ read Schwung's recovery guidance before installing it.
 ## Install
 
 ```sh
-git clone https://github.com/graebe/schwung-pinao-practice.git
-cd schwung-pinao-practice
+git clone https://github.com/graebe/schwung-piano-practice.git
+cd schwung-piano-practice
 sh scripts/install.sh
 ```
 
@@ -174,6 +174,27 @@ Closing silences the piano, sends note-offs and All Sound Off on every channel d
 routes, and waits for Move's inject ring to drain before releasing overtake — injected MIDI is held
 back for a few audio frames and three more *after* overtake ends, so exiting on the same tick that
 queues the note-offs drops them.
+
+The built-in piano also answers the standard panic messages as MIDI — **CC 120** (All Sound Off)
+and **System Reset** cut it dead, **CC 123** (All Notes Off) lets it ring out rather than clicking
+— on any channel, since it occupies none. Notes themselves still arrive by parameter, because one
+write has to carry a whole chord, so a MIDI note-on here deliberately starts nothing.
+
+## The pads
+
+Everything that describes the *music* is one violet ramp; everything that is a **judgement** keeps
+its own hue, because within one family only brightness is left to rank with and right-or-wrong is
+the one signal you should never have to read.
+
+| Pad | Means |
+| --- | --- |
+| dark | out of key |
+| dim purple | in key — background, deliberately the dimmest lit value |
+| pale lavender | the root; also the lit prompt in **Pick**, and the pulse when a note is missed |
+| purple | with **Guide pads** on, the note is coming |
+| bright violet | it is now — and the notes **Play** is sounding |
+| yellow | your finger is on it |
+| green / red | you got it / you missed it |
 
 ## Playing
 

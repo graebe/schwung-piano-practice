@@ -70,13 +70,27 @@ export function fitTranspose(pitches) {
   return Math.round(mid - gridMid);
 }
 
-/* ---- LED colours (indices into Schwung's 0..127 palette) ---------------- */
+/*
+ * ---- LED colours (indices into Schwung's 0..127 palette) -----------------
+ *
+ * Ultraviolet: the grid, the root and the guidance all come from one purple
+ * ramp (107 -> 22 -> 23 -> 50 in Schwung's palette). Everything that is a
+ * JUDGEMENT keeps its own hue, because a single family has only brightness
+ * left to rank with and right/wrong is the one signal that must not need
+ * reading: a press stays yellow — the complement, so it pops off the violet —
+ * and a hit and a miss stay green and red.
+ *
+ * The key colouring is deliberately the DIMMEST lit value. It used to be
+ * BrightRed on every in-scale pad, which put the background at the same
+ * intensity as the guidance trying to tell you which pad comes next; in one
+ * hue that reads as noise. Dim grid, bright guidance, palest root.
+ */
 export const LED_OFF = 0;
-export const LED_ROOT = 120;      /* White      */
-export const LED_SCALE = 1;       /* BrightRed  */
-export const LED_PRESSED = 8;     /* BrightYellow */
-export const LED_TARGET_FAR = 95; /* DimAzure   */
-export const LED_TARGET_NEAR = 16;/* AzureBlue  */
+export const LED_ROOT = 50;       /* LavenderBlue #BBAAF2 — also prompt + stuck */
+export const LED_SCALE = 107;     /* DarkPurple   #220D66 — background          */
+export const LED_PRESSED = 8;     /* BrightYellow #FFD500 — the complement      */
+export const LED_TARGET_FAR = 22; /* Purple       #5722FF — the note is coming  */
+export const LED_TARGET_NEAR = 23;/* NeonPink     #972BFF — also Listen playing */
 export const LED_HIT = 126;       /* Green      */
 export const LED_MISS = 127;      /* Red        */
 
