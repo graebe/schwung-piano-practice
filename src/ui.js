@@ -486,13 +486,10 @@ let listenIndex = 0;
 let paused = false;
 let pausedAtMs = 0;
 /*
- * Scrub accumulator. These encoders send more than one unit per detent — the
- * key and octave knobs already clamp to +/-1 for the same reason — so raw
- * deltas are banked and a bar emitted every SCRUB_UNITS_PER_BAR of them.
- * Roughly half a turn per bar; the number wants checking on the device.
+ * Scrub sensitivity: this many knob units to a bar, applied continuously.
+ * Roughly half a turn; the number wants checking on the device.
  */
 const SCRUB_UNITS_PER_BAR = 12;
-let scrubUnits = 0;
 let listenOff = [];         /* [{ pitch, atBeats }] */
 let shiftHeld = false;
 let dirty = true;
@@ -760,7 +757,6 @@ function armRun() {
   scoreBeats = songBeats;
   blocked = false;
   paused = false;
-  scrubUnits = 0;
   lastClickBeat = null;
   listenIndex = 0;
   listenOff = [];
@@ -787,7 +783,18 @@ function startRun(listen) {
 function seekTo(beat) {
   if (!chart || !run) return;
   const target = Math.max(0, Math.min(beat, chartTotalBeats(chart)));
-  allNotesOff();
+  /*
+   * Only when something is actually sounding. allNotesOff is ~7 host MIDI
+   * writes — all-sound-off, all-notes-off and sustain down both routes, plus a
+   * DSP panic — and a continuous scrub calls this several times a frame, which
+   * would flood an inject ring that holds 64 packets and drains 31 per audio
+   * block. Pausing already silenced everything, so during a paused scrub this
+   * costs nothing at all.
+   */
+  let sounding = listenOff.length > 0;
+  if (!sounding) { for (const k in pitchRefcount) { sounding = true; break; } }
+  if (sounding) allNotesOff();
+  else listenOff.length = 0;
 
   /* Notes behind the playhead are done with; notes at or after it go back so
    * the bar can be attempted again. */
@@ -815,11 +822,20 @@ function seekTo(beat) {
   ledDirty = true;
 }
 
-/* One bar in the chart's own time signature. */
-function scrubBars(bars) {
+/*
+ * Scrub by a knob delta: continuous, so the playhead follows your hand rather
+ * than teleporting between bar lines. SCRUB_UNITS_PER_BAR is the sensitivity —
+ * roughly half a turn per bar — expressed as a rate now rather than a step.
+ */
+function scrubBy(delta) {
   if (!chart) return;
-  seekTo(songBeats + bars * beatsPerBar(chart));
-  announce('Bar ' + (Math.floor(songBeats / beatsPerBar(chart)) + 1) + '.');
+  const perBar = beatsPerBar(chart);
+  const before = Math.floor(songBeats / perBar);
+  seekTo(songBeats + (delta * perBar) / SCRUB_UNITS_PER_BAR);
+  /* Only on a bar change: this runs several times a frame while the knob is
+   * turning, and the screen reader does not want a new position each time. */
+  const after = Math.floor(songBeats / perBar);
+  if (after !== before) announce('Bar ' + (after + 1) + '.');
 }
 
 /*
@@ -1377,14 +1393,13 @@ function inSong() {
 function onKnob(index, delta) {
   if (inSong()) {
     if (index === 0) {
-      /* Banked, because one detent of these is several units and a bar per
-       * unit would make the song unnavigable. */
-      scrubUnits += delta;
-      const bars = (scrubUnits / SCRUB_UNITS_PER_BAR) | 0;
-      if (bars) {
-        scrubUnits -= bars * SCRUB_UNITS_PER_BAR;
-        scrubBars(bars);
-      }
+      /*
+       * Paused only. Seeking under your own feet mid-playback is not something
+       * anyone wants, and on the READY screen it was worse than useless: Play
+       * calls armRun, which resets to zero, so the scrub was silently thrown
+       * away. Requiring a pause removes the state where that was reachable.
+       */
+      if (view === RUNNING && paused) scrubBy(delta);
       return;
     }
     if (index === KNOB_COUNT - 1) editSetting(SET.settingIndex('bpm'), delta);

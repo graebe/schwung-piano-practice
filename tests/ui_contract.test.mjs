@@ -365,6 +365,20 @@ test('Play listens, Record practises, and each PAUSES its own mode', () => {
   assert.ok(!rec.includes('stopRun'), 'Record must not reset the position');
 });
 
+test('the scrub is paused-only and costs no MIDI when nothing sounds', () => {
+  /*
+   * Seeking under your own feet mid-playback is not wanted, and on the READY
+   * screen it was worse than useless: Play calls armRun, which resets to zero,
+   * so the scrub was silently discarded.
+   *
+   * And seekTo runs several times a frame while the knob turns. allNotesOff is
+   * seven host writes against an inject ring of sixty-four, so it has to be
+   * conditional — unguarded, a single scrub measured 420 writes.
+   */
+  assert.match(code, /view === RUNNING && paused\) scrubBy/);
+  assert.match(code, /if \(sounding\) allNotesOff\(\)/);
+});
+
 test('the clock stands still while paused', () => {
   /* Everything else about the frame keeps running — the LEDs, the drawing —
    * but nothing derived from songBeats may move, or a pause would drift. */

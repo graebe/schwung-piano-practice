@@ -451,6 +451,73 @@ test('play pauses, the knob scrubs, and play resumes from there', () => {
   thawClock();
 });
 
+/*
+ * The scrub is CONTINUOUS and PAUSED-ONLY, and both halves need saying.
+ *
+ * A gate that blocks everything passes a test that only checks the turn while
+ * playing does nothing, and a quantised scrub passes a test that only checks
+ * twelve units move a bar. So each is asserted in both directions.
+ */
+test('the knob scrubs only while paused, and does so continuously', () => {
+  const printed = [];
+  const realPrint = globalThis.print;
+  globalThis.print = (x, y, str) => { printed.push(String(str)); };
+  freezeClock();
+  const barBeat = () => {
+    printed.length = 0;
+    clock += 40;
+    globalThis.tick();
+    return printed.find((t) => /^\d+\.\d+$/.test(t));
+  };
+  const turn = (n) => {
+    for (let i = 0; i < n; i++) globalThis.onMidiMessageInternal(CC(KNOB1, 1));
+  };
+
+  globalThis.init();
+  globalThis.tick();
+  for (let i = 0; i < 7; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+  globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  advanceMs(4000);
+
+  /* Running: the knob must not seek under your feet. */
+  const playing = barBeat();
+  turn(24);
+  assert.equal(barBeat(), playing, 'a turn while playing must move nothing');
+
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));   /* pause */
+  const held = barBeat();
+
+  /*
+   * A twelfth of a bar per unit, so three of them is one beat — a move the old
+   * quantiser could not make at all, since it could only land on bar lines.
+   * Three rather than one because the header counts whole beats, and a third
+   * of one does not change the digit even though the scroll has moved.
+   */
+  turn(3);
+  const nudged = barBeat();
+  assert.notEqual(nudged, held, 'three units should move it');
+  assert.equal(nudged.split('.')[0], held.split('.')[0],
+    'and land inside the same bar — the old scrub could not');
+
+  /* The rate is unchanged: twelve units is still one bar. */
+  turn(9);
+  assert.equal(Number(barBeat().split('.')[0]), Number(held.split('.')[0]) + 1,
+    'twelve units is one bar');
+
+  /* Nothing sounds while paused, so a long scrub must emit no note traffic:
+   * allNotesOff is seven host writes and the inject ring holds sixty-four. */
+  const before = hostCalls.midi;
+  turn(60);
+  globalThis.tick();
+  assert.equal(hostCalls.midi, before, `a paused scrub sent ${hostCalls.midi - before} MIDI writes`);
+
+  globalThis.print = realPrint;
+  thawClock();
+});
+
 test('unloading is clean, and resume does not throw', () => {
   globalThis.onResume();
   globalThis.tick();
