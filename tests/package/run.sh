@@ -38,6 +38,24 @@ test -f src/help.json
 test -f release.json
 test -f LICENSE
 test -f README.md
+test -f THIRD_PARTY_LICENSES.md
+
+# One licence, stated once. module.json said MIT while LICENSE was GPL-3 for
+# three releases, and the catalog entry repeated the module.json answer.
+grep -q '"license": "MIT"' src/module.json
+grep -q '^MIT License' LICENSE
+grep -q 'Torben Gräber' LICENSE
+! grep -q 'GNU GENERAL PUBLIC LICENSE' LICENSE
+
+# Every crate compiled into dsp.so must be named in the notice file, or the
+# attribution silently rots the next time a dependency is added.
+for crate in $(sed -n 's/^name = "\(.*\)"$/\1/p' dsp/Cargo.lock); do
+  case "$crate" in
+    piano|schwung-plugin) continue ;;   # ours
+  esac
+  grep -q "$crate" THIRD_PARTY_LICENSES.md \
+    || { echo "THIRD_PARTY_LICENSES.md does not mention $crate" >&2; exit 1; }
+done
 for mod in layout notation staff_render chart scoring generator exercise_io padmap view controls settings_def guess led_paint chords stats choices; do
   test -f "src/$mod.mjs"
 done

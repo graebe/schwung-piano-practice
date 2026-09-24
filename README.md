@@ -367,10 +367,10 @@ human maintainer. Please validate functionality and licence compatibility before
 
 ## Licence
 
-**GPL-3.0-or-later**, copyright © 2026 Torben Gräber. See [LICENSE](LICENSE).
+**MIT**, copyright © 2026 Torben Gräber. See [LICENSE](LICENSE).
 
-This was MIT until the project standardised on GPL-3.0-or-later across every
-module and plugin. Nothing here forces it: the only third-party code is
-[`libm`](https://crates.io/crates/libm) (**MIT**, © 2018 Jorge Aparicio), whose
-notice travels with it in the vendored source. There are no JavaScript
+Nothing in this module needs anything stronger. The one third-party dependency
+is [`libm`](https://crates.io/crates/libm), taken under **MIT**, compiled into
+`dsp.so`; its notice ships in the tarball as
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). There are no JavaScript
 dependencies at all.

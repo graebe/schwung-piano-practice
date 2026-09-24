@@ -45,6 +45,10 @@ cp "$ROOT/src/help.json" "$STAGE/help.json"
 cp "$ROOT/src/exercises/"*.json "$STAGE/exercises/"
 cp "$ROOT/README.md" "$STAGE/README.md"
 cp "$ROOT/LICENSE" "$STAGE/LICENSE"
+# libm is compiled into dsp.so and MIT requires its notice to travel with the
+# binary. It did not, for three releases — the README claimed the notice rode
+# along "in the vendored source", but libm is a cargo dependency, not vendored.
+cp "$ROOT/THIRD_PARTY_LICENSES.md" "$STAGE/THIRD_PARTY_LICENSES.md"
 
 # COPYFILE_DISABLE stops macOS bsdtar writing AppleDouble "._*" resource
 # forks into the archive; they unpack onto the Move as junk beside every file.
