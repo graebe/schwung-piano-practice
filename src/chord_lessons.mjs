@@ -22,6 +22,7 @@
 import { qualityById, chordSymbol } from './chords.mjs';
 import { majorKeyFifths, spell } from './notation.mjs';
 import { pitchRange, DEFAULT_TRANSPOSE } from './padmap.mjs';
+import { rng } from './generator.mjs';
 
 /* Roots in falling fifths, the order the cycle is practised in: C F Bb Eb ... */
 export const CIRCLE = [0, 5, 10, 3, 8, 1, 6, 11, 4, 9, 2, 7];
@@ -347,4 +348,31 @@ export function progressionLesson(prog, tonicPc = 0, transpose = DEFAULT_TRANSPO
     keySig,
     transpose,
   });
+}
+
+/* ---- Random chords ------------------------------------------------------ */
+
+/* What the random drills draw from: every quality a lesson teaches, or a tier. */
+export const RANDOM_POOLS = {
+  all: CHORD_FAMILIES.reduce((all, f) => all.concat(f.qualities || []), []),
+  triads: ['maj', 'min', 'dim', 'aug'],
+  sevenths: ['maj7', '7', 'm7', 'm7b5', 'dim7', 'mMaj7', '7#5', 'maj7#5'],
+};
+
+/*
+ * Sixteen chords, any root, any quality in the pool — never the same chord
+ * twice running, which would read as one long chord. Seeded like every other
+ * generated drill, so the same seed is the same set; the list asks for a new
+ * seed each time it is opened, and a restart replays the set you just missed.
+ */
+export function randomChordSong({ seed = 1, pool = RANDOM_POOLS.all, count = 16, transpose = DEFAULT_TRANSPOSE } = {}) {
+  const rand = rng(seed);
+  const steps = [];
+  while (steps.length < count) {
+    const step = { root: Math.floor(rand() * 12), quality: pool[Math.floor(rand() * pool.length)] };
+    const last = steps[steps.length - 1];
+    if (last && last.root === step.root && last.quality === step.quality) continue;
+    steps.push(step);
+  }
+  return chordSong({ id: 'random-chords-' + seed, name: 'Random chords', steps, transpose });
 }

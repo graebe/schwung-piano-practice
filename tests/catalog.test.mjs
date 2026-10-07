@@ -3,11 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
-  FOLDER, folder, lazyFolder, isFolder, songNode, basics, buildCatalog,
+  FOLDER, folder, lazyFolder, isFolder, songNode, basics, randomFolder, buildCatalog,
   navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt,
 } from '../src/catalog.mjs';
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
-import { MODES } from '../src/generator.mjs';
+import { MODES, playableRange } from '../src/generator.mjs';
 import { chartTotalBeats, beatsPerBar } from '../src/chart.mjs';
 import { SCREEN_W } from '../src/layout.mjs';
 import { CHORD_FAMILIES, PROGRESSIONS } from '../src/chord_lessons.mjs';
@@ -70,12 +70,49 @@ test('isFolder is false for leaves and for nothing', () => {
 
 /* ---- The tree ------------------------------------------------------------ */
 
-test('Basics holds scales, chords, progressions and reading', () => {
+test('Basics holds scales, chords, progressions and the random drills', () => {
   const b = basics({});
-  assert.deepEqual(labels(b), ['Scales', 'Chords', 'Progressions', 'Reading']);
+  assert.deepEqual(labels(b), ['Scales', 'Chords', 'Progressions', 'Random']);
   assert.equal(b.children[0].children.length, Object.keys(MODES).length, 'one folder per Move scale');
   assert.deepEqual(labels(b.children[1]), CHORD_FAMILIES.map((f) => f.name));
   assert.deepEqual(labels(b.children[2]), PROGRESSIONS.map((p) => p.id));
+});
+
+test('Random has every note, notes in key, and chords from every quality', () => {
+  const r = randomFolder({});
+  assert.deepEqual(labels(r), ['All notes', 'In key', 'In key, fast', 'All chords', 'Triads', 'Sevenths']);
+  for (const set of r.children.slice(3)) {
+    assert.deepEqual(labels(set), ['RH melody', 'LH bass', 'RH chords', 'Both hands'], set.label);
+  }
+});
+
+test('All notes reaches the black keys and the whole page of pads', () => {
+  const PADS = playableRange();
+  const seen = new Set();
+  for (let seed = 1; seed <= 20; seed++) {
+    const r = randomFolder({ seed });
+    for (const e of r.children[0].build().events) {
+      assert.ok(e.pitches[0] >= PADS.lo && e.pitches[0] <= PADS.hi);
+      seen.add(e.pitches[0]);
+    }
+  }
+  assert.ok([1, 3, 6, 8, 10].every((pc) => [...seen].some((p) => p % 12 === pc)), 'no black keys');
+  assert.ok(Math.max(...seen) - Math.min(...seen) >= 18, 'stays in one corner of the grid');
+});
+
+test('a random row draws a new set each time it is opened', () => {
+  let next = 1;
+  const r = randomFolder({ newSeed: () => next++ });
+  const a = r.children[3].children[3].build();
+  const b = r.children[3].children[3].build();
+  assert.notDeepEqual(a.events, b.events);
+  assert.equal(a.name, 'All chords L3');
+});
+
+test('without a seed source the random drills are repeatable', () => {
+  const once = randomFolder({ seed: 4 }).children[0].build();
+  const again = randomFolder({ seed: 4 }).children[0].build();
+  assert.deepEqual(once.events, again.events);
 });
 
 test('every leaf of Basics builds a valid chart', () => {

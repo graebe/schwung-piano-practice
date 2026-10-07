@@ -1,0 +1,686 @@
+{
+  "id": "techno-thirds-cycle",
+  "name": "Thirds Cycle",
+  "bpm": 124,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": -3,
+  "keyChanges": [
+    {
+      "beat": 0,
+      "keySig": -3
+    },
+    {
+      "beat": 4,
+      "keySig": -6
+    },
+    {
+      "beat": 8,
+      "keySig": 3
+    },
+    {
+      "beat": 12,
+      "keySig": 0
+    },
+    {
+      "beat": 16,
+      "keySig": -3
+    },
+    {
+      "beat": 20,
+      "keySig": -6
+    },
+    {
+      "beat": 24,
+      "keySig": 3
+    },
+    {
+      "beat": 28,
+      "keySig": 0
+    }
+  ],
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 0.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 1,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 1.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 2,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 2.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 3.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 4.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 5.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 6,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 6.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 7,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 7.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 8,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 8.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 9,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 9.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 10,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 10.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 11.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 12.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    },
+    {
+      "beat": 13,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 13.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    },
+    {
+      "beat": 14,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 14.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    },
+    {
+      "beat": 15,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 15.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    },
+    {
+      "beat": 16,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 16.5,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 17,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 17.75,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 18,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 19,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 19,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 19.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        74,
+        75
+      ],
+      "symbol": "Cm11"
+    },
+    {
+      "beat": 20,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 20.5,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 21,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 21.75,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 22,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 23,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        63
+      ]
+    },
+    {
+      "beat": 23,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 23.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        66,
+        68,
+        73
+      ],
+      "symbol": "Ebm11"
+    },
+    {
+      "beat": 24,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 24.5,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 25,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 25.75,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 26,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 27,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        66
+      ]
+    },
+    {
+      "beat": 27,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 27.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        68,
+        69,
+        71,
+        76
+      ],
+      "symbol": "F#m11"
+    },
+    {
+      "beat": 28,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 28.5,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    },
+    {
+      "beat": 29,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 29.75,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    },
+    {
+      "beat": 30,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 31,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 31,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    },
+    {
+      "beat": 31.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        72,
+        74
+      ],
+      "symbol": "Am11"
+    }
+  ]
+}

@@ -109,15 +109,17 @@ const bundled = manifest.map((row) => ({
   chart: parseExercise(readFileSync(new URL(row.file, dir), 'utf8'), row.id).chart,
 }));
 
-test('at least ten songs carry a full four-rung ladder', () => {
-  const full = bundled.filter(({ chart }) => availableLevels(chart).length === 4);
-  assert.ok(full.length >= 10, `only ${full.length} songs have all four levels`);
-});
-
-test('every bundled song offers at least one rung', () => {
+/*
+ * Every bundled song is learned the same way: one hand, the other hand, the
+ * right hand's chords, then both — on the one page of pads the default
+ * transpose gives, so nothing has to move between rungs. The drills that have
+ * nothing to split are generated in Basics now, not shipped as files, so
+ * there is no file left that may opt out.
+ */
+test('every bundled song carries the full four-rung ladder', () => {
   for (const { row, chart } of bundled) {
     assert.ok(chart, `${row.file} failed to parse`);
-    assert.ok(availableLevels(chart).length >= 1, `${row.file} has no playable level`);
+    assert.deepEqual(availableLevels(chart).map((l) => l.id), ['1r', '1l', '2r', '3'], row.file);
   }
 });
 

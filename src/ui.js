@@ -536,6 +536,8 @@ function generatorOptions() {
     bpm: settings.bpm,
     transpose: settings.transpose,
     seed: 1,
+    /* Basics › Random draws a new set each time a row is opened. */
+    newSeed: () => (Date.now() & 0x7fffffff) || 1,
   };
 }
 

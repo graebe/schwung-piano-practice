@@ -1,0 +1,452 @@
+{
+  "id": "techno-sus-pads",
+  "name": "Sus Pads",
+  "bpm": 122,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": -1,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 4,
+      "hand": "l",
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 0,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 0.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 1.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        69
+      ]
+    },
+    {
+      "beat": 2.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 3.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 4,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 4.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 5.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 6.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 7,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 7.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 4,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 8.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 9.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 10.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 11.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        70
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 4,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 12.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 13.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 14.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 15,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 15.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        72
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        74,
+        76
+      ],
+      "symbol": "Dsus2"
+    },
+    {
+      "beat": 18,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        62
+      ]
+    },
+    {
+      "beat": 18.5,
+      "durBeats": 1.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        74,
+        76
+      ],
+      "symbol": "Dsus2"
+    },
+    {
+      "beat": 20,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        72,
+        74
+      ],
+      "symbol": "Csus2"
+    },
+    {
+      "beat": 22,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 22.5,
+      "durBeats": 1.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        72,
+        74
+      ],
+      "symbol": "Csus2"
+    },
+    {
+      "beat": 24,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 24,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        72
+      ],
+      "symbol": "Bbsus2"
+    },
+    {
+      "beat": 26,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 26.5,
+      "durBeats": 1.5,
+      "hand": "r",
+      "pitches": [
+        65,
+        70,
+        72
+      ],
+      "symbol": "Bbsus2"
+    },
+    {
+      "beat": 28,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 28,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        72,
+        74
+      ],
+      "symbol": "Csus2"
+    },
+    {
+      "beat": 30,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        60
+      ]
+    },
+    {
+      "beat": 30.5,
+      "durBeats": 1.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        72,
+        74
+      ],
+      "symbol": "Csus2"
+    }
+  ]
+}

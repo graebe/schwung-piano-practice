@@ -1,0 +1,281 @@
+{
+  "id": "london-bridge",
+  "name": "London Bridge",
+  "bpm": 96,
+  "timeSig": [
+    2,
+    4
+  ],
+  "keySig": 3,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 0,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        69,
+        73,
+        76
+      ]
+    },
+    {
+      "beat": 0.75,
+      "durBeats": 0.25,
+      "hand": "r",
+      "pitches": [
+        78
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 1.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        73
+      ]
+    },
+    {
+      "beat": 2.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 3,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        68,
+        71
+      ]
+    },
+    {
+      "beat": 4.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        73
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        73
+      ]
+    },
+    {
+      "beat": 6.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 7,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 0.75,
+      "hand": "r",
+      "pitches": [
+        69,
+        73,
+        76
+      ]
+    },
+    {
+      "beat": 8.75,
+      "durBeats": 0.25,
+      "hand": "r",
+      "pitches": [
+        78
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 9.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        73
+      ]
+    },
+    {
+      "beat": 10.5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        74
+      ]
+    },
+    {
+      "beat": 11,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        76
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        68,
+        71
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 1,
+      "hand": "r",
+      "pitches": [
+        68,
+        71,
+        76
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        73
+      ]
+    },
+    {
+      "beat": 14.5,
+      "durBeats": 1.5,
+      "hand": "r",
+      "pitches": [
+        64,
+        69
+      ]
+    }
+  ]
+}

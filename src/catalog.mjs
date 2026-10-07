@@ -18,11 +18,11 @@
  * gone — they must still be somewhere in the list.
  */
 
-import { availableLevels, projectLevel } from './levels.mjs';
-import { MODES, MODE_LABELS, scaleDrills, readingDrills } from './generator.mjs';
+import { LEVELS, availableLevels, projectLevel } from './levels.mjs';
+import { MODES, MODE_LABELS, scaleDrills, readingDrills, randomInKey, playableRange } from './generator.mjs';
 import {
-  CHORD_FAMILIES, PROGRESSIONS,
-  qualityLesson, inversionLesson, slashLesson, progressionLesson,
+  CHORD_FAMILIES, PROGRESSIONS, RANDOM_POOLS,
+  qualityLesson, inversionLesson, slashLesson, progressionLesson, randomChordSong,
 } from './chord_lessons.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
 
@@ -81,6 +81,50 @@ function leaves(drills) {
 }
 
 /*
+ * Basics › Random: notes and chords drawn fresh each time a row is opened.
+ *
+ * `gen.newSeed` is the caller's source of new seeds; without one every build
+ * uses `gen.seed`, which is what keeps the tests deterministic. A chord set
+ * gets the same ladder as a song — the bass, the shapes, both hands — and each
+ * rung is a new set: there is nothing to carry from one rung to the next in
+ * chords nobody chose.
+ */
+export function randomFolder(gen = {}) {
+  const transpose = gen.transpose == null ? DEFAULT_TRANSPOSE : gen.transpose;
+  const seed = () => (gen.newSeed ? gen.newSeed() : gen.seed || 1);
+  const { lo, hi } = playableRange(transpose);
+  const chordSet = (label, pool) => folder(label, LEVELS.map((lv) => ({
+    label: lv.label,
+    value: lv.step,
+    build: () => {
+      const chart = projectLevel(randomChordSong({ seed: seed(), pool, transpose }), lv.id);
+      chart.name = label + ' ' + lv.step;
+      return chart;
+    },
+  })));
+  return folder('Random', [
+    {
+      label: 'All notes',
+      value: '',
+      /* Every pitch the pads reach, black keys and all, in a walk wide enough to
+       * cover the whole page rather than the eight steps a reading line keeps to. */
+      build: () => ({
+        ...randomInKey({ ...gen, mode: 'chromatic', bars: 8, span: hi - lo + 1, seed: seed() }),
+        name: 'All notes',
+      }),
+    },
+    ...leaves(readingDrills(gen)).map((d, i) => ({
+      ...d,
+      label: i ? 'In key, fast' : 'In key',
+      build: () => readingDrills({ ...gen, seed: seed() })[i].build(),
+    })),
+    chordSet('All chords', RANDOM_POOLS.all),
+    chordSet('Triads', RANDOM_POOLS.triads),
+    chordSet('Sevenths', RANDOM_POOLS.sevenths),
+  ]);
+}
+
+/*
  * Basics. What the settings decide — the key, the transpose — is captured when
  * the tree is built, which ui.js does again whenever one of them changes.
  */
@@ -109,7 +153,7 @@ export function basics(gen = {}) {
     lazyFolder('Scales', scales),
     lazyFolder('Chords', families),
     lazyFolder('Progressions', progressions),
-    folder('Reading', leaves(readingDrills(gen))),
+    randomFolder(gen),
   ]);
 }
 

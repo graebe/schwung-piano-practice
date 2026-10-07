@@ -5,6 +5,7 @@ import {
   CIRCLE, SHELLS, CHORD_FAMILIES, LESSON_NAMES, PROGRESSIONS,
   rightHandTones, spellingFor, closeVoicings, chooseVoicing, chordSong,
   qualityLesson, inversionLesson, slashLesson, progressionLesson,
+  RANDOM_POOLS, randomChordSong,
 } from '../src/chord_lessons.mjs';
 import { qualityById, ALL_QUALITIES } from '../src/chords.mjs';
 import { pitchRange, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
@@ -24,6 +25,13 @@ function allChordLessons() {
   }
   return out;
 }
+const randomSets = () => {
+  const out = [];
+  for (let seed = 1; seed <= 30; seed++) {
+    for (const pool of Object.values(RANDOM_POOLS)) out.push(randomChordSong({ seed, pool }));
+  }
+  return out;
+};
 const allProgressions = () => {
   const out = [];
   for (let tonic = 0; tonic < 12; tonic++) {
@@ -107,7 +115,7 @@ test('an unknown quality is an error, not a silent gap', () => {
 /* ---- What every lesson must be true of ------------------------------------ */
 
 test('every chord lesson and progression is a valid song inside the pads', () => {
-  for (const song of allChordLessons().concat(allProgressions())) {
+  for (const song of allChordLessons().concat(allProgressions(), randomSets())) {
     const { ok, errors } = validateExercise(song);
     assert.ok(ok, `${song.id}: ${errors.join('; ')}`);
     for (const e of song.events) {
@@ -119,7 +127,7 @@ test('every chord lesson and progression is a valid song inside the pads', () =>
 });
 
 test('the left hand is always below the right', () => {
-  for (const song of allChordLessons().concat(allProgressions())) {
+  for (const song of allChordLessons().concat(allProgressions(), randomSets())) {
     for (const { l, r } of chords(song)) {
       if (!l) continue;
       assert.ok(l.pitches[0] < r.pitches[0], `${song.id} beat ${l.beat}`);
@@ -220,4 +228,17 @@ test('a lesson follows the transpose', () => {
   for (const e of qualityLesson('maj9', DEFAULT_TRANSPOSE + 5).events) {
     for (const p of e.pitches) assert.ok(p >= up.lo && p <= up.hi);
   }
+});
+
+test('random chords draw from the whole vocabulary, and never repeat back to back', () => {
+  assert.equal(RANDOM_POOLS.all.length, ALL_QUALITIES.length, 'every quality can come up');
+  const seen = new Set();
+  for (let seed = 1; seed <= 60; seed++) {
+    const rh = randomChordSong({ seed }).events.filter((e) => e.hand === 'r');
+    assert.equal(rh.length, 16);
+    for (let i = 1; i < rh.length; i++) assert.notEqual(rh[i].symbol, rh[i - 1].symbol, `seed ${seed}`);
+    for (const e of rh) seen.add(e.symbol.replace(/^[A-G][#b]?/, '').split('/')[0]);
+  }
+  assert.ok(seen.size >= 30, `only ${seen.size} qualities came up in sixty sets`);
+  assert.deepEqual(randomChordSong({ seed: 9 }).events, randomChordSong({ seed: 9 }).events);
 });
