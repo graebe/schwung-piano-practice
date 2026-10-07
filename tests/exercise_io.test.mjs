@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
 import {
-  validateExercise, normalizeExercise, parseExercise, parseManifest,
+  validateExercise, normalizeExercise, parseExercise, parseManifest, parseCategories,
   playabilityWarnings, MIN_PITCH, MAX_PITCH,
 } from '../src/exercise_io.mjs';
 import { MIN_PITCH as STAFF_LO, MAX_PITCH as STAFF_HI } from '../src/notation.mjs';
@@ -112,10 +112,50 @@ test('the manifest tolerates both shapes and skips junk rows', () => {
     exercises: [{ file: 'a.json' }, { nope: 1 }, { id: 'b', name: 'B', file: 'b.json' }],
   }));
   assert.deepEqual(rows, [
-    { id: 'a', name: 'a.json', file: 'a.json' },
-    { id: 'b', name: 'B', file: 'b.json' },
+    { id: 'a', name: 'a.json', file: 'a.json', category: null },
+    { id: 'b', name: 'B', file: 'b.json', category: null },
   ]);
   assert.equal(parseManifest(JSON.stringify([{ file: 'c.json' }])).length, 1);
+});
+
+test('a manifest row carries its category, and the categories keep their order', () => {
+  const text = JSON.stringify({
+    categories: [{ id: 'b', name: 'Bee' }, { id: 'a', name: 'Ay' }, { id: 3 }],
+    exercises: [{ file: 'x.json', category: 'a' }, { file: 'y.json', category: 7 }],
+  });
+  assert.deepEqual(parseManifest(text).map((r) => r.category), ['a', null]);
+  assert.deepEqual(parseCategories(text), [{ id: 'b', name: 'Bee' }, { id: 'a', name: 'Ay' }]);
+  assert.deepEqual(parseCategories('nope'), []);
+  assert.deepEqual(parseCategories('[]'), []);
+});
+
+test('every bundled row names a category the manifest declares', () => {
+  const text = readFileSync(new URL('../src/exercises/index.json', import.meta.url), 'utf8');
+  const ids = parseCategories(text).map((c) => c.id);
+  assert.ok(ids.length > 0);
+  for (const row of parseManifest(text)) {
+    assert.ok(ids.indexOf(row.category) >= 0, `${row.file} is in no declared category`);
+  }
+});
+
+test('a symbol is optional, a non-empty string, and survives normalising', () => {
+  assert.equal(bad({ events: [{ beat: 0, pitches: [64, 67, 72], symbol: 'C/E' }] }).ok, true);
+  assert.match(bad({ events: [{ beat: 0, pitches: [60], symbol: '' }] }).errors.join(' '), /symbol/);
+  assert.match(bad({ events: [{ beat: 0, pitches: [60], symbol: 3 }] }).errors.join(' '), /symbol/);
+  const chart = normalizeExercise({ ...good, events: [{ beat: 0, pitches: [64, 67, 72], symbol: 'C/E' }] });
+  assert.equal(chart.events[0].symbol, 'C/E');
+  assert.equal('symbol' in normalizeExercise(good).events[0], false);
+});
+
+test('key changes are validated, sorted, and absent unless given', () => {
+  assert.equal(bad({ keyChanges: [{ beat: 2, keySig: -1 }] }).ok, true);
+  assert.match(bad({ keyChanges: 'x' }).errors.join(' '), /keyChanges/);
+  assert.match(bad({ keyChanges: [{ beat: -1, keySig: 0 }] }).errors.join(' '), /beat/);
+  assert.match(bad({ keyChanges: [{ beat: 0, keySig: 9 }] }).errors.join(' '), /keySig/);
+  assert.match(bad({ keyChanges: [null] }).errors.join(' '), /beat/);
+  const chart = normalizeExercise({ ...good, keyChanges: [{ beat: 4, keySig: 2 }, { beat: 1, keySig: -1 }] });
+  assert.deepEqual(chart.keyChanges.map((k) => k.beat), [1, 4]);
+  assert.equal('keyChanges' in normalizeExercise(good), false);
 });
 
 test('every bundled exercise loads, and the manifest matches the folder', () => {

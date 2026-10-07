@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MODES, PC_NAMES, rng, scalePitches, playableRange,
-  scaleRun, intervalDrill, triadDrill, randomInKey, builtins,
+  scaleRun, intervalDrill, triadDrill, randomInKey, scaleDrills, readingDrills,
 } from '../src/generator.mjs';
 import { validateExercise } from '../src/exercise_io.mjs';
 import { inStaffRange } from '../src/notation.mjs';
@@ -149,15 +149,24 @@ test('the random walk stays playable — no wild leaps', () => {
 });
 
 test('the key setting reaches every generated exercise', () => {
-  for (const b of builtins({ rootPc: 5, mode: 'major' })) {
+  const all = scaleDrills({ rootPc: 5, mode: 'major' }).concat(readingDrills({ rootPc: 5, mode: 'major' }));
+  for (const b of all) {
     const chart = b.build();
     assert.equal(chart.keySig, -1, `${b.label} should be in F major`);
   }
 });
 
-test('the builtin list is stable and every entry builds', () => {
-  const list = builtins({});
-  assert.ok(list.length >= 5);
+test('a scale drill plays the scale it was given, not a default', () => {
+  for (const b of scaleDrills({ rootPc: 0, mode: 'dorian' })) {
+    for (const e of b.build().events) {
+      for (const p of e.pitches) assert.ok(MODES.dorian.indexOf(p % 12) >= 0, `${b.label}: ${p}`);
+    }
+  }
+});
+
+test('the drill lists are stable and every entry builds', () => {
+  const list = scaleDrills({}).concat(readingDrills({}));
+  assert.equal(list.length, 7);
   for (const b of list) {
     assert.equal(typeof b.label, 'string');
     const chart = b.build();

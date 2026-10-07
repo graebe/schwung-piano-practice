@@ -174,7 +174,9 @@ export function scaleRun({
   else seq = up.concat(up.slice(0, -1).reverse());
 
   const events = seq.map((pitch, i) => ({ beat: i, durBeats: 1, pitches: [pitch] }));
-  const name = `${PC_NAMES[rootPc]} ${mode} scale`;
+  /* The display label, not the id: the header has room for "C# Phryg Dom",
+   * and "C# phrygianDominant scale" ran off the end of it. */
+  const name = `${PC_NAMES[rootPc]} ${MODE_LABELS[mode] || mode}`;
   return makeChart(`scale-${rootPc}-${mode}-${direction}-${octaves}`, name, bpm, majorKeyFifths(rootPc), events);
 }
 
@@ -270,17 +272,29 @@ export function randomInKey({
   return makeChart(`rnd-${rootPc}-${mode}-${seed}`, `${PC_NAMES[rootPc]} reading`, bpm, majorKeyFifths(rootPc), events);
 }
 
-/* The generated exercises offered in the menu, in order. */
-export function builtins(opts = {}) {
+/*
+ * The drills one scale offers, in order. The scale is the caller's: each of
+ * the Basics scale folders passes its own, so the list under Dorian is Dorian
+ * whatever the Scale setting says. The key still comes from the settings.
+ */
+export function scaleDrills(opts = {}) {
   const { rootPc = 0, mode = 'major', bpm = 80, transpose = DEFAULT_TRANSPOSE, seed = 1 } = opts;
   const base = { rootPc, mode, bpm, transpose };
   return [
-    { label: 'Scale up/down', build: () => scaleRun({ ...base, direction: 'updown' }) },
-    { label: 'Scale up', build: () => scaleRun({ ...base, direction: 'up' }) },
+    { label: 'Up & down', build: () => scaleRun({ ...base, direction: 'updown' }) },
+    { label: 'Up', build: () => scaleRun({ ...base, direction: 'up' }) },
+    { label: 'Down', build: () => scaleRun({ ...base, direction: 'down' }) },
     { label: 'Thirds', build: () => intervalDrill({ ...base, steps: 2, seed }) },
     { label: 'Fifths', build: () => intervalDrill({ ...base, steps: 4, seed }) },
-    { label: 'Triads I-IV-V-I', build: () => triadDrill({ ...base, degrees: [0, 3, 4, 0] }) },
-    { label: 'Reading (easy)', build: () => randomInKey({ ...base, bars: 4, density: 1, seed }) },
-    { label: 'Reading (fast)', build: () => randomInKey({ ...base, bars: 4, density: 2, seed }) },
+  ];
+}
+
+/* Random reading lines in the key and scale the settings name. */
+export function readingDrills(opts = {}) {
+  const { rootPc = 0, mode = 'major', bpm = 80, transpose = DEFAULT_TRANSPOSE, seed = 1 } = opts;
+  const base = { rootPc, mode, bpm, transpose };
+  return [
+    { label: 'Easy', build: () => randomInKey({ ...base, bars: 4, density: 1, seed }) },
+    { label: 'Fast', build: () => randomInKey({ ...base, bars: 4, density: 2, seed }) },
   ];
 }

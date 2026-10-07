@@ -1,139 +1,34 @@
 {
+  "categories": [
+    { "id": "classics", "name": "Classics" },
+    { "id": "electronic", "name": "Electronic" },
+    { "id": "techno", "name": "Techno" },
+    { "id": "styles", "name": "Styles" }
+  ],
   "exercises": [
-    {
-      "id": "c-major-scale",
-      "name": "C major scale",
-      "file": "c-major-scale.json"
-    },
-    {
-      "id": "thirds-in-c",
-      "name": "Thirds in C",
-      "file": "thirds-in-c.json"
-    },
-    {
-      "id": "triads-i-iv-v",
-      "name": "Triads I-IV-V-I",
-      "file": "triads-i-iv-v.json"
-    },
-    {
-      "id": "ode-to-joy",
-      "name": "Ode to Joy",
-      "file": "ode-to-joy.json"
-    },
-    {
-      "id": "twinkle",
-      "name": "Twinkle",
-      "file": "twinkle.json"
-    },
-    {
-      "id": "mary-had-a-lamb",
-      "name": "Marys Lamb",
-      "file": "mary-had-a-lamb.json"
-    },
-    {
-      "id": "frere-jacques",
-      "name": "Frere Jacques",
-      "file": "frere-jacques.json"
-    },
-    {
-      "id": "jingle-bells",
-      "name": "Jingle Bells",
-      "file": "jingle-bells.json"
-    },
-    {
-      "id": "greensleeves",
-      "name": "Greensleeves",
-      "file": "greensleeves.json"
-    },
-    {
-      "id": "fur-elise",
-      "name": "Fur Elise",
-      "file": "fur-elise.json"
-    },
-    {
-      "id": "minuet-in-g",
-      "name": "Minuet in G",
-      "file": "minuet-in-g.json"
-    },
-    {
-      "id": "amazing-grace",
-      "name": "Amazing Grace",
-      "file": "amazing-grace.json"
-    },
-    {
-      "id": "scarborough-fair",
-      "name": "Scarborough",
-      "file": "scarborough-fair.json"
-    },
-    {
-      "id": "rising-sun",
-      "name": "Rising Sun",
-      "file": "rising-sun.json"
-    },
-    {
-      "id": "when-the-saints",
-      "name": "The Saints",
-      "file": "when-the-saints.json"
-    },
-    {
-      "id": "auld-lang-syne",
-      "name": "Auld Lang Syne",
-      "file": "auld-lang-syne.json"
-    },
-    {
-      "id": "korobeiniki",
-      "name": "Korobeiniki",
-      "file": "korobeiniki.json"
-    },
-    {
-      "id": "lofi-sunday",
-      "name": "Lofi Sunday",
-      "file": "lofi-sunday.json"
-    },
-    {
-      "id": "pop-ballad",
-      "name": "Pop Ballad",
-      "file": "pop-ballad.json"
-    },
-    {
-      "id": "synthwave",
-      "name": "Synthwave",
-      "file": "synthwave.json"
-    },
-    {
-      "id": "house-stabs",
-      "name": "House Stabs",
-      "file": "house-stabs.json"
-    },
-    {
-      "id": "neo-soul",
-      "name": "Neo Soul",
-      "file": "neo-soul.json"
-    },
-    {
-      "id": "funk-clav",
-      "name": "Funk Clav",
-      "file": "funk-clav.json"
-    },
-    {
-      "id": "cinematic",
-      "name": "Cinematic",
-      "file": "cinematic.json"
-    },
-    {
-      "id": "ambient",
-      "name": "Ambient",
-      "file": "ambient.json"
-    },
-    {
-      "id": "minor-trap",
-      "name": "Minor Trap",
-      "file": "minor-trap.json"
-    },
-    {
-      "id": "indie-anthem",
-      "name": "Indie Anthem",
-      "file": "indie-anthem.json"
-    }
+    { "id": "mary-had-a-lamb", "category": "classics", "file": "mary-had-a-lamb.json" },
+    { "id": "twinkle", "category": "classics", "file": "twinkle.json" },
+    { "id": "frere-jacques", "category": "classics", "file": "frere-jacques.json" },
+    { "id": "ode-to-joy", "category": "classics", "file": "ode-to-joy.json" },
+    { "id": "when-the-saints", "category": "classics", "file": "when-the-saints.json" },
+    { "id": "jingle-bells", "category": "classics", "file": "jingle-bells.json" },
+    { "id": "auld-lang-syne", "category": "classics", "file": "auld-lang-syne.json" },
+    { "id": "amazing-grace", "category": "classics", "file": "amazing-grace.json" },
+    { "id": "korobeiniki", "category": "classics", "file": "korobeiniki.json" },
+    { "id": "scarborough-fair", "category": "classics", "file": "scarborough-fair.json" },
+    { "id": "greensleeves", "category": "classics", "file": "greensleeves.json" },
+    { "id": "rising-sun", "category": "classics", "file": "rising-sun.json" },
+    { "id": "minuet-in-g", "category": "classics", "file": "minuet-in-g.json" },
+    { "id": "fur-elise", "category": "classics", "file": "fur-elise.json" },
+    { "id": "ambient", "category": "electronic", "file": "ambient.json" },
+    { "id": "lofi-sunday", "category": "electronic", "file": "lofi-sunday.json" },
+    { "id": "house-stabs", "category": "electronic", "file": "house-stabs.json" },
+    { "id": "synthwave", "category": "electronic", "file": "synthwave.json" },
+    { "id": "minor-trap", "category": "electronic", "file": "minor-trap.json" },
+    { "id": "pop-ballad", "category": "styles", "file": "pop-ballad.json" },
+    { "id": "indie-anthem", "category": "styles", "file": "indie-anthem.json" },
+    { "id": "cinematic", "category": "styles", "file": "cinematic.json" },
+    { "id": "neo-soul", "category": "styles", "file": "neo-soul.json" },
+    { "id": "funk-clav", "category": "styles", "file": "funk-clav.json" }
   ]
 }

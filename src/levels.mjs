@@ -82,9 +82,12 @@ function mergeSameBeat(events) {
       }
       last.pitches.sort((a, b) => a - b);
       if (e.durBeats > last.durBeats) last.durBeats = e.durBeats;
+      if (e.symbol && !last.symbol) last.symbol = e.symbol;
       continue;
     }
-    out.push({ beat: e.beat, durBeats: e.durBeats, pitches: e.pitches.slice() });
+    const copy = { beat: e.beat, durBeats: e.durBeats, pitches: e.pitches.slice() };
+    if (e.symbol) copy.symbol = e.symbol;
+    out.push(copy);
   }
   return out;
 }
@@ -102,11 +105,15 @@ export function projectLevel(song, levelId) {
     const e = song.events[i];
     const hand = e.hand || 'r';
     if (lv.hand.indexOf(hand) < 0) continue;
-    kept.push({
+    const ev = {
       beat: e.beat,
       durBeats: e.durBeats == null ? 1 : e.durBeats,
       pitches: reduce(e.pitches, lv.reduce),
-    });
+    };
+    /* A chord symbol names a chord, so it goes wherever the chord is still
+     * played whole and not where it has been reduced to one of its notes. */
+    if (e.symbol && lv.reduce === 'none') ev.symbol = e.symbol;
+    kept.push(ev);
   }
   if (!kept.length) return null;
 
@@ -116,7 +123,7 @@ export function projectLevel(song, levelId) {
    * look only at its immediate predecessor. */
   kept.sort((a, b) => a.beat - b.beat);
 
-  return {
+  const chart = {
     id: song.id + ':' + lv.id,
     name: song.name + ' ' + lv.step,
     bpm: song.bpm,
@@ -125,6 +132,8 @@ export function projectLevel(song, levelId) {
     events: mergeSameBeat(kept),
     source: 'file',
   };
+  if (song.keyChanges) chart.keyChanges = song.keyChanges.map((k) => ({ ...k }));
+  return chart;
 }
 
 /*

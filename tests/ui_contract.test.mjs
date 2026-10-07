@@ -554,7 +554,9 @@ test('the quiz rebuilds itself on a key change, rather than calling a build it h
   /* A quiz row is a mode, not an exercise, so it carries no build(). Turning
    * the key knob with one open used to throw. */
   const edit = code.match(/function editSetting\(index, delta\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(edit, /view === GUESS_VIEW && quiz[\s\S]{0,60}startQuiz\(quiz\.kind, quizHear\)/);
+  /* All three: dropping quizPick turned a Pick quiz into a Guess quiz the
+   * moment the key changed. */
+  assert.match(edit, /view === GUESS_VIEW && quiz[\s\S]{0,60}startQuiz\(quiz\.kind, quizHear, quizPick\)/);
   assert.match(edit, /row && row\.build/, 'and the exercise path is guarded too');
 });
 

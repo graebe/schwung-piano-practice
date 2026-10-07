@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   beatToX, xToBeat, msToBeats, beatsToMs, chartTotalBeats,
   visibleEvents, visibleBars, beatsPerBar, barBeatOf, labelLimitPx, isBeatEdge, applyWait,
+  fifthsAt,
 } from '../src/chart.mjs';
 import { HIT_X, DESPAWN_X, SPAWN_X, SCREEN_W, BAR_OFFSET_PX } from '../src/layout.mjs';
 
@@ -187,4 +188,13 @@ test('a block already behind the playhead does not drag time backwards', () => {
   const r = applyWait(10, 0, 2);
   assert.equal(r.songBeats, 2);
   assert.equal(r.blocked, true);
+});
+
+test('the spelling in force is the last key change at or before the beat', () => {
+  const c = { keySig: 3, keyChanges: [{ beat: 2, keySig: -1 }, { beat: 6, keySig: 4 }] };
+  assert.equal(fifthsAt(c, 0), 3, 'before the first change, the chart\'s own');
+  assert.equal(fifthsAt(c, 2), -1, 'a change takes effect on its own beat');
+  assert.equal(fifthsAt(c, 5.99), -1);
+  assert.equal(fifthsAt(c, 100), 4);
+  assert.equal(fifthsAt({ events: [] }, 1), 0, 'no signature at all is C');
 });

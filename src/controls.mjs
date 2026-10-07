@@ -16,7 +16,6 @@
 
 /* Views, mirrored from ui.js. */
 export const MENU = 'menu';
-export const LEVEL = 'level';
 export const READY = 'ready';
 export const RUNNING = 'running';
 export const SUMMARY = 'summary';
@@ -88,12 +87,12 @@ export function recordLedColor(view, listening = false, phase = 1, hintExhausted
  * The move clamps rather than wraps: on a short list, wrapping from the last
  * entry back to the first feels like a misfire.
  *
- * LEVEL is a list like any other — the four rungs of one song's ladder — so it
- * moves a highlight here and opens on a click below.
+ * MENU is every folder of the lesson tree, a song's ladder included — which
+ * folder is open is catalog.mjs's business, not a view of its own.
  */
 export function jogAction(view, delta, index, count) {
   if (count <= 0) return { action: 'ignore', index };
-  if (view !== MENU && view !== LEVEL && view !== SETTINGS) return { action: 'ignore', index };
+  if (view !== MENU && view !== SETTINGS) return { action: 'ignore', index };
   const next = Math.max(0, Math.min(count - 1, index + (delta > 0 ? 1 : -1)));
   return { action: 'cursor', index: next };
 }
@@ -118,13 +117,13 @@ export function shouldRebuildChart(view, chartSource) {
  * so the rest are reachable the way Move does it everywhere else: click to
  * enter edit, turn to change, click to leave.
  *
- * MENU and LEVEL both answer 'open'; which of the two is on screen decides
- * whether that opens a song's levels or arms one of them.
+ * MENU answers 'open': the highlighted row decides whether that opens a
+ * folder or arms what is in it.
  */
 export function jogClickAction(view, shiftHeld, hasChart) {
   if (shiftHeld) return view === SETTINGS ? (hasChart ? 'ready' : 'menu') : 'settings';
   if (view === SETTINGS) return 'toggle-edit';
-  if (view === MENU || view === LEVEL) return 'open';
+  if (view === MENU) return 'open';
   return 'menu';
 }
 

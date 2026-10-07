@@ -824,6 +824,48 @@ test('a stuck chord is named, not just spelled', () => {
   assert.deepEqual(seen, ['C C# D']);
 });
 
+test('a symbol the chart wrote down beats the one read off the notes', () => {
+  /* C/E read off its pitches would be "Em"-something or nothing at all —
+   * nameChord takes the lowest note for the root. */
+  const seen = [];
+  const c = createScreen();
+  const text = c.text.bind(c);
+  c.text = (x, y, str, v) => { if (str) seen.push(str); return text(x, y, str, v); };
+  V.drawStuckLabel(c, [64, 67, 72], 0, 'C/E');
+  assert.deepEqual(seen, ['C/E  E G C']);
+});
+
+test('a stuck chord shows the written symbol even with part of it played', () => {
+  const chart = {
+    bpm: 60, timeSig: [4, 4], keySig: 0,
+    events: [{ beat: 2, durBeats: 1, pitches: [64, 67, 72], symbol: 'C/E' }],
+  };
+  const run = createRun(chart);
+  expireMissed(run, 3, true);
+  const seen = [];
+  const c = createScreen();
+  const text = c.text.bind(c);
+  c.text = (x, y, str, v) => { if (str) seen.push(str); return text(x, y, str, v); };
+  V.drawReadingView(c, { chart, run, songBeats: 2, pxPerBeat: 24, blocked: true });
+  assert.ok(seen.some((t) => t.startsWith('C/E  ')), seen.join(' | '));
+});
+
+test('a key change respells the notes after it, and only those', () => {
+  /* The same black key twice: A#/Bb. Sharps before the change, flats after. */
+  const chart = {
+    bpm: 60, timeSig: [4, 4], keySig: 2,
+    keyChanges: [{ beat: 0, keySig: 2 }, { beat: 1, keySig: -2 }],
+    events: [{ beat: 0, durBeats: 1, pitches: [70] }, { beat: 1, durBeats: 1, pitches: [70] }],
+  };
+  const seen = [];
+  const c = createScreen();
+  const text = c.text.bind(c);
+  c.text = (x, y, str, v) => { if (str) seen.push(str); return text(x, y, str, v); };
+  V.drawReadingView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24 });
+  assert.ok(seen.indexOf('A#') >= 0 && seen.indexOf('Bb') >= 0, seen.join(' | '));
+  assert.notEqual(pitchToY(70, 2), pitchToY(70, -2), 'and they sit on different staff steps');
+});
+
 test('the count-in and the stuck callout never fight over the same frame', () => {
   const run = createRun(SOLO);
   const c = createScreen();

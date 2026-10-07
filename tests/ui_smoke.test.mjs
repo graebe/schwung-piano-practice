@@ -89,6 +89,45 @@ const CC = (n, v) => [0xb0, n, v];
 const JOG_TURN = 14, JOG_CLICK = 3, SHIFT = 49, BACK = 51, PLAY = 85, RECORD = 86, MENU = 50;
 const KNOB1 = 71;
 
+/*
+ * Getting about the lesson tree. Rows are found by facts that hold whatever
+ * files are loaded — Basics is always first, and the jog clamps, so the end of
+ * the top list is always Progress with Quiz just above it — rather than by
+ * counting rows that the next lesson added would move.
+ */
+const jog = (n) => {
+  for (let i = 0; i < Math.abs(n); i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, n > 0 ? 1 : 127));
+};
+const click = () => {
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.tick();
+};
+/* Quiz rows: 0-1 Guess, 2-3 Hear, 4-5 Pick; notes then chords. */
+function openQuiz(row) {
+  globalThis.init();
+  jog(60);
+  jog(-1);
+  click();
+  jog(row);
+  click();
+}
+function openProgress() {
+  globalThis.init();
+  jog(60);
+  click();
+}
+/* Basics › Scales › Major, highlight on its first drill, Up & down. */
+function toScale() {
+  globalThis.init();
+  click();
+  click();
+  click();
+}
+function armScale() {
+  toScale();
+  click();
+}
+
 let mod;
 /* What the host was told. Most tests here assert only that nothing threw; the
  * ones that care what actually reached the DSP read this. */
@@ -119,19 +158,11 @@ test('a pad press never throws, in any view', () => {
     globalThis.onMidiMessageInternal([0x80, PAD, 0]);
     globalThis.tick();
   };
-  const openRow = (index) => {
-    globalThis.init();
-    for (let i = 0; i < index; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-    globalThis.tick();
-    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
-    globalThis.tick();
-  };
-
   globalThis.init();
   press();                                   /* in the exercise list */
 
   for (const row of [0, 1, 2, 3]) {          /* Guess/Hear notes and chords */
-    openRow(row);
+    openQuiz(row);
     press();
     globalThis.onMidiMessageInternal([0x90, PAD + 5, 100]);  /* a wrong one */
     globalThis.tick();
@@ -139,7 +170,7 @@ test('a pad press never throws, in any view', () => {
     globalThis.tick();
   }
 
-  openRow(4);                                 /* a scrolling exercise */
+  armScale();                                 /* a scrolling exercise */
   press();
   globalThis.onMidiMessageInternal(CC(RECORD, 127));   /* practice */
   for (let i = 0; i < 20; i++) globalThis.tick();
@@ -169,8 +200,7 @@ test('the jog and every knob can be turned in every view', () => {
     }
   };
   turn();
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));  /* into an exercise */
-  globalThis.tick();
+  armScale();                                            /* into an exercise */
   turn();
   /* Shift + click opens settings; every row must be editable without throwing. */
   globalThis.onMidiMessageInternal(CC(SHIFT, 127));
@@ -200,12 +230,7 @@ test('knob touches and stray MIDI are ignored, not crashed on', () => {
 });
 
 test('a long run ticks thousands of times without throwing', () => {
-  globalThis.init();
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  armScale();
   globalThis.onMidiMessageInternal(CC(RECORD, 127));
   for (let i = 0; i < 3000; i++) {
     if (i % 250 === 0) globalThis.onMidiMessageInternal([0x90, PAD + (i % 8), 90]);
@@ -215,18 +240,16 @@ test('a long run ticks thousands of times without throwing', () => {
 });
 
 test('a whole round can be played to its result screen', () => {
-  globalThis.init();
-  /* Row 0 is Progress; open it, then come back and play a quiz. */
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
-  globalThis.tick();
-  for (const cc of [JOG_TURN]) globalThis.onMidiMessageInternal(CC(cc, 1));
+  /* Open Progress, then come back and play a quiz. */
+  openProgress();
+  jog(1);
   globalThis.tick();
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.tick();
 
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));   /* Guess: notes */
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
-  globalThis.tick();
+  jog(-1);                                             /* Quiz */
+  click();
+  click();                                             /* Guess: notes */
   /* Hammer every pad repeatedly: whatever the prompt is, this answers it. */
   for (let round = 0; round < 60; round++) {
     for (let pad = PAD; pad < PAD + 32; pad++) {
@@ -243,8 +266,7 @@ test('a whole round can be played to its result screen', () => {
 });
 
 test('the progress screen opens and the jog cycles drills without throwing', () => {
-  globalThis.init();
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* row 0 = Progress */
+  openProgress();
   for (let i = 0; i < 6; i++) {
     globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
     globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
@@ -255,13 +277,8 @@ test('the progress screen opens and the jog cycles drills without throwing', () 
 });
 
 test('a multiple-choice round can be played entirely with the jog', () => {
-  globalThis.init();
-  /* Rows: 0 Progress, 1-4 Guess/Hear, 5 Pick: notes, 6 Pick: chords. */
-  for (const row of [5, 6]) {
-    globalThis.init();
-    for (let i = 0; i < row; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
-    globalThis.tick();
+  for (const row of [4, 5]) {                 /* Pick: notes, Pick: chords */
+    openQuiz(row);
     /* Turn and answer repeatedly: one of the three is right each time. */
     for (let i = 0; i < 200; i++) {
       globalThis.onMidiMessageInternal(CC(JOG_TURN, i % 2 ? 1 : 127));
@@ -276,10 +293,7 @@ test('a multiple-choice round can be played entirely with the jog', () => {
 });
 
 test('pressing pads during a pick does not answer it or throw', () => {
-  globalThis.init();
-  for (let i = 0; i < 5; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
-  globalThis.tick();
+  openQuiz(4);
   for (let pad = PAD; pad < PAD + 8; pad++) {
     globalThis.onMidiMessageInternal([0x90, pad, 100]);
     globalThis.onMidiMessageInternal([0x80, pad, 0]);
@@ -320,9 +334,12 @@ test('a song opens its levels, and a level arms', () => {
   };
 
   globalThis.init();
-  /* To the bottom of the list — the jog clamps, so this lands on the last
-   * bundled song whatever else is added above it. */
-  for (let i = 0; i < 60; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+  jog(1);                                                 /* Classics */
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  assert.match(screen(), /CLASSICS/, 'the category opens under its own name');
+  /* To the bottom of Classics — the jog clamps, so this lands on its last
+   * song whatever else is added above it. */
+  jog(60);
 
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* open the ladder */
   const ladder = screen();
@@ -349,6 +366,51 @@ test('a song opens its levels, and a level arms', () => {
     screen().includes('RH melody'),
     'Back from a song should land on its ladder, not on the song list',
   );
+
+  /* And each Back from there is one folder up, until the top. */
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  assert.match(screen(), /CLASSICS/, 'Back from the ladder lands on the song list');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  const top = screen();
+  assert.match(top, /EXERCISE/, 'the top of the tree is the exercise list');
+  for (const row of ['Basics', 'Classics']) {
+    assert.ok(top.includes(row), `the top list does not show "${row}": ${top}`);
+  }
+});
+
+/*
+ * Every chord lesson goes through the same door as a song: a folder, then its
+ * ladder, then a chart. The deepest path in the tree, walked once end to end.
+ */
+test('a chord lesson opens from Basics and arms at both hands', () => {
+  const printed = [];
+  globalThis.print = (x, y, str) => { printed.push(String(str)); };
+  const screen = () => {
+    printed.length = 0;
+    const until = Date.now() + 500;
+    while (Date.now() < until && !printed.length) globalThis.tick();
+    return printed.join(' ');
+  };
+  /* No tick between an input and screen(): a tick may draw the frame before
+   * screen() starts listening for it. */
+  const open = () => globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.init();
+  open();                        /* Basics */
+  jog(1);
+  open();                        /* Chords */
+  assert.match(screen(), /CHORDS/);
+  jog(4);
+  open();                        /* Sevenths */
+  assert.match(screen(), /Major 7th/);
+  open();                        /* Major 7th: its ladder */
+  jog(3);
+  open();                        /* Both hands */
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  assert.match(screen(), /Major 7th L3/, 'the header names the lesson and its level');
+  for (let i = 0; i < 20; i++) globalThis.tick();
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  assert.match(screen(), /Both hands/, 'Back lands on the ladder it was armed from');
 });
 
 /*
@@ -416,12 +478,7 @@ test('play pauses, the knob scrubs, and play resumes from there', () => {
     return printed.find((t) => /^\d+\.\d+$/.test(t));
   };
   const barOf = (s) => String(s).split('.')[0];
-  globalThis.init();
-  globalThis.tick();
-  for (let i = 0; i < 7; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.tick();
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
-  globalThis.tick();
+  armScale();
 
   globalThis.onMidiMessageInternal(CC(PLAY, 127));
   advanceMs(6000);
@@ -473,12 +530,7 @@ test('the knob scrubs only while paused, and does so continuously', () => {
     for (let i = 0; i < n; i++) globalThis.onMidiMessageInternal(CC(KNOB1, 1));
   };
 
-  globalThis.init();
-  globalThis.tick();
-  for (let i = 0; i < 7; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.tick();
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
-  globalThis.tick();
+  armScale();
   globalThis.onMidiMessageInternal(CC(PLAY, 127));
   advanceMs(4000);
 
@@ -548,10 +600,7 @@ test('the ready screen scrubs, and Play takes it from there', () => {
   };
   const barBeat = (f) => f.find((t) => /^\d+\.\d+$/.test(t));
 
-  globalThis.init();
-  globalThis.tick();
-  for (let i = 0; i < 7; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-  globalThis.tick();
+  toScale();
 
   const armed = frame(() => globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127)));
   assert.ok(armed.some((t) => t.includes('SCRUB')),

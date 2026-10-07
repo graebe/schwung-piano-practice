@@ -12,13 +12,15 @@ import * as R from './staff_render.mjs';
 import { spell, pitchToY, chordLabel, inStaffRange } from './notation.mjs';
 import { nameChord } from './chords.mjs';
 import {
-  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX,
+  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, fifthsAt,
 } from './chart.mjs';
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
 import { drillLabel, sparkline, summarise, errorFraction } from './stats.mjs';
 
 export const SETTINGS_HINT = 'shift + jog: settings';
+/* Inside a folder of the lesson list, where Back no longer means leave. */
+export const FOLDER_HINT = 'CLICK open  BACK up';
 
 /*
  * Centred one-liner along the bottom edge.
@@ -60,7 +62,6 @@ function twoCell(ctx, y, left, right, x0, x1) {
  */
 export function drawReadingView(ctx, state) {
   const { chart, run, songBeats, pxPerBeat } = state;
-  const fifths = chart.keySig || 0;
 
   ctx.clear();
   R.drawStaff(ctx);
@@ -97,6 +98,7 @@ export function drawReadingView(ctx, state) {
   for (let i = 0; i < visible.length; i++) {
     const v = visible[i];
     const entry = run ? run.entries[v.index] : null;
+    const fifths = fifthsAt(chart, v.event.beat);
     const notes = [];
     for (let n = 0; n < v.event.pitches.length; n++) {
       const pitch = v.event.pitches[n];
@@ -126,7 +128,7 @@ export function drawReadingView(ctx, state) {
       if (!inStaffRange(m.pitch)) continue;
       const mx = beatToX(m.beat, songBeats, pxPerBeat);
       if (mx < L.DESPAWN_X || mx >= L.SCREEN_W) continue;
-      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch, fifths));
+      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch, fifthsAt(chart, m.beat)));
     }
   }
 
@@ -142,7 +144,9 @@ export function drawReadingView(ctx, state) {
   if (countIn > 0) {
     drawCentreCallout(ctx, String(Math.min(9, countIn)), 4);
   } else if (state.blocked && run) {
-    drawStuckLabel(ctx, blockingNotes(run).map((n) => n.pitch), fifths);
+    const stuck = chart.events[blockingEntryIndex(run)];
+    drawStuckLabel(ctx, blockingNotes(run).map((n) => n.pitch),
+      fifthsAt(chart, stuck ? stuck.beat : songBeats), stuck && stuck.symbol);
   }
 
   const bb = barBeatOf(chart, songBeats);
@@ -347,13 +351,15 @@ export function drawGuessView(ctx, state) {
  * because the frozen entry's own scrolling label is drawn there too, and the
  * two would overprint.
  */
-export function drawStuckLabel(ctx, pitches, fifths) {
+export function drawStuckLabel(ctx, pitches, fifths, written) {
   if (!pitches.length) return;
   const notes = chordLabel(pitches, fifths);
   /* nameChord answers null for a stack that is not a chord — a cluster from
    * stacking degrees of a non-tertian scale — and the notes alone are the
-   * honest answer there rather than the nearest invented symbol. */
-  const symbol = pitches.length > 1 ? nameChord(pitches, fifths) : null;
+   * honest answer there rather than the nearest invented symbol. A symbol the
+   * chart wrote down wins: it is the name of the whole chord, where `pitches`
+   * are only the notes still missing from it. */
+  const symbol = written || (pitches.length > 1 ? nameChord(pitches, fifths) : null);
   const text = truncate(ctx, symbol ? symbol + '  ' + notes : notes, L.TEXT_MAX_PX - 4);
   const w = ctx.textWidth(text);
   const x = (L.SCREEN_W - w) >> 1;

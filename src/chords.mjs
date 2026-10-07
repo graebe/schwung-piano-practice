@@ -60,14 +60,43 @@ export const ADVANCED_QUALITIES = [
   { id: 'madd9',  suffix: 'madd9', intervals: [0, 3, 7, 14] },
 ];
 
+/*
+ * The rest of the vocabulary: what the chord lessons teach beyond the quizzes.
+ *
+ * No quiz draws from this tier, and the reason is the same one that stops
+ * `advanced` at the ninth: an eleventh or a thirteenth in close root position
+ * is six notes over a span the grid barely reaches. The lessons can still teach
+ * them, because a lesson chooses the VOICING — the left hand takes the root and
+ * the right hand a shell (chord_lessons.mjs) — where a quiz would have to ask
+ * for the chord as built here.
+ *
+ * The intervals are the full chord, not the voicing, so naming still has the
+ * real shape to compare against.
+ */
+export const EXTENDED_QUALITIES = [
+  { id: '5',       suffix: '5',       intervals: [0, 7] },
+  { id: 'maj7#5',  suffix: 'maj7#5',  intervals: [0, 4, 8, 11] },
+  { id: 'add11',   suffix: 'add11',   intervals: [0, 4, 7, 17] },
+  { id: 'madd11',  suffix: 'madd11',  intervals: [0, 3, 7, 17] },
+  { id: '7sus2',   suffix: '7sus2',   intervals: [0, 2, 7, 10] },
+  { id: '11',      suffix: '11',      intervals: [0, 4, 7, 10, 14, 17] },
+  { id: 'm11',     suffix: 'm11',     intervals: [0, 3, 7, 10, 14, 17] },
+  { id: 'maj7#11', suffix: 'maj7#11', intervals: [0, 4, 7, 11, 18] },
+  { id: '7#11',    suffix: '7#11',    intervals: [0, 4, 7, 10, 18] },
+  { id: '13',      suffix: '13',      intervals: [0, 4, 7, 10, 14, 21] },
+  { id: 'maj13',   suffix: 'maj13',   intervals: [0, 4, 7, 11, 14, 21] },
+  { id: 'm13',     suffix: 'm13',     intervals: [0, 3, 7, 10, 14, 21] },
+  { id: '7alt',    suffix: '7alt',    intervals: [0, 4, 8, 10, 15] },
+];
+
 /* Every quality a chord may be NAMED as, basic first so the plain reading
  * wins. Naming always searches all of them: a drill restricted to triads
  * should still say "Em", not fail to recognise its own chord. */
-export const ALL_QUALITIES = QUALITIES.concat(ADVANCED_QUALITIES);
+export const ALL_QUALITIES = QUALITIES.concat(ADVANCED_QUALITIES, EXTENDED_QUALITIES);
 
 export function qualityById(id) {
-  for (let i = 0; i < QUALITIES.length; i++) {
-    if (QUALITIES[i].id === id) return QUALITIES[i];
+  for (let i = 0; i < ALL_QUALITIES.length; i++) {
+    if (ALL_QUALITIES[i].id === id) return ALL_QUALITIES[i];
   }
   return null;
 }

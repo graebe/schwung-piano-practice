@@ -515,6 +515,15 @@ test('the picking ladder ends with the answer selectable and correct', () => {
 
 /* ---- Naming a chord ------------------------------------------------------ */
 
+test('no two qualities share a shape, so naming never depends on table order', () => {
+  const seen = {};
+  for (const q of ALL_QUALITIES) {
+    const shape = [...new Set(q.intervals.map((i) => i % 12))].sort((a, b) => a - b).join(',');
+    assert.equal(seen[shape], undefined, `${q.id} has the same notes as ${seen[shape]}`);
+    seen[shape] = q.id;
+  }
+});
+
 test('every quality names itself back from its own pitches', () => {
   for (const q of ALL_QUALITIES) {
     const pitches = buildChord(60, q);

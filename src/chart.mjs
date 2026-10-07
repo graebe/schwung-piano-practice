@@ -35,6 +35,26 @@ export function beatsToMs(beats, bpm) {
   return (beats / (bpm / 60)) * 1000;
 }
 
+/*
+ * The key signature in force at `beat`: the last key change at or before it,
+ * else the chart's own. Spelling only — notation.mjs never draws a signature.
+ *
+ * Keyed by beat rather than carried on each event because the played markers
+ * need it too, and a marker is a press at a moment, not a note of the chart.
+ * Asking by beat is what puts a marker on the same staff step as the notehead
+ * it answers, instead of a step away under the other spelling.
+ */
+export function fifthsAt(chart, beat) {
+  let fifths = chart.keySig || 0;
+  const changes = chart.keyChanges;
+  if (!changes) return fifths;
+  for (let i = 0; i < changes.length; i++) {
+    if (changes[i].beat > beat + 1e-9) break;
+    fifths = changes[i].keySig;
+  }
+  return fifths;
+}
+
 /* Beats of the last event, plus its duration — how long the run lasts. */
 export function chartTotalBeats(chart) {
   let end = 0;

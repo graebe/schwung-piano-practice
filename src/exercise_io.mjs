@@ -10,6 +10,17 @@
  * Each event may carry `hand: "l" | "r"` (default "r"). That tag is not read
  * while playing — a pad press is a pitch whichever hand made it — it is what
  * levels.mjs projects the four lesson levels out of.
+ *
+ * Two more optional fields, both about how the notes are WRITTEN rather than
+ * what is played:
+ *
+ *   event.symbol   "C/E", "C13" — the chord's name when nameChord cannot read
+ *                  it off the pitches: it takes the lowest note as the root, so
+ *                  a slash chord or a rootless voicing would come out wrong.
+ *   keyChanges     [{ beat, keySig }] — the spelling from that beat on. A
+ *                  lesson that walks a chord through all twelve roots needs B
+ *                  flat as Bb and E major's third as G#, which no single key
+ *                  signature gives.
  */
 
 export const MIN_PITCH = 21;
@@ -29,6 +40,21 @@ export function validateExercise(obj) {
   }
   if (obj.keySig != null && !(obj.keySig >= -7 && obj.keySig <= 7)) {
     errors.push('keySig must be -7..7');
+  }
+  if (obj.keyChanges != null) {
+    if (!Array.isArray(obj.keyChanges)) {
+      errors.push('keyChanges must be an array');
+    } else {
+      for (let i = 0; i < obj.keyChanges.length; i++) {
+        const k = obj.keyChanges[i];
+        const at = `keyChanges[${i}]`;
+        if (!k || typeof k.beat !== 'number' || !isFinite(k.beat) || k.beat < 0) {
+          errors.push(`${at}.beat must be a number >= 0`);
+        } else if (!(k.keySig >= -7 && k.keySig <= 7)) {
+          errors.push(`${at}.keySig must be -7..7`);
+        }
+      }
+    }
   }
 
   if (!Array.isArray(obj.events) || obj.events.length === 0) {
@@ -57,6 +83,9 @@ export function validateExercise(obj) {
     if (e.hand != null && e.hand !== 'l' && e.hand !== 'r') {
       errors.push(`${at}.hand must be "l" or "r"`);
     }
+    if (e.symbol != null && (typeof e.symbol !== 'string' || !e.symbol)) {
+      errors.push(`${at}.symbol must be a non-empty string`);
+    }
     if (!Array.isArray(e.pitches) || e.pitches.length === 0) {
       errors.push(`${at}.pitches must be a non-empty array`);
       continue;
@@ -74,14 +103,18 @@ export function validateExercise(obj) {
 /* Fill defaults and sort. Assumes validateExercise() already passed. */
 export function normalizeExercise(obj, id) {
   const events = obj.events
-    .map((e) => ({
-      beat: e.beat,
-      durBeats: e.durBeats == null ? 1 : e.durBeats,
-      hand: e.hand === 'l' ? 'l' : 'r',
-      pitches: e.pitches.slice().sort((a, b) => a - b),
-    }))
+    .map((e) => {
+      const out = {
+        beat: e.beat,
+        durBeats: e.durBeats == null ? 1 : e.durBeats,
+        hand: e.hand === 'l' ? 'l' : 'r',
+        pitches: e.pitches.slice().sort((a, b) => a - b),
+      };
+      if (e.symbol) out.symbol = e.symbol;
+      return out;
+    })
     .sort((a, b) => a.beat - b.beat);
-  return {
+  const chart = {
     id: obj.id || id || 'exercise',
     name: obj.name,
     bpm: obj.bpm,
@@ -90,6 +123,12 @@ export function normalizeExercise(obj, id) {
     events,
     source: 'file',
   };
+  if (obj.keyChanges && obj.keyChanges.length) {
+    chart.keyChanges = obj.keyChanges
+      .map((k) => ({ beat: k.beat, keySig: k.keySig }))
+      .sort((a, b) => a.beat - b.beat);
+  }
+  return chart;
 }
 
 /* text -> { chart, errors }. Never throws: a bad file must not kill the tool. */
@@ -105,14 +144,23 @@ export function parseExercise(text, id) {
   return { chart: normalizeExercise(obj, id), errors: [] };
 }
 
-/* index.json -> [{ id, name, file }]. Unparseable manifest yields []. */
-export function parseManifest(text) {
-  let obj;
+function parseJson(text) {
   try {
-    obj = JSON.parse(text);
+    return JSON.parse(text);
   } catch (e) {
-    return [];
+    return null;
   }
+}
+
+/*
+ * index.json -> [{ id, name, file, category }]. Unparseable manifest yields [].
+ *
+ * `category` is null when a row has none, which is what a manifest from before
+ * categories looks like, and what a row a user added by hand usually looks
+ * like. catalog.mjs files those under Other rather than dropping them.
+ */
+export function parseManifest(text) {
+  const obj = parseJson(text);
   const list = Array.isArray(obj) ? obj : obj && Array.isArray(obj.exercises) ? obj.exercises : [];
   return list
     .filter((row) => row && typeof row.file === 'string')
@@ -120,7 +168,17 @@ export function parseManifest(text) {
       id: typeof row.id === 'string' ? row.id : row.file.replace(/\.json$/, ''),
       name: typeof row.name === 'string' ? row.name : row.file,
       file: row.file,
+      category: typeof row.category === 'string' ? row.category : null,
     }));
+}
+
+/* index.json -> [{ id, name }], the categories in the order the menu shows them. */
+export function parseCategories(text) {
+  const obj = parseJson(text);
+  const list = obj && Array.isArray(obj.categories) ? obj.categories : [];
+  return list
+    .filter((c) => c && typeof c.id === 'string' && typeof c.name === 'string')
+    .map((c) => ({ id: c.id, name: c.name }));
 }
 
 /*

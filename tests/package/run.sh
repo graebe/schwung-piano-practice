@@ -56,8 +56,20 @@ for crate in $(sed -n 's/^name = "\(.*\)"$/\1/p' dsp/Cargo.lock); do
   grep -q "$crate" THIRD_PARTY_LICENSES.md \
     || { echo "THIRD_PARTY_LICENSES.md does not mention $crate" >&2; exit 1; }
 done
-for mod in layout notation staff_render chart scoring generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices; do
-  test -f "src/$mod.mjs"
+# package.sh's MODULES is the one list of what ships, read here rather than
+# copied: every name in it must exist, and every module in src/ must be in it —
+# levels.mjs once was not, and the tarball shipped without it.
+MODULES=$(sed -n 's/^MODULES="\(.*\)"$/\1/p' scripts/package.sh)
+test -n "$MODULES"
+for mod in $MODULES; do
+  test -f "src/$mod.mjs" || { echo "package.sh names src/$mod.mjs, which does not exist" >&2; exit 1; }
+done
+for f in src/*.mjs; do
+  mod=$(basename "$f" .mjs)
+  case " $MODULES " in
+    *" $mod "*) ;;
+    *) echo "src/$mod.mjs is not in package.sh's MODULES, so it would not ship" >&2; exit 1 ;;
+  esac
 done
 
 node --check src/ui.js

@@ -40,8 +40,8 @@ import * as NOTATION from './notation.mjs';
 import {
   msToBeats, beatsToMs, chartTotalBeats, beatsPerBar, isBeatEdge, applyWait, xToBeat,
 } from './chart.mjs';
-import { parseExercise, parseManifest } from './exercise_io.mjs';
-import { availableLevels, projectLevel } from './levels.mjs';
+import { parseExercise, parseManifest, parseCategories } from './exercise_io.mjs';
+import * as CAT from './catalog.mjs';
 
 /* ---- Host bindings ------------------------------------------------------ */
 /* Several documented host_* functions do not exist on device; guard them all. */
@@ -455,7 +455,6 @@ function clamp(v, lo, hi) {
 
 /* ---- State machine ------------------------------------------------------ */
 const MENU = 'menu';
-const LEVEL_VIEW = 'level';
 const READY = 'ready';
 const RUNNING = 'running';
 const SETTINGS = 'settings';
@@ -511,16 +510,14 @@ let quizSolvedAt = 0;        /* brief confirmation before the next prompt */
 const guessOff = [];         /* ms-scheduled note-offs; the quiz has no clock */
 const GUESS_ADVANCE_MS = 450;
 
-let menuRows = [];
-let menuCursor = 0;
-let selectedIndex = -1;   /* the armed exercise, which the cursor may have left */
-let fileExercises = [];
-/* The song whose ladder is on screen, and the rungs it actually has. Held
- * rather than recomputed each frame because availableLevels projects the whole
- * song four times to find out. */
-let levelSong = null;
-let levelRows = [];
-let levelCursor = 0;
+/* The lesson tree, and the folders open in it (catalog.mjs). */
+let catalog = null;
+let nav = [];
+/* Where the armed exercise sits in the tree, which the cursor may have left —
+ * kept as a path so it can be found again in a tree rebuilt for a new key. */
+let armedPath = null;
+let fileSongs = [];       /* [{ chart, category }] in manifest order */
+let fileCategories = [];
 let ledPhase = -1;        /* Play-button pulse, so we only write on a change */
 
 let settingsCursor = 0;
@@ -543,44 +540,44 @@ function generatorOptions() {
 }
 
 function loadFileExercises() {
-  fileExercises = [];
+  fileSongs = [];
+  fileCategories = [];
   const manifestText = readFile(MODULE_DIR + '/exercises/index.json');
   if (!manifestText) return;
+  fileCategories = parseCategories(manifestText);
   const rows = parseManifest(manifestText);
   for (let i = 0; i < rows.length; i++) {
     const text = readFile(MODULE_DIR + '/exercises/' + rows[i].file);
     if (!text) continue;
     const { chart: parsed } = parseExercise(text, rows[i].id);
-    if (parsed) fileExercises.push(parsed);
+    if (parsed) fileSongs.push({ chart: parsed, category: rows[i].category });
   }
 }
 
+/*
+ * The tree, built again whenever a setting that shapes the generated lessons
+ * changes. The open folders are carried across by path, so turning the key
+ * with Basics › Progressions open leaves you in Basics › Progressions.
+ */
 function rebuildMenu() {
   /* The guesser is a mode, not an exercise, but putting it in the one list you
    * already open means no new screen and no new gesture — and which entry you
    * pick is also how you choose notes or chords. */
-  menuRows = [
-    { label: 'Progress', progress: true, value: '~' },
+  const quiz = CAT.folder('Quiz', [
     { label: 'Guess: notes', guess: GUESS.NOTES, value: '?' },
     { label: 'Guess: chords', guess: GUESS.CHORDS, value: '?' },
     { label: 'Hear: notes', guess: GUESS.NOTES, hear: true, value: '♪' },
     { label: 'Hear: chords', guess: GUESS.CHORDS, hear: true, value: '♪' },
     { label: 'Pick: notes', guess: GUESS.NOTES, pick: true, value: '3' },
     { label: 'Pick: chords', guess: GUESS.CHORDS, pick: true, value: '3' },
-  ];
-  const gen = GEN.builtins(generatorOptions());
-  for (const g of gen) menuRows.push({ label: g.label, build: g.build, value: '' });
-  /* A song opens its ladder rather than arming straight away, so the value
-   * column is a chevron: the row leads somewhere. A file with only one rung —
-   * the three technique drills — keeps the old behaviour and the old 'f'. */
-  for (let i = 0; i < fileExercises.length; i++) {
-    const c = fileExercises[i];
-    const levels = availableLevels(c);
-    menuRows.push(levels.length > 1
-      ? { label: c.name, song: c, levels, value: '>' }
-      : { label: c.name, build: () => projectLevel(c, levels[0].id) || c, value: 'f' });
-  }
-  if (menuCursor >= menuRows.length) menuCursor = Math.max(0, menuRows.length - 1);
+  ]);
+  catalog = CAT.buildCatalog({
+    songs: fileSongs,
+    categories: fileCategories,
+    gen: generatorOptions(),
+    tail: [quiz, { label: 'Progress', progress: true, value: '~' }],
+  });
+  nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
 }
 
 function currentDrill() {
@@ -678,16 +675,24 @@ function keyFifths() {
   return NOTATION.majorKeyFifths(settings.rootPc);
 }
 
-function selectExercise(index) {
-  const row = menuRows[index];
+/*
+ * Open the highlighted row: into a folder, or arm what the row holds.
+ *
+ * A song's ladder is a folder like any other. It is a list rather than a
+ * setting because the level is a property of what you are about to play and
+ * not of the module — you want the right hand of one piece and both hands of
+ * another in the same sitting.
+ */
+function openRow() {
+  const row = CAT.navCurrent(nav);
   if (!row) return;
-  selectedIndex = index;
-  menuCursor = index;
-  /* Anything opened from the song list leaves the previous ladder behind, or
-   * Back from a generated exercise would drop onto the rungs of whichever song
-   * was played before it. openLevels sets it again. */
-  levelSong = null;
-  levelRows = [];
+  if (CAT.navPush(nav)) {
+    view = MENU;
+    dirty = true;
+    ledDirty = true;
+    announce(row.label + '.');
+    return;
+  }
   if (row.progress) {
     openProgress();
     return;
@@ -696,46 +701,11 @@ function selectExercise(index) {
     startQuiz(row.guess, row.hear, row.pick);
     return;
   }
-  if (row.song) {
-    openLevels(row.song, row.levels);
-    return;
-  }
-  chart = row.build();
-  if (chart.source !== 'file') chart.bpm = settings.bpm;
-  armRun();
-  view = READY;
-  announce(chart.name + '. Press play to start.');
-  dirty = true;
-  ledDirty = true;
-}
-
-/*
- * One song's ladder: right hand alone, left hand alone, right hand with its
- * chords, then both.
- *
- * A submenu rather than a setting, because the level is a property of what you
- * are about to play and not of the module — you want the right hand of one
- * piece and both hands of another in the same sitting, and a setting would make
- * that a trip to the settings page each time.
- */
-function openLevels(song, levels) {
-  levelSong = song;
-  levelRows = (levels || availableLevels(song))
-    .map((lv) => ({ label: lv.label, value: lv.step, level: lv.id }));
-  levelCursor = 0;
-  view = LEVEL_VIEW;
-  dirty = true;
-  ledDirty = true;
-  announce(song.name + '. Pick a level.');
-}
-
-function selectLevel(index) {
-  const row = levelRows[index];
-  if (!row || !levelSong) return;
-  levelCursor = index;
-  const built = projectLevel(levelSong, row.level);
+  const built = row.build();
   if (!built) return;
+  armedPath = CAT.navPath(nav);
   chart = built;
+  if (chart.source !== 'file') chart.bpm = settings.bpm;
   armRun();
   view = READY;
   announce(chart.name + '. Press play to start.');
@@ -1149,13 +1119,9 @@ function serviceNoteOffs() {
 /* ---- Drawing ------------------------------------------------------------ */
 function draw() {
   if (view === MENU) {
-    VIEW.drawList(ctx, 'EXERCISE', menuRows, menuCursor, {
-      footer: VIEW.SETTINGS_HINT,
-      centreFooter: true,
-    });
-  } else if (view === LEVEL_VIEW) {
-    VIEW.drawList(ctx, (levelSong ? levelSong.name : 'LEVEL').toUpperCase(), levelRows, levelCursor, {
-      footer: 'CLICK arm  BACK songs',
+    const top = CAT.navTop(nav);
+    VIEW.drawList(ctx, top.node.label.toUpperCase(), top.node.children, top.cursor, {
+      footer: nav.length > 1 ? VIEW.FOLDER_HINT : VIEW.SETTINGS_HINT,
       centreFooter: true,
     });
   } else if (view === SETTINGS) {
@@ -1267,9 +1233,9 @@ function editSetting(index, delta) {
    * a quiz open. */
   if ((res.rebuild || res.key === 'halfTones' || res.key === 'chordSet') &&
       view === GUESS_VIEW && quiz) {
-    startQuiz(quiz.kind, quizHear);
+    startQuiz(quiz.kind, quizHear, quizPick);
   } else if (res.rebuild && CTRL.shouldRebuildChart(view, chart && chart.source)) {
-    const row = menuRows[selectedIndex];
+    const row = armedPath ? CAT.nodeAt(catalog, armedPath) : null;
     if (row && row.build) {
       chart = row.build();
       if (chart.source !== 'file') chart.bpm = settings.bpm;
@@ -1357,18 +1323,11 @@ function onJog(delta) {
     return;
   }
   /* A nudge mid-exercise used to drop straight back to the menu and abandon the
-   * run. jogAction ignores it while RUNNING and steps to the neighbouring
-   * exercise from READY, rather than leaving. */
-  if (view === LEVEL_VIEW) {
-    const step = CTRL.jogAction(view, delta, levelCursor, levelRows.length);
-    if (step.action !== 'cursor') return;
-    levelCursor = step.index;
-    dirty = true;
-    return;
-  }
-  const next = CTRL.jogAction(view, delta, menuCursor, menuRows.length);
+   * run. jogAction ignores it everywhere but the lists. */
+  const top = CAT.navTop(nav);
+  const next = CTRL.jogAction(view, delta, top.cursor, top.node.children.length);
   if (next.action !== 'cursor') return;
-  menuCursor = next.index;
+  top.cursor = next.index;
   dirty = true;
 }
 
@@ -1394,8 +1353,7 @@ function onJogClick() {
       settingsEditing = !settingsEditing;
       break;
     case 'open':
-      if (view === LEVEL_VIEW) selectLevel(levelCursor);
-      else selectExercise(menuCursor);
+      openRow();
       break;
     default:
       view = MENU;
@@ -1480,11 +1438,8 @@ globalThis.init = function init() {
   prevBeats = 0;
   listening = false;
   shiftHeld = false;
-  menuCursor = 0;
-  selectedIndex = -1;
-  levelSong = null;
-  levelRows = [];
-  levelCursor = 0;
+  nav = [];
+  armedPath = null;
   settingsCursor = 0;
   settingsEditing = false;
   quiz = null;
@@ -1671,7 +1626,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
     }
     if (view === RUNNING && listening) togglePause();
     else if (chart) startRun(true);
-    else selectExercise(menuCursor);
+    else openRow();
     return;
   }
   if (d1 === CC_RECORD) {
@@ -1685,7 +1640,7 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
     }
     if (view === RUNNING && !listening) togglePause();
     else if (chart) startRun(false);
-    else selectExercise(menuCursor);
+    else openRow();
     return;
   }
   /* Move's Menu button reached the module and was ignored, so the hardware
@@ -1718,23 +1673,21 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       announce('Back to the start.');
       return;
     }
-    if (view === RESULT_VIEW || view === PROGRESS_VIEW || view === LEVEL_VIEW) {
+    if (view === RESULT_VIEW || view === PROGRESS_VIEW) {
       view = MENU;
       dirty = true;
       ledDirty = true;
       return;
     }
-    /* Back from a song's ready screen lands on its ladder, not on the song
-     * list: having just played the right hand, the next thing you want is the
-     * left hand of the same piece, and that is one rung away rather than a
-     * scroll back through seventeen entries. */
-    if (view === READY && levelSong && levelRows.length) {
-      allNotesOff();
-      view = LEVEL_VIEW;
+    /* Up one folder. The top of the tree is the only list Back leaves from. */
+    if (view === MENU && CAT.navPop(nav)) {
       dirty = true;
       ledDirty = true;
       return;
     }
+    /* Back from a ready screen lands on the folder it was opened from — for a
+     * song, its ladder: having just played the right hand, the next thing you
+     * want is the left hand of the same piece, one rung away. */
     if (view === READY || view === GUESS_VIEW) {
       allNotesOff();
       view = MENU;
