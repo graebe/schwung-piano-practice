@@ -340,8 +340,8 @@ carries it across updates.
 
 ## Requirements
 
-- Ableton Move with [Schwung](https://github.com/charlesvestal/schwung) installed
-- A Move track with an instrument, so there is something to hear
+- Ableton Move with [Schwung](https://github.com/charlesvestal/schwung) 1.4.0 or newer installed —
+  tested on 1.7.3
 
 Schwung is unofficial software that modifies Move's software. Back up anything you care about and
 read Schwung's recovery guidance before installing it.
