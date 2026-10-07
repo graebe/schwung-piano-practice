@@ -136,6 +136,9 @@ as Für Elise's are.
 
 ## Basics
 
+Everything in Basics is generated from the settings rather than stored: it plays at the **Tempo**
+setting, follows the **Transpose**, and an armed lesson is rebuilt when the **Key** changes.
+
 ### Scales
 
 A folder for each of Move's 22 scales, each with **Up & down**, **Up**, **Down**, **Thirds** and

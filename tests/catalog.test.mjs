@@ -115,6 +115,18 @@ test('without a seed source the random drills are repeatable', () => {
   assert.deepEqual(once.events, again.events);
 });
 
+test('every Basics lesson is regenerated from the settings, never fixed like a file', () => {
+  for (const { node, path } of leavesOf(basics({}))) {
+    assert.notEqual(node.build().source, 'file', `${path.join('/')} ${node.label}`);
+  }
+});
+
+test('a progression follows the key it was built in', () => {
+  const prog = (rootPc) => basics({ rootPc }).children[2].children[0].children[3].build();
+  assert.notDeepEqual(prog(0).events, prog(7).events);
+  assert.match(prog(7).name, /^G /);
+});
+
 test('every leaf of Basics builds a valid chart', () => {
   for (const { node, path } of leavesOf(basics({ rootPc: 7 }))) {
     const chart = node.build();

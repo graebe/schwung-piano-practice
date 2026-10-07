@@ -76,6 +76,27 @@ export function songNode(song) {
   };
 }
 
+/*
+ * A Basics lesson is a recipe, not fixed notes: it is built from the key and
+ * the transpose. projectLevel stamps every chart 'file', which in ui.js means
+ * "keep your own tempo, and never rebuild me" — right for a song, wrong here,
+ * where turning the Key knob with a progression armed must re-key it, and a
+ * new transpose must move a chord lesson with the pads.
+ */
+function generated(node) {
+  if (isFolder(node)) {
+    node.children.forEach(generated);
+    return node;
+  }
+  const build = node.build;
+  node.build = () => {
+    const chart = build();
+    if (chart) chart.source = 'generated';
+    return chart;
+  };
+  return node;
+}
+
 function leaves(drills) {
   return drills.map((d) => ({ label: d.label, value: '', build: d.build }));
 }
@@ -93,7 +114,7 @@ export function randomFolder(gen = {}) {
   const transpose = gen.transpose == null ? DEFAULT_TRANSPOSE : gen.transpose;
   const seed = () => (gen.newSeed ? gen.newSeed() : gen.seed || 1);
   const { lo, hi } = playableRange(transpose);
-  const chordSet = (label, pool) => folder(label, LEVELS.map((lv) => ({
+  const chordSet = (label, pool) => generated(folder(label, LEVELS.map((lv) => ({
     label: lv.label,
     value: lv.step,
     build: () => {
@@ -101,7 +122,7 @@ export function randomFolder(gen = {}) {
       chart.name = label + ' ' + lv.step;
       return chart;
     },
-  })));
+  }))));
   return folder('Random', [
     {
       label: 'All notes',
@@ -138,11 +159,11 @@ export function basics(gen = {}) {
     if (fam.slash) songs = [slashLesson(transpose)];
     else if (fam.inversions) songs = fam.inversions.map((q) => inversionLesson(q, transpose));
     else songs = fam.qualities.map((q) => qualityLesson(q, transpose));
-    return songs.map(songNode);
+    return songs.map((song) => generated(songNode(song)));
   }));
 
   const progressions = () => PROGRESSIONS.map((p) => {
-    const node = songNode(progressionLesson(p, gen.rootPc || 0, transpose));
+    const node = generated(songNode(progressionLesson(p, gen.rootPc || 0, transpose)));
     /* The list names the shape, the header names it in a key: "I-V-vi-IV"
      * reads the same in every key, "G I-V-vi-IV" is what you are playing. */
     node.label = p.id;
