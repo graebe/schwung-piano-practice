@@ -484,6 +484,9 @@ let listenIndex = 0;
  * position away, so you can scrub and carry on from wherever you land. */
 let paused = false;
 let pausedAtMs = 0;
+/* The playhead was moved by the scrub knob since the music last ran, so the
+ * pads show the note it has landed on. A fresh ready screen leaves them dark. */
+let scrubCue = false;
 /*
  * Scrub sensitivity: this many knob units to a bar, applied continuously.
  * Roughly a turn and a half — three times slower than the first attempt, which
@@ -730,6 +733,7 @@ function armRun() {
   scoreBeats = songBeats;
   blocked = false;
   paused = false;
+  scrubCue = false;
   lastClickBeat = null;
   listenIndex = 0;
   listenOff = [];
@@ -831,6 +835,7 @@ function scrubBy(delta) {
    * first click would otherwise be spent climbing back to zero. */
   const base = Math.max(0, songBeats);
   const units = Math.round((base * SCRUB_UNITS_PER_BAR) / perBar) + delta;
+  scrubCue = true;
   seekTo((units * perBar) / SCRUB_UNITS_PER_BAR);
   /* Only on a bar change: this runs several times a frame while the knob is
    * turning, and the screen reader does not want a new position each time. */
@@ -848,6 +853,7 @@ function togglePause() {
   if (paused) {
     runStartMs += now() - pausedAtMs;
     paused = false;
+    scrubCue = false;
     announce('Playing.');
   } else {
     paused = true;
@@ -893,9 +899,22 @@ const targetBuf = [];
 const stuckBuf = [];
 const soundingBuf = [];
 
-/* Guidance ahead of time: the next unresolved entry, if Guide pads is on. */
+/*
+ * Guidance ahead of time: the next unresolved entry, if Guide pads is on.
+ *
+ * And, whatever Guide pads says, the note a scrub has landed on. Scrubbing is
+ * finding your place, and on an isomorphic grid "where am I" is a question
+ * about the pads as much as the staff. Only while the music is parked: the
+ * moment it runs, the reading-first rule is back.
+ */
 function collectTarget() {
   targetBuf.length = 0;
+  if (scrubCue && run && (view === READY || (view === RUNNING && paused))) {
+    const next = run.entries[SCORE.nextEntryIndex(run, songBeats)];
+    if (!next) return false;
+    for (let i = 0; i < next.notes.length; i++) targetBuf.push(next.notes[i].pitch);
+    return true;
+  }
   if (!settings.guidance || !run || view !== RUNNING) return false;
   const entry = run.entries[run.cursor];
   if (!entry) return false;
@@ -1286,7 +1305,7 @@ function onPadDown(pad, vel) {
    * it took.
    */
   SCORE.addMarker(run, pitch, songBeats);
-  const j = SCORE.judgeNoteOn(run, pitch, scoreBeats);
+  const j = SCORE.judgeNoteOn(run, pitch, scoreBeats, songBeats);
   if (j.result === 'stray') {
     flashPad(pad, PAD.LED_MISS, 120);
   } else {

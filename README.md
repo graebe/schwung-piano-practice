@@ -426,7 +426,7 @@ Four beats count you in, counted down on screen.
 | **Shift + jog click** | settings |
 | **Back** | from a running exercise, **restart it**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
-| **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. Find your spot, then Play or Record from there |
+| **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. The pads light the note the playhead has landed on, whatever Guide pads says, so you can see where you are on the grid as well as on the staff; they go dark again the moment the music runs. Find your spot, then Play or Record from there |
 | **Knob 8** | tempo, 40–200 |
 
 The knobs mean different things in different places, and **only Settings changes settings**: in an

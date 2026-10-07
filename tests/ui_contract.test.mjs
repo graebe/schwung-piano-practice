@@ -251,7 +251,9 @@ test('every press is marked, at the moment it happened', () => {
    * a hit notehead.
    */
   assert.match(down, /SCORE\.addMarker\(run, pitch, songBeats\)/);
-  assert.match(down, /judgeNoteOn\(run, pitch, scoreBeats\)/);
+  /* And the frozen clock as well, so a note the scroll has not reached is only
+   * as near as it looks — without it, a halt took two presses to release. */
+  assert.match(down, /judgeNoteOn\(run, pitch, scoreBeats, songBeats\)/);
   /* Before the judgement, so a stray is marked too. */
   assert.ok(down.indexOf('addMarker') < down.indexOf('judgeNoteOn'));
   assert.match(code, /SCORE\.pruneMarkers\(/, 'markers must not accumulate forever');
@@ -525,6 +527,18 @@ test('nothing ever lights the answer in the quiz modes', () => {
     assert.doesNotMatch(body, /quiz/, fn + ' must not read the quiz');
     assert.match(body, /view !== RUNNING|!listening/, fn + ' is confined to the reading mode');
   }
+});
+
+test('a scrub lights the note it lands on, and only while the music is parked', () => {
+  const target = code.match(/function collectTarget\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(target, /scrubCue && run && \(view === READY \|\| \(view === RUNNING && paused\)\)/);
+  assert.ok(target.indexOf('scrubCue') < target.indexOf('settings.guidance'),
+    'not behind Guide pads: scrubbing is finding your place, not a playing aid');
+  assert.match(code.match(/function scrubBy\(delta\) \{([\s\S]*?)\n\}/)[1], /scrubCue = true/);
+  assert.match(code.match(/function armRun\(\) \{([\s\S]*?)\n\}/)[1], /scrubCue = false/,
+    'a freshly armed exercise starts dark');
+  assert.match(code.match(/function togglePause\(\) \{([\s\S]*?)\n\}/)[1], /scrubCue = false/,
+    'and resuming hands the pads back to the reading-first rule');
 });
 
 test('the mode is entered from the list, and picks notes or chords by which row', () => {

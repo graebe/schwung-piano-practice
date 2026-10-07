@@ -98,9 +98,27 @@ function pitchMatches(run, wanted, played) {
 /*
  * A pad went down. Finds the nearest unresolved entry holding a matching
  * pending note within the GOOD window and resolves that one note.
- * Returns { result: 'perfect'|'good'|'stray', entryIndex, noteIndex, offsetBeats }.
+ * Returns { result: 'perfect'|'good'|'late'|'stray', entryIndex, noteIndex, offsetBeats }.
+ *
+ * `songBeats` is the judge's clock, which keeps real time; `displayBeats` is
+ * the scroll's, which wait mode freezes on a note. They are the same number
+ * whenever nothing is frozen.
+ *
+ * WHILE FROZEN, THE FROZEN NOTE OWNS THE PRESS. The judge's clock runs on past
+ * the scroll, so on it a later note of the same pitch — one the scroll has not
+ * reached — drifts into the match window. The press used to be scored a hit on
+ * that unseen note, leaving the frozen one unplayed, and it took a second
+ * press to move on. Two rules close it: the note on the hit line answers its
+ * own pitch first, and a note past the wait pointer is measured on the clock
+ * the player can see. The second is expireMissed's rule — a note the scroll
+ * never reached cannot be missed — from the other side: nor can it be hit.
  */
-export function judgeNoteOn(run, pitch, songBeats) {
+export function judgeNoteOn(run, pitch, songBeats, displayBeats = songBeats) {
+  if (displayBeats < songBeats - 1e-9) {
+    const frozen = judgeFrozen(run, pitch, songBeats);
+    if (frozen) return frozen;
+  }
+
   let bestEntry = -1;
   let bestNote = -1;
   let bestDist = Infinity;
@@ -122,7 +140,7 @@ export function judgeNoteOn(run, pitch, songBeats) {
    */
   for (let i = run.cursor; i < run.entries.length; i++) {
     const entry = run.entries[i];
-    const dist = entry.beat - songBeats;
+    const dist = entry.beat - (i > run.waitCursor ? displayBeats : songBeats);
     if (dist > run.early) break; /* everything further out is further out */
     if (dist > 0 ? dist > run.early : -dist > run.late) continue;
     for (let n = 0; n < entry.notes.length; n++) {
@@ -142,19 +160,47 @@ export function judgeNoteOn(run, pitch, songBeats) {
      * the note the scroll is frozen on — already scored a miss, but still
      * unplayed. Playing it releases the freeze and scores nothing: the miss
      * was recorded when its window closed and does not get taken back. */
-    const released = releaseBlocked(run, pitch);
-    if (released) {
-      run.lastJudgement = { result: 'late', pitch, offsetBeats: songBeats - released.beat,
-                            entryIndex: released.entryIndex, noteIndex: released.noteIndex };
-      return run.lastJudgement;
-    }
+    const late = releaseLate(run, pitch, songBeats);
+    if (late) return late;
     run.strays++;
     run.lastJudgement = { result: 'stray', pitch, offsetBeats: 0 };
     return run.lastJudgement;
   }
 
-  const entry = run.entries[bestEntry];
-  const note = entry.notes[bestNote];
+  return hitNote(run, pitch, bestEntry, bestNote, songBeats);
+}
+
+/*
+ * The frozen note, if this press is it: still PENDING (inside Grace) it is
+ * judged a hit on the honest clock; already MISSED it is released, late. Null
+ * when the press is some other pitch, which then goes through the ordinary
+ * search like any other.
+ */
+function judgeFrozen(run, pitch, songBeats) {
+  const i = blockingEntry(run);
+  if (i < 0) return null;
+  const notes = run.entries[i].notes;
+  for (let n = 0; n < notes.length; n++) {
+    if (notes[n].played || !pitchMatches(run, notes[n].pitch, pitch)) continue;
+    if (notes[n].state === PENDING) return hitNote(run, pitch, i, n, songBeats);
+    return releaseLate(run, pitch, songBeats);
+  }
+  return null;
+}
+
+/* Release the frozen note if this press is it: a 'late' judgement, or null. */
+function releaseLate(run, pitch, songBeats) {
+  const released = releaseBlocked(run, pitch);
+  if (!released) return null;
+  run.lastJudgement = { result: 'late', pitch, offsetBeats: songBeats - released.beat,
+                        entryIndex: released.entryIndex, noteIndex: released.noteIndex };
+  return run.lastJudgement;
+}
+
+/* Score one note a hit and move both cursors on. */
+function hitNote(run, pitch, entryIndex, noteIndex, songBeats) {
+  const entry = run.entries[entryIndex];
+  const note = entry.notes[noteIndex];
   const offsetBeats = songBeats - entry.beat;
   note.state = HIT;
   note.played = true;
@@ -171,8 +217,8 @@ export function judgeNoteOn(run, pitch, songBeats) {
     result: perfect ? 'perfect' : 'good',
     pitch,
     offsetBeats,
-    entryIndex: bestEntry,
-    noteIndex: bestNote,
+    entryIndex,
+    noteIndex,
   };
   return run.lastJudgement;
 }
@@ -260,6 +306,17 @@ export function blockingNotes(run) {
     if (!entry.notes[n].played) out.push(entry.notes[n]);
   }
   return out;
+}
+
+/*
+ * The first entry at or after `beat`, or -1: what plays next from a parked
+ * playhead. Scrubbing lights its pads, so you can see where you have landed.
+ */
+export function nextEntryIndex(run, beat) {
+  for (let i = 0; i < run.entries.length; i++) {
+    if (run.entries[i].beat >= beat - 1e-9) return i;
+  }
+  return -1;
 }
 
 /* Mark the matching unplayed note on the blocking entry as played. */

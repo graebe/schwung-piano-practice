@@ -29,7 +29,7 @@ function stageModule() {
   const dir = mkdtempSync(join(tmpdir(), 'pp-smoke-'));
   mkdirSync(join(dir, 'shared'));
   writeFileSync(join(dir, 'shared', 'input_filter.mjs'), `
-    export function setLED() {}
+    export function setLED(n, c) { if (globalThis.__leds) globalThis.__leds[n] = c; }
     export function setButtonLED() {}
     export function invalidateLedCache() {}
     export function decodeDelta(v) { return v > 63 ? -(128 - v) : v; }
@@ -631,6 +631,41 @@ test('the ready screen scrubs, and Play takes it from there', () => {
 
   globalThis.print = realPrint;
   thawClock();
+});
+
+/*
+ * Scrubbing shows where you have landed on the pads, not only on the staff —
+ * from the ready screen and while paused, whatever Guide pads says — and the
+ * moment the music runs the pads go back to reading-first.
+ */
+test('a scrub lights the next note, and running puts the pads back', async () => {
+  const { padsForPitch, DEFAULT_TRANSPOSE, LED_TARGET_NEAR } =
+    await import(new URL('../src/padmap.mjs', import.meta.url));
+  globalThis.__leds = {};
+  const lit = () => {
+    for (let i = 0; i < 5; i++) globalThis.tick();
+    return Object.keys(globalThis.__leds).filter((n) => globalThis.__leds[n] === LED_TARGET_NEAR).map(Number).sort();
+  };
+  const padsOf = (pitch) => padsForPitch(pitch, DEFAULT_TRANSPOSE).slice().sort();
+
+  armScale();                                  /* C major up and down, from C4 */
+  assert.deepEqual(lit(), [], 'a freshly armed exercise starts dark');
+
+  /* Nine units is a beat: the playhead lands on the scale's second note, D4. */
+  for (let i = 0; i < 9; i++) globalThis.onMidiMessageInternal(CC(KNOB1, 1));
+  assert.deepEqual(lit(), padsOf(62), 'the ready screen lights the note it landed on');
+
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));          /* practise from there */
+  assert.deepEqual(lit(), [], 'running, with Guide pads off, nothing is lit');
+
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));          /* pause */
+  assert.deepEqual(lit(), [], 'a plain pause is not a scrub');
+  for (let i = 0; i < 9; i++) globalThis.onMidiMessageInternal(CC(KNOB1, 1));
+  assert.equal(lit().length > 0, true, 'a paused scrub lights the next note');
+
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));          /* resume */
+  assert.deepEqual(lit(), [], 'and resuming hands the pads back');
+  delete globalThis.__leds;
 });
 
 test('unloading is clean, and resume does not throw', () => {

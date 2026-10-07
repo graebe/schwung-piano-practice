@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   createRun, judgeNoteOn, expireMissed, runStats, runFinished,
   blockingBeat, blockingNotes, blockingEntryIndex, resyncWait,
-  addMarker, pruneMarkers,
+  addMarker, pruneMarkers, nextEntryIndex,
   DEFAULT_WINDOWS, PENDING, HIT, MISSED,
 } from '../src/scoring.mjs';
 import { msToBeats } from '../src/chart.mjs';
@@ -253,6 +253,75 @@ test('the right pad always releases the scroll, at every lateness', () => {
       `${lateBeats} beats late: the press did not release the scroll`);
     assert.notEqual(blockingBeat(run), 0, 'and the scroll has moved on');
   }
+});
+
+/*
+ * ONE PRESS RELEASES A HALT — the bug the owner hit on the Move.
+ *
+ * Frozen on a missed note, the judge's clock keeps running, so a LATER note of
+ * the same pitch — one the scroll has not reached — slid into the match
+ * window. The press was scored a hit on that unseen note, the frozen one stayed
+ * unplayed, and only the second press released the scroll. Melodies repeat
+ * pitches constantly, so this was most halts.
+ */
+const repeated = {
+  bpm: 60, timeSig: [4, 4], keySig: 0,
+  events: [
+    { beat: 0, durBeats: 1, pitches: [60] },
+    { beat: 2, durBeats: 1, pitches: [60] },
+    { beat: 3, durBeats: 1, pitches: [62] },
+  ],
+};
+
+test('frozen on a missed note, one press of it releases the scroll', () => {
+  const run = createRun(repeated, { graceBeats: 1 });
+  /* The frame loop: scroll pinned at 0, the honest clock run on to 2. */
+  expireMissed(run, 2, true);
+  assert.equal(run.entries[0].notes[0].state, MISSED);
+  const j = judgeNoteOn(run, 60, 2, 0);
+  assert.equal(j.result, 'late', 'the press is the frozen note, released late');
+  assert.equal(run.entries[0].notes[0].played, true, 'one press released it');
+  assert.equal(run.entries[1].notes[0].state, PENDING, 'the unseen twin is untouched');
+  assert.equal(blockingBeat(run), 2, 'and the scroll moves on to it');
+});
+
+test('frozen inside Grace, the press hits the frozen note, not its twin', () => {
+  const run = createRun({ ...repeated, events: [repeated.events[0], { ...repeated.events[1], beat: 1 }] },
+    { graceBeats: 1 });
+  expireMissed(run, 0.9, true);
+  assert.equal(run.entries[0].notes[0].state, PENDING, 'still inside Grace');
+  /* At 0.9 the twin on beat 1 is 0.1 away on the honest clock — nearer than the
+   * frozen note — but on screen it is still a whole beat off. */
+  const j = judgeNoteOn(run, 60, 0.9, 0);
+  assert.equal(j.entryIndex, 0);
+  assert.equal(run.entries[0].notes[0].state, HIT);
+  assert.equal(run.entries[1].notes[0].state, PENDING);
+});
+
+test('a note the scroll has not reached is only as near as it looks', () => {
+  const run = createRun(repeated, { graceBeats: 1 });
+  expireMissed(run, 2, true);
+  /* D on beat 3 is one beat from the honest clock but three from the frozen
+   * one: not a hit, a stray, and the scroll stays put. */
+  assert.equal(judgeNoteOn(run, 62, 2, 0).result, 'stray');
+  assert.equal(blockingBeat(run), 0);
+});
+
+test('not frozen, judging is exactly as before', () => {
+  const run = createRun(repeated);
+  judgeNoteOn(run, 60, 0, 0);
+  /* An early press of the next note, both clocks agreeing. */
+  assert.equal(judgeNoteOn(run, 60, 2 - ms(100), 2 - ms(100)).result, 'good');
+  assert.equal(run.entries[1].notes[0].state, HIT);
+});
+
+test('the next entry is the first at or after the playhead', () => {
+  const run = createRun(repeated);
+  assert.equal(nextEntryIndex(run, -4), 0, 'from the count-in');
+  assert.equal(nextEntryIndex(run, 0), 0, 'exactly on a note');
+  assert.equal(nextEntryIndex(run, 0.5), 1, 'between notes');
+  assert.equal(nextEntryIndex(run, 3), 2);
+  assert.equal(nextEntryIndex(run, 3.5), -1, 'past the last');
 });
 
 test('grace widens how late still counts, and never narrows it', () => {
