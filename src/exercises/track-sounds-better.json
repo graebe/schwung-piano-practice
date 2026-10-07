@@ -1,0 +1,618 @@
+{
+  "id": "track-sounds-better",
+  "name": "Sounds Better",
+  "bpm": 124,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": 0,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 0,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 1,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 1,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 1.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 1.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76,
+        77
+      ],
+      "symbol": "Fmaj7"
+    },
+    {
+      "beat": 2.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 3.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 5,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 5.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 5.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76,
+        77
+      ],
+      "symbol": "Fmaj7"
+    },
+    {
+      "beat": 6.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 7.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 9,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 9,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 9.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 9.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76,
+        77
+      ],
+      "symbol": "Fmaj7"
+    },
+    {
+      "beat": 10.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 11.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        71,
+        74,
+        76,
+        79
+      ],
+      "symbol": "Em7/G"
+    },
+    {
+      "beat": 13,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 13,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        71,
+        74,
+        76,
+        79
+      ],
+      "symbol": "Em7/G"
+    },
+    {
+      "beat": 13.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 13.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76
+      ],
+      "symbol": "Am"
+    },
+    {
+      "beat": 14.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 15.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 17,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 17,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 17.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 17.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76,
+        77
+      ],
+      "symbol": "Fmaj7"
+    },
+    {
+      "beat": 18.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 19.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 21,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 21,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 21.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 21.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76,
+        77
+      ],
+      "symbol": "Fmaj7"
+    },
+    {
+      "beat": 22.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 23.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 24,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 24,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 25,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        64
+      ]
+    },
+    {
+      "beat": 25,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        67,
+        71,
+        74,
+        76
+      ],
+      "symbol": "Em7"
+    },
+    {
+      "beat": 25.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 25.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76,
+        77
+      ],
+      "symbol": "Fmaj7"
+    },
+    {
+      "beat": 26.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 27.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 28,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 28,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        71,
+        74,
+        76,
+        79
+      ],
+      "symbol": "Em7/G"
+    },
+    {
+      "beat": 29,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 29,
+      "durBeats": 0.5,
+      "hand": "r",
+      "pitches": [
+        71,
+        74,
+        76,
+        79
+      ],
+      "symbol": "Em7/G"
+    },
+    {
+      "beat": 29.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 29.5,
+      "durBeats": 2.5,
+      "hand": "r",
+      "pitches": [
+        69,
+        72,
+        76
+      ],
+      "symbol": "Am"
+    },
+    {
+      "beat": 30.5,
+      "durBeats": 1,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    },
+    {
+      "beat": 31.5,
+      "durBeats": 0.5,
+      "hand": "l",
+      "pitches": [
+        57
+      ]
+    }
+  ]
+}

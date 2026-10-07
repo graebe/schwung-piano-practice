@@ -34,6 +34,39 @@
       ]
     },
     {
+      "title": "Lessons",
+      "lines": [
+        "The list is in folders.",
+        "CLICK opens one, BACK",
+        "goes up one, and BACK at",
+        "the top leaves.",
+        "",
+        "Basics",
+        "  scales in all 22 of",
+        "  Move's scales, every",
+        "  chord on all twelve",
+        "  roots, progressions in",
+        "  your key, and random",
+        "  notes and chords.",
+        "Classics",
+        "  folk tunes and the",
+        "  classics, easy first.",
+        "Electronic",
+        "  the chords of famous",
+        "  tracks, never the tune.",
+        "Techno",
+        "  the classic progressions",
+        "  and stabs, simple first.",
+        "Styles",
+        "  pop, soul, funk, film.",
+        "Quiz, Progress",
+        "  at the bottom.",
+        "",
+        "Every song fits one page",
+        "of pads, both hands."
+      ]
+    },
+    {
       "title": "Levels",
       "lines": [
         "A song has up to four",
@@ -61,17 +94,17 @@
         "its levels, not all the",
         "way out to the songs.",
         "",
-        "A drill with nothing to",
-        "split shows one level,",
-        "or arms straight away."
+        "A chord lesson's L1 RH is",
+        "its top voice, L1 LH the",
+        "roots. Inversions are one",
+        "hand, so they have two."
       ]
     },
     {
       "title": "Guess",
       "lines": [
-        "Three extra modes, from",
-        "the top of the exercise",
-        "list.",
+        "Three extra modes, in",
+        "the Quiz folder.",
         "Guess: notes / chords",
         "One note or chord sits",
         "still on the staff, named",
@@ -183,7 +216,7 @@
         "error rate, and a chart",
         "of recent rounds.",
         "",
-        "Progress, at the top of",
+        "Progress, at the bottom of",
         "the list, plots one drill:",
         "the rate as a line, errors",
         "as bars under it. A full",
@@ -223,7 +256,7 @@
         "BACK returns to the top.",
         "",
         "JOG    pick, in the list",
-        "CLICK  open the list",
+        "CLICK  open the folder",
         "MENU   open the list",
         "BACK   up one level",
         "SHIFT + BACK   close",

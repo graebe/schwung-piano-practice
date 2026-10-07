@@ -3,7 +3,7 @@
   "version": "1.4.0",
   "private": true,
   "type": "module",
-  "license": "GPL-3.0-or-later",
+  "license": "MIT",
   "author": "Torben Gräber",
   "scripts": {
     "test": "npm run test:js && npm run test:dsp && npm run test:rust && npm run test:package",

@@ -1,0 +1,316 @@
+{
+  "id": "track-porcelain",
+  "name": "Porcelain",
+  "bpm": 95,
+  "timeSig": [
+    4,
+    4
+  ],
+  "keySig": -3,
+  "events": [
+    {
+      "beat": 0,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 0,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77,
+        79
+      ],
+      "symbol": "Gm7"
+    },
+    {
+      "beat": 2,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 2,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77
+      ],
+      "symbol": "Bb"
+    },
+    {
+      "beat": 4,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 4,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        68,
+        72,
+        77
+      ],
+      "symbol": "Fm"
+    },
+    {
+      "beat": 6,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 6,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        72,
+        75
+      ],
+      "symbol": "Ab"
+    },
+    {
+      "beat": 8,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 8,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77,
+        79
+      ],
+      "symbol": "Gm7"
+    },
+    {
+      "beat": 10,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 10,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77
+      ],
+      "symbol": "Bb"
+    },
+    {
+      "beat": 12,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 12,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        68,
+        72,
+        77
+      ],
+      "symbol": "Fm"
+    },
+    {
+      "beat": 14,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 14,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        72,
+        75
+      ],
+      "symbol": "Ab"
+    },
+    {
+      "beat": 16,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 16,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77,
+        79
+      ],
+      "symbol": "Gm7"
+    },
+    {
+      "beat": 18,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 18,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77
+      ],
+      "symbol": "Bb"
+    },
+    {
+      "beat": 20,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 20,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        68,
+        72,
+        77
+      ],
+      "symbol": "Fm"
+    },
+    {
+      "beat": 22,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 22,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        72,
+        75
+      ],
+      "symbol": "Ab"
+    },
+    {
+      "beat": 24,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        67
+      ]
+    },
+    {
+      "beat": 24,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77,
+        79
+      ],
+      "symbol": "Gm7"
+    },
+    {
+      "beat": 26,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        58
+      ]
+    },
+    {
+      "beat": 26,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        70,
+        74,
+        77
+      ],
+      "symbol": "Bb"
+    },
+    {
+      "beat": 28,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        65
+      ]
+    },
+    {
+      "beat": 28,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        68,
+        72,
+        77
+      ],
+      "symbol": "Fm"
+    },
+    {
+      "beat": 30,
+      "durBeats": 2,
+      "hand": "l",
+      "pitches": [
+        68
+      ]
+    },
+    {
+      "beat": 30,
+      "durBeats": 2,
+      "hand": "r",
+      "pitches": [
+        72,
+        75
+      ],
+      "symbol": "Ab"
+    }
+  ]
+}

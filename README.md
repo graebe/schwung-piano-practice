@@ -39,11 +39,13 @@ Piano Practice is an independent module for Schwung. It is not made or supported
 - **Shows your timing.** Every press leaves a circle at the exact moment it happened. Play in time
   and it lands on the notehead as one mark; play late and the gap between the two circles is your
   error, read straight off the staff.
-- **Generates its own material.** Scales, intervals, triad progressions and random reading lines in
-  any key and mode, seeded so you can re-attempt the exact drill you just fluffed.
-- **Teaches a piece in four steps.** Fourteen public-domain tunes, each arranged for two hands and
-  playable at four levels: right hand alone, left hand alone, right hand with its chords, then both
-  together. Pick the song, then pick the level.
+- **Generates its own material.** Scales in all of Move's 22 scales, every chord quality on all twelve
+  roots, progressions in your key, and random notes and chords — seeded, so a restart replays the
+  exact drill you just fluffed.
+- **Teaches a piece in four steps.** Classics, electronic track studies, techno progressions and
+  style pieces, each arranged for two hands on one page of pads and playable at four levels: right
+  hand alone, left hand alone, right hand with its chords, then both together. Pick the song, then
+  pick the level.
 - **Takes hand-written exercises** as JSON, interchangeable with the generated ones.
 - **Sounds like a piano, with no setup** — the module renders its own polyphonic piano and mixes it
   into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
@@ -54,10 +56,29 @@ Piano Practice is an independent module for Schwung. It is not made or supported
 - **Gets out of your way.** Target-pad lighting exists, but it is off by default: this is a reading
   trainer first.
 
+## The lesson list
+
+The list is a tree. **Click** opens a folder, **Back** goes up one, and Back at the top leaves.
+
+```
+Basics        Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
+              Chords        thirteen families, one lesson per chord quality
+              Progressions  ten progressions in the Key setting's key
+              Random        random notes, and random chords from the whole vocabulary
+Classics      folk tunes and the classics, easy first
+Electronic    the chord loops of famous tracks, and five electronic style pieces
+Techno        fourteen progression studies, simple to complex
+Styles        pop, indie, film, soul, funk
+Quiz          Guess, Hear and Pick, for notes and for chords
+Progress      your rounds over time
+```
+
+Everything with a left and a right hand — every song, every chord lesson — opens its four levels.
+
 ## Levels
 
 Every bundled tune is one file with both hands written into it, and the four levels are cut out of
-that one file. Click a song in the exercise list and you get its ladder:
+that one file. Click a song and you get its ladder:
 
 | | | |
 | --- | --- | --- |
@@ -71,9 +92,8 @@ playing the right hand at L1 are the pads you play at L3 — what you learn tran
 than by analogy. **Back** from a song returns to its ladder rather than all the way out, because
 having just played the right hand the next thing you want is the left hand of the same piece.
 
-A file with nothing to split — the three technique drills — shows only the levels it actually has,
-and arms straight away if that is one. `Triads I-IV-V-I` keeps two: the top line of its triads is a
-genuinely different exercise from the triads.
+Every bundled song has all four, and `npm test` holds them to it. A file you write yourself with
+nothing to split shows only the levels it actually has, and arms straight away if that is one.
 
 ### Why the arrangements are in the keys they are
 
@@ -105,14 +125,146 @@ The bundled songs, and what their left hand does at L3:
 | The Saints | C | oom-pah, I–IV–V |
 | Auld Lang Syne | A | root and fifth, a half-bar each |
 | Korobeiniki | Am | a driving crotchet root, four to the bar |
+| London Bridge | A | root and fifth, a bar each |
+| Lullaby (Brahms) | G | a tenor line: B under G, the seventh C under D7, resolving down |
+| Canon in D (Pachelbel) | D | the ground bass, its G an octave up; the second violin gives way where it meets it |
+| Bach Prelude (BWV 846) | B♭ | bars 1–8, his two-note bass, a whole tone down so bar 3 reaches A3 |
 
-Marys Lamb, Frere Jacques and The Saints are the easy end of L3; Fur Elise, Rising Sun and the
-Minuet the hard end.
+Classics lists them easy to hard. Marys Lamb, London Bridge and Frere Jacques are the easy end of
+L3; the Minuet, the Bach Prelude and Fur Elise the hard end. Bach's sixteenths are written as eighths,
+as Für Elise's are.
+
+## Basics
+
+### Scales
+
+A folder for each of Move's 22 scales, each with **Up & down**, **Up**, **Down**, **Thirds** and
+**Fifths**. The **Key** setting picks the root. The folder picks the scale, so Dorian is Dorian
+whatever the Scale setting says.
+
+### Chords
+
+Every chord quality the module can name, each a lesson of its own. A lesson plays its chord on all
+twelve roots in falling fifths, C F B♭ E♭ A♭ D♭ G♭ B E A D G — the order the cycle is practised in.
+
+| Family | Lessons |
+| --- | --- |
+| Triads | major, minor, diminished, augmented |
+| Sus & power | sus2, sus4, power chord (5) |
+| Inversions | major and minor triads in root position, first and second inversion — right hand only |
+| Sixths | 6, m6, 6/9 |
+| Sevenths | maj7, 7, m7, m7b5, dim7, mMaj7, 7#5, maj7#5 |
+| Added tones | add9, madd9, add11, madd11 |
+| Ninths | 9, maj9, m9 |
+| Suspended 7ths | 7sus2, 7sus4, 9sus4 |
+| Elevenths | 11, m11 |
+| Thirteenths | 13, maj13, m13 |
+| Lydian | maj7#11, 7#11 |
+| Altered | 7b5, 7b9, 7#9, 7alt |
+| Slash chords | C/E, C/G, D/F#, G/B, Am/G, F/C, B♭/C, D/C |
+
+**How a chord is voiced.** The left hand plays the root, in the bottom octave of the pads. The right
+hand plays the chord in whichever close position sits above it and moves least from the chord
+before. That is voice leading, which is how a keyboard player actually changes chords, and it is also
+what fits twelve roots into 23 semitones. So the right hand meets inversions as it goes, and the
+Inversions family drills them on purpose.
+
+- Up to four notes, the right hand keeps the root too, so it learns the whole shape.
+- From five notes the root is left to the left hand.
+- The six-note chords use the voicings pianists use: **C11** is B♭/C, and **C13** is E A B♭ D over C.
+- Where even the closest voicing will not fit — A♭maj7 over A♭3 has eleven semitones to live in —
+  the right hand lets go of the root, then the fifth.
+
+The ladder means something particular here. **L1 RH** is the top voice, the line voice leading
+draws. **L1 LH** is the roots round the cycle. **L2** is the shapes. **L3** is both. When the scroll
+stops on a chord, it names the chord — `C13`, `D/F#` — whatever the right hand holds on its own.
+
+### Progressions
+
+I–IV–V–I, I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, vi–ii–V–I, i–iv–v–i, i–VI–III–VII, ii–V–i in minor,
+and the 12-bar blues, voiced the same way, in the key the **Key** setting names. The list names the
+shape; the header names it in your key.
+
+### Random
+
+| | |
+| --- | --- |
+| All notes | a walk over every pitch the pads reach, black keys included |
+| In key / In key, fast | random lines in the Key and Scale settings, in quarters and in eighths |
+| All chords | sixteen chords, any root, any quality the module knows |
+| Triads / Sevenths | the same, from the four triads or the eight sevenths |
+
+The chord sets open the usual ladder. Each opening draws a new set, and a restart replays the one
+you just played.
+
+## Electronic
+
+Track studies. Each is named after the track it studies and takes what is not anyone's property: the
+chord progression, the chord by chord harmonic rhythm, the tempo, the key, and the generic feel of
+the keyboard part — offbeat stabs, a held pad, a bouncing bass. It never takes the melody, the hook
+or riff, the lyrics or a sound. The right hand plays the chords with a top line of chord tones that
+is not the hook; the left hand plays the track's bass motion as roots and fifths.
+
+| Study | Track | Key, tempo | The chords | The figure |
+| --- | --- | --- | --- | --- |
+| The Model | Kraftwerk, *The Model* (1978) | Am, 124 | Am – Em; bridge C – Bm – G – C – Bm – E | held chords over an eighth-note bass |
+| Teardrop | Massive Attack, *Teardrop* (1998) | A, 77 | A – Gsus2 – D – A; Fmaj7 – G6 – A | held chords, two a bar |
+| Porcelain | Moby, *Porcelain* (1999) | B♭ mixolydian, 95 | Gm7 – B♭ – Fm – A♭, half a bar each | sustained strings |
+| Blue Monday | New Order, *Blue Monday* (1983) | Dm, 130 | F C – Dm – G C – Dm | pads over an eighth-note bass |
+| Midnight City | M83, *Midnight City* (2011) | Bm, 105 | G – Bm – A – Em(7) | an arpeggio, then pads |
+| Good Life | Inner City, *Good Life* (1988) | Bm, 121 | Bm – F♯m – Am – Em, all minor, two beats each | three stabs a chord |
+| Get Lucky | Daft Punk, *Get Lucky* (2013) | B dorian, 116 | Bm7 – D – F♯m7 – E | funk comping over roots on the beat |
+| Wake Me Up | Avicii, *Wake Me Up* (2013) | Bm, 124 | Bm G – D; chorus Bm G – D A | offbeat, then eighth-note stabs |
+| Levels | Avicii, *Levels* (2011) | C♯m, 126 | C♯m E – B A, the A pushed in on the and of 2; C♯sus4 and Asus2 every second pass | pumping offbeat chords |
+| Better Off | Alice Deejay, *Better Off Alone* (1999) | G♯m, 137 | E(add9) – D♯m – G♯m – D♯m/F♯ | offbeat chords over an offbeat bass |
+| One More Time | Daft Punk, *One More Time* (2000) | D / Bm, 123 | Gmaj7 for six and a half beats, A on the and of 3; breakdown G – D/F♯ – Em7 – A7sus4 | a held chord and a push |
+| Sounds Better | Stardust, *Music Sounds Better With You* (1998) | Am, 124 | Em7, two hits, Fmaj7 on the and of 2, three times; Em7/G – Am | short hits and a held chord |
+| Digital Love | Daft Punk, *Digital Love* (2001) | A, 125 | D – C♯m – F♯m – E7sus4, each pushed in an eighth early | anticipated chords |
+
+Every progression was checked against two independent sources before it was written: Hooktheory's
+TheoryTab data, which gives each chord's beat and length, and a second chord chart. A track whose
+sources disagreed was left out rather than guessed — Children, Born Slippy, Can You Feel It, Strobe,
+Opus, Insomnia, Show Me Love and Strings of Life among them — and where two charts disagree on a
+single chord, the study leaves that chord out (Wake Me Up's chorus ends before its F♯ or F♯m). The
+keys are the records' own; every study fits the pads in its original key.
+
+The five electronic style pieces sit after them: Ambient, Lofi Sunday, House Stabs, Synthwave and
+Minor Trap. They are original pieces written to drill a style.
+
+## Techno
+
+Fourteen original studies, simple to complex, each built on one technique. From Deep Vamp on, the
+left hand keeps a four-to-the-floor root on every beat against offbeat stabs in the right, so the
+hands alternate — which is the coordination techno keys ask for.
+
+| Study | What it drills | Where it comes from |
+| --- | --- | --- |
+| Dub Stab | one Cm7 stab, two a bar, then four | Basic Channel's dub techno |
+| Colour Shift | one root, the colour on top moving: m7, m9, m11 | minimal techno's "chord on a filter", by hand |
+| Deep Vamp | i7–iv7, Am7–Dm7, the common tone held | deep house and techno |
+| Phrygian | i–♭II, Am–B♭, a semitone up and back | dark and industrial techno |
+| Pedal Point | Am, G/A, F/A, Em/A over a bass that never moves | a techno staple |
+| Parallels | one minor shape moved whole: i–v–vii–iv | Inner City's *Good Life* |
+| Chord Memory | one rootless m7 stab transposed with the bass | Underground Resistance, *Timeline* |
+| Sus Pads | sus2 chords in parallel, arpeggiated then held | melodic techno |
+| i-VI-III-VII | Am–F–C–G | melodic techno and trance |
+| i-VII-VI-VII | Am–G–F–G | anthem techno |
+| Andalusian | Am–G–F–E | hypnotic and hard techno |
+| Detroit m9 | rootless m9 pads moved in parallel | Detroit's second wave |
+| Quartal | stacked fourths in parallel over a held A | Detroit, UR |
+| Thirds Cycle | m11 chords a minor third apart: C, E♭, F♯, A | symmetric harmony |
+
+The written tempos are the genre's, 118–130. Knob 8 slows any of them while a study is new.
+
+## Styles
+
+Pop Ballad, Indie Anthem, Cinematic, Neo Soul and Funk Clav — original pieces, each written to
+drill a style.
 
 ## Note guesser and ear training
 
-Two extra modes at the top of the exercise list — **Guess: notes**, **Guess: chords**, **Hear:
-notes**, **Hear: chords**. Which entry you open is also how you pick.
+Extra modes in the **Quiz** folder — **Guess: notes**, **Guess: chords**, **Hear: notes**, **Hear:
+chords**. Which entry you open is also how you pick.
 
 One note or chord sits still on the staff with its name below it, and it waits until you play it.
 No clock, no scrolling, nothing timed. This drills a different skill from the reading mode: the
@@ -168,7 +320,7 @@ The result is **correct answers per minute**, with your best for that drill besi
 **error rate**, and a chart of the drill's recent rounds so the number has something to be measured
 against.
 
-**Progress**, at the top of the exercise list, plots how one drill has developed: the rate as a
+**Progress**, at the bottom of the exercise list, plots how one drill has developed: the rate as a
 line, and the **error rate** as bars growing under it, so you can see whether speed came at the cost
 of accuracy. A full-height bar is 50% wrong — a fixed ceiling, so two visits are comparable. The jog
 changes drill.
@@ -266,7 +418,7 @@ Four beats count you in, counted down on screen.
 | **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored. Press it again to **pause where you are**; again to carry on from wherever you have scrubbed to |
 | **Record** | **practice** — you play it, it scores you. Pauses and resumes the same way |
 | **Jog turn** | moves the highlight in the exercise list and in settings, and does nothing anywhere else — a knock cannot change what you are playing. To pick something else, Back to the list first |
-| **Jog click** | open the list / pick an exercise; on a song, open its levels; in settings, edit the selected row |
+| **Jog click** | open the highlighted folder or arm the exercise; on a song, open its levels; in settings, edit the selected row |
 | **Menu** | open the exercise list |
 | **Shift + jog click** | settings |
 | **Back** | from a running exercise, **restart it**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
@@ -323,7 +475,10 @@ shortcuts to the first four.
 ## Writing your own exercises
 
 Drop a JSON file in `exercises/` and add a line to `exercises/index.json`. There is no
-directory-listing call in the host, which is why the manifest exists.
+directory-listing call in the host, which is why the manifest exists. A row's `category` is one of
+the `categories` the manifest declares — `classics`, `electronic`, `techno`, `styles`. A row
+without one, or with one the manifest does not declare, is listed under **Other**, so a file you add
+is never lost. An update replaces `index.json`, so Other is where your own files land after one.
 
 ```json
 {
@@ -354,10 +509,16 @@ thing the merge gives up.
 Write the file in beat order, both hands interleaved. Beats must run forwards; two events may share
 a beat.
 
+An event may carry `"symbol": "C/E"`. That is the chord's name, shown when the scroll stops on
+it, for the chords that cannot be named from their notes: a slash chord, or a voicing without its
+root. Otherwise the name is worked out from the pitches, lowest note as the root.
+
 `keySig` is the signature in fifths (`-1` = F major, `2` = D major). It sets how black notes are
 **spelled** — sharp keys read `A#`, flat keys read `Bb`. No key signature is drawn on the staff:
 there is no room at 128×64, and for a reading trainer an accidental on the note itself is more use
-than one you have to remember. Beats must run forwards; pitches are MIDI note numbers.
+than one you have to remember. Beats must run forwards; pitches are MIDI note numbers. A piece that
+changes key part-way can say so with `"keyChanges": [{ "beat": 16, "keySig": -2 }]`: the spelling
+from that beat on.
 
 `beat` and `durBeats` are always **quarter notes**, whatever the time signature — an eighth is
 `0.5`, a dotted quarter `1.5`. `timeSig` only decides where the bar lines fall, so `[6, 8]` is
@@ -381,8 +542,8 @@ crossed voice reads as a mistake rather than as counterpoint. `npm test` asserts
 every bundled song at every level, which is what stops a comfortable-looking arrangement shipping
 with a bass note no pad can play.
 
-The fourteen bundled tunes are all public-domain melodies transcribed to fit, with harmonisations
-written for this module.
+The classics are public-domain melodies transcribed to fit, with harmonisations written for this
+module. Everything else bundled is original, or takes only a track's chords.
 
 ## Development
 
