@@ -472,9 +472,9 @@ The interval groups add answers a few at a time: first 2nds, 3rds, 4th, 5th and 
 - **Major or minor chord (6).** The same difference, now stacked. Major sounds settled and
   bright, minor sounds sad and inward. The broken level plays the chord a note at a time before
   it sounds whole, so you can hear the third arrive.
-- **Perfect intervals (7).** A 4th is the start of *Here Comes the Bride*, a 5th the leap after the first
-  two notes of *Twinkle Twinkle*, and an octave the first leap of *Somewhere Over the Rainbow*. They sound open
-  and hollow, with nothing sweet or sour in them.
+- **Perfect intervals (7).** A 4th is the start of *Here Comes the Bride*, a 5th the leap after
+  the first two notes of *Twinkle Twinkle*, and an octave the first leap of *Somewhere Over the
+  Rainbow*. They sound open and hollow, with nothing sweet or sour in them.
 - **Four triads (12).** Diminished is tense and shrinking: a minor chord with its top squeezed
   down. Augmented is unsettled, stretching, almost dreamlike: a major chord with its top pushed up.
 - **Home or away (14).** A finished phrase lands on *do* and you could stop there. An unfinished
