@@ -86,10 +86,12 @@ test('every level of every naming exercise has every answer, playable and drawab
   }
 });
 
-test('answer labels fit the answer list', () => {
+/* Centred, with the highlight's 5px either side, a 6px-per-character label
+ * must end before the scroll mark at x=121: 16 characters at most. */
+test('answer labels fit the answer list beside its scroll marks', () => {
   for (const ex of naming) {
     for (const lv of ex.levels) {
-      for (const a of answersFor(ex, lv)) assert.ok(a.label.length <= 19, a.label);
+      for (const a of answersFor(ex, lv)) assert.ok(a.label.length <= 16, a.label);
     }
   }
 });

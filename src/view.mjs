@@ -662,6 +662,17 @@ export function drawOverview(ctx, state) {
  * list marks its row, so the jog behaves the way it already does everywhere
  * else. The staff plays no part — what is being asked is lit on the pads.
  */
+export const PICK_ROWS = 3;
+
+/* A 5px triangle at the right edge of a row: more options that way. */
+function drawMoreMark(ctx, y, dir) {
+  const x = L.SCREEN_W - 7;
+  for (let r = 0; r < 3; r++) {
+    const w = dir < 0 ? 1 + 2 * r : 5 - 2 * r;
+    ctx.fillRect(x + ((5 - w) >> 1), y + 1 + r, w, 1, 1);
+  }
+}
+
 export function drawPick(ctx, state) {
   const options = state.options || [];
   ctx.clear();
@@ -670,10 +681,15 @@ export function drawPick(ctx, state) {
   const msg = truncate(ctx, state.hint || 'which pad is lit?', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(msg)) >> 1, 10, msg, 1);
 
+  /* Three rows fit between the prompt and the footer. A longer list — the
+   * interval drills name up to twelve — scrolls with the jog, keeping the
+   * cursor on the middle row where it can, and marks the side with more. */
   const rowH = 11;
   const top = 21;
-  for (let i = 0; i < options.length; i++) {
-    const y = top + i * rowH;
+  const first = Math.max(0, Math.min(state.index - 1, options.length - PICK_ROWS));
+  const last = Math.min(options.length, first + PICK_ROWS);
+  for (let i = first; i < last; i++) {
+    const y = top + (i - first) * rowH;
     const selected = i === state.index;
     const text = options[i];
     const tw = ctx.textWidth(text);
@@ -689,6 +705,8 @@ export function drawPick(ctx, state) {
      * keeps its shape, so the remaining choice does not jump under your hand. */
     if (struck) ctx.fillRect(x - 3, y + 3, tw + 6, 1, selected ? 0 : 1);
   }
+  if (first > 0) drawMoreMark(ctx, top, -1);
+  if (last < options.length) drawMoreMark(ctx, top + (PICK_ROWS - 1) * rowH, 1);
 
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;

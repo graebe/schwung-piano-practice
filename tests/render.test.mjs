@@ -1535,3 +1535,34 @@ test('the ready screen names the stage, and only when asked to', () => {
   }
   assert.notEqual(V.stageFooter(1), V.stageFooter(2));
 });
+
+test('a long answer list shows three rows around the cursor, marked where there is more', () => {
+  const options = ['Minor 2nd', 'Major 2nd', 'Minor 3rd', 'Major 3rd', 'Perfect 4th', 'Perfect 5th', 'Octave'];
+  const shot = (index) => {
+    const c = createScreen();
+    V.drawPick(c, { options, index });
+    return c;
+  };
+  const markAt = (c, y) => countOn(c, W - 7, y + 1, 5, 3) > 0;
+
+  const topOfList = shot(0);
+  assert.ok(!markAt(topOfList, 21), 'nothing above the first option');
+  assert.ok(markAt(topOfList, 43), 'more below');
+
+  const middle = shot(3);
+  assert.ok(markAt(middle, 21) && markAt(middle, 43), 'more both ways');
+  /* The cursor rides the middle row while the list scrolls under it. */
+  assert.ok(countOn(middle, 30, 30, 68, 1) > 20, 'the highlight is on the middle row');
+
+  const bottom = shot(options.length - 1);
+  assert.ok(markAt(bottom, 21), 'more above');
+  assert.ok(!markAt(bottom, 43), 'nothing below the last option');
+
+  assert.equal(new Set([0, 1, 2, 3, 4, 5, 6].map((i) => shot(i).pixels.join(''))).size, 7);
+});
+
+test('three answers or fewer draw no scroll marks', () => {
+  const c = createScreen();
+  V.drawPick(c, { options: ['Major 3rd', 'Minor 3rd'], index: 1 });
+  assert.equal(countOn(c, W - 7, 21, 5, 30), 0);
+});
