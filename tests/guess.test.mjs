@@ -7,6 +7,7 @@ import {
   roundComplete, roundElapsed, roundProgress,
   moveChoice, pickChoice, optionLabel, PICK_COUNT,
   takeHint, hintsLeft, isEliminated, MAX_HINT,
+  EAR, promptEvents,
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
@@ -636,4 +637,69 @@ test('the multiple-choice drill offers chord names, not note spellings', () => {
     assert.match(label, /^[A-G][#b]?/, `"${label}" should be a chord symbol`);
     assert.ok(!label.includes(' '), `"${label}" is a note list, not a name`);
   }
+});
+
+/* ---- Hearing: hear it, name it ---------------------------------------------- */
+
+const earQuiz = (o = {}) => createQuiz({ kind: EAR, exercise: 'thirds', level: 'up', seed: 3, ...o });
+
+test('a hearing quiz offers the exercise answers, in a fixed order, cursor on top', () => {
+  const q = earQuiz();
+  assert.equal(q.kind, EAR);
+  assert.equal(q.pick, true);
+  for (let i = 0; i < 20; i++) {
+    assert.deepEqual(q.choices.map((c) => c.key), ['M3', 'm3']);
+    assert.equal(q.choiceIndex, 0);
+    assert.ok(['M3', 'm3'].includes(q.entry.answer));
+    assert.ok(q.label, 'the answer has something to reveal');
+    nextPrompt(q);
+  }
+});
+
+test('a level can bring its own answers', () => {
+  const q = earQuiz({ exercise: 'intervals-up', level: 'g3' });
+  assert.equal(q.choices.length, 12);
+  assert.equal(earQuiz({ exercise: 'degrees', level: '135' }).choices.length, 3);
+});
+
+test('naming the heard answer solves it; the other counts as wrong and stays', () => {
+  const q = earQuiz({ roundSize: 2 });
+  const right = q.choices.findIndex((c) => c.key === q.entry.answer);
+  q.choiceIndex = 1 - right;
+  assert.equal(pickChoice(q, 1000), WRONG);
+  assert.equal(pickChoice(q, 1100), WRONG);
+  assert.equal(q.wrong, 1, 'one penalty per prompt');
+  assert.equal(q.solved, false);
+  q.choiceIndex = right;
+  assert.equal(pickChoice(q, 1500), CORRECT);
+  assert.equal(q.correct, 1);
+  assert.equal(q.streak, 1, 'the wrong answer reset it, the right one started again');
+});
+
+test('hearing help: replay slower first, then strike a wrong answer', () => {
+  const q = earQuiz({ exercise: 'four-triads', level: 'block' });
+  const plain = promptEvents(q);
+  assert.equal(plain, q.entry.events);
+
+  assert.equal(takeHint(q, q.rand), 1);
+  assert.equal(q.eliminated.length, 0, 'rung one only replays');
+  const slow = promptEvents(q);
+  assert.ok(slow.length > plain.length, 'the block chord is broken up first');
+
+  assert.equal(takeHint(q, q.rand), 2);
+  assert.equal(q.eliminated.length, 1);
+  const struck = q.choices[q.eliminated[0]];
+  assert.notEqual(struck.key, q.entry.answer, 'never the right answer');
+  assert.equal(q.hintsUsed, 2);
+});
+
+test('the reading drills have no events to schedule', () => {
+  assert.equal(promptEvents(notesQuiz()), null);
+  assert.equal(promptEvents(chordQuiz({ pick: true })), null);
+});
+
+test('a non-naming exercise asks nothing rather than crashing', () => {
+  const q = earQuiz({ exercise: 'playback-notes' });
+  assert.equal(q.pool.length, 0);
+  assert.deepEqual(q.prompt, []);
 });

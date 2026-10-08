@@ -16,9 +16,13 @@ import {
 } from './chords.mjs';
 import { buildChoices } from './choices.mjs';
 import { spell, chordLabel } from './notation.mjs';
+import {
+  exerciseByKey, levelByKey, buildEarPool, answersFor, groupByAnswer, pickEntry, slowed,
+} from './ear.mjs';
 
 export const NOTES = 'notes';
 export const CHORDS = 'chords';
+export const EAR = 'ear';         /* hear a prompt, name it: see ear.mjs */
 
 /* Which chords the chord drill asks for. */
 export const PICK_COUNT = 3;      /* options in the multiple-choice mode */
@@ -121,16 +125,30 @@ export function createQuiz({
   chordSet = TRIADS,
   fifths = 0,
   pick = false,         /* multiple choice: a pad lights, you name it */
+  exercise = null,      /* EAR: which exercise of ear.mjs, by key */
+  level = null,         /* EAR: and which of its levels */
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
   seed = 1,
 } = {}) {
+  const ear = kind === EAR ? exerciseByKey(exercise) : null;
+  const earLevel = ear ? levelByKey(ear, level) : null;
+  const pool = ear
+    ? buildEarPool(ear, earLevel.key, transpose)
+    : buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths);
+  const answers = ear ? answersFor(ear, earLevel) : null;
   const quiz = {
-    kind: kind === CHORDS ? CHORDS : NOTES,
-    pool: buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths),
+    kind: ear ? EAR : (kind === CHORDS ? CHORDS : NOTES),
+    pool,
     rand: rng(seed),
     prompt: [],
     label: null,   /* the chord symbol, when the drill is about qualities */
-    pick: Boolean(pick),
+    /* Hearing is always multiple choice: the answers are the exercise's own,
+     * in a fixed order, and the pool is drawn answer-first. */
+    pick: Boolean(pick) || Boolean(ear),
+    exercise: ear,
+    level: earLevel,
+    answers,
+    groups: ear ? groupByAnswer(pool, answers) : null,
     fifths,
     entry: null,        /* the pool entry behind the current prompt */
     choices: [],        /* the options offered, when picking */
@@ -167,19 +185,18 @@ export function nextPrompt(quiz) {
     quiz.label = null;
     return quiz.prompt;
   }
-  const previous = quiz.prompt.join(',') + '|' + (quiz.label || '');
-  const same = (e) => e.pitches.join(',') + '|' + (e.label || '') === previous;
-  let chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
-  if (quiz.pool.length > 1) {
-    let guard = 8;
-    while (same(chosen) && guard-- > 0) {
-      chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
-    }
-  }
+  const chosen = quiz.kind === EAR
+    ? pickEntry(quiz.groups, quiz.rand, quiz.entry)
+    : randomEntry(quiz);
   quiz.prompt = chosen.pitches.slice();
   quiz.label = chosen.label;
   quiz.entry = chosen;
-  if (quiz.pick) {
+  if (quiz.kind === EAR) {
+    /* Same list, same order, cursor back on top: the answer's place is
+     * something you learn, so it must not move. */
+    quiz.choices = quiz.answers;
+    quiz.choiceIndex = 0;
+  } else if (quiz.pick) {
     quiz.choices = buildChoices(quiz.pool, chosen, quiz.rand, PICK_COUNT,
       (pitches) => labelFor(quiz, pitches));
     quiz.choiceIndex = 0;
@@ -191,6 +208,34 @@ export function nextPrompt(quiz) {
   quiz.eliminated = [];
   quiz.asked++;
   return quiz.prompt;
+}
+
+function randomEntry(quiz) {
+  const previous = quiz.prompt.join(',') + '|' + (quiz.label || '');
+  const same = (e) => e.pitches.join(',') + '|' + (e.label || '') === previous;
+  let chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+  if (quiz.pool.length > 1) {
+    let guard = 8;
+    while (same(chosen) && guard-- > 0) {
+      chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+    }
+  }
+  return chosen;
+}
+
+/*
+ * What to play for the prompt, or null when it is just its pitches at once.
+ * After the first hint a hearing prompt plays slower, chords broken first.
+ */
+export function promptEvents(quiz) {
+  if (quiz.kind !== EAR || !quiz.entry) return null;
+  return quiz.hint >= 1 ? slowed(quiz.entry.events) : quiz.entry.events;
+}
+
+/* Picking a pad's name: the option IS the entry. Hearing: it names the answer. */
+function isRight(quiz, option) {
+  if (quiz.kind === EAR) return Boolean(option && quiz.entry && option.key === quiz.entry.answer);
+  return option === quiz.entry;
 }
 
 function evaluate(quiz) {
@@ -329,7 +374,7 @@ export function pickChoice(quiz, nowMs = 0) {
   const chosen = quiz.choices[quiz.choiceIndex];
   if (!chosen) return WRONG;
 
-  if (chosen === quiz.entry) {
+  if (isRight(quiz, chosen)) {
     quiz.solved = true;
     quiz.correct++;
     quiz.streak++;
@@ -354,6 +399,7 @@ export function pickChoice(quiz, nowMs = 0) {
  *   hearing   1: show the name it would normally show   2: light the pads
  *   reading   1: sound the notes                        2: light the pads
  *   picking   1: strike out one wrong option            2: strike out the other
+ *   naming    1: play it again, slower, chords broken   2: strike out a wrong option
  *
  * The picking ladder is the same escalation in that mode's terms: its level 2
  * leaves one option standing, which is what "show me the answer" means there.
@@ -367,7 +413,10 @@ export function takeHint(quiz, rand) {
   quiz.hint++;
   quiz.hintsUsed++;
 
-  if (quiz.pick) eliminateOne(quiz, rand);
+  /* Hearing spends its first rung on a slower replay — promptEvents — and
+   * only the second strikes an option, which with two answers is the answer. */
+  const replay = quiz.kind === EAR && quiz.hint === 1;
+  if (quiz.pick && !replay) eliminateOne(quiz, rand);
   return quiz.hint;
 }
 
@@ -379,7 +428,7 @@ export function hintsLeft(quiz) {
 function eliminateOne(quiz, rand) {
   const wrong = [];
   for (let i = 0; i < quiz.choices.length; i++) {
-    if (quiz.choices[i] === quiz.entry) continue;
+    if (isRight(quiz, quiz.choices[i])) continue;
     if (isEliminated(quiz, i)) continue;
     wrong.push(i);
   }
