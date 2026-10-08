@@ -1113,7 +1113,8 @@ test('an answer sounds a chime when right and an uh-oh when wrong', () => {
         const ons = hostCalls.notes.join(',').split(',').filter((n) => n && !n.endsWith(':0'))
           .map((n) => Number(n.split(':')[0]));
         if (ons.some((p) => p >= 84)) heard.add('chime');
-        if (ons.some((p) => p <= 54)) heard.add('uh-oh');
+        /* Name answers with the jog, so nothing else sounds: below the chime is the uh-oh. */
+        if (ons.some((p) => p < 84)) heard.add('uh-oh');
         if (ons.some((p) => p >= 84)) break;
         globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
       }

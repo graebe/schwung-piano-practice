@@ -345,7 +345,7 @@ const settings = {
   anyOctave: false,
   halfTones: true,   /* the guesser asks about black notes too */
   roundSize: 20,     /* prompts per round; 0 = endless practice, unrecorded */
-  quizSounds: true,  /* a chime when right, a soft uh-oh when wrong */
+  quizSounds: true,  /* a chime when right, an uh-oh when wrong */
   autoInfo: true,    /* show a practice's Info page the first time it is opened */
   chordSet: 'triads',
   click: true,

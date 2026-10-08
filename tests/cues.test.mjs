@@ -18,19 +18,26 @@ test("the chime is the key's major chord, rising, soft", () => {
   assert.deepEqual(pcs(successCue(-5)), pcs(successCue(7)), 'any root wraps');
 });
 
-test('the uh-oh falls a minor 3rd, quieter than the chime', () => {
-  const cue = failureCue(0);
-  assert.equal(cue.length, 2);
-  assert.equal(cue[0].pitch - cue[1].pitch, 3, 'sol to mi: a minor 3rd down');
-  assert.ok(cue[1].at > cue[0].at);
-  const loudest = (c) => Math.max(...c.map((e) => e.vel));
-  assert.ok(loudest(cue) < loudest(successCue(0)));
+test('the uh-oh falls from the key\'s 5th to its 3rd, in a register a small speaker can play', () => {
+  for (let root = 0; root < 12; root++) {
+    const cue = failureCue(root);
+    assert.equal(cue.length, 2);
+    assert.equal(cue[0].pitch - cue[1].pitch, 3, 'sol to mi: a minor 3rd down');
+    assert.equal(cue[0].pitch % 12, (root + 7) % 12, 'from the 5th');
+    assert.ok(cue[1].at > cue[0].at);
+    /* It was once at C2 and nobody heard it: keep it at 200Hz and up, and
+     * struck firmly enough for the overtones to carry. */
+    for (const e of cue) {
+      assert.ok(e.pitch >= 55 && e.pitch <= 76, `${e.pitch} is out of the speaker's comfortable range`);
+      assert.ok(e.vel >= 60 && e.vel <= 90, `velocity ${e.vel}`);
+    }
+    assert.ok(cue[0].pitch < successCue(root)[0].pitch, 'below the chime');
+  }
 });
 
-test('neither cue lands on the pads at the default octave, so neither sounds like an answer', () => {
-  const { lo, hi } = pitchRange(DEFAULT_TRANSPOSE);
+test('the chime stays above the pads, so it never sounds like an answer', () => {
+  const { hi } = pitchRange(DEFAULT_TRANSPOSE);
   for (let root = 0; root < 12; root++) {
     for (const e of successCue(root)) assert.ok(e.pitch > hi, `chime ${e.pitch}`);
-    for (const e of failureCue(root)) assert.ok(e.pitch < lo, `uh-oh ${e.pitch}`);
   }
 });

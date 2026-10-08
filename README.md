@@ -255,10 +255,10 @@ shows under Piano Practice › Terms:
 
 ## Sounds in a quiz
 
-A right answer plays a short **chime** — the key's major chord rising, high and soft — and a wrong
-one a quiet **uh-oh**, a falling minor 3rd down low. Both are played on the module's own piano and sit
-outside the pads' range, so neither can be mistaken for a note of the question. **Quiz sounds** in
-settings turns them off.
+A right answer plays a short **chime** — the key's major chord rising, high and soft, above the pads
+so it never sounds like a note of the question — and a wrong one an **uh-oh**: the key's 5th falling
+to its 3rd, sol-mi, in the middle of the range where the Move's speaker carries it. Both are played
+on the module's own piano. **Quiz sounds** in settings turns them off.
 
 ### Why the arrangements are in the keys they are
 
