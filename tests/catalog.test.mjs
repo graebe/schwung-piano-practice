@@ -41,14 +41,15 @@ function leavesOf(node, path = [], out = []) {
 test('a song with a ladder is a folder of its levels', () => {
   const node = songNode(twoHands);
   assert.equal(node.value, FOLDER);
-  assert.deepEqual(labels(node), ['RH melody', 'LH bass', 'RH chords', 'Both hands']);
+  /* The rung's code leads the label; the value column holds your progress. */
+  assert.deepEqual(labels(node), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands']);
   assert.equal(node.children[3].build().name, 'Song L3');
 });
 
 test('a song with one rung arms straight away', () => {
   const node = songNode(oneNote);
   assert.equal(isFolder(node), false);
-  assert.equal(node.value, 'f');
+  assert.equal(node.value, '');
   assert.deepEqual(node.build().events[0].pitches, [60]);
 });
 
@@ -82,7 +83,7 @@ test('Random has every note, notes in key, and chords from every quality', () =>
   const r = randomFolder({});
   assert.deepEqual(labels(r), ['All notes', 'In key', 'In key, fast', 'All chords', 'Triads', 'Sevenths']);
   for (const set of r.children.slice(3)) {
-    assert.deepEqual(labels(set), ['RH melody', 'LH bass', 'RH chords', 'Both hands'], set.label);
+    assert.deepEqual(labels(set), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands'], set.label);
   }
 });
 

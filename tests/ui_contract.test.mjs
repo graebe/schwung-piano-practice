@@ -139,9 +139,29 @@ test('the manifest matches what the code assumes', () => {
   assert.match(source, new RegExp(`modules/tools/${manifest.id}`));
 });
 
-test('guidance is off by default — this is a sight-reading trainer', () => {
-  assert.match(source, /guidance: false/);
+test('the stage decides the pad lights — there is no Guide pads setting any more', () => {
+  /* Stage 1 lights the notes as they come, stage 2 reads alone; a global
+   * switch on top would make the two stages mean nothing. */
+  assert.doesNotMatch(code, /settings\.guidance/);
+  assert.match(code, /let stage = 1/);
   assert.match(source, /anyOctave: false/);
+});
+
+test('only a whole run from the top is recorded, and Listen never is', () => {
+  assert.match(code, /runFromTop = from === 0/);
+  assert.match(code, /!wasListening && runFromTop && armedId[\s\S]{0,40}finishExercise\(s\)/);
+  const fin = code.match(/function finishExercise\(s\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(fin, /PROG\.recordAttempt\(progress, armedId/);
+  assert.match(fin, /saveProgress\(\)/);
+  assert.match(code, /PROGRESS_PATH = MODULE_DIR \+ '\/progress\.json'/);
+});
+
+test('Back from a result starts again rather than leaving', () => {
+  const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}\n/)[1];
+  assert.match(back, /view === RESULT_VIEW\) \{\s*retryFromResult\(\)/);
+  const retry = code.match(/function retryFromResult\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(retry, /startQuiz\(quizSpec\)/, 'a quiz gets a fresh round');
+  assert.match(retry, /armRun\(\);\s*view = READY/, 'an exercise goes back to its start');
 });
 
 test('settings are persisted next to the module and survive a bad file', () => {
@@ -417,7 +437,7 @@ test('the missed-note rescue keys off the wait pointer, not the scoring cursor',
   const fn = code.match(/function collectStuck\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(fn, /SCORE\.blockingNotes\(run\)/);
   assert.doesNotMatch(fn, /run\.cursor/);
-  assert.match(fn, /settings\.guidance/, 'scoped to Guide pads, as chosen');
+  assert.match(fn, /stage !== 1/, 'stage 1 only: stage 2 is reading alone');
   assert.match(fn, /view !== RUNNING/, 'and it cannot fire in a quiz');
 });
 
@@ -503,7 +523,7 @@ test('Listen lights the pads it is playing, ungated', () => {
    * guidance hint this must not sit behind Guide pads. */
   const fn = code.match(/function collectSounding\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(fn, /listening/);
-  assert.doesNotMatch(fn, /settings\.guidance/, 'must not be gated on a setting');
+  assert.doesNotMatch(fn, /stage/, 'must not be gated on the stage');
   assert.match(fn, /pitchRefcount/, 'exactly what is sounding, not what is scheduled');
 });
 
@@ -532,8 +552,8 @@ test('nothing ever lights the answer in the quiz modes', () => {
 test('a scrub lights the note it lands on, and only while the music is parked', () => {
   const target = code.match(/function collectTarget\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(target, /scrubCue && run && \(view === READY \|\| \(view === RUNNING && paused\)\)/);
-  assert.ok(target.indexOf('scrubCue') < target.indexOf('settings.guidance'),
-    'not behind Guide pads: scrubbing is finding your place, not a playing aid');
+  assert.ok(target.indexOf('scrubCue') < target.indexOf('stage !== 1'),
+    'not behind the stage: scrubbing is finding your place, not a playing aid');
   assert.match(code.match(/function scrubBy\(delta\) \{([\s\S]*?)\n\}/)[1], /scrubCue = true/);
   assert.match(code.match(/function armRun\(\) \{([\s\S]*?)\n\}/)[1], /scrubCue = false/,
     'a freshly armed exercise starts dark');
@@ -542,11 +562,12 @@ test('a scrub lights the note it lands on, and only while the music is parked', 
 });
 
 test('the mode is entered from the list, and picks notes or chords by which row', () => {
-  const menu = code.match(/function rebuildMenu\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(menu, /guess: GUESS\.NOTES/);
-  assert.match(menu, /guess: GUESS\.CHORDS/);
-  assert.match(code, /if \(row\.guess\)[\s\S]{0,100}startQuiz\(row\.guess, row\.hear, row\.pick\)/);
-  assert.match(menu, /hear: true/, 'and the hearing rows are there too');
+  const rows = code.match(/const QUIZ_ROWS = \[([\s\S]*?)\n\];/)[1];
+  assert.match(rows, /guess: GUESS\.NOTES/);
+  assert.match(rows, /guess: GUESS\.CHORDS/);
+  assert.match(code, /if \(row\.guess\)[\s\S]{0,100}startQuiz\(settingsQuiz\(row\)\)/);
+  assert.match(rows, /hear: true/, 'and the hearing rows are there too');
+  assert.match(code.match(/function rebuildMenu\(\) \{([\s\S]*?)\n\}/)[1], /QUIZ_ROWS\.map/);
 });
 
 test('leaving the guesser silences it', () => {
@@ -570,7 +591,7 @@ test('the quiz rebuilds itself on a key change, rather than calling a build it h
   const edit = code.match(/function editSetting\(index, delta\) \{([\s\S]*?)\n\}/)[1];
   /* All three: dropping quizPick turned a Pick quiz into a Guess quiz the
    * moment the key changed. */
-  assert.match(edit, /view === GUESS_VIEW && quiz[\s\S]{0,60}startQuiz\(quiz\.kind, quizHear, quizPick\)/);
+  assert.match(edit, /view === GUESS_VIEW && quiz\)[\s\S]{0,160}startQuiz\(quizSpec\.pinned \? quizSpec/);
   assert.match(edit, /row && row\.build/, 'and the exercise path is guarded too');
 });
 
@@ -618,7 +639,7 @@ test('the lit pad is the question, so pressing pads does not answer it', () => {
   /* And the prompt is lit deliberately — the one place a quiz lights pads. */
   const fn = code.match(/function collectPrompt\(\) \{([\s\S]*?)\n\}/)[1];
   assert.match(fn, /quizPick/);
-  assert.doesNotMatch(fn, /settings\.guidance/, 'the question is not a hint');
+  assert.doesNotMatch(fn, /stage/, 'the question is not a hint');
 });
 
 test('Record is the help button in a quiz, and no longer skips the question', () => {

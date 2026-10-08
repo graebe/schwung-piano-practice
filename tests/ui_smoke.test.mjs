@@ -91,9 +91,9 @@ const KNOB1 = 71;
 
 /*
  * Getting about the lesson tree. Rows are found by facts that hold whatever
- * files are loaded — Basics is always first, and the jog clamps, so the end of
- * the top list is always Progress with Quiz just above it — rather than by
- * counting rows that the next lesson added would move.
+ * files are loaded — the Learning Program is first, Basics second and Quiz
+ * third, and the jog clamps, so the end of the top list is always Progress —
+ * rather than by counting rows that the next lesson added would move.
  */
 const jog = (n) => {
   for (let i = 0; i < Math.abs(n); i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, n > 0 ? 1 : 127));
@@ -105,8 +105,7 @@ const click = () => {
 /* Quiz rows: 0-1 Guess, 2-3 Hear, 4-5 Pick; notes then chords. */
 function openQuiz(row) {
   globalThis.init();
-  jog(60);
-  jog(-1);
+  jog(2);
   click();
   jog(row);
   click();
@@ -119,6 +118,7 @@ function openProgress() {
 /* Basics › Scales › Major, highlight on its first drill, Up & down. */
 function toScale() {
   globalThis.init();
+  jog(1);
   click();
   click();
   click();
@@ -247,7 +247,8 @@ test('a whole round can be played to its result screen', () => {
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.tick();
 
-  jog(-1);                                             /* Quiz */
+  jog(-60);
+  jog(2);                                              /* Quiz */
   click();
   click();                                             /* Guess: notes */
   /* Hammer every pad repeatedly: whatever the prompt is, this answers it. */
@@ -334,7 +335,7 @@ test('a song opens its levels, and a level arms', () => {
   };
 
   globalThis.init();
-  jog(1);                                                 /* Classics */
+  jog(3);                                                 /* Classics */
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   assert.match(screen(), /CLASSICS/, 'the category opens under its own name');
   /* To the bottom of Classics — the jog clamps, so this lands on its last
@@ -395,6 +396,7 @@ test('a chord lesson opens from Basics and arms at both hands', () => {
    * screen() starts listening for it. */
   const open = () => globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   globalThis.init();
+  jog(1);
   open();                        /* Basics */
   jog(1);
   open();                        /* Chords */
@@ -649,6 +651,9 @@ test('a scrub lights the next note, and running puts the pads back', async () =>
   const padsOf = (pitch) => padsForPitch(pitch, DEFAULT_TRANSPOSE).slice().sort();
 
   armScale();                                  /* C major up and down, from C4 */
+  /* Stage 2: the reading-first rule this test is about. Stage 1 lights the
+   * notes as they come, which a test of its own covers below. */
+  jog(1);
   assert.deepEqual(lit(), [], 'a freshly armed exercise starts dark');
 
   /* Nine units is a beat: the playhead lands on the scale's second note, D4. */
@@ -656,7 +661,7 @@ test('a scrub lights the next note, and running puts the pads back', async () =>
   assert.deepEqual(lit(), padsOf(62), 'the ready screen lights the note it landed on');
 
   globalThis.onMidiMessageInternal(CC(RECORD, 127));          /* practise from there */
-  assert.deepEqual(lit(), [], 'running, with Guide pads off, nothing is lit');
+  assert.deepEqual(lit(), [], 'running at stage 2, nothing is lit');
 
   globalThis.onMidiMessageInternal(CC(RECORD, 127));          /* pause */
   assert.deepEqual(lit(), [], 'a plain pause is not a scrub');
@@ -666,6 +671,237 @@ test('a scrub lights the next note, and running puts the pads back', async () =>
   globalThis.onMidiMessageInternal(CC(RECORD, 127));          /* resume */
   assert.deepEqual(lit(), [], 'and resuming hands the pads back');
   delete globalThis.__leds;
+});
+
+/* ---- Progress, stages and the program, driven end to end ------------------- */
+
+/*
+ * Play the armed C major scale perfectly on a frozen clock: every note pressed
+ * on its beat, then the clock run past the end. Built from the same catalog the
+ * module builds, with the module's default settings.
+ */
+async function scaleChart() {
+  const CAT = await import(new URL('../src/catalog.mjs', import.meta.url));
+  const { DEFAULT_TRANSPOSE } = await import(new URL('../src/padmap.mjs', import.meta.url));
+  const root = CAT.buildCatalog({ gen: { rootPc: 0, mode: 'major', bpm: 80, transpose: DEFAULT_TRANSPOSE, seed: 1 } });
+  return CAT.findById(root, 'basics/scales/major/up-down').node.build();
+}
+
+async function playPerfectly(chart, { wrong = 0 } = {}) {
+  const { padsForPitch, DEFAULT_TRANSPOSE } = await import(new URL('../src/padmap.mjs', import.meta.url));
+  const msPerBeat = 60000 / 80;
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  const start = clock;
+  let stray = wrong;
+  for (const e of chart.events) {
+    const at = start + (e.beat + 4) * msPerBeat;
+    while (clock < at) { clock += 10; globalThis.tick(); }
+    for (const pitch of e.pitches) {
+      const pad = padsForPitch(pitch, DEFAULT_TRANSPOSE)[0];
+      globalThis.onMidiMessageInternal([0x90, pad, 100]);
+      globalThis.onMidiMessageInternal([0x80, pad, 0]);
+      if (stray-- > 0) {
+        /* A pad no note wants: the far corner, an octave and more away. */
+        globalThis.onMidiMessageInternal([0x90, PAD + 31, 100]);
+        globalThis.onMidiMessageInternal([0x80, PAD + 31, 0]);
+      }
+    }
+    globalThis.tick();
+  }
+  advanceMs(4000, 10);
+}
+
+function capture() {
+  const printed = [];
+  const real = globalThis.print;
+  globalThis.print = (x, y, str) => { printed.push(String(str)); };
+  return {
+    /* With no input, onResume is what forces the repaint: a screen that has
+     * not changed is not drawn again. */
+    frame(act) {
+      printed.length = 0;
+      (act || globalThis.onResume)();
+      /* The draw is throttled on the clock: spin until a frame lands. */
+      const until = Date.now() + 500;
+      do {
+        clock += 40;
+        globalThis.tick();
+      } while (!printed.length && Date.now() < until);
+      return printed.join(' | ');
+    },
+    restore() { globalThis.print = real; },
+  };
+}
+
+test('a whole run ends on its result, is saved, and Back starts it again', async () => {
+  const chart = await scaleChart();
+  const screen = capture();
+  freezeClock();
+  hostCalls.writes.length = 0;
+  armScale();
+  await playPerfectly(chart);
+
+  const result = screen.frame();
+  assert.match(result, new RegExp(chart.events.length + ' of ' + chart.events.length + ' hit'),
+    'the result names what you hit: ' + result);
+  assert.match(result, /S1 DONE/, 'a perfect stage 1 run passes stage 1');
+  assert.match(result, /CLICK S2  SHIFT next/, 'and offers stage 2 next');
+  assert.ok(hostCalls.writes.some((p) => p.endsWith('/progress.json')), 'the attempt is saved');
+
+  /* Back is another go from the start — now at stage 2 — not the list. */
+  const ready = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
+  assert.match(ready, /S2 pads dark/, 'Back lands on the ready screen, on the stage you have not passed');
+  const list = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
+  assert.match(list, /MAJOR/, 'and the press after that is the list');
+  assert.match(list, /Up & down/);
+  assert.match(list, /50%/, 'where the row now shows how far you have got: stage 1 of 2');
+
+  screen.restore();
+  thawClock();
+});
+
+test('a run with wrong presses scores them, and a scrubbed run is not recorded', async () => {
+  const chart = await scaleChart();
+  const screen = capture();
+  freezeClock();
+  armScale();
+  await playPerfectly(chart, { wrong: 5 });
+  const result = screen.frame();
+  assert.match(result, /5 wrong/, result);
+  assert.doesNotMatch(result, /DONE/, 'five strays on fifteen notes is not a pass');
+
+  /* From a scrubbed bar: passage practice, straight back to the ready screen. */
+  hostCalls.writes.length = 0;
+  globalThis.onMidiMessageInternal(CC(BACK, 127));          /* to the ready screen */
+  for (let i = 0; i < 36; i++) globalThis.onMidiMessageInternal(CC(KNOB1, 1));
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  advanceMs(30000, 20);
+  assert.equal(hostCalls.writes.some((p) => p.endsWith('/progress.json')), false,
+    'a run started part way through records nothing');
+  screen.restore();
+  thawClock();
+});
+
+test('stage 1 lights the notes as they come, and stage 2 keeps the pads dark', async () => {
+  const { LED_TARGET_NEAR, LED_TARGET_FAR } = await import(new URL('../src/padmap.mjs', import.meta.url));
+  freezeClock();
+  globalThis.__leds = {};
+  const guided = () => {
+    for (let i = 0; i < 5; i++) globalThis.tick();
+    return Object.values(globalThis.__leds).filter((c) => c === LED_TARGET_NEAR || c === LED_TARGET_FAR).length;
+  };
+  armScale();
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  advanceMs(2600);                                     /* into the first notes */
+  assert.ok(guided() > 0, 'stage 1 lights the next note');
+
+  globalThis.onMidiMessageInternal(CC(BACK, 127));     /* restart: the ready screen */
+  jog(1);                                              /* stage 2 */
+  globalThis.__leds = {};
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  advanceMs(2600);
+  assert.equal(guided(), 0, 'stage 2 lights nothing');
+  delete globalThis.__leds;
+  thawClock();
+});
+
+test('Continue opens the next step, and Skip passes it by', () => {
+  const screen = capture();
+  globalThis.init();
+  const program = screen.frame(click);                  /* into the Learning Program */
+  assert.match(program, /Next: Major up/, 'a fresh start begins with Reading: ' + program);
+  assert.match(program, /Skip: Major up/);
+
+  jog(1);
+  click();                                              /* Skip */
+  /* A skip is not practice, so Reading keeps its turn: the step after. */
+  const skipped = screen.frame();
+  assert.match(skipped, /Next: Major up \| S1/, 'the step after the skipped one: ' + skipped);
+
+  globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
+  const ready = screen.frame(click);                    /* Continue */
+  assert.match(ready, /S1 pads lit/, 'the step arms on stage 1: ' + ready);
+  screen.restore();
+});
+
+test('a track lists its units, and its next step is marked', () => {
+  const screen = capture();
+  globalThis.init();
+  click();                                              /* Learning Program */
+  jog(2);
+  const tracks = screen.frame(click);                   /* Reading */
+  assert.match(tracks, /READING/);
+  assert.match(tracks, /First notes/);
+  const steps = screen.frame(click);                    /* First notes */
+  assert.match(steps, /Major up & down/);
+  const ready = screen.frame(click);
+  assert.match(ready, /S1 pads lit/);
+  screen.restore();
+});
+
+test('Next from a result follows the track, and Shift moves on', async () => {
+  const chart = await scaleChart();
+  const screen = capture();
+  freezeClock();
+  globalThis.init();
+  click();                                              /* Learning Program */
+  click();                                              /* Continue: Major up & down */
+  await playPerfectly(chart);
+  /* Shift + click: stage 1 is enough, on to the next step of Reading. */
+  globalThis.onMidiMessageInternal(CC(SHIFT, 127));
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.onMidiMessageInternal(CC(SHIFT, 0));
+  const next = screen.frame();
+  assert.match(next, /S1 pads lit/, 'the next step, armed: ' + next);
+  /* The program now points past it: Continue offers the step after. */
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  globalThis.onMidiMessageInternal(CC(MENU, 127));
+  const list = screen.frame(() => { globalThis.onMidiMessageInternal(CC(BACK, 127)); });
+  assert.doesNotMatch(list, /Next: Major up &/, 'a moved-on step is not offered again: ' + list);
+  screen.restore();
+  thawClock();
+});
+
+test('the progress list opens charts, and the jog walks them', () => {
+  const screen = capture();
+  globalThis.init();
+  jog(60);
+  const list = screen.frame(click);
+  assert.match(list, /PROGRESS 0%/);
+  for (const row of ['Overall', 'Reading track', 'Chords track']) assert.match(list, new RegExp(row));
+  const overall = screen.frame(click);
+  assert.match(overall, /OVERALL/);
+  assert.match(overall, /nothing passed yet/);
+  for (let i = 0; i < 6; i++) {
+    globalThis.onMidiMessageInternal(CC(JOG_TURN, i % 2 ? 127 : 1));
+    globalThis.tick();
+  }
+  const back = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
+  assert.match(back, /PROGRESS/);
+  const top = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
+  assert.match(top, /EXERCISE/);
+  screen.restore();
+});
+
+test('Back from a quiz result is a fresh round', () => {
+  freezeClock();
+  openQuiz(0);
+  /* Every pad, then long enough for the quiz to move on: whatever the prompt
+   * is, this answers it. */
+  for (let round = 0; round < 25; round++) {
+    for (let pad = PAD; pad < PAD + 32; pad++) {
+      globalThis.onMidiMessageInternal([0x90, pad, 100]);
+      globalThis.onMidiMessageInternal([0x80, pad, 0]);
+    }
+    advanceMs(600);
+  }
+  const screen = capture();
+  assert.match(screen.frame(), /PLAY again CLICK next|SHIFT next/, 'the round should be over');
+  const after = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
+  assert.match(after, /NOTE/, 'a new round of the same drill: ' + after);
+  assert.match(after, /0\/20/);
+  screen.restore();
+  thawClock();
 });
 
 test('unloading is clean, and resume does not throw', () => {

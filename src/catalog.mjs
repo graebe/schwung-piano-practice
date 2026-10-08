@@ -29,8 +29,10 @@ import { DEFAULT_TRANSPOSE } from './padmap.mjs';
 /* The value column of a row that opens something. */
 export const FOLDER = '>';
 
-export function folder(label, children) {
-  return { label, value: FOLDER, children };
+export function folder(label, children, key) {
+  const node = { label, value: FOLDER, children };
+  if (key) node.key = key;
+  return node;
 }
 
 /*
@@ -39,16 +41,23 @@ export function folder(label, children) {
  * time the key or the transpose changes — building all of them on every turn
  * of the Key knob would be work for folders nobody is looking at.
  */
-export function lazyFolder(label, make) {
+export function lazyFolder(label, make, key) {
   let rows = null;
-  return {
+  const node = {
     label,
     value: FOLDER,
+    /* Rows made after the tree was stamped are stamped as they appear, so an
+     * id never depends on whether a folder happened to be opened. */
     get children() {
-      if (!rows) rows = make();
+      if (!rows) {
+        rows = make();
+        if (this.id !== undefined) stampChildren(rows, this.id);
+      }
       return rows;
     },
   };
+  if (key) node.key = key;
+  return node;
 }
 
 /* Asked without opening it: `in` sees the getter without calling it. */
@@ -64,14 +73,18 @@ export function songNode(song) {
   const levels = availableLevels(song);
   if (levels.length > 1) {
     return folder(song.name, levels.map((lv) => ({
-      label: lv.label,
-      value: lv.step,
+      /* The rung's code leads the label, so the value column is free for how
+       * far you have got with it. */
+      label: lv.step + ' ' + lv.label,
+      value: '',
+      key: lv.id,
       build: () => projectLevel(song, lv.id),
-    })));
+    })), song.id);
   }
   return {
     label: song.name,
-    value: 'f',
+    value: '',
+    key: song.id,
     build: () => (levels.length ? projectLevel(song, levels[0].id) : null) || song,
   };
 }
@@ -101,6 +114,34 @@ function leaves(drills) {
   return drills.map((d) => ({ label: d.label, value: '', build: d.build }));
 }
 
+/* ---- Ids -------------------------------------------------------------------- */
+
+/*
+ * Every node gets a stable id: its parent's id, a slash, and its own key — the
+ * slugged label unless something steadier is given. Progress is filed under
+ * it, so it must not move when the key, the octave or the folder layout does:
+ * a progression's id is its shape, not its tonic, and a bundled song's is its
+ * manifest id alone, so moving it to another category keeps what you did.
+ */
+export function slug(label) {
+  return String(label).toLowerCase().replace(/[^a-z0-9#]+/g, '-').replace(/^-+|-+$/g, '') || 'x';
+}
+
+function stampNode(node, parentId) {
+  const key = node.key || slug(node.label);
+  node.id = node.absolute ? key : (parentId ? parentId + '/' + key : key);
+  if (!('children' in node)) return;
+  /* A lazy folder stamps its own rows when they are made; asking for them
+   * here would build every lesson in the tree. */
+  const desc = Object.getOwnPropertyDescriptor(node, 'children');
+  if (desc && desc.get) return;
+  stampChildren(node.children, node.id);
+}
+
+export function stampChildren(rows, parentId) {
+  for (let i = 0; i < rows.length; i++) stampNode(rows[i], parentId);
+}
+
 /*
  * Basics › Random: notes and chords drawn fresh each time a row is opened.
  *
@@ -115,8 +156,9 @@ export function randomFolder(gen = {}) {
   const seed = () => (gen.newSeed ? gen.newSeed() : gen.seed || 1);
   const { lo, hi } = playableRange(transpose);
   const chordSet = (label, pool) => generated(folder(label, LEVELS.map((lv) => ({
-    label: lv.label,
-    value: lv.step,
+    label: lv.step + ' ' + lv.label,
+    value: '',
+    key: lv.id,
     build: () => {
       const chart = projectLevel(randomChordSong({ seed: seed(), pool, transpose }), lv.id);
       chart.name = label + ' ' + lv.step;
@@ -152,7 +194,7 @@ export function randomFolder(gen = {}) {
 export function basics(gen = {}) {
   const transpose = gen.transpose == null ? DEFAULT_TRANSPOSE : gen.transpose;
   const scales = () => Object.keys(MODES).map((mode) =>
-    folder(MODE_LABELS[mode], leaves(scaleDrills({ ...gen, mode }))));
+    folder(MODE_LABELS[mode], leaves(scaleDrills({ ...gen, mode })), mode));
 
   const families = () => CHORD_FAMILIES.map((fam) => lazyFolder(fam.name, () => {
     let songs;
@@ -167,6 +209,8 @@ export function basics(gen = {}) {
     /* The list names the shape, the header names it in a key: "I-V-vi-IV"
      * reads the same in every key, "G I-V-vi-IV" is what you are playing. */
     node.label = p.id;
+    /* Case kept: I-IV-V-I and i-iv-v-i are different progressions. */
+    node.key = p.id.replace(/\s+/g, '-');
     return node;
   });
 
@@ -175,7 +219,15 @@ export function basics(gen = {}) {
     lazyFolder('Chords', families),
     lazyFolder('Progressions', progressions),
     randomFolder(gen),
-  ]);
+  ], 'basics');
+}
+
+/* A bundled song's id is its manifest id alone, wherever it is filed. */
+export function fileSongNode(chart) {
+  const node = songNode(chart);
+  node.key = 'song:' + chart.id;
+  node.absolute = true;
+  return node;
 }
 
 /*
@@ -183,23 +235,59 @@ export function basics(gen = {}) {
  *   songs       [{ chart, category }] — the parsed files, in manifest order
  *   categories  [{ id, name }] — display order
  *   gen         generator options from the settings
+ *   lead        nodes before Basics
+ *   after       nodes straight after Basics
  *   tail        nodes appended at the end
  */
-export function buildCatalog({ songs = [], categories = [], gen = {}, tail = [] } = {}) {
+export function buildCatalog({
+  songs = [], categories = [], gen = {}, lead = [], after = [], tail = [],
+} = {}) {
   const known = {};
   for (let i = 0; i < categories.length; i++) known[categories[i].id] = [];
   const other = [];
   for (let i = 0; i < songs.length; i++) {
     const s = songs[i];
-    (known[s.category] || other).push(songNode(s.chart));
+    (known[s.category] || other).push(fileSongNode(s.chart));
   }
-  const children = [basics(gen)];
+  const children = lead.concat([basics(gen)], after);
   for (let i = 0; i < categories.length; i++) {
     const rows = known[categories[i].id];
-    if (rows.length) children.push(folder(categories[i].name, rows));
+    if (rows.length) children.push(folder(categories[i].name, rows, categories[i].id));
   }
-  if (other.length) children.push(folder('Other', other));
-  return folder('Exercise', children.concat(tail));
+  if (other.length) children.push(folder('Other', other, 'other'));
+  const root = folder('Exercise', children.concat(tail));
+  /* Its rows are stamped without a prefix; its own id only names it to a cache. */
+  root.id = '~';
+  stampChildren(root.children, '');
+  return root;
+}
+
+/*
+ * Every leaf in the tree by id, with a readable title for it. This opens every
+ * lazy folder, so it is built only when something has to be found by id — a
+ * step of the program, a repetition — and kept until the tree is rebuilt.
+ *
+ * The title adds the folder a leaf sits in when the leaf's own label is only
+ * meaningful there: "L1 RH melody" says nothing without its song, while a song
+ * in a category is already its own name.
+ */
+export function leafIndex(root) {
+  const index = new Map();
+  const walk = (node, parent, depth) => {
+    const kids = node.children;
+    for (let i = 0; i < kids.length; i++) {
+      const child = kids[i];
+      if (isFolder(child)) {
+        if (!child.untracked) walk(child, child, depth + 1);
+        continue;
+      }
+      /* A program step is a pointer at a row, not the row. */
+      if (!child.id || child.step || index.has(child.id)) continue;
+      index.set(child.id, { node: child, title: titleOf(child, parent, depth) });
+    }
+  };
+  walk(root, null, 0);
+  return index;
 }
 
 /* ---- Walking the tree --------------------------------------------------- */
@@ -261,6 +349,41 @@ export function navRestore(root, path) {
     if (!navPush(nav)) break;
   }
   return nav;
+}
+
+/* A folder whose rows are only made when asked for (lazyFolder). */
+export function isLazy(node) {
+  const desc = Object.getOwnPropertyDescriptor(node, 'children');
+  return Boolean(desc && desc.get);
+}
+
+function titleOf(child, parent, depth) {
+  return parent && depth > 1 ? parent.label + ' ' + child.label : child.label;
+}
+
+/*
+ * One row by id, as { node, title }, or null. Cheaper than leafIndex: a lazy
+ * folder is only opened when the id says it is on the way — turning the Key
+ * knob with a chord lesson armed rebuilds the tree, and finding the lesson in
+ * it again must not voice the other forty.
+ */
+export function findById(root, id) {
+  const walk = (node, depth) => {
+    const kids = node.children;
+    for (let i = 0; i < kids.length; i++) {
+      const child = kids[i];
+      if (!isFolder(child)) {
+        if (child.id === id && !child.step) return { node: child, title: titleOf(child, node === root ? null : node, depth) };
+        continue;
+      }
+      if (child.untracked) continue;
+      if (isLazy(child) && !(child.id && id.indexOf(child.id + '/') === 0)) continue;
+      const hit = walk(child, depth + 1);
+      if (hit) return hit;
+    }
+    return null;
+  };
+  return id ? walk(root, 1) : null;
 }
 
 /* The node a path ends on, or null. */

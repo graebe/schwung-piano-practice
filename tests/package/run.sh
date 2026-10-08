@@ -18,7 +18,7 @@ node -e '
   if (!release.download_url.includes("/v" + manifest.version + "/")) throw new Error("release URL version mismatch");
 
   const text = help.children.flatMap(s => s.lines).join(" ");
-  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Guide pads", "Any octave", "index.json", "Pick the song", "L3 Both hands"]) {
+  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Stage 1", "Learning Program", "Repetition", "Any octave", "index.json", "Pick the song", "L3 Both hands"]) {
     if (!text.includes(phrase)) throw new Error("help missing: " + phrase);
   }
 '
@@ -98,6 +98,7 @@ grep -q 'settings.json' scripts/install.sh
 # The progress history must survive an update. This is invisible when broken
 # until someone's trend is already gone, so it is asserted rather than trusted.
 grep -q 'stats.json' scripts/install.sh
+grep -q 'progress.json' scripts/install.sh
 grep -q 'exercises' scripts/install.sh
 grep -q 'verify-package.sh' scripts/package.sh
 

@@ -102,20 +102,24 @@ export const TEXT_MAX_PX = SCREEN_W - 2;
 
 /* ---- Round result ------------------------------------------------------- */
 /*
- * Two columns, so no pair of cells can collide whatever the numbers do: the
- * left cell starts at RESULT_LEFT_X, the right one is right-aligned to
- * RESULT_RIGHT_X, and each is fitted to its own budget before it is drawn.
+ * The chart is the point of the screen, so it gets everything the numbers do
+ * not need. The headline sits top left; the two figures that qualify it are
+ * right-aligned beside it, on the two text rows the big digits span; one row
+ * of detail runs under it; and the chart takes the rest.
  *
- *   y 10..24  the rate, big        y 26..32  row A
- *   y 34..40  row B                y 42..53  the chart
+ *   y 10..24  headline, big, with two figures to its right
+ *   y 26..32  row A (the quiz only)
+ *   y 35..54  quiz chart          y 27..54  exercise chart
  */
 export const RESULT_BIG_Y = 10;
 export const RESULT_BIG_SCALE = 3;          /* 15px tall; scale 4 left no room */
 export const RESULT_LEFT_X = 3;
 export const RESULT_RIGHT_X = SCREEN_W - 3;
+export const RESULT_SIDE_A_Y = 10;
+export const RESULT_SIDE_B_Y = 18;
 export const RESULT_ROW_A_Y = 26;
-export const RESULT_ROW_B_Y = 34;
-export const RESULT_PLOT = { x: 3, y: 42, w: SCREEN_W - 6, h: 12 };
+export const RESULT_PLOT = { x: 3, y: 35, w: SCREEN_W - 6, h: 19 };
+export const EXERCISE_PLOT = { x: 3, y: 27, w: SCREEN_W - 6, h: 27 };
 
 /* ---- Progress ----------------------------------------------------------- */
 export const PROGRESS_TITLE_Y = 9;

@@ -53,7 +53,6 @@ export const SETTINGS_DEF = [
     key: 'mode', label: 'Scale', type: 'list', values: Object.keys(MODES), rebuild: true,
     format: (v) => MODE_LABELS[v] || v,
   },
-  { key: 'guidance', label: 'Guide pads', type: 'bool', format: onOff },
   { key: 'anyOctave', label: 'Any octave', type: 'bool', format: onOff },
   {
     /* Chromatic prompts in the note guesser. The black notes are the hard ones

@@ -36,6 +36,8 @@ import * as SET from './settings_def.mjs';
 import * as GUESS from './guess.mjs';
 import * as LEDS from './led_paint.mjs';
 import * as STATS from './stats.mjs';
+import * as PROG from './progress.mjs';
+import * as PLAN from './program.mjs';
 import * as NOTATION from './notation.mjs';
 import {
   msToBeats, beatsToMs, chartTotalBeats, beatsPerBar, isBeatEdge, applyWait, xToBeat,
@@ -49,6 +51,7 @@ import * as CAT from './catalog.mjs';
 const MODULE_DIR = '/data/UserData/schwung/modules/tools/piano-practice';
 const SETTINGS_PATH = MODULE_DIR + '/settings.json';
 const STATS_PATH = MODULE_DIR + '/stats.json';
+const PROGRESS_PATH = MODULE_DIR + '/progress.json';
 
 /* CCs and notes (src/shared/constants.mjs). */
 const CC_JOG_CLICK = 3;
@@ -326,7 +329,7 @@ function allNotesOff() {
  * A saved settings.json always wins over a default, so changing one silently
  * does nothing for anybody who has already used the module.
  */
-const SETTINGS_VERSION = 6;
+const SETTINGS_VERSION = 7;
 
 const settings = {
   version: SETTINGS_VERSION,
@@ -335,7 +338,6 @@ const settings = {
   rootPc: 0,
   mode: 'major',
   transpose: PAD.DEFAULT_TRANSPOSE,
-  guidance: false, /* sight-reading first — the user's call */
   anyOctave: false,
   halfTones: true,   /* the guesser asks about black notes too */
   roundSize: 20,     /* prompts per round; 0 = endless practice, unrecorded */
@@ -405,6 +407,9 @@ function loadSettings() {
     settings.mode = 'majorPent';
     migrated = true;
   }
+  /* v7: Guide pads became each exercise's stage — stage 1 lights the pads,
+   * stage 2 does not — so the stored setting is simply no longer read, and
+   * writing the file drops it. */
   if (storedVersion !== SETTINGS_VERSION) {
     settings.version = SETTINGS_VERSION;
     migrated = true;
@@ -440,6 +445,15 @@ function saveStats() {
   writeFile(STATS_PATH, STATS.serialiseStats(stats));
 }
 
+function loadProgress() {
+  progress = PROG.parseProgress(readFile(PROGRESS_PATH));
+}
+
+/* One write per finished attempt or skip, like the stats. */
+function saveProgress() {
+  writeFile(PROGRESS_PATH, PROG.serialiseProgress(progress));
+}
+
 function flushSettings(force) {
   if (!settingsDirty) return;
   const t = now();
@@ -459,8 +473,11 @@ const READY = 'ready';
 const RUNNING = 'running';
 const SETTINGS = 'settings';
 const GUESS_VIEW = 'guess';
-const RESULT_VIEW = 'result';
+/* controls.mjs's name for it, so Play and Record pulse here as they do on the
+ * ready screen: both start the next attempt. */
+const RESULT_VIEW = CTRL.SUMMARY;
 const PROGRESS_VIEW = 'progress';
+const PROGRESS_DETAIL = 'progress-detail';
 
 let view = MENU;
 let chart = null;
@@ -503,12 +520,19 @@ const LED_INTERVAL_MS = 20;
 let lastLedMs = 0;
 
 let stats = STATS.emptyStats();
-let lastResult = null;       /* the round just finished, for the result screen */
-let progressDrills = [];     /* drills with history, most recent first */
-let progressIndex = 0;
+let lastResult = null;       /* the attempt just finished, for the result screen */
+let progress = PROG.emptyProgress();
+const agg = PROG.createAggregator();
+let tracks = [];             /* the Learning Program (program.mjs) */
+let progressRows = [];       /* the Progress list: overview, tracks, recent items */
+let progressCursor = 0;
 let quiz = null;
 let quizHear = false;        /* ear training: the prompt is played, not shown */
 let quizPick = false;        /* multiple choice: the pad is lit, you name it */
+/* What the open quiz asks: { kind, hear, pick, halfTones, chordSet, pinned }.
+ * A program step pins its options; a row of the Quiz folder follows the
+ * settings. */
+let quizSpec = null;
 let quizSolvedAt = 0;        /* brief confirmation before the next prompt */
 const guessOff = [];         /* ms-scheduled note-offs; the quiz has no clock */
 const GUESS_ADVANCE_MS = 450;
@@ -516,9 +540,16 @@ const GUESS_ADVANCE_MS = 450;
 /* The lesson tree, and the folders open in it (catalog.mjs). */
 let catalog = null;
 let nav = [];
-/* Where the armed exercise sits in the tree, which the cursor may have left —
- * kept as a path so it can be found again in a tree rebuilt for a new key. */
-let armedPath = null;
+/* The armed exercise's id, which is also where its progress is filed — and
+ * how it is found again in a tree rebuilt for a new key. */
+let armedId = null;
+/* The track it was opened from, so Next carries on along that track. */
+let armedTrack = null;
+/* 1: the target pads light as the notes arrive. 2: they do not. */
+let stage = 1;
+/* Only a run started from the top is a whole attempt; one started from a
+ * scrubbed bar is practice on a passage, and is not recorded. */
+let runFromTop = false;
 let fileSongs = [];       /* [{ chart, category }] in manifest order */
 let fileCategories = [];
 let ledPhase = -1;        /* Play-button pulse, so we only write on a change */
@@ -559,54 +590,97 @@ function loadFileExercises() {
   }
 }
 
+/* The program's song track is made from the files, so it follows them. */
+function buildTracks() {
+  tracks = PLAN.buildProgram({ songs: fileSongs });
+}
+
 /*
  * The tree, built again whenever a setting that shapes the generated lessons
  * changes. The open folders are carried across by path, so turning the key
  * with Basics › Progressions open leaves you in Basics › Progressions.
  */
+/* The Quiz folder's rows. Their ids follow the settings that change what a
+ * drill asks, so a chromatic round and an in-key round are filed apart. */
+const QUIZ_ROWS = [
+  { label: 'Guess: notes', guess: GUESS.NOTES },
+  { label: 'Guess: chords', guess: GUESS.CHORDS },
+  { label: 'Hear: notes', guess: GUESS.NOTES, hear: true },
+  { label: 'Hear: chords', guess: GUESS.CHORDS, hear: true },
+  { label: 'Pick: notes', guess: GUESS.NOTES, pick: true },
+  { label: 'Pick: chords', guess: GUESS.CHORDS, pick: true },
+];
+
+function settingsQuiz(row) {
+  return {
+    kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick),
+    halfTones: settings.halfTones, chordSet: settings.chordSet, pinned: false,
+  };
+}
+
+function quizId(spec) {
+  return 'quiz:' + STATS.drillId(spec);
+}
+
 function rebuildMenu() {
   /* The guesser is a mode, not an exercise, but putting it in the one list you
    * already open means no new screen and no new gesture — and which entry you
    * pick is also how you choose notes or chords. */
-  const quiz = CAT.folder('Quiz', [
-    { label: 'Guess: notes', guess: GUESS.NOTES, value: '?' },
-    { label: 'Guess: chords', guess: GUESS.CHORDS, value: '?' },
-    { label: 'Hear: notes', guess: GUESS.NOTES, hear: true, value: '♪' },
-    { label: 'Hear: chords', guess: GUESS.CHORDS, hear: true, value: '♪' },
-    { label: 'Pick: notes', guess: GUESS.NOTES, pick: true, value: '3' },
-    { label: 'Pick: chords', guess: GUESS.CHORDS, pick: true, value: '3' },
-  ]);
+  const quizRows = QUIZ_ROWS.map((r) => ({
+    ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true,
+  }));
   catalog = CAT.buildCatalog({
     songs: fileSongs,
     categories: fileCategories,
     gen: generatorOptions(),
-    tail: [quiz, { label: 'Progress', progress: true, value: '~' }],
+    /* The guided way in leads; the quiz sits straight after Basics. */
+    lead: [PLAN.programFolder(tracks, repetitionRows)],
+    after: [CAT.folder('Quiz', quizRows, 'quiz')],
+    tail: [{ label: 'Progress', progress: true, value: '~' }],
   });
   nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
 }
 
-function currentDrill() {
-  return STATS.drillId({
-    hear: quizHear,
-    pick: quizPick,
-    kind: quiz ? quiz.kind : GUESS.NOTES,
-    chordSet: settings.chordSet,
-    halfTones: settings.halfTones,
-  });
+/* A row by id, wherever it sits in the tree. */
+function findLeaf(id) {
+  const hit = CAT.findById(catalog, id);
+  return hit ? hit.node : null;
 }
 
-function openProgress() {
-  progressDrills = STATS.drillsWithHistory(stats);
-  progressIndex = 0;
-  view = PROGRESS_VIEW;
-  dirty = true;
-  ledDirty = true;
-  announce('Progress.');
+/* What an item is called on its own, outside the folder it sits in. */
+function itemTitle(id) {
+  if (id.indexOf('quiz:') === 0) return STATS.drillLabel(id.slice(5));
+  const step = PLAN.findStep(tracks, id);
+  if (step) return PLAN.stepTitle(step);
+  const hit = CAT.findById(catalog, id);
+  return hit ? hit.title : id;
+}
+
+/*
+ * Today's repetitions, as rows. Made when the Repetition folder is looked at,
+ * and kept until the progress or the day changes — the list must not reshuffle
+ * under the cursor while you walk it.
+ */
+let repCache = { rev: -1, day: -1, rows: [] };
+
+function repetitionRows() {
+  const day = Math.floor(Date.now() / 86400000);
+  if (repCache.rev === progress.rev && repCache.day === day) return repCache.rows;
+  const rows = PROG.repetitionSession(progress, Date.now()).map((r) => ({
+    label: itemTitle(r.id), value: '', repId: r.id, done: r.done,
+  }));
+  repCache = { rev: progress.rev, day, rows };
+  return rows;
+}
+
+function currentDrill() {
+  return STATS.drillId(quizSpec || { kind: GUESS.NOTES, halfTones: settings.halfTones });
 }
 
 /*
  * A round is over. Record it, then show the result — the rate on its own says
- * nothing, so the screen also says whether it beat the drill's best.
+ * nothing, so the screen also says whether it beat the drill's best, and the
+ * round counts toward the drill's progress like any played exercise.
  */
 function finishRound() {
   const drill = currentDrill();
@@ -616,6 +690,7 @@ function finishRound() {
   });
   const best = STATS.summarise(STATS.forDrill(stats, drill)).best;
   lastResult = {
+    kind: 'quiz',
     drill,
     rate: STATS.recordRate(rec),
     ms,
@@ -632,25 +707,60 @@ function finishRound() {
    * trying to beat, not the one you have just set. */
   lastResult.records = STATS.forDrill(stats, drill);
   saveStats();
+
+  const res = PROG.recordAttempt(progress, quizId(quizSpec), {
+    stage: PROG.quizStage(quiz.hintsUsed),
+    score: PROG.quizScore(quiz.correct, quiz.wrong),
+    at: Date.now(),
+  });
+  saveProgress();
+  lastResult.passed = res.passed;
+  lastResult.footer = resultFooter();
+
   allNotesOff();
   view = RESULT_VIEW;
   dirty = true;
   ledDirty = true;
   announce('Round done. ' + Math.round(lastResult.rate) + ' per minute.'
-    + (lastResult.isBest ? ' Best yet.' : ''));
+    + (lastResult.isBest ? ' Best yet.' : '') + passedWords(res.passed));
 }
 
-function startQuiz(kind, hear, pick) {
+function passedWords(passed) {
+  if (passed === 2) return ' Finished.';
+  if (passed === 1) return ' Stage one done.';
+  return '';
+}
+
+/* The id of whatever was just played: the armed exercise, or the quiz. */
+function currentItemId() {
+  if (lastResult && lastResult.kind === 'quiz') return quizSpec ? quizId(quizSpec) : null;
+  return armedId;
+}
+
+/*
+ * What a click does on a result. If you have just passed stage 1 and not
+ * stage 2, the next thing is stage 2 of the same piece; Shift moves on with
+ * stage 1 counted as enough. Otherwise it is the program's next step.
+ */
+function resultFooter() {
+  const it = PROG.item(progress, currentItemId());
+  const twoNext = it && PROG.stagePassed(it, 1) && !PROG.isFinished(it);
+  if (twoNext) return 'CLICK S2  SHIFT next';
+  return lastResult.kind === 'quiz' ? 'PLAY again CLICK next' : 'REC again  CLICK next';
+}
+
+function startQuiz(spec) {
   allNotesOff();
-  quizHear = Boolean(hear);
-  quizPick = Boolean(pick);
+  quizSpec = spec;
+  quizHear = Boolean(spec.hear);
+  quizPick = Boolean(spec.pick);
   quiz = GUESS.createQuiz({
-    kind,
+    kind: spec.kind,
     rootPc: settings.rootPc,
     mode: settings.mode,
     transpose: settings.transpose,
-    halfTones: settings.halfTones,
-    chordSet: settings.chordSet,
+    halfTones: spec.halfTones,
+    chordSet: spec.chordSet,
     pick: quizPick,
     roundSize: settings.roundSize,
     fifths: keyFifths(),
@@ -702,20 +812,145 @@ function openRow() {
     openProgress();
     return;
   }
-  if (row.guess) {
-    startQuiz(row.guess, row.hear, row.pick);
+  if (row.continueRow) {
+    const next = PLAN.continueStep(progress, tracks);
+    if (next) openStep(next.step, next.track);
     return;
   }
-  const built = row.build();
+  if (row.skipRow) {
+    skipContinue();
+    return;
+  }
+  if (row.step) {
+    openStep(row.step, openTrack());
+    return;
+  }
+  if (row.repId) {
+    armedTrack = null;
+    openItem(row.repId);
+    return;
+  }
+  if (row.guess) {
+    armedTrack = null;
+    startQuiz(settingsQuiz(row));
+    return;
+  }
+  armedTrack = null;
+  armLeaf(row);
+}
+
+/* The track whose folder the list is in, if it is in one. */
+function openTrack() {
+  for (let i = nav.length - 1; i >= 0; i--) if (nav[i].node.track) return nav[i].node.track;
+  return null;
+}
+
+/* A program step: a pointer at a row, or a quiz with its options pinned. */
+function openStep(step, track) {
+  armedTrack = track || PLAN.trackOf(tracks, step.id);
+  if (step.quiz) {
+    startQuiz({ ...step.quiz, pinned: true });
+    return;
+  }
+  const node = findLeaf(step.id);
+  if (node) armLeaf(node);
+}
+
+/* Anything by its id: a repetition, or what Next lands on. */
+function openItem(id) {
+  if (id.indexOf('quiz:') === 0) {
+    const spec = PLAN.quizFromId(id);
+    if (spec) startQuiz({ ...spec, pinned: true });
+    return;
+  }
+  const node = findLeaf(id);
+  if (node) armLeaf(node);
+}
+
+/* Arm a playable row on the first stage you have not yet passed. */
+function armLeaf(node) {
+  const built = node.build ? node.build() : null;
   if (!built) return;
-  armedPath = CAT.navPath(nav);
+  armedId = node.id || null;
   chart = built;
   if (chart.source !== 'file') chart.bpm = settings.bpm;
+  stage = PROG.recommendedStage(PROG.item(progress, armedId));
   armRun();
   view = READY;
-  announce(chart.name + '. Press play to start.');
+  announce(chart.name + '. Stage ' + stage + '. Press play to start.');
   dirty = true;
   ledDirty = true;
+}
+
+/*
+ * Past Continue's step without playing it. A step whose stage 1 is passed is
+ * moved on from — counted finished at stage 1 — rather than skipped.
+ */
+function skipContinue() {
+  const next = PLAN.continueStep(progress, tracks);
+  if (!next) return;
+  passOver(next.step.id);
+  announce('Skipped. Next: ' + itemTitle((PLAN.continueStep(progress, tracks) || next).step.id) + '.');
+  dirty = true;
+}
+
+function passOver(id) {
+  if (!PROG.moveOn(progress, id, Date.now())) PROG.skipItem(progress, id, Date.now());
+  saveProgress();
+}
+
+/*
+ * Next, from a result: stage 2 of the same piece if stage 1 has just been
+ * passed, otherwise the next step of the track you came from — or, outside
+ * the program, wherever Continue would send you.
+ */
+function goNext() {
+  const id = currentItemId();
+  const it = PROG.item(progress, id);
+  if (it && PROG.stagePassed(it, 1) && !PROG.isFinished(it)) {
+    if (lastResult && lastResult.kind === 'quiz') {
+      startQuiz(quizSpec);
+    } else {
+      stage = 2;
+      armRun();
+      view = READY;
+      announce('Stage two. The pads stay dark.');
+    }
+    dirty = true;
+    ledDirty = true;
+    return;
+  }
+  const track = armedTrack || PLAN.trackOf(tracks, id);
+  const step = track ? PLAN.nextStep(progress, track) : null;
+  const next = step ? { step, track } : PLAN.continueStep(progress, tracks);
+  if (next) {
+    openStep(next.step, next.track);
+    return;
+  }
+  view = MENU;
+  dirty = true;
+  ledDirty = true;
+}
+
+/* Shift on a result: past this one, then on to the next. */
+function skipFromResult() {
+  const id = currentItemId();
+  if (id) passOver(id);
+  goNext();
+}
+
+/* Back from a result: to the start of the same thing, to try it again. */
+function retryFromResult() {
+  if (lastResult && lastResult.kind === 'quiz') {
+    startQuiz(quizSpec);
+    return;
+  }
+  stage = PROG.recommendedStage(PROG.item(progress, armedId));
+  armRun();
+  view = READY;
+  dirty = true;
+  ledDirty = true;
+  announce('Back to the start. Stage ' + stage + '.');
 }
 
 function armRun() {
@@ -748,6 +983,7 @@ function startRun(listen) {
   const from = view === READY && songBeats > 0 ? songBeats : 0;
   armRun();
   listening = Boolean(listen);
+  runFromTop = from === 0;
   runStartMs = now();
   view = RUNNING;
   /*
@@ -836,6 +1072,8 @@ function scrubBy(delta) {
   const base = Math.max(0, songBeats);
   const units = Math.round((base * SCRUB_UNITS_PER_BAR) / perBar) + delta;
   scrubCue = true;
+  /* A run that has been scrubbed is passage practice, not a whole attempt. */
+  if (view === RUNNING) runFromTop = false;
   seekTo((units * perBar) / SCRUB_UNITS_PER_BAR);
   /* Only on a bar change: this runs several times a frame while the knob is
    * turning, and the screen reader does not want a new position each time. */
@@ -873,10 +1111,44 @@ function stopRun() {
   ledDirty = true;
 }
 
+/*
+ * A whole attempt is over: score it, file it under the exercise, and show it
+ * against every attempt before it. The run is re-armed underneath, so Back or
+ * Record from the result starts again from the top.
+ */
+function finishExercise(s) {
+  const score = PROG.exerciseScore(s);
+  const before = PROG.item(progress, armedId);
+  const played = PROG.stagePlayed(before, stage);
+  const prevBest = before ? before.stages[stage - 1].best : 0;
+  const res = PROG.recordAttempt(progress, armedId, {
+    stage, score, at: Date.now(), bpm: chart.bpm,
+  });
+  saveProgress();
+  lastResult = {
+    kind: 'exercise',
+    name: chart.name,
+    percent: score * 100,
+    hits: s.hits,
+    total: s.total,
+    wrong: s.strays,
+    stage,
+    passed: res.passed,
+    isBest: played && score > prevBest,
+    history: PROG.item(progress, armedId).h,
+  };
+  lastResult.footer = resultFooter();
+  armRun();
+  view = RESULT_VIEW;
+  dirty = true;
+  ledDirty = true;
+  announce('Done. ' + Math.round(score * 100) + ' percent.' + passedWords(res.passed));
+}
+
 /* ---- LEDs --------------------------------------------------------------- */
 function targetPadsNow() {
   /* The next unresolved entry, if guidance is on. */
-  if (!settings.guidance || !run || view !== RUNNING) return null;
+  if (stage !== 1 || !run || view !== RUNNING) return null;
   const entry = run.entries[run.cursor];
   if (!entry) return null;
   const lead = entry.beat - songBeats;
@@ -900,9 +1172,9 @@ const stuckBuf = [];
 const soundingBuf = [];
 
 /*
- * Guidance ahead of time: the next unresolved entry, if Guide pads is on.
+ * Guidance ahead of time: the next unresolved entry, at stage 1.
  *
- * And, whatever Guide pads says, the note a scrub has landed on. Scrubbing is
+ * And, at either stage, the note a scrub has landed on. Scrubbing is
  * finding your place, and on an isomorphic grid "where am I" is a question
  * about the pads as much as the staff. Only while the music is parked: the
  * moment it runs, the reading-first rule is back.
@@ -915,7 +1187,7 @@ function collectTarget() {
     for (let i = 0; i < next.notes.length; i++) targetBuf.push(next.notes[i].pitch);
     return true;
   }
-  if (!settings.guidance || !run || view !== RUNNING) return false;
+  if (stage !== 1 || !run || view !== RUNNING) return false;
   const entry = run.entries[run.cursor];
   if (!entry) return false;
   const lead = entry.beat - songBeats;
@@ -937,7 +1209,7 @@ function collectTarget() {
  */
 function collectStuck() {
   stuckBuf.length = 0;
-  if (!settings.guidance || !run || view !== RUNNING || !blocked) return;
+  if (stage !== 1 || !run || view !== RUNNING || !blocked) return;
   const stuck = SCORE.blockingNotes(run);
   for (let i = 0; i < stuck.length; i++) stuckBuf.push(stuck[i].pitch);
 }
@@ -948,7 +1220,7 @@ function collectStuck() {
  * on a setting. Read from pitchRefcount, which is exactly what is down; the
  * metronome click lives there too but its pitches sit outside the grid.
  *
- * Nothing lights the answer in the guessing and hearing modes. Guide pads is a
+ * Nothing lights the answer in the guessing and hearing modes. Stage 1 is a
  * playing aid; in a quiz the hint IS the answer.
  */
 /* The lit pad IS the question in the multiple-choice drill. */
@@ -1144,22 +1416,25 @@ function draw() {
     VIEW.drawList(ctx, top.node.label.toUpperCase(), top.node.children, top.cursor, {
       footer: nav.length > 1 ? VIEW.FOLDER_HINT : VIEW.SETTINGS_HINT,
       centreFooter: true,
+      decorate: decorateRow,
     });
+  } else if (view === PROGRESS_VIEW) {
+    VIEW.drawList(ctx, 'PROGRESS ' + PROG.folderSummary(agg, progress, catalog).percent + '%',
+      progressRows, progressCursor, {
+        footer: 'CLICK chart BACK list',
+        centreFooter: true,
+        decorate: decorateRow,
+      });
   } else if (view === SETTINGS) {
     VIEW.drawList(ctx, 'SETTINGS', settingsRows(), settingsCursor, {
       footer: settingsEditing ? 'turn change  CLICK ok' : 'CLICK edit SHIFT back',
       editing: settingsEditing,
     });
   } else if (view === RESULT_VIEW) {
-    VIEW.drawRoundResult(ctx, lastResult);
-  } else if (view === PROGRESS_VIEW) {
-    const drill = progressDrills[progressIndex] || null;
-    VIEW.drawProgress(ctx, {
-      drill,
-      records: drill ? STATS.forDrill(stats, drill) : [],
-      drillIndex: progressIndex,
-      drillCount: progressDrills.length,
-    });
+    if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, lastResult);
+    else VIEW.drawRoundResult(ctx, lastResult);
+  } else if (view === PROGRESS_DETAIL) {
+    drawProgressDetail();
   } else if (view === GUESS_VIEW && quizPick) {
     VIEW.drawPick(ctx, {
       title: quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE',
@@ -1208,6 +1483,8 @@ function draw() {
       outLabel: songBeats > 0 ? '' :
         SET.formatSetting(settings, SET.settingIndex('midiOut')) + ' ' +
         SET.formatSetting(settings, SET.settingIndex('midiCh')),
+      /* Which stage is armed, and that the jog changes it. */
+      footer: armedId ? VIEW.stageFooter(stage) : '',
     });
   } else {
     VIEW.drawReadingView(ctx, {
@@ -1220,6 +1497,123 @@ function draw() {
       paused,
     });
   }
+}
+
+/*
+ * What a row of the list says about your progress: a percentage, and a mark
+ * for a stage passed, a skip, or the program's next step. Worked out as the
+ * row is drawn, from the store, so the tree never has to be rebuilt when you
+ * get better at something.
+ */
+function decorateRow(row) {
+  if (row.continueRow) {
+    const next = PLAN.continueStep(progress, tracks);
+    if (!next) return { label: 'Continue: all done', value: '', mark: PROG.MARK_DONE };
+    return {
+      label: 'Next: ' + PLAN.stepTitle(next.step),
+      value: 'S' + PROG.recommendedStage(PROG.item(progress, next.step.id)),
+      mark: 'next',
+    };
+  }
+  if (row.skipRow) {
+    const next = PLAN.continueStep(progress, tracks);
+    if (!next) return { label: 'Skip: nothing left', value: '' };
+    const it = PROG.item(progress, next.step.id);
+    return { label: (PROG.stagePassed(it, 1) ? 'Move on: ' : 'Skip: ') + PLAN.stepTitle(next.step), value: '' };
+  }
+  if (row.key === 'repetition') {
+    const due = PROG.dueCount(repetitionRows().map((r) => ({ done: r.done })));
+    return { value: due ? due + ' due' : '>' };
+  }
+  if (row.repId) return row.done ? { value: 'today', mark: PROG.MARK_DONE } : { value: 'due' };
+  if (row.progress) return { value: PROG.folderSummary(agg, progress, catalog).percent + '%' };
+  if (row.overview) {
+    const sum = row.overview === 'all'
+      ? PROG.folderSummary(agg, progress, catalog)
+      : PROG.summariseIds(progress, PLAN.trackSteps(row.track).map((st) => st.id));
+    return { value: sum.percent + '%' };
+  }
+  if ('children' in row) {
+    if (row.untracked) return null;
+    const sum = PROG.folderSummary(agg, progress, row);
+    return { value: sum.percent > 0 ? sum.percent + '% >' : '>' };
+  }
+  const id = row.itemId || (PROG.isTracked(row) ? row.id : null);
+  if (!id) return null;
+  const it = PROG.item(progress, id);
+  let mark = PROG.itemMark(it);
+  if (!mark && row.step) {
+    const track = openTrack();
+    const next = track ? PLAN.nextStep(progress, track) : null;
+    if (next && next.id === id) mark = 'next';
+  }
+  return { value: it && it.plays ? PROG.itemPercent(it) + '%' : '', mark };
+}
+
+/* ---- Progress --------------------------------------------------------------- */
+/*
+ * The overview first, then each track, then everything you have played, most
+ * recent first. Clicking a row draws its chart; the jog walks the charts.
+ */
+const PROGRESS_RECENT = 40;
+
+function openProgress() {
+  const rows = [{ label: 'Overall', overview: 'all' }];
+  for (let i = 0; i < tracks.length; i++) {
+    rows.push({ label: tracks[i].name + ' track', overview: tracks[i].key, track: tracks[i] });
+  }
+  const recent = PROG.recentIds(progress).slice(0, PROGRESS_RECENT);
+  for (let i = 0; i < recent.length; i++) rows.push({ label: itemTitle(recent[i]), itemId: recent[i] });
+  /* Quiz drills from before progress was kept still have their rounds. */
+  const drills = STATS.drillsWithHistory(stats);
+  for (let i = 0; i < drills.length; i++) {
+    if (!PROG.item(progress, 'quiz:' + drills[i])) rows.push({ label: STATS.drillLabel(drills[i]), drill: drills[i] });
+  }
+  progressRows = rows;
+  progressCursor = 0;
+  view = PROGRESS_VIEW;
+  dirty = true;
+  ledDirty = true;
+  announce('Progress.');
+}
+
+function drawProgressDetail() {
+  const row = progressRows[progressCursor];
+  if (!row) return;
+  const index = progressCursor;
+  const total = progressRows.length;
+  if (row.overview) {
+    const ids = row.overview === 'all'
+      ? PROG.leafIds(agg, catalog)
+      : PLAN.trackSteps(row.track).map((st) => st.id);
+    const sum = PROG.summariseIds(progress, ids);
+    VIEW.drawOverview(ctx, {
+      title: row.overview === 'all' ? 'Overall' : row.track.name,
+      percent: sum.percent, done: sum.done, half: sum.half, count: sum.count,
+      timeline: PROG.passTimeline(progress, ids, L.PROGRESS_PLOT.w, L.PROGRESS_PLOT.h, Date.now()),
+      index, total,
+    });
+    return;
+  }
+  /* A quiz drill keeps its own chart, rate over error: the speed is the point
+   * of a round, where accuracy is the point of a piece. */
+  const drill = row.drill || (row.itemId.indexOf('quiz:') === 0 ? row.itemId.slice(5) : null);
+  if (drill && STATS.forDrill(stats, drill).length) {
+    VIEW.drawProgress(ctx, {
+      drill, records: STATS.forDrill(stats, drill), drillIndex: index, drillCount: total,
+    });
+    return;
+  }
+  const it = PROG.item(progress, row.itemId);
+  VIEW.drawItemProgress(ctx, {
+    title: row.label,
+    history: it ? it.h : [],
+    percent: PROG.itemPercent(it),
+    best: it ? Math.max(it.stages[0].best, it.stages[1].best) * 100 : 0,
+    mark: PROG.itemMark(it),
+    index,
+    count: total,
+  });
 }
 
 function settingsRows() {
@@ -1238,7 +1632,14 @@ function editSetting(index, delta) {
     allNotesOff();
     midiChannel = settings.midiCh > 0 ? settings.midiCh - 1 : 0;
   }
-  if (res.key === 'rootPc' || res.key === 'mode' || res.key === 'transpose') rebuildMenu();
+  /* The octave decides which rungs a generated lesson has, and Half tones and
+   * Chords decide which drill a Quiz row files its rounds under: the leaves
+   * the folders add up change, so the cached sums start again. */
+  if (res.key === 'transpose' || res.key === 'halfTones' || res.key === 'chordSet') {
+    PROG.resetShape(agg);
+  }
+  if (res.key === 'rootPc' || res.key === 'mode' || res.key === 'transpose' ||
+      res.key === 'halfTones' || res.key === 'chordSet') rebuildMenu();
 
   /* Switching wait on mid-run would otherwise park the clock on a note from
    * before the setting existed, i.e. drag songBeats backwards. */
@@ -1254,9 +1655,11 @@ function editSetting(index, delta) {
    * a quiz open. */
   if ((res.rebuild || res.key === 'halfTones' || res.key === 'chordSet') &&
       view === GUESS_VIEW && quiz) {
-    startQuiz(quiz.kind, quizHear, quizPick);
+    /* A step of the program keeps the options it pinned; a Quiz row follows. */
+    startQuiz(quizSpec.pinned ? quizSpec
+      : { ...quizSpec, halfTones: settings.halfTones, chordSet: settings.chordSet });
   } else if (res.rebuild && CTRL.shouldRebuildChart(view, chart && chart.source)) {
-    const row = armedPath ? CAT.nodeAt(catalog, armedPath) : null;
+    const row = armedId ? findLeaf(armedId) : null;
     if (row && row.build) {
       chart = row.build();
       if (chart.source !== 'file') chart.bpm = settings.bpm;
@@ -1330,9 +1733,14 @@ function onJog(delta) {
     return;
   }
   if (view === PROGRESS_VIEW) {
-    if (progressDrills.length > 1) {
-      progressIndex = (progressIndex + (delta > 0 ? 1 : -1) + progressDrills.length)
-        % progressDrills.length;
+    progressCursor = clamp(progressCursor + (delta > 0 ? 1 : -1), 0, progressRows.length - 1);
+    dirty = true;
+    return;
+  }
+  if (view === PROGRESS_DETAIL) {
+    if (progressRows.length > 1) {
+      progressCursor = (progressCursor + (delta > 0 ? 1 : -1) + progressRows.length)
+        % progressRows.length;
       dirty = true;
     }
     return;
@@ -1347,6 +1755,16 @@ function onJog(delta) {
    * run. jogAction ignores it everywhere but the lists. */
   const top = CAT.navTop(nav);
   const next = CTRL.jogAction(view, delta, top.cursor, top.node.children.length);
+  /* On the ready screen the jog picks the stage — never the exercise. */
+  if (next.action === 'stage' && armedId) {
+    if (next.index !== stage) {
+      stage = next.index;
+      dirty = true;
+      ledDirty = true;
+      announce(stage === 2 ? 'Stage two. The pads stay dark.' : 'Stage one. The pads light up.');
+    }
+    return;
+  }
   if (next.action !== 'cursor') return;
   top.cursor = next.index;
   dirty = true;
@@ -1361,7 +1779,18 @@ function onJogClick() {
     ledDirty = true;
     return;
   }
+  if (view === PROGRESS_VIEW && !shiftHeld) {
+    if (progressRows.length) view = PROGRESS_DETAIL;
+    dirty = true;
+    return;
+  }
   switch (CTRL.jogClickAction(view, shiftHeld, Boolean(chart))) {
+    case 'next':
+      goNext();
+      break;
+    case 'skip':
+      skipFromResult();
+      break;
     case 'settings':
       view = SETTINGS;
       settingsEditing = false;
@@ -1460,15 +1889,20 @@ globalThis.init = function init() {
   listening = false;
   shiftHeld = false;
   nav = [];
-  armedPath = null;
+  armedId = null;
+  armedTrack = null;
+  stage = 1;
+  runFromTop = false;
   settingsCursor = 0;
   settingsEditing = false;
   quiz = null;
   quizHear = false;
   quizPick = false;
+  quizSpec = null;
   lastResult = null;
-  progressDrills = [];
-  progressIndex = 0;
+  progressRows = [];
+  progressCursor = 0;
+  repCache = { rev: -1, day: -1, rows: [] };
   quizSolvedAt = 0;
   guessOff.length = 0;
   ledPhase = -1;
@@ -1485,7 +1919,10 @@ globalThis.init = function init() {
 
   loadSettings();
   loadStats();
+  loadProgress();
   loadFileExercises();
+  buildTracks();
+  PROG.resetShape(agg);
   rebuildMenu();
   invalidateLedCache();
   ledDirty = true;
@@ -1546,15 +1983,18 @@ globalThis.tick = function tick() {
     if (SCORE.runFinished(run, songBeats, blocked) ||
         (listening && songBeats > chartTotalBeats(chart))) {
       allNotesOff();
+      const wasListening = listening;
       listening = false;
       const s = SCORE.runStats(run);
-      /* Back to the ready screen, armed, rather than a scorecard. Hits and
-       * perfects and streak are quiz furniture; at the end of a piece you
-       * wanted to play it again, and Back from the card went here anyway. The
-       * spoken result stays — it costs nothing and is where it still helps. */
-      armRun();
-      view = READY;
-      announce('Done. ' + s.hits + ' of ' + s.total + ', ' + Math.round(s.accuracy * 100) + ' percent.');
+      if (!wasListening && runFromTop && armedId) {
+        finishExercise(s);
+      } else {
+        /* Listening, or a passage started from a scrubbed bar: nothing to
+         * record, so straight back to the start to play it again. */
+        armRun();
+        view = READY;
+        announce('Done.');
+      }
     }
    }
     dirty = true;
@@ -1638,7 +2078,8 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
    * button stops it; pressing the other switches, so no press is ever a no-op. */
   if (d1 === CC_PLAY) {
     if (view === RESULT_VIEW) {
-      startQuiz(quiz.kind, quizHear, quizPick);
+      if (lastResult.kind === 'quiz') startQuiz(quizSpec);
+      else startRun(true);
       return;
     }
     if (view === GUESS_VIEW) {
@@ -1652,7 +2093,8 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
   }
   if (d1 === CC_RECORD) {
     if (view === RESULT_VIEW) {
-      startQuiz(quiz.kind, quizHear, quizPick);
+      if (lastResult.kind === 'quiz') startQuiz(quizSpec);
+      else startRun(false);
       return;
     }
     if (view === GUESS_VIEW) {
@@ -1694,7 +2136,18 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
       announce('Back to the start.');
       return;
     }
-    if (view === RESULT_VIEW || view === PROGRESS_VIEW) {
+    /* From a result, Back is another go from the start — the list is one
+     * more press away, from the ready screen or the new round. */
+    if (view === RESULT_VIEW) {
+      retryFromResult();
+      return;
+    }
+    if (view === PROGRESS_DETAIL) {
+      view = PROGRESS_VIEW;
+      dirty = true;
+      return;
+    }
+    if (view === PROGRESS_VIEW) {
       view = MENU;
       dirty = true;
       ledDirty = true;

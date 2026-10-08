@@ -49,6 +49,10 @@ fi
 if [ -f "$remote/stats.json" ]; then
   cp "$remote/stats.json" "$stage/stats.json"
 fi
+# The same for how far they have got with every exercise and the program.
+if [ -f "$remote/progress.json" ]; then
+  cp "$remote/progress.json" "$stage/progress.json"
+fi
 # Keep any exercises they added by hand.
 if [ -d "$remote/exercises" ]; then
   for f in "$remote/exercises/"*.json; do

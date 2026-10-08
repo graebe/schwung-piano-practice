@@ -17,6 +17,7 @@ import {
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
 import { drillLabel, sparkline, summarise, errorFraction } from './stats.mjs';
+import { accuracySeries } from './progress.mjs';
 
 export const SETTINGS_HINT = 'shift + jog: settings';
 /* Inside a folder of the lesson list, where Back no longer means leave. */
@@ -237,8 +238,17 @@ export function drawReadyView(ctx, state) {
    * nothing hints that Shift is involved in anything. 21 characters at the
    * 6px advance is 125px, so it just fits the width. */
   ctx.fillRect(0, L.FOOTER_Y - 3, L.SCREEN_W, L.SCREEN_H - L.FOOTER_Y + 3, 0);
-  drawFooterHint(ctx, SETTINGS_HINT);
+  drawFooterHint(ctx, state.footer || SETTINGS_HINT);
   return ctx;
+}
+
+/*
+ * The ready screen's footer when the exercise has stages: which one is armed,
+ * what it means, and that the jog changes it. Settings stays one Back away,
+ * where the list's footer names it.
+ */
+export function stageFooter(stage) {
+  return stage === 2 ? 'S2 pads dark  JOG: S1' : 'S1 pads lit  JOG: S2';
 }
 
 /*
@@ -434,35 +444,116 @@ export function drawPlot(ctx, box, records) {
 
 /*
  * The end of a round. The rate is the headline, so it gets the big font; the
- * rest is context for it, laid out as a two-column grid so no pair of numbers
- * can ever collide. The chart underneath answers the question a single rate
- * cannot — whether this was better than last time.
+ * two figures that qualify it — how many were wrong, how much help — sit to
+ * its right, one row of detail runs under it, and the chart of the drill's
+ * recent rounds takes the rest: the rate on its own says nothing, the trend
+ * says whether you are getting better.
  */
 export function drawRoundResult(ctx, state) {
   ctx.clear();
   R.drawChrome(ctx, {
-    left: 'ROUND',
+    /* The status replaces the title rather than joining it: beside a
+     * three-digit best, "ROUND  S1 DONE" ran into it. */
+    left: state.passed === 2 ? 'DONE' : state.passed === 1 ? 'S1 DONE' : 'ROUND',
     right: state.isBest ? 'BEST YET' : 'best ' + Math.round(state.best) + '/min',
   });
 
-  /* Scale 3 rather than 4: the 5px it gives up is exactly what the chart below
-   * is drawn in, and two digits at 9x15 are still the largest thing on screen. */
   const big = String(Math.round(state.rate));
   const w = R.bigTextWidth(big, L.RESULT_BIG_SCALE);
   R.drawBigText(ctx, L.RESULT_LEFT_X, L.RESULT_BIG_Y, big, L.RESULT_BIG_SCALE);
-  ctx.text(L.RESULT_LEFT_X + w + 5,
-    L.RESULT_BIG_Y + R.bigDigitHeight(L.RESULT_BIG_SCALE) - L.TEXT_H, 'per min', 1);
+  const unitX = L.RESULT_LEFT_X + w + 5;
+  ctx.text(unitX, L.RESULT_BIG_Y + R.bigDigitHeight(L.RESULT_BIG_SCALE) - L.TEXT_H, 'per min', 1);
 
+  /* Right-aligned beside the headline: the wrong answers on the row above
+   * "per min", the hints on its row, fitted to what is left of it. */
   const pct = Math.round(errorFraction(state.n, state.wrong) * 100);
+  rightText(ctx, L.RESULT_SIDE_A_Y, 'wrong ' + state.wrong + '  ' + pct + '%', L.RESULT_LEFT_X + w + 4);
+  if (state.hints) {
+    rightText(ctx, L.RESULT_SIDE_B_Y, 'hints ' + state.hints, unitX + ctx.textWidth('per min') + 4);
+  }
   twoCell(ctx, L.RESULT_ROW_A_Y,
     state.n + ' in ' + Math.round(state.ms / 1000) + 's',
     'streak ' + state.bestStreak, L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
-  twoCell(ctx, L.RESULT_ROW_B_Y,
-    'wrong ' + state.wrong + '  ' + pct + '%',
-    state.hints ? 'hints ' + state.hints : '', L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
 
   drawPlot(ctx, L.RESULT_PLOT, state.records || []);
-  drawFooterHint(ctx, 'PLAY again  BACK list');
+  drawFooterHint(ctx, state.footer || 'PLAY again  CLICK next');
+  return ctx;
+}
+
+/* Right-aligned to the result's right edge, never reaching left of `minX`. */
+function rightText(ctx, y, text, minX) {
+  const s = truncate(ctx, text, L.RESULT_RIGHT_X - minX);
+  if (s) ctx.text(L.RESULT_RIGHT_X - ctx.textWidth(s), y, s, 1);
+}
+
+/*
+ * Accuracy per attempt, on a fixed 0..100% scale with the pass mark ruled
+ * dotted across it — the line you are trying to stay above. Stage 1 attempts
+ * are hollow points and stage 2 attempts solid, so the move from playing with
+ * the pads lit to reading alone shows as the points filling in.
+ */
+export function drawAccuracyPlot(ctx, box, history) {
+  const baseY = box.y + box.h;
+  ctx.fillRect(box.x, baseY, box.w, 1, 1);
+  if (!history || !history.length) return ctx;
+  /* The marks are 3x3, so the series lives one pixel in from every edge of
+   * the box and a mark can never hang outside the rect the caller reserved. */
+  const inner = { x: box.x + 1, y: box.y + 1, w: box.w - 2, h: box.h - 2 };
+  const { points, passY } = accuracySeries(history, inner.w, inner.h);
+  for (let x = 0; x < box.w; x += 3) ctx.fillRect(box.x + x, inner.y + passY, 1, 1, 1);
+  for (let i = 0; i < points.length; i++) {
+    const px = inner.x + points[i].x;
+    const py = inner.y + points[i].y;
+    if (i > 0) ctx.line(inner.x + points[i - 1].x, inner.y + points[i - 1].y, px, py, 1);
+  }
+  for (let i = 0; i < points.length; i++) {
+    const px = inner.x + points[i].x;
+    const py = inner.y + points[i].y;
+    if (points[i].stage === 2) {
+      ctx.fillRect(px - 1, py - 1, 3, 3, 1);
+    } else {
+      ctx.fillRect(px - 1, py - 1, 3, 3, 0);
+      ctx.drawRect(px - 1, py - 1, 3, 3, 1);
+      ctx.fillRect(px, py, 1, 1, 0);
+    }
+  }
+  return ctx;
+}
+
+/*
+ * The end of a played exercise. The headline is the share you got right; the
+ * chart beneath is every recent attempt at THIS exercise, so the number is
+ * read against where you were, not on its own.
+ *
+ * state = { name, percent, hits, total, wrong, stage, passed: 0|1|2,
+ *           isBest, history, footer }
+ */
+export function drawExerciseResult(ctx, state) {
+  ctx.clear();
+  const status = state.passed === 2 ? 'DONE'
+    : state.passed === 1 ? 'S1 DONE'
+      : state.isBest ? 'BEST YET' : 'stage ' + state.stage;
+  const mark = state.passed === 2 ? 'done' : state.passed === 1 ? 'half' : null;
+  const statusW = ctx.textWidth(status) + (mark ? R.MARK_W + 2 : 0);
+  R.drawChrome(ctx, {
+    left: truncate(ctx, state.name || 'Exercise', L.SCREEN_W - statusW - 6),
+    right: status,
+  });
+  if (mark) R.drawMark(ctx, L.SCREEN_W - statusW - 1, 1, mark, 0);
+
+  const big = String(Math.round(state.percent));
+  const w = R.bigTextWidth(big, L.RESULT_BIG_SCALE);
+  R.drawBigText(ctx, L.RESULT_LEFT_X, L.RESULT_BIG_Y, big, L.RESULT_BIG_SCALE);
+  ctx.text(L.RESULT_LEFT_X + w + 3,
+    L.RESULT_BIG_Y + R.bigDigitHeight(L.RESULT_BIG_SCALE) - L.TEXT_H, '%', 1);
+
+  const minX = L.RESULT_LEFT_X + w + 3 + ctx.textWidth('%') + 4;
+  rightText(ctx, L.RESULT_SIDE_A_Y, state.hits + ' of ' + state.total + ' hit', minX);
+  rightText(ctx, L.RESULT_SIDE_B_Y,
+    state.wrong ? state.wrong + ' wrong' : 'stage ' + state.stage, minX);
+
+  drawAccuracyPlot(ctx, L.EXERCISE_PLOT, state.history || []);
+  drawFooterHint(ctx, state.footer || 'REC again  CLICK next');
   return ctx;
 }
 
@@ -498,6 +589,69 @@ export function drawProgress(ctx, state) {
   drawFooterHint(ctx, state.drillCount > 1
     ? 'jog: drill ' + (state.drillIndex + 1) + '/' + state.drillCount
     : String(s.count) + ' rounds');
+  return ctx;
+}
+
+/*
+ * One exercise's history: its attempts on the accuracy chart, and under it
+ * where you are now and which stage you have reached.
+ *
+ * state = { title, history, percent, best, mark, index, count }
+ */
+export function drawItemProgress(ctx, state) {
+  const history = state.history || [];
+  ctx.clear();
+  R.drawChrome(ctx, {
+    left: 'PROGRESS',
+    right: history.length ? 'best ' + Math.round(state.best) + '%' : '',
+  });
+  ctx.text(2, L.PROGRESS_TITLE_Y, truncate(ctx, state.title || '', L.TEXT_MAX_PX), 1);
+  drawAccuracyPlot(ctx, L.PROGRESS_PLOT, history);
+  const stage = state.mark === 'done' ? 'finished' : state.mark === 'half' ? 'stage 1 done'
+    : state.mark === 'skip' ? 'skipped' : '';
+  twoCell(ctx, L.PROGRESS_ROW_Y, 'now ' + Math.round(state.percent) + '%', stage, 2, L.SCREEN_W - 2);
+  drawFooterHint(ctx, state.count > 1
+    ? 'jog: ' + (state.index + 1) + '/' + state.count
+    : history.length + ' plays');
+  return ctx;
+}
+
+/*
+ * The long view: every stage you have passed, as a line that rises by one at
+ * each pass, along real time. Flat stretches are weeks off; steep ones are
+ * where it clicked.
+ *
+ * state = { title, percent, done, half, count, timeline, index, total }
+ */
+export function drawOverview(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: (state.title || 'OVERALL').toUpperCase(), right: state.percent + '%' });
+  ctx.text(2, L.PROGRESS_TITLE_Y, truncate(ctx,
+    state.done + ' done  ' + state.half + ' half  of ' + state.count, L.TEXT_MAX_PX), 1);
+
+  const box = L.PROGRESS_PLOT;
+  ctx.fillRect(box.x, box.y + box.h, box.w, 1, 1);
+  const pts = state.timeline ? state.timeline.points : [];
+  if (!pts.length) {
+    const msg = 'nothing passed yet';
+    ctx.text((L.SCREEN_W - ctx.textWidth(msg)) >> 1, 28, msg, 1);
+  } else {
+    /* A step line: flat until the next pass, then up. */
+    let prevX = box.x;
+    let prevY = box.y + box.h - 1;
+    for (let i = 0; i < pts.length; i++) {
+      const x = box.x + pts[i].x;
+      const y = box.y + pts[i].y;
+      ctx.line(prevX, prevY, x, prevY, 1);
+      ctx.line(x, prevY, x, y, 1);
+      prevX = x;
+      prevY = y;
+    }
+    ctx.line(prevX, prevY, box.x + box.w - 1, prevY, 1);
+  }
+  twoCell(ctx, L.PROGRESS_ROW_Y, 'stages passed',
+    String(state.timeline ? state.timeline.total : 0), 2, L.SCREEN_W - 2);
+  drawFooterHint(ctx, state.total > 1 ? 'jog: ' + (state.index + 1) + '/' + state.total : '');
   return ctx;
 }
 
@@ -563,17 +717,26 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
     const selected = idx === cursor;
     if (selected) ctx.fillRect(0, y - 1, L.SCREEN_W, lineH, 1);
     const row = rows[idx];
-    const label = typeof row === 'string' ? row : row.label;
-    let value = typeof row === 'string' ? '' : row.value || '';
+    /* What a row says about your progress is decided by the caller, at draw
+     * time: the tree holds what the lessons ARE, not how far you have got. */
+    const deco = opts.decorate && typeof row !== 'string' ? opts.decorate(row) : null;
+    const label = deco && deco.label ? deco.label : typeof row === 'string' ? row : row.label;
+    let value = deco && deco.value !== undefined ? deco.value
+      : typeof row === 'string' ? '' : row.value || '';
+    const mark = deco ? deco.mark : null;
     /* Brackets mark the row the jog is currently changing, so "turn to change"
      * has something to point at. */
     if (value && selected && opts.editing) value = '[' + value + ']';
     /* The label is fitted against what the value actually takes, not against a
      * fixed budget: the widest real row is 114px, but a longer value added
      * later would otherwise be printed over the end of its own label. */
-    const vw = value ? ctx.textWidth(value) : 0;
-    ctx.text(2, y, truncate(ctx, label, L.SCREEN_W - 4 - vw - (vw ? 4 : 0)), selected ? 0 : 1);
-    if (value) ctx.text(L.SCREEN_W - vw - 2, y, value, selected ? 0 : 1);
+    const tw = value ? ctx.textWidth(value) : 0;
+    const mw = mark ? R.MARK_W + (tw ? 2 : 0) : 0;
+    const vw = tw + mw;
+    const v = selected ? 0 : 1;
+    ctx.text(2, y, truncate(ctx, label, L.SCREEN_W - 4 - vw - (vw ? 4 : 0)), v);
+    if (mark) R.drawMark(ctx, L.SCREEN_W - vw - 2, y + 1, mark, v);
+    if (value) ctx.text(L.SCREEN_W - tw - 2, y, value, v);
   }
   if (opts.footer) {
     if (opts.centreFooter) drawFooterHint(ctx, opts.footer);

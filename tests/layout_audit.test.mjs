@@ -109,7 +109,63 @@ function records(n) {
  * number can reach three digits, and the longest string each view can select:
  * every collision found in the audit needed one of those to appear.
  */
+/* An exercise's attempts, at the cap, every score from 0 to 100 and both stages. */
+function attempts(n) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push([i, (i * 37) % 101, 1 + (i % 2), 80, 0]);
+  return out;
+}
+
 const SCREENS = {
+  'exercise result, worst case': (c) => V.drawExerciseResult(c, {
+    name: 'Scarborough Fair L3 Both hands', percent: 100, hits: 188, total: 188, wrong: 120,
+    stage: 2, passed: 2, isBest: true, history: attempts(24), footer: 'REC again  CLICK next',
+  }),
+  'exercise result, stage 1 passed': (c) => V.drawExerciseResult(c, {
+    name: 'Major up & down', percent: 91, hits: 15, total: 15, wrong: 0,
+    stage: 1, passed: 1, history: attempts(1), footer: 'CLICK S2  SHIFT next',
+  }),
+  'exercise result, first try': (c) => V.drawExerciseResult(c, {
+    name: 'x', percent: 0, hits: 0, total: 999, wrong: 0, stage: 1, passed: 0, history: [],
+  }),
+  'quiz result, a stage passed with hints': (c) => V.drawRoundResult(c, {
+    rate: 144, ms: 480000, n: 30, wrong: 12, bestStreak: 100, hints: 22,
+    best: 144, isBest: false, records: records(12), passed: 1, footer: 'CLICK S2  SHIFT next',
+  }),
+  'progress list, decorated': (c) => V.drawList(c, 'PROGRESS 100%', [
+    { label: 'Overall' }, { label: 'Reading track' },
+    { label: 'Scarborough Fair L3 Both hands' }, { label: 'Pick chords advanced' },
+  ], 2, {
+    footer: 'CLICK chart BACK list', centreFooter: true,
+    decorate: (r) => ({ value: '100%', mark: r.label === 'Overall' ? null : 'done' }),
+  }),
+  'learning program list': (c) => V.drawList(c, 'LEARNING PROGRAM', [
+    { label: 'Continue' }, { label: 'Skip next' }, { label: 'Reading' }, { label: 'Repetition' },
+  ], 0, {
+    footer: V.FOLDER_HINT, centreFooter: true,
+    decorate: (r) => (r.label === 'Continue'
+      ? { label: 'Next: Scarborough Fair L1 RH', value: 'S2', mark: 'next' }
+      : r.label === 'Repetition' ? { value: '5 due' } : { value: '100% >', mark: 'half' }),
+  }),
+  'item progress': (c) => V.drawItemProgress(c, {
+    title: 'Scarborough Fair L3 Both hands', history: attempts(24), percent: 100, best: 100,
+    mark: 'half', index: 98, count: 99,
+  }),
+  'item progress, never played': (c) => V.drawItemProgress(c, {
+    title: 'x', history: [], percent: 0, best: 0, mark: null, index: 0, count: 1,
+  }),
+  'overview': (c) => V.drawOverview(c, {
+    title: 'Reading', percent: 100, done: 551, half: 551, count: 551,
+    timeline: { points: [{ x: 0, y: 29 }, { x: 121, y: 0 }], total: 1102 }, index: 4, total: 99,
+  }),
+  'overview, nothing yet': (c) => V.drawOverview(c, {
+    title: 'Overall', percent: 0, done: 0, half: 0, count: 551, timeline: { points: [], total: 0 },
+    index: 0, total: 1,
+  }),
+  'ready, stage 2': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
+    footer: V.stageFooter(2),
+  }),
   'result, worst case': (c) => V.drawRoundResult(c, {
     rate: 144, ms: 480000, n: 30, wrong: 12, bestStreak: 100, hints: 2,
     best: 144, isBest: false, records: records(12),
@@ -237,6 +293,9 @@ test('every footer this module can show fits across the screen', () => {
     'JOG pick  CLICK ok', 'CLICK edit SHIFT back', 'turn change  CLICK ok',
     V.SETTINGS_HINT, 'jog: another drill', 'jog: drill 12/12', 'play a round',
     'hint 2/2   streak 100', 'streak 100   REC help',
+    'PLAY again CLICK next', 'REC again  CLICK next', 'CLICK S2  SHIFT next',
+    'CLICK chart BACK list', 'jog: 99/99', '24 plays',
+    V.stageFooter(1), V.stageFooter(2),
   ];
   for (const f of footers) {
     assert.ok(c.textWidth(f) <= L.TEXT_MAX_PX, `${JSON.stringify(f)} is ${c.textWidth(f)}px`);

@@ -3,3 +3,4 @@ node_modules/
 *.core
 build/
 dsp/target/
+coverage/

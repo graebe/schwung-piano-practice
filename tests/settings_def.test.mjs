@@ -10,7 +10,7 @@ import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX } from '../src/layout.mjs';
 
 const fresh = () => ({
   bpm: 80, pxPerBeat: 24, rootPc: 0, transpose: 12, mode: 'major',
-  guidance: false, anyOctave: false, halfTones: true, chordSet: 'triads', waitForNote: true, graceBeats: 1 / 3,
+  anyOctave: false, halfTones: true, chordSet: 'triads', waitForNote: true, graceBeats: 1 / 3,
   click: true, reference: true, refVel: 70, midiOut: 4, midiCh: 0, countIn: 4,
   roundSize: 20,
 });
@@ -176,9 +176,9 @@ test('channel 0 reads as "all" — a mismatch is what makes a setup silent', () 
 
 test('a stored value is taken when it is valid', () => {
   const s = fresh();
-  coerceInto(s, { bpm: 120, guidance: true, mode: 'dorian', midiCh: 7 });
+  coerceInto(s, { bpm: 120, anyOctave: true, mode: 'dorian', midiCh: 7 });
   assert.equal(s.bpm, 120);
-  assert.equal(s.guidance, true);
+  assert.equal(s.anyOctave, true);
   assert.equal(s.mode, 'dorian');
   assert.equal(s.midiCh, 7);
 });
@@ -201,15 +201,17 @@ test('values of the wrong type, or off an enum, are ignored', () => {
   const s = fresh();
   const before = { ...s };
   coerceInto(s, {
-    bpm: 'fast', guidance: 'yes', mode: 'klingon', graceBeats: 0.7, midiOut: 99, countIn: null,
+    bpm: 'fast', anyOctave: 'yes', mode: 'klingon', graceBeats: 0.7, midiOut: 99, countIn: null,
   });
   assert.deepEqual(s, before, 'a corrupt file must not move anything');
 });
 
 test('unknown keys are ignored rather than adopted', () => {
   const s = fresh();
-  coerceInto(s, { somethingElse: 1, version: 3 });
+  coerceInto(s, { somethingElse: 1, version: 3, guidance: true });
   assert.equal(s.somethingElse, undefined);
+  /* Guide pads became the stage of each exercise; a stored value is dropped. */
+  assert.equal(s.guidance, undefined);
 });
 
 test('a missing or junk file leaves the defaults alone', () => {

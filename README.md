@@ -51,29 +51,44 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
   computer is there if you want it.
 - **Rescues you when you are stuck.** Miss a note and the scroll stops, names it large on screen,
-  and — with Guide pads on — pulses the pad you need. The missed note itself stays pinned by the hit
-  line whatever your read-ahead, so you can always see what you are being asked for.
-- **Gets out of your way.** Target-pad lighting exists, but it is off by default: this is a reading
-  trainer first.
+  and — at stage 1 — pulses the pad you need. The missed note itself stays pinned by the hit line
+  whatever your read-ahead, so you can always see what you are being asked for.
+- **Teaches in two stages.** Every exercise is played first with the pads lighting the way, then
+  read from the staff alone. You can go straight to the second whenever you like.
+- **Remembers how far you got.** Every exercise keeps its own score, a ◐ for stage 1 and a ✓ for
+  stage 2, and a chart of every attempt. Folders add up what is inside them.
+- **Tells you what to do next.** The Learning Program runs four tracks — reading, chords, songs and
+  ear — and Continue always knows the next step. Nothing is locked: follow it, or don't.
 
 ## The lesson list
 
 The list is a tree. **Click** opens a folder, **Back** goes up one, and Back at the top leaves.
 
 ```
-Basics        Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
-              Chords        thirteen families, one lesson per chord quality
-              Progressions  ten progressions in the Key setting's key
-              Random        random notes, and random chords from the whole vocabulary
-Classics      folk tunes and the classics, easy first
-Electronic    the chord loops of famous tracks, and five electronic style pieces
-Techno        fourteen progression studies, simple to complex
-Styles        pop, indie, film, soul, funk
-Quiz          Guess, Hear and Pick, for notes and for chords
-Progress      your rounds over time
+Learning Program  Continue      the next step, one click away
+                  Skip next     pass it by
+                  Reading       scales, lines and first tunes
+                  Chords        triads to altered dominants, and progressions
+                  Songs         every bundled piece, rung by rung
+                  Ear           the quiz drills
+                  Repetition    finished exercises that are due again
+Basics            Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
+                  Chords        thirteen families, one lesson per chord quality
+                  Progressions  ten progressions in the Key setting's key
+                  Random        random notes, and random chords from the whole vocabulary
+Quiz              Guess, Hear and Pick, for notes and for chords
+Classics          folk tunes and the classics, easy first
+Electronic        the chord loops of famous tracks, and five electronic style pieces
+Techno            fourteen progression studies, simple to complex
+Styles            pop, indie, film, soul, funk
+Progress          how far you have got, and how you got there
 ```
 
 Everything with a left and a right hand — every song, every chord lesson — opens its four levels.
+
+Every row says how far you have got with it. An exercise shows its score — `87%` — with a **◐** once
+you have passed stage 1 and a **✓** once you have passed stage 2. A folder shows the average of
+everything inside it, so `Classics 25%` is a quarter of the way through the classics.
 
 ## Levels
 
@@ -94,6 +109,84 @@ having just played the right hand the next thing you want is the left hand of th
 
 Every bundled song has all four, and `npm test` holds them to it. A file you write yourself with
 nothing to split shows only the levels it actually has, and arms straight away if that is one.
+
+## Stages
+
+Levels decide *what* you play. Stages decide *how much help* you get playing it, and every exercise
+has two:
+
+| | |
+| --- | --- |
+| **Stage 1** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. You learn the shape |
+| **Stage 2** | nothing lights. You read it off the staff |
+
+**Passing a stage takes 90% or better**, at any tempo — slow a song down with knob 8 while it is
+new, it still counts. Passing stage 1 earns a **◐**, passing stage 2 a **✓**. Passing stage 2 also
+counts as stage 1: if you can read it unaided, you can read it with help.
+
+An exercise opens on the **first stage you have not yet passed**, and the ready screen says which:
+`S1 pads lit  JOG: S2`. Turn the jog to change it — right for stage 2, left for stage 1. Nothing
+forces you through stage 1 first.
+
+**How a run is scored:** the notes you hit, over the notes in the piece **plus any wrong presses**,
+so sweeping the pads under every note cannot score full marks. A row shows your **latest** run,
+because that is where you are now — but once a stage is passed its score **never drops** again.
+Practising something you have finished should never feel like losing it.
+
+**Only a whole run counts.** A run you start from the top is recorded; one started from a scrubbed
+bar is passage practice and is not, and neither is Listen.
+
+### A first session
+
+1. Open **Basics › Scales › Major › Up & down**. The ready screen says `S1 pads lit`.
+2. Press **Record**. The pads show you each note as it arrives; play along.
+3. At the end you see your score and a chart. 93%: stage 1 is passed, the row will show ◐.
+4. **Click** for stage 2. The pads stay dark now; read it from the staff.
+5. Press **Back** after a result to try the same thing again from the top. Back once more for the
+   list, where the row now reads `97% ✓`.
+
+## The Learning Program
+
+The lesson list holds everything; the **Learning Program** is a path through it. Four tracks run
+side by side, because reading, harmony, repertoire and ear are different skills and a session that
+mixes them beats one that grinds a single list:
+
+| Track | What it walks you through |
+| --- | --- |
+| **Reading** | major scales up, down, in thirds and fifths; random lines in key; the first tunes' melodies; minor and the modes; pentatonics and blues; then every note |
+| **Chords** | major and minor triads, alone then over their roots; diminished and augmented; inversions and sus chords; four progressions; sevenths and ii–V–I; sixths, add9 and ninths; the 12-bar blues; then the advanced chords |
+| **Songs** | every bundled piece in turn — classics, then styles, electronic and techno — each rung by rung: L1 RH, L1 LH, L2, L3 |
+| **Ear** | the quiz: notes in key, then every note, triads, chord types and advanced chords — each guessed, picked and heard |
+
+Each track is in units, and each unit is a few steps. A step is simply a row of the lesson list, so
+**it counts however you get there**: play Ode to Joy from Classics and its step in the program is
+done too.
+
+**Continue** opens the next step of the track you have left longest, on the stage it needs. A
+track's next step is its first one that is neither finished nor skipped. Finished means stage 2
+passed — or stage 1 passed and then *moved on* from (below). So clicking Continue session after
+session walks all four tracks in turn, and you always know what to do next.
+
+**Nothing is locked.** Open any track and any step in it, play anything in the list, go straight to
+stage 2 — the program only ever recommends. The step Continue will open is marked **▸**.
+
+**Skip next** passes the step Continue would open. It is marked `»` and stays where it was — open
+it any time and play it, and the skip is forgotten. If you have already passed its stage 1, Skip
+reads **Move on** instead: stage 1 is enough for now, and the step counts as finished at ◐.
+
+In a quiz there are no pads to light, so the stages are the hints: **stage 1 is a round at 90% or
+better with hints, stage 2 one without any**.
+
+### Repetition
+
+What you have finished comes back. **Repetition** lists today's session, at most five exercises:
+
+1. first, any finished exercise whose last run **slipped under 90%**;
+2. then those **due again** — one day after you finished, then 3, 7, 14 and 30 days, the gap growing
+   each time a repeat goes well and starting over when one does not.
+
+A repeat is recorded and shows on the exercise's chart, but **never lowers its finished score**. The
+row says `due`, and `today ✓` once you have done it.
 
 ### Why the arrangements are in the keys they are
 
@@ -305,13 +398,43 @@ A hinted answer still counts and keeps your streak — a hint you are afraid to 
 does not help you learn — but the round records how many you took, and the result screen shows it.
 Record dims once the help is used up, so the button itself tells you whether there is more.
 
-**Back** returns to the list.
+**Back** during a round returns to the list. From a round's result it starts a **fresh round** of
+the same drill, so trying again is one press; Back once more for the list.
 
-**The answer is never lit on the pads**, not even with **Guide pads** on. That setting is a playing
-aid for the reading mode, where the music is moving and a hint keeps you with it; in a quiz the hint
-is the answer. The only pad feedback here is what you press — green when right, red when wrong.
+**The answer is never lit on the pads** outside the top rung of help. Lit pads are a playing aid for
+the reading mode, where the music is moving and a hint keeps you with it; in a quiz the hint is the
+answer. The only pad feedback here is what you press — green when right, red when wrong.
 
-## Rounds and progress
+## Results and progress
+
+### After an exercise
+
+A whole run ends on its result:
+
+```
+ ODE TO JOY L1                                       ✓ DONE
+  93 %                                          56 of 60 hit
+                                                     2 wrong
+ ·····························●······························  ← 90%
+                      ○────●╯
+         ○───○───────╯
+ ─────────────────────────────────────────────────────────────
+                REC again  CLICK next
+```
+
+The headline is the share you got right. Under it is **every recent attempt at this exercise**, on a
+fixed 0–100% scale so a chart looks the same each time you come back to it: **hollow points are
+stage 1, solid ones stage 2**, and the dotted line is the 90% you need to pass.
+
+| On a result | |
+| --- | --- |
+| **Record** | play it again, same stage |
+| **Play** | listen to it |
+| **Back** | back to the **start** of the exercise, on the stage it needs, to try again. Back once more for the list |
+| **Click** | **next**: stage 2 of the same exercise if you have just passed stage 1, otherwise the next step of the track you came from (or Continue's, if you came from the list) |
+| **Shift + click** | **move on** with stage 1 counted as enough, or **skip** — then on to the next step |
+
+### After a quiz round
 
 A quiz is a **round** of 20 prompts (10/20/30 in settings, or `endless` for open practice that
 records nothing). The clock starts on your **first press**, not when the screen appears, so the
@@ -321,12 +444,7 @@ penalty of its own, the same way a typing test treats a typo.
 
 The result is **correct answers per minute**, with your best for that drill beside it, the round's
 **error rate**, and a chart of the drill's recent rounds so the number has something to be measured
-against.
-
-**Progress**, at the bottom of the exercise list, plots how one drill has developed: the rate as a
-line, and the **error rate** as bars growing under it, so you can see whether speed came at the cost
-of accuracy. A full-height bar is 50% wrong — a fixed ceiling, so two visits are comparable. The jog
-changes drill.
+against. The round also counts toward the drill's progress, scored as right answers over attempts.
 
 Error rate is wrong answers over *attempts* (`wrong / (correct + wrong)`), not over prompts, so a
 10-prompt round and a 30-prompt one sit on the same chart.
@@ -335,8 +453,26 @@ Rates only ever compare **within a drill**: hearing seventh chords is not the sa
 white note, so every round is recorded against a drill id (`guess:notes:half`, `hear:chords:types`)
 and the plot never mixes them.
 
-History lives in `stats.json` beside the module, capped at 200 rounds, and `scripts/install.sh`
-carries it across updates.
+### The Progress screen
+
+**Progress**, at the bottom of the list, is the long view. It opens on a list headed with your
+overall percentage:
+
+| Row | Its chart |
+| --- | --- |
+| **Overall** | every stage you have passed, as a line rising by one at each pass, along real time. Flat stretches are time off; steep ones are where it clicked |
+| **Reading track** … **Ear track** | the same, for one track of the program |
+| then everything you have played, newest first | an exercise: its attempts, as on the result screen. A quiz drill: its rate as a line and its error rate as bars growing under it — a full bar is 50% wrong, a fixed ceiling so two visits are comparable |
+
+Click a row for its chart; the jog walks to the next one. Back returns to the list, and Back again
+to the lesson list.
+
+### Where it is kept
+
+Everything is kept beside the module: `progress.json` holds every exercise's two stages, skips and
+repetition schedule, and its last 24 attempts; `stats.json` holds the last 200 quiz rounds for the
+rate charts. `scripts/install.sh` carries both across updates. A damaged file reads as a fresh start
+rather than stopping the module from opening.
 
 ## Requirements
 
@@ -404,7 +540,7 @@ the one signal you should never have to read.
 | dark | out of key |
 | dim purple | in key — background, deliberately the dimmest lit value |
 | pale lavender | the root; also the lit prompt in **Pick**, and the pulse when a note is missed |
-| purple | with **Guide pads** on, the note is coming |
+| purple | at **stage 1**, the note is coming |
 | bright violet | it is now — and the notes **Play** is sounding |
 | yellow | your finger is on it |
 | green / red | you got it / you missed it |
@@ -420,13 +556,13 @@ Four beats count you in, counted down on screen.
 | --- | --- |
 | **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored. Press it again to **pause where you are**; again to carry on from wherever you have scrubbed to |
 | **Record** | **practice** — you play it, it scores you. Pauses and resumes the same way |
-| **Jog turn** | moves the highlight in the exercise list and in settings, and does nothing anywhere else — a knock cannot change what you are playing. To pick something else, Back to the list first |
-| **Jog click** | open the highlighted folder or arm the exercise; on a song, open its levels; in settings, edit the selected row |
+| **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it picks the **stage** — right for stage 2, left for stage 1. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
+| **Jog click** | open the highlighted folder or arm the exercise; on a song, open its levels; in settings, edit the selected row; on a result, go on to what is next |
 | **Menu** | open the exercise list |
 | **Shift + jog click** | settings |
-| **Back** | from a running exercise, **restart it**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
+| **Back** | from a running exercise or a result, **back to the start**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
-| **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. The pads light the note the playhead has landed on, whatever Guide pads says, so you can see where you are on the grid as well as on the staff; they go dark again the moment the music runs. Find your spot, then Play or Record from there |
+| **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. The pads light the note the playhead has landed on, at either stage, so you can see where you are on the grid as well as on the staff; they go dark again the moment the music runs. Find your spot, then Play or Record from there |
 | **Knob 8** | tempo, 40–200 |
 
 The knobs mean different things in different places, and **only Settings changes settings**: in an
@@ -445,8 +581,8 @@ at a time.
 note anyway. Back returns to the top.
 
 Scrubbing backward puts the notes you pass back, so the bar can be played again. Hits and misses
-already counted stay counted — a run you have scrubbed around in has no meaningful score, and songs
-show no scorecard.
+already counted stay counted — a run you have scrubbed around in has no meaningful score, so it is
+not recorded: when it ends you are back on the ready screen.
 
 Changing tempo, key or octave rebuilds the armed exercise straight away, so the staff always shows
 what you have dialled in. Hand-written exercises are left alone — they are fixed notes, not a recipe
@@ -463,7 +599,6 @@ shortcuts to the first four.
 
 | Setting | Default | |
 | --- | --- | --- |
-| Guide pads | **off** | lights the pad you need next while reading, brightening as it approaches. Has no effect in the guessing and hearing modes |
 | Any octave | off | accept the right note in the wrong register |
 | Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid |
 | Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |

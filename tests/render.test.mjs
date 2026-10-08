@@ -1465,3 +1465,73 @@ test('the scrub glyph is a ring, not a blob', () => {
   assert.ok(!isOn(c, 14, midY), 'and a hole in the middle');
   assert.ok(countOn(c, 10, 10, R.SCRUB_W, R.SCRUB_H) > 20, 'and enough ink to read');
 });
+
+/* ---- Progress: results, plots and marks ------------------------------------ */
+
+const attemptsOf = (pairs) => pairs.map(([pct, stage], i) => [i, pct, stage, 80, 0]);
+
+test('the accuracy plot stays inside its box at both extremes and at the cap', () => {
+  const box = L.EXERCISE_PLOT;
+  for (const h of [attemptsOf([[100, 2]]), attemptsOf([[0, 1], [100, 2]]),
+    attemptsOf(Array.from({ length: 30 }, (_, i) => [i % 2 ? 100 : 0, 1 + (i % 2)]))]) {
+    const c = createScreen();
+    V.drawAccuracyPlot(c, box, h);
+    assert.ok(countOn(c, box.x, box.y, box.w, box.h) > 0, 'drew nothing');
+    assert.equal(countOn(c, 0, 0, W, box.y), 0, 'above the box');
+    assert.equal(countOn(c, 0, box.y + box.h + 1, W, H - box.y - box.h - 1), 0, 'below its baseline');
+    assert.equal(countOn(c, 0, box.y, box.x, box.h + 1), 0, 'left of it');
+    assert.equal(countOn(c, box.x + box.w, box.y, W - box.x - box.w, box.h + 1), 0, 'right of it');
+  }
+});
+
+test('the accuracy plot rules the pass mark even before there is a line', () => {
+  const box = L.EXERCISE_PLOT;
+  const c = createScreen();
+  V.drawAccuracyPlot(c, box, attemptsOf([[50, 1]]));
+  const passRow = box.y + 1 + Math.round((box.h - 3) * 0.1);
+  assert.ok(countOn(c, box.x, passRow, box.w, 1) > 20, 'a dotted 90% line');
+});
+
+test('a stage 1 attempt is a hollow point and a stage 2 attempt a solid one', () => {
+  const box = L.EXERCISE_PLOT;
+  const one = createScreen();
+  V.drawAccuracyPlot(one, box, attemptsOf([[50, 1]]));
+  const two = createScreen();
+  V.drawAccuracyPlot(two, box, attemptsOf([[50, 2]]));
+  assert.equal(countOn(two, 0, 0, W, H) - countOn(one, 0, 0, W, H), 1, 'the centre pixel');
+});
+
+test('the exercise result leads with the percentage and says when a stage is passed', () => {
+  const base = { name: 'Ode to Joy L1', percent: 93, hits: 56, total: 60, wrong: 2, stage: 2, history: attemptsOf([[93, 2]]) };
+  const plain = createScreen();
+  V.drawExerciseResult(plain, { ...base, passed: 0 });
+  assert.ok(countOn(plain, 0, L.RESULT_BIG_Y, 40, R.bigDigitHeight(L.RESULT_BIG_SCALE)) > 60, 'no large number');
+  const done = createScreen();
+  V.drawExerciseResult(done, { ...base, passed: 2 });
+  assert.notEqual(countOn(plain, 0, 0, W, L.HEADER_H), countOn(done, 0, 0, W, L.HEADER_H));
+});
+
+test('a list row carries its mark, and the mark inverts with the highlight', () => {
+  const rows = [{ label: 'Ode to Joy' }, { label: 'Twinkle' }];
+  const deco = () => ({ value: '93%', mark: 'done' });
+  const c = createScreen();
+  V.drawList(c, 'X', rows, 0, { decorate: deco });
+  const plain = createScreen();
+  V.drawList(plain, 'X', rows, 0, { decorate: () => ({ value: '93%' }) });
+  /* Row 2 is unselected: the mark is ink on paper there. */
+  assert.ok(countOn(c, 90, 20, 38, 8) > countOn(plain, 90, 20, 38, 8), 'no mark drawn');
+  /* Row 1 is selected: the mark is cut out of the bar, so there is LESS ink. */
+  assert.ok(countOn(c, 90, 10, 38, 8) < countOn(plain, 90, 10, 38, 8), 'mark not inverted');
+});
+
+test('the ready screen names the stage, and only when asked to', () => {
+  const run = createRun(chart);
+  const staged = createScreen();
+  V.drawReadyView(staged, { chart, run, songBeats: 0, pxPerBeat: 24, footer: V.stageFooter(1) });
+  const expected = blank();
+  V.drawFooterHint(expected, V.stageFooter(1));
+  for (let y = L.FOOTER_Y - 2; y < H; y++) {
+    for (let x = 0; x < W; x++) assert.equal(isOn(staged, x, y), isOn(expected, x, y), `${x},${y}`);
+  }
+  assert.notEqual(V.stageFooter(1), V.stageFooter(2));
+});

@@ -148,7 +148,24 @@ export function projectLevel(song, levelId) {
  * because the top line of its triads really is a different exercise from the
  * triads.
  */
+/*
+ * Remembered per song object: the catalog and the program both ask about every
+ * bundled song at startup, and each answer is four projections and four
+ * serialisations — on the Move's interpreter, not something to do twice.
+ */
+const levelsCache = new WeakMap();
+
 export function availableLevels(song) {
+  if (song && typeof song === 'object') {
+    const hit = levelsCache.get(song);
+    if (hit) return hit;
+  }
+  const out = computeLevels(song);
+  if (song && typeof song === 'object') levelsCache.set(song, out);
+  return out;
+}
+
+function computeLevels(song) {
   const out = [];
   const seen = [];
   for (let i = 0; i < LEVELS.length; i++) {

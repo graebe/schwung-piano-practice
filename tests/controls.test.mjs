@@ -101,15 +101,22 @@ test('the jog moves the highlight in a list', () => {
   assert.deepEqual(jogAction(SETTINGS, 1, 0, 9), { action: 'cursor', index: 1 });
 });
 
-test('the jog does nothing outside the lists', () => {
+test('the jog does nothing outside the lists and the ready screen', () => {
   /* It used to swap the exercise straight from the ready screen and from inside
    * a quiz, so a knock changed what you were playing. To pick something else
    * you go Back to the list first. */
-  for (const view of [READY, SUMMARY, RUNNING, 'guess']) {
+  for (const view of [SUMMARY, RUNNING, 'guess']) {
     for (const delta of [1, -1, 9, -9]) {
       assert.deepEqual(jogAction(view, delta, 2, 7), { action: 'ignore', index: 2 }, view);
     }
   }
+});
+
+test('on the ready screen the jog picks the stage, by direction', () => {
+  /* Never the exercise: only whether the pads light. Right is stage 2, left is
+   * stage 1, so turning twice lands where you pointed rather than back. */
+  for (const delta of [1, 9]) assert.deepEqual(jogAction(READY, delta, 0, 0), { action: 'stage', index: 2 });
+  for (const delta of [-1, -9]) assert.deepEqual(jogAction(READY, delta, 0, 0), { action: 'stage', index: 1 });
 });
 
 test('no call anywhere can return the old select action', () => {
@@ -135,7 +142,7 @@ test('any accumulated delta counts as one step', () => {
 
 test('an empty list is inert', () => {
   assert.equal(jogAction(MENU, 1, 0, 0).action, 'ignore');
-  assert.equal(jogAction(READY, 1, 0, 0).action, 'ignore');
+  assert.equal(jogAction(SETTINGS, 1, 0, 0).action, 'ignore');
 });
 
 /* ---- Jog click ---------------------------------------------------------- */
@@ -151,7 +158,8 @@ test('plain click edits in settings, opens in the menu, and lists elsewhere', ()
   assert.equal(jogClickAction(SETTINGS, false, true), 'toggle-edit');
   assert.equal(jogClickAction(MENU, false, true), 'open');
   assert.equal(jogClickAction(READY, false, true), 'menu');
-  assert.equal(jogClickAction(SUMMARY, false, true), 'menu');
+  assert.equal(jogClickAction(SUMMARY, false, true), 'next', 'a result offers what comes next');
+  assert.equal(jogClickAction(SUMMARY, true, true), 'skip', 'and Shift goes past it');
 });
 
 /* ---- Rebuilding the armed exercise -------------------------------------- */

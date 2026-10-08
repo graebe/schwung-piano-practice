@@ -91,6 +91,10 @@ export function recordLedColor(view, listening = false, phase = 1, hintExhausted
  * folder is open is catalog.mjs's business, not a view of its own.
  */
 export function jogAction(view, delta, index, count) {
+  /* The one exception: on the ready screen the jog picks the STAGE — right
+   * for stage 2, reading alone; left for stage 1, the pads lit. By direction,
+   * not as a toggle, so a knock that turns it twice lands where it pointed. */
+  if (view === READY) return { action: 'stage', index: delta > 0 ? 2 : 1 };
   if (count <= 0) return { action: 'ignore', index };
   if (view !== MENU && view !== SETTINGS) return { action: 'ignore', index };
   const next = Math.max(0, Math.min(count - 1, index + (delta > 0 ? 1 : -1)));
@@ -121,6 +125,8 @@ export function shouldRebuildChart(view, chartSource) {
  * folder or arms what is in it.
  */
 export function jogClickAction(view, shiftHeld, hasChart) {
+  /* A result is a fork: on to what is next, or — with Shift — past it. */
+  if (view === SUMMARY) return shiftHeld ? 'skip' : 'next';
   if (shiftHeld) return view === SETTINGS ? (hasChart ? 'ready' : 'menu') : 'settings';
   if (view === SETTINGS) return 'toggle-edit';
   if (view === MENU) return 'open';
