@@ -471,6 +471,7 @@ export const EXERCISES = [
     levels: [
       { key: 'triads', name: 'triads', quiz: { kind: 'chords', hear: true, chordSet: 'triads' } },
       { key: 'types', name: 'types', quiz: { kind: 'chords', hear: true, chordSet: 'types' } },
+      { key: 'advanced', name: 'advanced', quiz: { kind: 'chords', hear: true, chordSet: 'advanced' } },
     ],
   },
 ];

@@ -909,3 +909,93 @@ test('unloading is clean, and resume does not throw', () => {
   globalThis.tick();
   globalThis.onUnload();
 });
+
+/* Quiz › Hearing is the last row of the Quiz folder; its exercises are numbered. */
+function openHearing(number, level = 0) {
+  globalThis.init();
+  jog(2);
+  click();
+  jog(60);
+  click();
+  jog(number - 1);
+  click();
+  jog(level);
+  click();
+}
+
+const noteOns = () => hostCalls.notes.join(',').split(',').filter((n) => n && !n.endsWith(':0'));
+
+test('a hearing drill plays a line, takes its answer from the jog, and shows what it was', () => {
+  freezeClock();
+  const screen = capture();
+  hostCalls.notes.length = 0;
+  openHearing(5);
+
+  /* Melodic: one note now, the second a beat later. */
+  advanceMs(200);
+  assert.equal(noteOns().length, 1, 'the first note: ' + hostCalls.notes);
+  advanceMs(700);
+  assert.equal(noteOns().length, 2, 'then the second');
+
+  const asked = screen.frame();
+  assert.match(asked, /HEAR 3RDS/, asked);
+  assert.match(asked, /major or minor\?/);
+  assert.match(asked, /Major 3rd/);
+  assert.match(asked, /Minor 3rd/);
+
+  /* Answer the top option; if that was wrong the question stays, so the other is right. */
+  let after = screen.frame(click);
+  if (/major or minor\?/.test(after)) {
+    jog(1);
+    after = screen.frame(click);
+  }
+  assert.match(after, /[A-G][#b]?-[A-G][#bx]* m?M?3/, 'the answer is revealed: ' + after);
+
+  /* Then the next question, asked and played without a press. */
+  hostCalls.notes.length = 0;
+  advanceMs(1600);
+  const next = screen.frame();
+  assert.match(next, /major or minor\?/);
+  assert.match(next, /1\/20/);
+  assert.ok(noteOns().length >= 1, 'the next prompt sounds by itself');
+  screen.restore();
+  thawClock();
+});
+
+test('hearing help: Record replays slower, then strikes an answer; Play repeats', () => {
+  freezeClock();
+  openHearing(12, 1);                         /* Four triads, block */
+  advanceMs(3000);
+  hostCalls.notes.length = 0;
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  advanceMs(3000);
+  assert.equal(noteOns().length, 3, 'a block chord: three notes at once');
+
+  hostCalls.notes.length = 0;
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  advanceMs(6000);
+  assert.equal(noteOns().length, 6, 'slower: broken up first, then whole');
+
+  const screen = capture();
+  const struck = screen.frame(() => globalThis.onMidiMessageInternal(CC(RECORD, 127)));
+  assert.match(struck, /CLICK ok/, 'the help is used up: ' + struck);
+  screen.restore();
+  thawClock();
+});
+
+test('every hearing exercise opens and sounds without throwing', () => {
+  freezeClock();
+  for (let n = 1; n <= 18; n++) {
+    hostCalls.notes.length = 0;
+    openHearing(n);
+    advanceMs(400);
+    assert.ok(noteOns().length >= 1, `exercise ${n} played nothing`);
+    globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+    globalThis.onMidiMessageInternal(CC(RECORD, 127));
+    globalThis.onMidiMessageInternal([0x90, PAD, 100]);
+    globalThis.onMidiMessageInternal([0x80, PAD, 0]);
+    advanceMs(2000);
+  }
+  thawClock();
+});

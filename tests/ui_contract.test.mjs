@@ -598,7 +598,7 @@ test('the quiz rebuilds itself on a key change, rather than calling a build it h
 test('the feedback flashes exist — they were deleted once and shipped', () => {
   /* "ReferenceError: 'flashPad' is not defined" on the first pad press. */
   assert.match(code, /function flashPad\(pad, color, ms\)/);
-  assert.match(code, /function flashPitch\(pitch, color\)/);
+  assert.match(code, /function flashPitch\(pitch, color, ms\)/);
 });
 
 test('the jog cannot change what you are playing', () => {

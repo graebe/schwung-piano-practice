@@ -8,7 +8,7 @@
  *   Reading   scales, intervals and random lines, then the first tunes
  *   Chords    triads to altered dominants, and the progressions they make
  *   Songs     every bundled piece, rung by rung, easy to hard
- *   Ear       the quiz drills, notes then chords
+ *   Hearing   name what you hear: pitch, intervals, chords, keys
  *
  * A track is units of steps, and a step is only a pointer at a row of the
  * lesson tree, by the same id progress.mjs files its results under. That is
@@ -23,6 +23,7 @@
 import { drillId, drillLabel } from './stats.mjs';
 import { availableLevels } from './levels.mjs';
 import { item, isFinished } from './progress.mjs';
+import { EXERCISES, exerciseByKey, isNaming } from './ear.mjs';
 
 const SCALES = 'basics/scales/';
 const CHORDS = 'basics/chords/';
@@ -40,7 +41,9 @@ const tune = (song, level, label) => ({ id: 'song:' + song + '/' + level, label 
 /* A quiz step pins its options for the round, whatever the settings say, so
  * the step asks the same thing for everyone who reaches it. */
 function quiz(opts) {
-  const q = {
+  const q = opts.kind === EAR ? {
+    kind: EAR, exercise: opts.exercise, level: opts.level, hear: true, pick: true,
+  } : {
     kind: opts.kind,
     hear: Boolean(opts.hear),
     pick: Boolean(opts.pick),
@@ -50,6 +53,10 @@ function quiz(opts) {
   const id = 'quiz:' + drillId(q);
   return { id, label: drillLabel(drillId(q)), quiz: q };
 }
+
+const N = 'notes';
+const C = 'chords';
+const EAR = 'ear';
 
 const READING = [
   { name: 'First notes', steps: [
@@ -61,6 +68,11 @@ const READING = [
     scale('major', 'thirds', 'Major thirds'),
     scale('major', 'fifths', 'Major fifths'),
     random('in-key', 'Random in key'),
+  ] },
+  /* Finding a pitch on the grid, and naming a lit pad: reading the
+   * instrument rather than the staff. */
+  { name: 'Find the note', steps: [
+    quiz({ kind: N }), quiz({ kind: N, pick: true }),
   ] },
   { name: 'First tunes', steps: [
     tune('mary-had-a-lamb', '1r', 'Marys Lamb melody'),
@@ -84,6 +96,7 @@ const READING = [
     scale('harmonicMinor', 'up-down', 'Harmonic minor'),
     scale('chromatic', 'up-down', 'Chromatic'),
     random('all-notes', 'Random, all notes'),
+    quiz({ kind: N, halfTones: true }), quiz({ kind: N, halfTones: true, pick: true }),
   ] },
 ];
 
@@ -120,6 +133,10 @@ const CHORD_TRACK = [
     prog('ii-V-I', '3', 'ii-V-I'),
     random('sevenths/2r', 'Random sevenths'),
   ] },
+  { name: 'Name the chord', steps: [
+    quiz({ kind: C }), quiz({ kind: C, pick: true }),
+    quiz({ kind: C, chordSet: 'types' }), quiz({ kind: C, chordSet: 'types', pick: true }),
+  ] },
   { name: 'Colours', steps: [
     chord('sixths', 'chord-6', '2r', 'Major 6th'),
     chord('added-tones', 'chord-add9', '2r', 'Add 9'),
@@ -136,34 +153,21 @@ const CHORD_TRACK = [
     chord('slash-chords', 'slash-chords', '3', 'Slash chords'),
     prog('ii-V-i-minor', '3', 'ii-V-i minor'),
     random('all-chords/3', 'Random chords'),
+    quiz({ kind: C, chordSet: 'advanced' }), quiz({ kind: C, chordSet: 'advanced', pick: true }),
   ] },
 ];
 
-const N = 'notes';
-const C = 'chords';
-const EAR = [
-  { name: 'Notes in key', steps: [
-    quiz({ kind: N }), quiz({ kind: N, pick: true }), quiz({ kind: N, hear: true }),
-  ] },
-  { name: 'Every note', steps: [
-    quiz({ kind: N, halfTones: true }),
-    quiz({ kind: N, halfTones: true, pick: true }),
-    quiz({ kind: N, halfTones: true, hear: true }),
-  ] },
-  { name: 'Triads', steps: [
-    quiz({ kind: C }), quiz({ kind: C, pick: true }), quiz({ kind: C, hear: true }),
-  ] },
-  { name: 'Chord types', steps: [
-    quiz({ kind: C, chordSet: 'types' }),
-    quiz({ kind: C, chordSet: 'types', pick: true }),
-    quiz({ kind: C, chordSet: 'types', hear: true }),
-  ] },
-  { name: 'Advanced chords', steps: [
-    quiz({ kind: C, chordSet: 'advanced' }),
-    quiz({ kind: C, chordSet: 'advanced', pick: true }),
-    quiz({ kind: C, chordSet: 'advanced', hear: true }),
-  ] },
-];
+/*
+ * Hearing: the exercises of ear.mjs in their order, easiest first, one unit
+ * each and one step per level. The two play-back exercises are the Hear
+ * drills of the Quiz folder; the rest name what they heard.
+ */
+const HEARING = EXERCISES.map((ex, i) => ({
+  name: (i + 1) + ' ' + ex.name,
+  steps: ex.levels.map((lv) => quiz(isNaming(ex)
+    ? { kind: EAR, exercise: ex.key, level: lv.key }
+    : lv.quiz)),
+}));
 
 /* What the songs track calls a rung, short enough to follow a song's name. */
 const RUNG = { '1r': 'L1 RH', '1l': 'L1 LH', '2r': 'L2', '3': 'L3' };
@@ -202,7 +206,7 @@ export function buildProgram({ songs = [], categoryOrder = SONG_ORDER } = {}) {
     { key: 'reading', name: 'Reading', units: READING },
     { key: 'chords', name: 'Chords', units: CHORD_TRACK },
     { key: 'songs', name: 'Songs', units: songUnits(songs, categoryOrder) },
-    { key: 'ear', name: 'Ear', units: EAR },
+    { key: 'hearing', name: 'Hearing', units: HEARING },
   ];
 }
 
@@ -247,7 +251,7 @@ export function trackActivity(progress, track) {
 /*
  * Continue: the next step of the track left longest. Ties go to the earlier
  * track, so on a fresh start it is Reading first — and the first session
- * then walks Reading, Chords, Songs, Ear in turn.
+ * then walks Reading, Chords, Songs, Hearing in turn.
  */
 export function continueStep(progress, tracks) {
   let best = null;
@@ -289,6 +293,11 @@ export function quizFromId(id) {
   const parts = String(id).replace(/^quiz:/, '').split(':');
   if (parts.length !== 3) return null;
   const [mode, kind, set] = parts;
+  if (mode === EAR) {
+    const ex = exerciseByKey(kind);
+    if (!isNaming(ex) || !ex.levels.some((l) => l.key === set)) return null;
+    return { kind: EAR, exercise: kind, level: set, hear: true, pick: true };
+  }
   if (kind !== N && kind !== C) return null;
   return {
     kind,
@@ -308,8 +317,13 @@ export function quizFromId(id) {
  * day, so the caller supplies them as a function and the folder sums leave
  * them out.
  */
+/* A step as a row of a list: a leaf under its own id, so it is summed and
+ * marked wherever it appears. */
+export function stepRow(step) {
+  return { label: step.label, value: '', key: step.id, absolute: true, step };
+}
+
 export function programFolder(tracks, repetitionRows = () => []) {
-  const stepRow = (step) => ({ label: step.label, value: '', key: step.id, absolute: true, step });
   return {
     label: 'Learning Program',
     value: '>',

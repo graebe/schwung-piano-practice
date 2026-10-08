@@ -10,6 +10,7 @@ import { buildCatalog, leafIndex, findById, isFolder } from '../src/catalog.mjs'
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
 import { emptyProgress, recordAttempt, skipItem, moveOn } from '../src/progress.mjs';
 import { drillId } from '../src/stats.mjs';
+import { EXERCISES } from '../src/ear.mjs';
 
 const T0 = Date.UTC(2026, 9, 1, 12);
 const play = (p, id, stage, score, at = T0) => recordAttempt(p, id, { stage, score, at });
@@ -30,7 +31,7 @@ const root = buildCatalog({ songs, categories, lead: [programFolder(tracks)] });
 const index = leafIndex(root);
 
 test('four tracks, each with something in it', () => {
-  assert.deepEqual(tracks.map((t) => t.key), ['reading', 'chords', 'songs', 'ear']);
+  assert.deepEqual(tracks.map((t) => t.key), ['reading', 'chords', 'songs', 'hearing']);
   for (const t of tracks) assert.ok(trackSteps(t).length > 5, t.key);
 });
 
@@ -52,6 +53,7 @@ test('every step of the program opens a real exercise', () => {
 test('every step is also found the cheap way, without opening every folder', () => {
   for (const t of tracks.slice(0, 2)) {
     for (const step of trackSteps(t)) {
+      if (step.quiz) continue;
       const hit = findById(root, step.id);
       assert.ok(hit && hit.node.build, step.id);
     }
@@ -70,15 +72,49 @@ test('the steps of the first units build valid charts', () => {
 });
 
 test('quiz steps carry their options, and the id says the same thing', () => {
-  const ear = tracks[3];
-  for (const step of trackSteps(ear)) {
-    assert.ok(step.quiz, step.id);
+  const quizSteps = tracks.flatMap((t) => trackSteps(t)).filter((s) => s.quiz);
+  assert.ok(quizSteps.length > 40);
+  for (const step of quizSteps) {
     assert.equal(step.id, 'quiz:' + drillId(step.quiz));
     const back = quizFromId(step.id);
     assert.equal(drillId(back), drillId(step.quiz), step.id);
   }
+  for (const step of trackSteps(tracks[3])) assert.ok(step.quiz, step.id);
   assert.equal(quizFromId('quiz:nonsense'), null);
   assert.equal(quizFromId('quiz:guess:planets:x'), null);
+  assert.equal(quizFromId('quiz:ear:planets:up'), null);
+  assert.equal(quizFromId('quiz:ear:thirds:sideways'), null);
+  assert.equal(quizFromId('quiz:ear:playback-notes:key'), null, 'play-back is a hear drill, not an ear id');
+});
+
+test('Hearing is the ear exercises in order, easiest first, a step per level', () => {
+  const hearing = tracks[3];
+  assert.equal(hearing.units.length, EXERCISES.length);
+  hearing.units.forEach((u, i) => {
+    assert.equal(u.name, (i + 1) + ' ' + EXERCISES[i].name);
+    assert.equal(u.steps.length, EXERCISES[i].levels.length);
+  });
+  const ids = trackSteps(hearing).map((s) => s.id);
+  assert.ok(ids.indexOf('quiz:ear:thirds:up') < ids.indexOf('quiz:ear:triads:broken'));
+  assert.deepEqual(quizFromId('quiz:ear:thirds:together'),
+    { kind: 'ear', exercise: 'thirds', level: 'together', hear: true, pick: true });
+  /* The play-back exercises are the hear drills, under the ids they always had. */
+  assert.ok(ids.includes('quiz:hear:notes:key') && ids.includes('quiz:hear:chords:advanced'));
+  /* Nothing in Hearing is read off the staff or the lit pads. */
+  for (const s of trackSteps(hearing)) assert.ok(s.quiz.hear, s.id);
+});
+
+test('the guess and pick drills moved to Reading and Chords, none lost', () => {
+  const where = (id) => tracks.find((t) => trackSteps(t).some((s) => s.id === id)).key;
+  for (const set of ['key', 'half']) {
+    assert.equal(where('quiz:guess:notes:' + set), 'reading');
+    assert.equal(where('quiz:pick:notes:' + set), 'reading');
+  }
+  for (const set of ['triads', 'types', 'advanced']) {
+    assert.equal(where('quiz:guess:chords:' + set), 'chords');
+    assert.equal(where('quiz:pick:chords:' + set), 'chords');
+    assert.equal(where('quiz:hear:chords:' + set), 'hearing');
+  }
 });
 
 test('the songs track follows the manifest, easy categories first, every rung', () => {
@@ -161,7 +197,7 @@ test('the program folder: Continue, Skip, the tracks, then Repetition', () => {
   let asked = 0;
   const node = programFolder(tracks, () => { asked++; return [{ label: 'r', repId: 'x' }]; });
   assert.deepEqual(node.children.map((c) => c.label),
-    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Ear', 'Repetition']);
+    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Repetition']);
   assert.equal(asked, 0, 'repetition is worked out only when looked at');
   const rep = node.children[6];
   assert.ok(isFolder(rep) && rep.untracked);

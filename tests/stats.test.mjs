@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   drillId, drillLabel, ratePerMinute, makeRecord, recordRate, emptyStats, addRecord, parseStats, serialiseStats, forDrill, drillsWithHistory, summarise, isPersonalBest, sparkline, MAX_RECORDS, errorFraction,
 } from '../src/stats.mjs';
+import { EXERCISES } from '../src/ear.mjs';
 
 const rec = (drill, ms, n = 20, at = 0) => makeRecord({ drill, n, ms, at });
 
@@ -268,4 +269,27 @@ test('the error series is sliced with the line, never separately', () => {
   assert.equal(pts.length, 10);
   assert.equal(pts[0].err, 40 / 60, 'the first point kept is record 40');
   assert.equal(pts[9].err, 49 / 69);
+});
+
+/* ---- Hearing drills ---------------------------------------------------------- */
+
+test('a hearing drill is filed under its exercise and level', () => {
+  assert.equal(drillId({ kind: 'ear', exercise: 'thirds', level: 'up', hear: true, pick: true }),
+    'ear:thirds:up');
+  assert.equal(drillLabel('ear:thirds:up'), 'Hear 3rds up');
+  assert.equal(drillLabel('ear:planets:up'), 'ear:planets:up', 'unknown stays readable');
+});
+
+test('every hearing label fits a line', () => {
+  for (const ex of EXERCISES) {
+    for (const lv of ex.levels) {
+      const label = drillLabel(lv.quiz ? drillId(lv.quiz) : 'ear:' + ex.key + ':' + lv.key);
+      assert.ok(label.length <= 21, `"${label}" is ${label.length}`);
+    }
+  }
+});
+
+test('the old drill ids are untouched', () => {
+  assert.equal(drillId({ kind: 'notes', hear: true, halfTones: true }), 'hear:notes:half');
+  assert.equal(drillId({ kind: 'chords', pick: true, chordSet: 'types' }), 'pick:chords:types');
 });

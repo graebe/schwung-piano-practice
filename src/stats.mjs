@@ -11,6 +11,8 @@
  * drill id and nothing ever compares across them.
  */
 
+import { exerciseByKey, levelByKey } from './ear.mjs';
+
 export const STATS_VERSION = 1;
 export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound */
 
@@ -22,7 +24,10 @@ export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound *
  * trend line and the plot would be measuring the wrong thing.
  */
 export function drillId({ hear = false, pick = false, kind = 'notes',
-                          chordSet = 'triads', halfTones = false } = {}) {
+                          chordSet = 'triads', halfTones = false,
+                          exercise = '', level = '' } = {}) {
+  /* A hearing drill is its exercise and level: ear:thirds:up. */
+  if (kind === 'ear') return 'ear:' + exercise + ':' + level;
   const mode = pick ? 'pick' : (hear ? 'hear' : 'guess');
   if (kind === 'chords') {
     const set = chordSet === 'types' || chordSet === 'advanced' ? chordSet : 'triads';
@@ -43,6 +48,10 @@ const DRILL_WORDS = {
 export function drillLabel(id) {
   const parts = String(id).split(':');
   if (parts.length !== 3) return String(id);
+  if (parts[0] === 'ear') {
+    const ex = exerciseByKey(parts[1]);
+    return ex ? 'Hear ' + ex.short + ' ' + levelByKey(ex, parts[2]).name : String(id);
+  }
   return [DRILL_WORDS[parts[0]], DRILL_WORDS[parts[1]], DRILL_WORDS[parts[2]]]
     .filter(Boolean)
     .join(' ');

@@ -306,6 +306,7 @@ function noteOff(pitch) {
 
 function allNotesOff() {
   guessOff.length = 0;
+  guessOn.length = 0;
   dspNotes.length = 0;
   dspSet('panic', '1');
   /* Drop anything still scheduled first, or serviceNoteOffs would try to
@@ -535,7 +536,10 @@ let quizPick = false;        /* multiple choice: the pad is lit, you name it */
 let quizSpec = null;
 let quizSolvedAt = 0;        /* brief confirmation before the next prompt */
 const guessOff = [];         /* ms-scheduled note-offs; the quiz has no clock */
+const guessOn = [];          /* ms-scheduled note-ons: a hearing prompt is a line */
 const GUESS_ADVANCE_MS = 450;
+/* Long enough to read what it was while the pads still flash it. */
+const EAR_ADVANCE_MS = 1400;
 
 /* The lesson tree, and the folders open in it (catalog.mjs). */
 let catalog = null;
@@ -622,13 +626,23 @@ function quizId(spec) {
   return 'quiz:' + STATS.drillId(spec);
 }
 
+/* Quiz › Hearing: the Hearing track's exercises, each a folder of its
+ * levels. The rows are the track's own steps, so a level played here is the
+ * same item as in the Learning Program. */
+function hearingFolder() {
+  const hearing = tracks.find((t) => t.key === 'hearing');
+  if (!hearing) return [];
+  return [CAT.folder('Hearing', hearing.units.map((u) =>
+    CAT.folder(u.name, u.steps.map(PLAN.stepRow))), 'hearing')];
+}
+
 function rebuildMenu() {
   /* The guesser is a mode, not an exercise, but putting it in the one list you
    * already open means no new screen and no new gesture — and which entry you
    * pick is also how you choose notes or chords. */
   const quizRows = QUIZ_ROWS.map((r) => ({
     ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true,
-  }));
+  })).concat(hearingFolder());
   catalog = CAT.buildCatalog({
     songs: fileSongs,
     categories: fileCategories,
@@ -762,6 +776,8 @@ function startQuiz(spec) {
     halfTones: spec.halfTones,
     chordSet: spec.chordSet,
     pick: quizPick,
+    exercise: spec.exercise,
+    level: spec.level,
     roundSize: settings.roundSize,
     fifths: keyFifths(),
     seed: (Date.now() & 0x7fffffff) || 1,
@@ -770,7 +786,10 @@ function startQuiz(spec) {
   view = GUESS_VIEW;
   dirty = true;
   ledDirty = true;
-  if (quizPick) {
+  if (quiz.kind === GUESS.EAR) {
+    hearPrompt();
+    announce(quiz.exercise.name + '. Listen, then jog to the answer and click.');
+  } else if (quizPick) {
     announce('Name the lit pad. Jog to choose, click to answer.');
   } else if (quizHear) {
     hearPrompt();
@@ -1229,6 +1248,9 @@ const promptBuf = [];
 function collectPrompt() {
   promptBuf.length = 0;
   if (!quiz || view !== GUESS_VIEW) return;
+  /* Hearing never lights the answer, not even at the top of the ladder:
+   * a right answer flashes it instead. */
+  if (quiz.kind === GUESS.EAR) return;
   /* Lit always in the picking drill, where the pad IS the question; and in the
    * others only once you have climbed to the top of the help ladder. */
   if (!quizPick && quiz.hint < GUESS.MAX_HINT) return;
@@ -1259,9 +1281,9 @@ function flashPad(pad, color, ms) {
 }
 
 /* Every pad that sounds this pitch — the grid has twins. */
-function flashPitch(pitch, color) {
+function flashPitch(pitch, color, ms) {
   const pads = PAD.padsForPitch(pitch, settings.transpose);
-  for (let i = 0; i < pads.length; i++) flashPad(pads[i], color);
+  for (let i = 0; i < pads.length; i++) flashPad(pads[i], color, ms);
 }
 
 const ledWorkspace = LEDS.createLedState();
@@ -1361,6 +1383,9 @@ function takeHint() {
   /* Reading: rung one sounds it. Hearing withholds the name, so rung one is
    * purely what the screen now shows. Picking strikes an option, done above. */
   if (level === 1 && !quizHear && !quizPick) hearPrompt();
+  /* Hearing: rung one is the prompt again, slower — promptEvents reads the
+   * rung. */
+  if (level === 1 && quiz.kind === GUESS.EAR) hearPrompt();
 
   dirty = true;
   ledDirty = true;
@@ -1368,6 +1393,18 @@ function takeHint() {
 
 function hearPrompt() {
   if (!quiz || !quiz.prompt.length) return;
+  const events = GUESS.promptEvents(quiz);
+  if (events) {
+    /* A replay starts over: anything still queued or sounding from the last
+     * one would blur into it. */
+    stopPrompt();
+    const t = now();
+    for (let i = 0; i < events.length; i++) {
+      const e = events[i];
+      guessOn.push({ pitch: e.pitch, atMs: t + e.at, offMs: t + e.at + e.dur });
+    }
+    return;
+  }
   const until = now() + 900;
   for (let i = 0; i < quiz.prompt.length; i++) {
     noteOn(quiz.prompt[i], 90);
@@ -1375,7 +1412,17 @@ function hearPrompt() {
   }
 }
 
-/* The guesser has no musical clock, so its note-offs run on wall time. */
+function stopPrompt() {
+  guessOn.length = 0;
+  for (let i = 0; i < guessOff.length; i++) noteOff(guessOff[i].pitch);
+  guessOff.length = 0;
+}
+
+/*
+ * The guesser has no musical clock, so its notes run on wall time. Offs
+ * before ons: a note repeated straight after itself is released first and
+ * struck again, rather than struck twice and released once.
+ */
 function serviceGuess() {
   const t = now();
   for (let i = guessOff.length - 1; i >= 0; i--) {
@@ -1383,7 +1430,14 @@ function serviceGuess() {
     noteOff(guessOff[i].pitch);
     guessOff.splice(i, 1);
   }
-  if (quizSolvedAt && t - quizSolvedAt >= GUESS_ADVANCE_MS) {
+  for (let i = 0; i < guessOn.length;) {
+    if (guessOn[i].atMs > t) { i++; continue; }
+    noteOn(guessOn[i].pitch, 90);
+    guessOff.push({ pitch: guessOn[i].pitch, atMs: guessOn[i].offMs });
+    guessOn.splice(i, 1);
+  }
+  const advanceMs = quiz && quiz.kind === GUESS.EAR ? EAR_ADVANCE_MS : GUESS_ADVANCE_MS;
+  if (quizSolvedAt && t - quizSolvedAt >= advanceMs) {
     quizSolvedAt = 0;
     if (GUESS.roundComplete(quiz)) {
       finishRound();
@@ -1436,15 +1490,20 @@ function draw() {
   } else if (view === PROGRESS_DETAIL) {
     drawProgressDetail();
   } else if (view === GUESS_VIEW && quizPick) {
+    const ear = quiz.kind === GUESS.EAR;
+    let ask = 'which pad is lit?';
+    if (ear) ask = quiz.solved ? quiz.label : quiz.exercise.question;
+    else if (quiz.solved) ask = 'right';
     VIEW.drawPick(ctx, {
-      title: quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE',
+      title: ear ? 'HEAR ' + quiz.exercise.short.toUpperCase()
+        : (quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE'),
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : String(GUESS.quizStats(quiz).correct),
       options: quiz.choices.map((c) => GUESS.optionLabel(quiz, c)),
       index: quiz.choiceIndex,
       eliminated: quiz.eliminated,
-      hint: quiz.solved ? 'right' : 'which pad is lit?',
+      hint: ask,
       footer: GUESS.hintsLeft(quiz)
         ? 'JOG pick  REC help'
         : 'JOG pick  CLICK ok',
@@ -1774,7 +1833,11 @@ function onJogClick() {
   if (view === GUESS_VIEW && quizPick && quiz && !shiftHeld) {
     if (quiz.solved) return;
     const res = GUESS.pickChoice(quiz, now());
-    if (res === GUESS.CORRECT) quizSolvedAt = now();
+    if (res === GUESS.CORRECT) {
+      quizSolvedAt = now();
+      /* Heard, named, now shown: where it sits on the grid. */
+      if (quiz.kind === GUESS.EAR) for (const p of quiz.prompt) flashPitch(p, PAD.LED_HIT, EAR_ADVANCE_MS);
+    }
     dirty = true;
     ledDirty = true;
     return;
@@ -1905,6 +1968,7 @@ globalThis.init = function init() {
   repCache = { rev: -1, day: -1, rows: [] };
   quizSolvedAt = 0;
   guessOff.length = 0;
+  guessOn.length = 0;
   ledPhase = -1;
   lastClickBeat = null;
   lastDrawMs = 0;
