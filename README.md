@@ -405,6 +405,88 @@ the same drill, so trying again is one press; Back once more for the list.
 the reading mode, where the music is moving and a hint keeps you with it; in a quiz the hint is the
 answer. The only pad feedback here is what you press — green when right, red when wrong.
 
+## Hearing
+
+The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
+what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
+Find them in **Quiz › Hearing**, or work through them in order as the **Hearing** track of the
+Learning Program.
+
+### How a question works
+
+1. The prompt plays as soon as the question appears. **Play** repeats it as often as you like.
+2. Turn the jog to an answer and click.
+3. **Right:** the pads of what you heard flash, and the screen names the notes (`C-E♭ m3`, `Am`,
+   `in G major: B`). Hearing something and then seeing what it was is how the sound sticks.
+   **Wrong:** it counts once, and the question stays until you get it.
+
+A few rules hold for every exercise:
+
+- **The answers keep their order.** Major 3rd is always above Minor 3rd, so after a while your hand
+  knows where an answer is.
+- **The root changes every time.** You can't answer by remembering one note. You have to hear the
+  *distance* or the *colour*.
+- **Each answer is equally likely.** A drill with more leaps than steps on offer still asks for each
+  half the time, so always answering "leap" scores 50%, not 80%.
+- **Long lists scroll.** The interval drills name up to twelve answers. A small triangle at the
+  right edge shows there are more above or below.
+
+**Record** is help, two presses deep. The first press plays the prompt again, slower, with chords
+broken into their notes first. The second strikes out one wrong answer; with only two answers, that
+leaves the right one. As in the other quizzes, a hinted answer still counts, but the round records
+the hint.
+
+### The exercises, easiest first
+
+Each exercise has levels. They run melodic (one note after the other) before harmonic (together),
+upward before downward, and broken chords before block chords.
+
+| # | Exercise | You hear | You answer | Levels |
+| --- | --- | --- | --- | --- |
+| 1 | Higher or lower | two notes | Higher / Same / Lower | wide, close |
+| 2 | Play it back | one note | play it on the pads | in key, chromatic |
+| 3 | Step or leap | two notes of a major scale | Step / Leap | — |
+| 4 | Melody shape | three notes | Up, up / Up, down / Down, up / Down, down | — |
+| 5 | Major or minor 3rd | two notes | Major 3rd / Minor 3rd | up, down, together |
+| 6 | Major or minor | a triad | Major / Minor | broken, block, inverted |
+| 7 | Perfect intervals | two notes | Perfect 4th / Perfect 5th / Octave | up, together |
+| 8 | 2nds and 3rds | two notes | Minor 2nd … Major 3rd | up, down |
+| 9 | Intervals up | two notes, rising | every interval to the octave | in three groups |
+| 10 | Intervals down | two notes, falling | the same | in three groups |
+| 11 | Intervals together | two notes at once | the same | in three groups |
+| 12 | Four triads | a triad | Major / Minor / Diminished / Augmented | broken, block |
+| 13 | Major or minor key | a scale or a short tune | Major key / Minor key | scale, melody |
+| 14 | Home or away | the tonic chord, then a phrase | Finished / Unfinished | — |
+| 15 | Scale degrees | I–IV–V–I, then one note | 1 do … 7 ti | 1 3 5, all |
+| 16 | Seventh chords | a four-note chord | Major 7th / Dominant 7th / Minor 7th / Half-dim 7th | 3 types, 4 types |
+| 17 | Chords in a key | the I chord, then another | IV / V / vi | IV V, IV V vi |
+| 18 | Play the chord | a chord | play it on the pads | triads, types |
+
+The interval groups add answers a few at a time: first 2nds, 3rds, 4th, 5th and octave, then the
+6ths, then the tritone and 7ths.
+
+### What to listen for
+
+- **Major or minor third (5).** A major third is bright and open: the first two notes of *Oh When
+  the Saints*. A minor third is darker and softer: the first two notes of *Greensleeves*.
+- **Major or minor chord (6).** The same difference, now stacked. Major sounds settled and
+  bright, minor sounds sad and inward. The broken level plays the chord a note at a time before
+  it sounds whole, so you can hear the third arrive.
+- **Perfect intervals (7).** A 4th is the start of *Here Comes the Bride*, a 5th the leap after the first
+  two notes of *Twinkle Twinkle*, and an octave the first leap of *Somewhere Over the Rainbow*. They sound open
+  and hollow, with nothing sweet or sour in them.
+- **Four triads (12).** Diminished is tense and shrinking: a minor chord with its top squeezed
+  down. Augmented is unsettled, stretching, almost dreamlike: a major chord with its top pushed up.
+- **Home or away (14).** A finished phrase lands on *do* and you could stop there. An unfinished
+  one leaves you waiting for the next note.
+- **Scale degrees (15).** The cadence sets up the key. Sing down from the note you hear to *do*,
+  and count the steps on the way.
+- **Chords in a key (17).** IV feels like a step away, warm and open. V leans back towards home.
+  vi is the minor turn, where the music drops into shadow.
+
+Every level is a drill of its own for progress and records, with an id like `ear:thirds:up` or
+`ear:intervals-down:g2`.
+
 ## Results and progress
 
 ### After an exercise
