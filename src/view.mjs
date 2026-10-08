@@ -18,6 +18,7 @@ import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
 import { drillLabel, sparkline, summarise, errorFraction } from './stats.mjs';
 import { accuracySeries } from './progress.mjs';
+import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 
 export const SETTINGS_HINT = 'shift + jog: settings';
 /* Inside a folder of the lesson list, where Back no longer means leave. */
@@ -656,23 +657,11 @@ export function drawOverview(ctx, state) {
 }
 
 /*
- * Multiple choice: the grid is the question, the screen is the answer sheet.
- *
- * Three options stacked with the chosen one inverted, exactly as the settings
- * list marks its row, so the jog behaves the way it already does everywhere
- * else. The staff plays no part — what is being asked is lit on the pads.
+ * Multiple choice. The answers are pads on the bottom of the grid, each in its
+ * own colour (answer_pads.mjs), and this is their legend: which colour means
+ * which answer. The jog can still choose too, so its choice is marked here
+ * and pulses on its pad.
  */
-export const PICK_ROWS = 3;
-
-/* A 5px triangle at the right edge of a row: more options that way. */
-function drawMoreMark(ctx, y, dir) {
-  const x = L.SCREEN_W - 7;
-  for (let r = 0; r < 3; r++) {
-    const w = dir < 0 ? 1 + 2 * r : 5 - 2 * r;
-    ctx.fillRect(x + ((5 - w) >> 1), y + 1 + r, w, 1, 1);
-  }
-}
-
 export function drawPick(ctx, state) {
   const options = state.options || [];
   ctx.clear();
@@ -681,35 +670,73 @@ export function drawPick(ctx, state) {
   const msg = truncate(ctx, state.hint || 'which pad is lit?', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(msg)) >> 1, 10, msg, 1);
 
-  /* Three rows fit between the prompt and the footer. A longer list — the
-   * interval drills name up to twelve — scrolls with the jog, keeping the
-   * cursor on the middle row where it can, and marks the side with more. */
-  const rowH = 11;
-  const top = 21;
-  const first = Math.max(0, Math.min(state.index - 1, options.length - PICK_ROWS));
-  const last = Math.min(options.length, first + PICK_ROWS);
-  for (let i = first; i < last; i++) {
-    const y = top + (i - first) * rowH;
-    const selected = i === state.index;
-    const text = options[i];
-    const tw = ctx.textWidth(text);
-    const x = (L.SCREEN_W - tw) >> 1;
-    const struck = state.eliminated && state.eliminated.indexOf(i) >= 0;
-    if (selected) {
-      ctx.fillRect(x - 5, y - 2, tw + 10, rowH - 1, 1);
-      ctx.text(x, y, text, 0);
-    } else {
-      ctx.text(x, y, text, 1);
-    }
-    /* A hint strikes an option through rather than removing it: the list
-     * keeps its shape, so the remaining choice does not jump under your hand. */
-    if (struck) ctx.fillRect(x - 3, y + 3, tw + 6, 1, selected ? 0 : 1);
-  }
-  if (first > 0) drawMoreMark(ctx, top, -1);
-  if (last < options.length) drawMoreMark(ctx, top + (PICK_ROWS - 1) * rowH, 1);
+  if (options.length <= LIST_MAX) drawAnswerList(ctx, state, options);
+  else drawAnswerMap(ctx, state, options);
 
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
+}
+
+/*
+ * Four answers or fewer: one row each, the answer on the left and the colour
+ * of its pad on the right. The panel is one colour, so the pad's colour is
+ * named rather than shown — and the jog's choice is inverted, as everywhere.
+ */
+const ANSWER_ROW_Y = 20;
+const ANSWER_ROW_H = 9;
+
+function drawAnswerList(ctx, state, options) {
+  for (let i = 0; i < options.length; i++) {
+    const y = ANSWER_ROW_Y + i * ANSWER_ROW_H;
+    const selected = i === state.index;
+    const v = selected ? 0 : 1;
+    if (selected) ctx.fillRect(0, y - 1, L.SCREEN_W, ANSWER_ROW_H, 1);
+    const colour = state.colours ? state.colours[i] || '' : '';
+    const cw = colour ? ctx.textWidth(colour) : 0;
+    const label = truncate(ctx, options[i], L.SCREEN_W - 8 - cw - (cw ? 6 : 0));
+    ctx.text(4, y, label, v);
+    if (colour) ctx.text(L.SCREEN_W - 4 - cw, y, colour, v);
+    /* A hint strikes an answer through rather than removing it: the list
+     * keeps its shape, and its pad goes dark. */
+    if (state.eliminated && state.eliminated.indexOf(i) >= 0) {
+      ctx.fillRect(2, y + 3, L.SCREEN_W - 4, 1, v);
+    }
+  }
+}
+
+/*
+ * More than four: a map of the answer pads, in the shape they sit on the
+ * grid — the bottom row at the bottom — each with its short name, and the
+ * jog's choice spelled out in full underneath. Past four answers a list of
+ * colour names stops being readable; the position carries the meaning.
+ */
+const MAP_CELL_W = 16;
+const MAP_CELL_H = 11;
+const MAP_TOP_Y = 20;
+const MAP_NAME_Y = 46;
+
+function drawAnswerMap(ctx, state, options) {
+  const rows = options.length > 8 ? 2 : 1;
+  for (let i = 0; i < options.length; i++) {
+    const row = i >> 3;
+    const col = i & 7;
+    /* Row 0 is the bottom row of pads, so with two rows it is drawn lower. */
+    const y = rows === 2
+      ? MAP_TOP_Y + (1 - row) * (MAP_CELL_H + 1)
+      : MAP_TOP_Y + ((MAP_CELL_H + 1) >> 1);
+    const x = col * MAP_CELL_W;
+    const selected = i === state.index;
+    const short = state.short ? state.short[i] : shortLabel({ label: options[i] });
+    if (selected) ctx.fillRect(x + 1, y, MAP_CELL_W - 1, MAP_CELL_H, 1);
+    else ctx.drawRect(x + 1, y, MAP_CELL_W - 1, MAP_CELL_H, 1);
+    const tw = ctx.textWidth(short);
+    ctx.text(x + 1 + ((MAP_CELL_W - 1 - tw) >> 1), y + 2, short, selected ? 0 : 1);
+    if (state.eliminated && state.eliminated.indexOf(i) >= 0) {
+      ctx.line(x + 2, y + MAP_CELL_H - 2, x + MAP_CELL_W - 2, y + 1, selected ? 0 : 1);
+    }
+  }
+  const name = truncate(ctx, options[state.index] || '', L.TEXT_MAX_PX);
+  ctx.text((L.SCREEN_W - ctx.textWidth(name)) >> 1, MAP_NAME_Y, name, 1);
 }
 
 /* Scrolling list used for both the exercise picker and the settings page. */

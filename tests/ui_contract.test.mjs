@@ -663,3 +663,13 @@ test('hints are recorded, so the score does not quietly overstate the round', ()
   assert.match(code, /hints: quiz\.hintsUsed/);
   assert.match(code, /GUESS\.hintsLeft\(quiz\)/);
 });
+
+test('an answer pad is a button: it answers before any note is struck', () => {
+  const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
+  const bar = down.indexOf('AP.inAnswerBar');
+  assert.ok(bar >= 0, 'the answer bar is checked');
+  assert.ok(bar < down.indexOf('noteOn('), 'before the note is struck');
+  assert.match(down.slice(bar, down.indexOf('noteOn(')), /return;/, 'and the press stops there');
+  const up = code.match(/function onPadUp\(pad\) \{([\s\S]*?)\n\}/)[1];
+  assert.ok(up.indexOf('answerPressed[pad]') < up.indexOf('noteOff('), 'no note-off for a note never struck');
+});

@@ -703,3 +703,45 @@ test('a non-naming exercise asks nothing rather than crashing', () => {
   assert.equal(q.pool.length, 0);
   assert.deepEqual(q.prompt, []);
 });
+
+/* ---- Answering on the pads --------------------------------------------------- */
+
+test('choosing an answer by its pad is a jog move and a click in one', async () => {
+  const { chooseAnswer, isEliminated: struck } = await import('../src/guess.mjs');
+  const quiz = createQuiz({ kind: NOTES, pick: true, roundSize: 10, seed: 4 });
+  const right = quiz.choices.findIndex((c) => c.pitches.join() === quiz.prompt.join());
+  const wrong = right === 0 ? 1 : 0;
+  assert.equal(chooseAnswer(quiz, wrong, 100), WRONG);
+  assert.equal(quiz.choiceIndex, wrong, 'the cursor follows the pad');
+  assert.equal(quiz.wrong, 1);
+  assert.equal(chooseAnswer(quiz, right, 200), CORRECT);
+  assert.equal(chooseAnswer(quiz, right, 300), null, 'a solved question takes no more answers');
+  assert.equal(chooseAnswer(quiz, 99, 300), null);
+
+  const again = createQuiz({ kind: NOTES, pick: true, roundSize: 10, seed: 4 });
+  const other = again.choices.findIndex((c) => c.pitches.join() !== again.prompt.join());
+  again.eliminated.push(other);
+  assert.ok(struck(again, other));
+  assert.equal(chooseAnswer(again, other, 100), null, 'a struck answer cannot be pressed');
+  assert.equal(again.wrong, 0);
+});
+
+test('naming a lit pad never asks about a note that only the answer bar can show', async () => {
+  const { padsForPitch, PAD_FIRST, DEFAULT_TRANSPOSE } = await import('../src/padmap.mjs');
+  for (const kind of [NOTES, CHORDS]) {
+    for (const halfTones of [false, true]) {
+      const quiz = createQuiz({ kind, pick: true, halfTones, transpose: DEFAULT_TRANSPOSE, seed: 2 });
+      assert.ok(quiz.pool.length > 3, 'still plenty to ask');
+      for (const e of quiz.pool) {
+        for (const p of e.pitches) {
+          assert.ok(padsForPitch(p, DEFAULT_TRANSPOSE).some((pad) => pad >= PAD_FIRST + 8),
+            `${kind}: ${p} is only on the bottom row`);
+        }
+      }
+    }
+  }
+  /* Playing a note is unaffected: the bottom row is keys there. */
+  const play = createQuiz({ kind: NOTES, halfTones: true, seed: 2 });
+  const named = createQuiz({ kind: NOTES, halfTones: true, pick: true, seed: 2 });
+  assert.ok(play.pool.length > named.pool.length);
+});

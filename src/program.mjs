@@ -105,6 +105,9 @@ const CHORD_TRACK = [
   { name: 'Triads', steps: [
     chord('triads', 'chord-maj', '2r', 'Major triad'),
     chord('triads', 'chord-min', '2r', 'Minor triad'),
+    /* Hearing the difference belongs next to playing it: the Hearing track's
+     * Major or minor chord, block chords, is the same item here. */
+    { ...quiz({ kind: EAR, exercise: 'triads', level: 'block' }), label: 'Hear major or minor' },
     chord('triads', 'chord-maj', '3', 'Major, both hands'),
     chord('triads', 'chord-min', '3', 'Minor, both hands'),
     chord('triads', 'chord-dim', '2r', 'Diminished triad'),

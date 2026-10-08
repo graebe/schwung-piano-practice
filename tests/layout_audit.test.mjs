@@ -199,7 +199,19 @@ const SCREENS = {
     title: 'HEAR INT UP', score: '19/20', index: 6,
     options: ['Minor 2nd', 'Major 2nd', 'Minor 3rd', 'Major 3rd', 'Perfect 4th', 'Tritone',
       'Perfect 5th', 'Minor 6th', 'Major 6th', 'Minor 7th', 'Half-dim 7th', 'Octave'],
-    hint: 'which interval?', footer: 'JOG pick  REC help',
+    short: ['m2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'],
+    hint: 'which interval?', footer: 'PAD answer  REC help',
+  }),
+  'pick, a map with no short names given': (c) => V.drawPick(c, {
+    title: 'HEAR DEGREES', score: '19/20', index: 6,
+    options: ['Perfect 5th', 'Minor 6th', 'Major 6th', 'Minor 7th', 'Half-dim 7th', 'Octave', 'Tonic'],
+    hint: 'which degree?', footer: 'PAD or JOG  CLICK ok',
+  }),
+  'pick, four answers with colours': (c) => V.drawPick(c, {
+    title: 'HEAR TRIADS', score: '19/20', index: 3, eliminated: [1],
+    options: ['Major', 'Minor', 'Diminished', 'Augmented triad, inverted'],
+    colours: ['blue', 'orange', 'cyan', 'pink'],
+    hint: 'which triad?', footer: 'PAD answer  REC help',
   }),
   'guess': (c) => V.drawGuessView(c, {
     prompt: [60, 64, 67], fifths: 0, title: 'CHORD', score: '19/20',

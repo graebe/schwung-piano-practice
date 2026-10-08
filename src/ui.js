@@ -38,6 +38,7 @@ import * as LEDS from './led_paint.mjs';
 import * as STATS from './stats.mjs';
 import * as PROG from './progress.mjs';
 import * as PLAN from './program.mjs';
+import * as AP from './answer_pads.mjs';
 import * as NOTATION from './notation.mjs';
 import {
   msToBeats, beatsToMs, chartTotalBeats, beatsPerBar, isBeatEdge, applyWait, xToBeat,
@@ -1285,7 +1286,28 @@ const ledState = {
   heldPads: null, flashes: null,
   soundingPitches: null, stuckPitches: null, targetPitches: null, targetNear: false,
   promptPitches: null,
+  answerRows: 0, answerPads: null, answerColours: null,
 };
+
+/*
+ * The answer bar of a multiple-choice drill: which pads, in which colours.
+ * Everywhere else the bar does not exist and the bottom row is keys again.
+ */
+const answerColourBuf = [];
+const answerStruck = (i) => GUESS.isEliminated(quiz, i);
+
+function collectAnswers() {
+  if (view !== GUESS_VIEW || !quizPick || !quiz) {
+    ledState.answerRows = 0;
+    ledState.answerPads = null;
+    return;
+  }
+  const n = quiz.choices.length;
+  ledState.answerRows = AP.answerRows(n);
+  ledState.answerPads = AP.answerPads(n);
+  ledState.answerColours = AP.answerLeds(n, quiz.solved ? -1 : quiz.choiceIndex,
+    answerStruck, ledPhase, answerColourBuf);
+}
 /*
  * Momentary pad feedback: a judgement that just landed. Outranks everything
  * else in led_paint, including a held pad, for as long as it lasts.
@@ -1309,6 +1331,7 @@ function paintPads() {
   collectStuck();
   collectSounding();
   collectPrompt();
+  collectAnswers();
 
   ledState.transpose = settings.transpose;
   ledState.rootPc = settings.rootPc;
@@ -1516,12 +1539,16 @@ function draw() {
         ? quiz.correct + '/' + quiz.roundSize
         : String(GUESS.quizStats(quiz).correct),
       options: quiz.choices.map((c) => GUESS.optionLabel(quiz, c)),
+      /* The legend for the answer pads: their colours, and for a map the
+       * short names drawn where the pads sit. */
+      colours: quiz.choices.map((c, i) => AP.answerColour(i).name),
+      short: quiz.choices.map(AP.shortLabel),
       index: quiz.choiceIndex,
       eliminated: quiz.eliminated,
       hint: ask,
       footer: GUESS.hintsLeft(quiz)
-        ? 'JOG pick  REC help'
-        : 'JOG pick  CLICK ok',
+        ? 'PAD answer  REC help'
+        : 'PAD or JOG  CLICK ok',
     });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
@@ -1745,14 +1772,34 @@ function editSetting(index, delta) {
 }
 
 /* ---- Input -------------------------------------------------------------- */
+/*
+ * Pads pressed as answers rather than as notes: no note went out for them, so
+ * no note-off may follow — on the way up they are only forgotten.
+ */
+const answerPressed = {};
+
 function onPadDown(pad, vel) {
+  /* In a multiple-choice drill the bottom of the grid is answer buttons.
+   * They sound nothing: a press there is a choice, not a note. */
+  if (view === GUESS_VIEW && quizPick && quiz && AP.inAnswerBar(quiz.choices.length, pad)) {
+    answerPressed[pad] = 1;
+    const at = AP.answerAt(quiz.choices.length, pad);
+    const res = at >= 0 ? GUESS.chooseAnswer(quiz, at, now()) : null;
+    if (res) {
+      answered(res);
+      if (res === GUESS.WRONG) flashPad(pad, PAD.LED_MISS, 200);
+      else flashPad(pad, PAD.LED_HIT, 300);
+    }
+    return;
+  }
+
   heldPads[pad] = 1;
   ledDirty = true;
   const pitch = PAD.padPitch(pad, settings.transpose);
   noteOn(pitch, vel);
 
   if (view === GUESS_VIEW && quizPick) {
-    /* The pads are the question here; pressing one just sounds it. */
+    /* Above the bar the pads are the question; pressing one just sounds it. */
     return;
   }
   if (view === GUESS_VIEW) {
@@ -1792,6 +1839,10 @@ function onPadDown(pad, vel) {
 }
 
 function onPadUp(pad) {
+  if (answerPressed[pad]) {
+    delete answerPressed[pad];
+    return;
+  }
   delete heldPads[pad];
   ledDirty = true;
   const pitch = PAD.padPitch(pad, settings.transpose);
@@ -1844,17 +1895,21 @@ function onJog(delta) {
   dirty = true;
 }
 
+/* An answer was given, by the jog or by its pad. */
+function answered(res) {
+  if (res === GUESS.CORRECT) {
+    quizSolvedAt = now();
+    /* Heard, named, now shown: where it sits on the grid. */
+    if (quiz.kind === GUESS.EAR) for (const p of quiz.prompt) flashPitch(p, PAD.LED_HIT, EAR_ADVANCE_MS);
+  }
+  dirty = true;
+  ledDirty = true;
+}
+
 function onJogClick() {
   if (view === GUESS_VIEW && quizPick && quiz && !shiftHeld) {
     if (quiz.solved) return;
-    const res = GUESS.pickChoice(quiz, now());
-    if (res === GUESS.CORRECT) {
-      quizSolvedAt = now();
-      /* Heard, named, now shown: where it sits on the grid. */
-      if (quiz.kind === GUESS.EAR) for (const p of quiz.prompt) flashPitch(p, PAD.LED_HIT, EAR_ADVANCE_MS);
-    }
-    dirty = true;
-    ledDirty = true;
+    answered(GUESS.pickChoice(quiz, now()));
     return;
   }
   if (view === PROGRESS_VIEW && !shiftHeld) {
@@ -1993,6 +2048,7 @@ globalThis.init = function init() {
   pendingExitAt = 0;
   panicChannelNext = 16;
   for (const k in heldPads) delete heldPads[k];
+  for (const k in answerPressed) delete answerPressed[k];
   for (const k in padFlash) delete padFlash[k];
   for (const k in pitchRefcount) delete pitchRefcount[k];
 

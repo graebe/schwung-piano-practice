@@ -372,7 +372,7 @@ export const EXERCISES = [
     ],
   },
   {
-    key: 'triads', name: 'Major or minor', short: 'Maj/min', question: 'major or minor?',
+    key: 'triads', name: 'Major/minor chord', short: 'Maj/min', question: 'major or minor?',
     answers: chordAnswers(['maj', 'min']),
     levels: [
       { key: 'broken', name: 'broken', prompts: chordPrompts(['maj', 'min'], 'broken') },

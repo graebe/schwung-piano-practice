@@ -367,7 +367,7 @@ The **Quiz** folder asks in three ways, one folder each:
 | --- | --- | --- |
 | **Hear** | a sound | naming it, or playing it back — the Hearing exercises below |
 | **Play** | a note or chord on the staff | finding it on the pads |
-| **Name** | a lit pad | choosing its name with the jog |
+| **Name** | a lit pad | pressing the coloured pad of its name |
 
 Play and Name each hold **Notes** and **Chords**; which one you open is how you choose. They follow
 the **Half tones** and **Chords** settings.
@@ -383,13 +383,41 @@ isn't in the chord is what makes it wrong. A wrong answer is counted once and th
 until you get it.
 
 **Name › Notes** and **Name › Chords** run the other way round: a pad lights up — several for a chord
-— and you name it, choosing one of three options with the jog and confirming with a click. The two
+— and you name it on the **answer pads** (below). The two
 wrong options are near misses: a semitone either side for a note, or the same root with a different
 quality for a chord (`Cm7` against `C7` against `Cmaj7`), so answering from a rough sense of high or
 low will not get you through. Note options carry their octave, because on an isomorphic grid the
 same name sits in several places and knowing *which* A♯ you are on is most of the skill.
 
 It is the only drill that goes pad → name, and the only one you can do without playing a note.
+
+### Answering on the pads
+
+Wherever you choose from a set of answers — **Name**, and every **Hear** exercise that asks what you
+heard — the bottom of the grid turns into **answer pads**: one pad per answer, each in its own
+colour, and the screen is the legend.
+
+```
+screen                       pads (bottom row)
+  Major 3rd      blue          ·  ·  B  ·  ·  O  ·  ·
+  Minor 3rd      orange
+```
+
+| Answers | On the pads | On the screen |
+| --- | --- | --- |
+| 2–4 | every other pad of the bottom row, centred, so a near miss lands on a dark pad rather than the next answer | each answer with the colour of its pad — blue, orange, cyan, pink |
+| 5–8 | the whole bottom row | a map of the row, each pad with its short name (`m2`, `P5`, `TT`), and the chosen answer spelled out below |
+| 9–12 | the bottom two rows | the same map, two rows, the bottom row drawn lower as on the grid |
+
+**Press a pad to answer.** An answer pad is a button, not a key: it sounds nothing and sends no MIDI,
+and neither do the dark pads between answers. The rest of the grid still plays notes, so you can try
+something out before you answer. A right answer flashes green, a wrong one red.
+
+The **jog still works**: turn to choose, click to answer. The answer the jog is on pulses on its
+pad, so screen and pads always agree. When a hint strikes an answer out, its pad goes dark.
+
+In **Name**, the lit question never sits on the answer row: the handful of lowest notes that only the
+bottom row can play are left out of that drill.
 
 **Hear** is the same quiz with the notation withheld: you hear the note or chord and play it back,
 and the staff shows a `?` until you get it right, then reveals what it was — which is where the
@@ -425,7 +453,7 @@ Learning Program.
 ### How a question works
 
 1. The prompt plays as soon as the question appears. **Play** repeats it as often as you like.
-2. Turn the jog to an answer and click.
+2. Press the answer's pad (or turn the jog to it and click).
 3. **Right:** the pads of what you heard flash, and the screen names the notes (`C-E♭ m3`, `Am`,
    `in G major: B`). Hearing something and then seeing what it was is how the sound sticks.
    **Wrong:** it counts once, and the question stays until you get it.
@@ -458,7 +486,7 @@ upward before downward, and broken chords before block chords.
 | 3 | Step or leap | two notes of a major scale | Step / Leap | — |
 | 4 | Melody shape | three notes | Up, up / Up, down / Down, up / Down, down | — |
 | 5 | Major or minor 3rd | two notes | Major 3rd / Minor 3rd | up, down, together |
-| 6 | Major or minor | a triad | Major / Minor | broken, block, inverted |
+| 6 | Major/minor chord | a triad | Major / Minor | broken, block, inverted |
 | 7 | Perfect intervals | two notes | Perfect 4th / Perfect 5th / Octave | up, together |
 | 8 | 2nds and 3rds | two notes | Minor 2nd … Major 3rd | up, down |
 | 9 | Intervals up | two notes, rising | every interval to the octave | in three groups |

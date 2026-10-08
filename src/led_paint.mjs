@@ -78,6 +78,8 @@ function mark(layer, pads, value) {
  * thing the player just did and not seeing it feels broken:
  *
  *   flash      a judgement that just landed: green right, red wrong
+ *   answers    the answer bar of a multiple-choice drill: each answer its
+ *              colour, the rest of the bar dark — the bar is buttons, not keys
  *   held       a pad under a finger
  *   sounding   Listen is playing this note (blue) — the point of that mode
  *   stuck      wait-mode is frozen on this note (pulsing white): "this one, now"
@@ -87,7 +89,8 @@ function mark(layer, pads, value) {
  * `state` is plain data so this can be exercised without a Move:
  *   { transpose, rootPc, intervals, phase, now,
  *     heldPads, flashes,                     // maps keyed by pad number
- *     soundingPitches, stuckPitches, targetPitches, targetNear, promptPitches }
+ *     soundingPitches, stuckPitches, targetPitches, targetNear, promptPitches,
+ *     answerRows, answerPads, answerColours }   // the bar: rows, pads, colours
  */
 export function padColors(state, ws, out) {
   const layer = ws.layer;
@@ -106,12 +109,19 @@ export function padColors(state, ws, out) {
   const flashes = state.flashes;
   const held = state.heldPads;
   const now = state.now;
+  const barEnd = PAD_FIRST + (state.answerRows || 0) * 8;
+  const answerPads = state.answerPads;
 
   for (let pad = PAD_FIRST; pad <= PAD_LAST; pad++) {
     const idx = pad - PAD_FIRST;
     const flash = flashes && flashes[pad];
     if (flash && flash.untilMs > now) {
       out[idx] = flash.color;
+      continue;
+    }
+    if (pad < barEnd) {
+      const at = answerPads ? answerPads.indexOf(pad) : -1;
+      out[idx] = at >= 0 ? state.answerColours[at] : LED_OFF;
       continue;
     }
     if (held && held[pad]) {

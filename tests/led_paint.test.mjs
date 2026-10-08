@@ -206,3 +206,30 @@ test('the multiple-choice prompt is lit, because there it is the question', () =
 test('the prompt does not blink — it is a question, not an urgency', () => {
   assert.deepEqual(paint({ promptPitches: [62], phase: 0 }), paint({ promptPitches: [62], phase: 1 }));
 });
+
+/* ---- The answer bar ---------------------------------------------------------- */
+
+test('the answer bar owns its rows: answers in colour, the rest dark', () => {
+  const pads = [PAD_FIRST + 1, PAD_FIRST + 3, PAD_FIRST + 5];
+  const out = paint({
+    answerRows: 1, answerPads: pads, answerColours: [16, 3, 14],
+    promptPitches: [padPitch(PAD_FIRST + 3)],
+  });
+  assert.equal(out[1], 16);
+  assert.equal(out[3], 3, 'an answer is never painted over by the question');
+  assert.equal(out[5], 14);
+  for (const idx of [0, 2, 4, 6, 7]) assert.equal(out[idx], LED_OFF, `pad ${idx} of the bar is dark`);
+});
+
+test('a judgement still flashes over an answer', () => {
+  const out = paint({
+    answerRows: 1, answerPads: [PAD_FIRST + 3], answerColours: [16],
+    flashes: { [PAD_FIRST + 3]: { color: LED_HIT, untilMs: 1e12 } }, now: 0,
+  });
+  assert.equal(out[3], LED_HIT);
+});
+
+test('without answers the bottom row is keys again', () => {
+  const out = paint({ answerRows: 0, answerPads: null });
+  assert.ok(out.slice(0, 8).some((c) => c !== LED_OFF), 'the key shows on the bottom row');
+});

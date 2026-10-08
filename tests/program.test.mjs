@@ -65,6 +65,7 @@ test('every step is also found the cheap way, without opening every folder', () 
 test('the steps of the first units build valid charts', () => {
   for (const t of tracks.slice(0, 3)) {
     for (const step of t.units[0].steps) {
+      if (step.quiz) continue;
       const { ok, errors } = validateExercise(index.get(step.id).node.build());
       assert.ok(ok, step.id + ': ' + errors.join('; '));
     }
@@ -232,4 +233,13 @@ test('ids do not move when the key changes', () => {
   const inC = buildCatalog({ songs, categories, gen: { rootPc: 0 } });
   const inFs = buildCatalog({ songs, categories, gen: { rootPc: 6, mode: 'dorian' } });
   assert.deepEqual([...leafIndex(inC).keys()], [...leafIndex(inFs).keys()]);
+});
+
+test('hearing major or minor sits in the Chords track, as the Hearing item it is', () => {
+  const chords = tracks.find((t) => t.key === 'chords');
+  const step = trackSteps(chords).find((st) => st.id === 'quiz:ear:triads:block');
+  assert.ok(step, 'in the Chords track');
+  assert.equal(step.label, 'Hear major or minor');
+  assert.deepEqual(quizFromId(step.id), step.quiz);
+  assert.equal(chords.units[0].steps.indexOf(step), 2, 'right after the minor triad');
 });
