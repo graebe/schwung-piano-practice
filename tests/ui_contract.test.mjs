@@ -561,13 +561,18 @@ test('a scrub lights the note it lands on, and only while the music is parked', 
     'and resuming hands the pads back to the reading-first rule');
 });
 
-test('the mode is entered from the list, and picks notes or chords by which row', () => {
-  const rows = code.match(/const QUIZ_ROWS = \[([\s\S]*?)\n\];/)[1];
-  assert.match(rows, /guess: GUESS\.NOTES/);
-  assert.match(rows, /guess: GUESS\.CHORDS/);
+test('the quiz is three folders — Hear, Play, Name — and the row picks notes or chords', () => {
+  const play = code.match(/const QUIZ_PLAY = \[([\s\S]*?)\n\];/)[1];
+  const name = code.match(/const QUIZ_NAME = \[([\s\S]*?)\n\];/)[1];
+  for (const rows of [play, name]) {
+    assert.match(rows, /guess: GUESS\.NOTES/);
+    assert.match(rows, /guess: GUESS\.CHORDS/);
+  }
+  assert.match(name, /pick: true/, 'Name is the multiple-choice drill');
+  assert.doesNotMatch(play, /pick|hear/, 'Play is finding it on the pads');
   assert.match(code, /if \(row\.guess\)[\s\S]{0,100}startQuiz\(settingsQuiz\(row\)\)/);
-  assert.match(rows, /hear: true/, 'and the hearing rows are there too');
-  assert.match(code.match(/function rebuildMenu\(\) \{([\s\S]*?)\n\}/)[1], /QUIZ_ROWS\.map/);
+  const menu = code.match(/function rebuildMenu\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(menu, /hearFolder\(\),\s*CAT\.folder\('Play'[\s\S]{0,80}CAT\.folder\('Name'/, 'in that order');
 });
 
 test('leaving the guesser silences it', () => {

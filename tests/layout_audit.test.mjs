@@ -134,7 +134,7 @@ const SCREENS = {
   }),
   'progress list, decorated': (c) => V.drawList(c, 'PROGRESS 100%', [
     { label: 'Overall' }, { label: 'Reading track' },
-    { label: 'Scarborough Fair L3 Both hands' }, { label: 'Pick chords advanced' },
+    { label: 'Scarborough Fair L3 Both hands' }, { label: 'Name chords advanced' },
   ], 2, {
     footer: 'CLICK chart BACK list', centreFooter: true,
     decorate: (r) => ({ value: '100%', mark: r.label === 'Overall' ? null : 'done' }),

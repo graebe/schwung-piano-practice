@@ -604,15 +604,23 @@ function buildTracks() {
  * changes. The open folders are carried across by path, so turning the key
  * with Basics › Progressions open leaves you in Basics › Progressions.
  */
-/* The Quiz folder's rows. Their ids follow the settings that change what a
- * drill asks, so a chromatic round and an in-key round are filed apart. */
-const QUIZ_ROWS = [
-  { label: 'Guess: notes', guess: GUESS.NOTES },
-  { label: 'Guess: chords', guess: GUESS.CHORDS },
-  { label: 'Hear: notes', guess: GUESS.NOTES, hear: true },
-  { label: 'Hear: chords', guess: GUESS.CHORDS, hear: true },
-  { label: 'Pick: notes', guess: GUESS.NOTES, pick: true },
-  { label: 'Pick: chords', guess: GUESS.CHORDS, pick: true },
+/*
+ * The Quiz folder: three ways of asking, one folder each.
+ *
+ *   Hear   something is played; you name it or play it back
+ *   Play   a note or chord is shown; you find it on the pads
+ *   Name   a pad is lit; you name it
+ *
+ * Play and Name follow the Half tones and Chords settings, and their ids do
+ * too, so a chromatic round and an in-key round are filed apart.
+ */
+const QUIZ_PLAY = [
+  { label: 'Notes', guess: GUESS.NOTES },
+  { label: 'Chords', guess: GUESS.CHORDS },
+];
+const QUIZ_NAME = [
+  { label: 'Notes', guess: GUESS.NOTES, pick: true },
+  { label: 'Chords', guess: GUESS.CHORDS, pick: true },
 ];
 
 function settingsQuiz(row) {
@@ -626,30 +634,37 @@ function quizId(spec) {
   return 'quiz:' + STATS.drillId(spec);
 }
 
-/* Quiz › Hearing: the Hearing track's exercises, each a folder of its
- * levels. The rows are the track's own steps, so a level played here is the
- * same item as in the Learning Program. */
-function hearingFolder() {
+/* Quiz › Hear: the Hearing track's exercises, each a folder of its levels.
+ * The rows are the track's own steps, so a level played here is the same item
+ * as in the Learning Program — and playing back notes and chords is two of
+ * its units, so they are not listed a second time. */
+function hearFolder() {
   const hearing = tracks.find((t) => t.key === 'hearing');
-  if (!hearing) return [];
-  return [CAT.folder('Hearing', hearing.units.map((u) =>
-    CAT.folder(u.name, u.steps.map(PLAN.stepRow))), 'hearing')];
+  const units = hearing ? hearing.units : [];
+  return CAT.folder('Hear', units.map((u) =>
+    CAT.folder(u.name, u.steps.map(PLAN.stepRow))), 'hear');
+}
+
+function quizRows(rows) {
+  return rows.map((r) => ({ ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true }));
 }
 
 function rebuildMenu() {
   /* The guesser is a mode, not an exercise, but putting it in the one list you
    * already open means no new screen and no new gesture — and which entry you
    * pick is also how you choose notes or chords. */
-  const quizRows = QUIZ_ROWS.map((r) => ({
-    ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true,
-  })).concat(hearingFolder());
+  const quizFolders = [
+    hearFolder(),
+    CAT.folder('Play', quizRows(QUIZ_PLAY), 'play'),
+    CAT.folder('Name', quizRows(QUIZ_NAME), 'name'),
+  ];
   catalog = CAT.buildCatalog({
     songs: fileSongs,
     categories: fileCategories,
     gen: generatorOptions(),
     /* The guided way in leads; the quiz sits straight after Basics. */
     lead: [PLAN.programFolder(tracks, repetitionRows)],
-    after: [CAT.folder('Quiz', quizRows, 'quiz')],
+    after: [CAT.folder('Quiz', quizFolders, 'quiz')],
     tail: [{ label: 'Progress', progress: true, value: '~' }],
   });
   nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);

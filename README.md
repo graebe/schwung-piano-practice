@@ -76,7 +76,9 @@ Basics            Scales        one folder per Move scale: Up & down, Up, Down, 
                   Chords        thirteen families, one lesson per chord quality
                   Progressions  ten progressions in the Key setting's key
                   Random        random notes, and random chords from the whole vocabulary
-Quiz              Guess, Hear and Pick, for notes and for chords
+Quiz              Hear    name what you hear, or play it back
+                  Play    find a note or chord on the pads
+                  Name    name the pad that is lit
 Classics          folk tunes and the classics, easy first
 Electronic        the chord loops of famous tracks, and five electronic style pieces
 Techno            fourteen progression studies, simple to complex
@@ -359,10 +361,18 @@ drill a style.
 
 ## Note guesser and ear training
 
-Extra modes in the **Quiz** folder — **Guess: notes**, **Guess: chords**, **Hear: notes**, **Hear:
-chords**. Which entry you open is also how you pick.
+The **Quiz** folder asks in three ways, one folder each:
 
-One note or chord sits still on the staff with its name below it, and it waits until you play it.
+| Folder | You are given | You answer by |
+| --- | --- | --- |
+| **Hear** | a sound | naming it, or playing it back — the Hearing exercises below |
+| **Play** | a note or chord on the staff | finding it on the pads |
+| **Name** | a lit pad | choosing its name with the jog |
+
+Play and Name each hold **Notes** and **Chords**; which one you open is how you choose. They follow
+the **Half tones** and **Chords** settings.
+
+In **Play**, one note or chord sits still on the staff with its name below it, and it waits until you play it.
 No clock, no scrolling, nothing timed. This drills a different skill from the reading mode: the
 Move's grid is isomorphic — one semitone right, five up — so the same pitch appears on several pads
 and nothing resembles a keyboard. Finding a pitch is its own problem, and the scrolling mode can
@@ -372,7 +382,7 @@ A chord has to be **held all at once**. Part of it down is *incomplete*, not a m
 isn't in the chord is what makes it wrong. A wrong answer is counted once and the question stays
 until you get it.
 
-**Pick: notes** and **Pick: chords** run the other way round: a pad lights up — several for a chord
+**Name › Notes** and **Name › Chords** run the other way round: a pad lights up — several for a chord
 — and you name it, choosing one of three options with the jog and confirming with a click. The two
 wrong options are near misses: a semitone either side for a note, or the same root with a different
 quality for a chord (`Cm7` against `C7` against `Cmaj7`), so answering from a rough sense of high or
@@ -409,7 +419,7 @@ answer. The only pad feedback here is what you press — green when right, red w
 
 The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
 what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
-Find them in **Quiz › Hearing**, or work through them in order as the **Hearing** track of the
+Find them in **Quiz › Hear**, or work through them in order as the **Hearing** track of the
 Learning Program.
 
 ### How a question works

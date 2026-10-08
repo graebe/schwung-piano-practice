@@ -102,13 +102,20 @@ const click = () => {
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   globalThis.tick();
 };
-/* Quiz rows: 0-1 Guess, 2-3 Hear, 4-5 Pick; notes then chords. */
+/*
+ * The Quiz folder is Hear, Play, Name. Play and Name hold Notes then Chords;
+ * Hear holds the hearing units, of which 2 plays notes back and 18 chords.
+ * Rows here keep their old numbering: 0-1 Play, 2-3 Hear, 4-5 Name.
+ */
+const QUIZ_PATHS = [[1, 0], [1, 1], [0, 1, 0], [0, 17, 0], [2, 0], [2, 1]];
 function openQuiz(row) {
   globalThis.init();
   jog(2);
   click();
-  jog(row);
-  click();
+  for (const step of QUIZ_PATHS[row]) {
+    jog(step);
+    click();
+  }
 }
 function openProgress() {
   globalThis.init();
@@ -250,7 +257,9 @@ test('a whole round can be played to its result screen', () => {
   jog(-60);
   jog(2);                                              /* Quiz */
   click();
-  click();                                             /* Guess: notes */
+  jog(1);
+  click();                                             /* Play */
+  click();                                             /* Notes */
   /* Hammer every pad repeatedly: whatever the prompt is, this answers it. */
   for (let round = 0; round < 60; round++) {
     for (let pad = PAD; pad < PAD + 32; pad++) {
@@ -904,18 +913,39 @@ test('Back from a quiz result is a fresh round', () => {
   thawClock();
 });
 
+test('the Quiz folder is Hear, Play and Name, and each opens its drills', () => {
+  const screen = capture();
+  globalThis.init();
+  jog(2);
+  const quiz = screen.frame(click);
+  assert.match(quiz, /QUIZ \| 1\/3 \| Hear .*\| Play .*\| Name /, quiz);
+  const hear = screen.frame(click);
+  assert.match(hear, /HEAR/);
+  assert.match(hear, /Higher or lower/, 'Hear holds the hearing exercises: ' + hear);
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  jog(1);
+  const play = screen.frame(click);
+  assert.match(play, /PLAY \| 1\/2 \| Notes .*\| Chords/, play);
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  jog(1);
+  const name = screen.frame(click);
+  assert.match(name, /NAME \| 1\/2 \| Notes .*\| Chords/, name);
+  const pick = screen.frame(click);
+  assert.match(pick, /NAME NOTE/, 'Name › Notes is the lit-pad drill: ' + pick);
+  screen.restore();
+});
+
 test('unloading is clean, and resume does not throw', () => {
   globalThis.onResume();
   globalThis.tick();
   globalThis.onUnload();
 });
 
-/* Quiz › Hearing is the last row of the Quiz folder; its exercises are numbered. */
+/* Quiz › Hear is the first row of the Quiz folder; its exercises are numbered. */
 function openHearing(number, level = 0) {
   globalThis.init();
   jog(2);
   click();
-  jog(60);
   click();
   jog(number - 1);
   click();

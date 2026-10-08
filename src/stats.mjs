@@ -37,7 +37,8 @@ export function drillId({ hear = false, pick = false, kind = 'notes',
 }
 
 const DRILL_WORDS = {
-  guess: 'Guess', hear: 'Hear', pick: 'Pick',
+  /* The Quiz folder's own words: Play finds it on the pads, Name names a lit pad. */
+  guess: 'Play', hear: 'Hear', pick: 'Name',
   notes: 'notes', chords: 'chords',
   half: 'chromatic', key: 'in key', types: 'types', triads: 'triads',
   advanced: 'advanced',
