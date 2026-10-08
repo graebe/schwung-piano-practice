@@ -12,7 +12,7 @@ const fresh = () => ({
   bpm: 80, pxPerBeat: 24, rootPc: 0, transpose: 12, mode: 'major',
   anyOctave: false, halfTones: true, chordSet: 'triads', waitForNote: true, graceBeats: 1 / 3,
   click: true, reference: true, refVel: 70, midiOut: 4, midiCh: 0, countIn: 4,
-  roundSize: 20,
+  roundSize: 20, quizSounds: true, autoInfo: true,
 });
 
 test('every row has a key the settings object actually holds', () => {

@@ -139,3 +139,11 @@ export const PLOT_ERR_MIN_H = 3;
  * the end — and 50% wrong is already far worse than any drill should get.
  */
 export const PLOT_ERR_FULL = 0.5;
+
+/* ---- Info ---------------------------------------------------------------- */
+/* Five lines of text at the list's pitch, a 2px scroll bar at the right edge
+ * and the footer under them. */
+export const INFO_TOP_Y = 10;
+export const INFO_LINE_H = 9;
+export const INFO_ROWS = 5;
+export const INFO_TEXT_PX = SCREEN_W - 8;

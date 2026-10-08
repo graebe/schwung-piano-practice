@@ -36,8 +36,9 @@ export const REP_SESSION = 5;
 
 export function emptyProgress() {
   /* `rev` is not saved: it moves on every change, so a cache can tell whether
-   * what it holds is still true without comparing the whole store. */
-  return { version: PROGRESS_VERSION, items: {}, rev: 0 };
+   * what it holds is still true without comparing the whole store. `seen`
+   * is which Info pages have been shown, by page key. */
+  return { version: PROGRESS_VERSION, items: {}, seen: {}, rev: 0 };
 }
 
 function emptyStage() {
@@ -87,6 +88,9 @@ export function parseProgress(text) {
     return emptyProgress();
   }
   const out = emptyProgress();
+  if (obj && typeof obj === 'object' && obj.seen && typeof obj.seen === 'object') {
+    for (const k in obj.seen) if (typeof obj.seen[k] === 'number') out.seen[k] = obj.seen[k];
+  }
   if (!obj || typeof obj !== 'object' || !obj.items || typeof obj.items !== 'object') return out;
   for (const id in obj.items) {
     const src = obj.items[id];
@@ -111,7 +115,18 @@ export function parseProgress(text) {
 }
 
 export function serialiseProgress(progress) {
-  return JSON.stringify({ version: PROGRESS_VERSION, items: progress.items });
+  return JSON.stringify({ version: PROGRESS_VERSION, items: progress.items, seen: progress.seen });
+}
+
+/* ---- Info pages seen ------------------------------------------------------- */
+
+export function infoSeen(progress, key) {
+  return Boolean(progress.seen && progress.seen[key]);
+}
+
+export function markInfoSeen(progress, key, at = 0) {
+  if (!progress.seen) progress.seen = {};
+  progress.seen[key] = Math.round(at / 1000) || 1;
 }
 
 /* ---- Scoring an attempt --------------------------------------------------- */

@@ -59,6 +59,8 @@ const advanceMs = (ms, step = 20) => {
   for (let i = 0; i < Math.ceil(ms / step); i++) { clock += step; globalThis.tick(); }
 };
 
+const QUIET_SETTINGS = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false });
+
 function installHostStubs() {
   const calls = { led: 0, midi: 0, writes: [], notes: [] };
   globalThis.performance = { now: () => (clockFrozen ? clock : Date.now()) };
@@ -70,7 +72,10 @@ function installHostStubs() {
     draw_line: noop,
     print: noop,
     text_width: (s) => String(s).length * 6 - 1,
-    host_read_file: () => null,
+    /* The automatic first-time Info page and the answer tones are off here:
+     * every test would otherwise open on an Info page, and every answer would
+     * queue notes. Their own tests turn them back on. */
+    host_read_file: (p) => (String(p).endsWith('/settings.json') ? QUIET_SETTINGS : null),
     host_write_file: (p, t) => { calls.writes.push(p); return true; },
     host_exit_module: noop,
     host_send_screenreader: noop,
@@ -327,6 +332,7 @@ test('a song opens its levels, and a level arms', () => {
   const exercises = new URL('../src/exercises/', import.meta.url).pathname;
   globalThis.print = (x, y, str) => { printed.push(String(str)); };
   globalThis.host_read_file = (path) => {
+    if (path.endsWith('/settings.json')) return QUIET_SETTINGS;
     const at = path.indexOf('/exercises/');
     if (at < 0) return null;
     try {
@@ -1012,6 +1018,120 @@ test('Name has no answer bar: its lit question stays pressable and the jog answe
   globalThis.tick();
   screen.restore();
   delete globalThis.__leds;
+});
+
+/* ---- Info, and the answer cues --------------------------------------------- */
+
+const MENU_PRESS = () => globalThis.onMidiMessageInternal(CC(MENU, 127));
+const BACK_PRESS = () => globalThis.onMidiMessageInternal(CC(BACK, 127));
+
+/* Run a test with the real defaults: auto info and quiz sounds on. */
+function withSettings(over, fn) {
+  const real = globalThis.host_read_file;
+  globalThis.host_read_file = (path) => (String(path).endsWith('/settings.json')
+    ? JSON.stringify({ version: 7, ...over }) : real(path));
+  try { return fn(); } finally { globalThis.host_read_file = real; }
+}
+
+test('Menu opens Info for the highlighted row, and closes back to it', () => {
+  const screen = capture();
+  globalThis.init();
+  jog(1);                                               /* Basics */
+  const page = screen.frame(MENU_PRESS);
+  assert.match(page, /BASICS \| INFO/, page);
+  assert.match(page, /Scales, chords/);
+  assert.match(screen.frame(MENU_PRESS), /EXERCISE/, 'Menu again closes it');
+  screen.frame(MENU_PRESS);
+  assert.match(screen.frame(BACK_PRESS), /EXERCISE \| 2\//, 'so does Back, on the same row');
+  /* Play and Record start nothing from an Info page. */
+  screen.frame(MENU_PRESS);
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  assert.match(screen.frame(), /INFO/);
+  screen.restore();
+});
+
+test('a long Info page scrolls with the jog, and a chord page shows its formula', () => {
+  const screen = capture();
+  globalThis.init();
+  jog(1);
+  click();                                              /* Basics */
+  jog(1);
+  click();                                              /* Chords */
+  click();                                              /* Triads */
+  jog(1);                                               /* Minor */
+  const first = screen.frame(MENU_PRESS);
+  assert.match(first, /Formula 1 b3 5/, first);
+  assert.match(first, /JOG scroll BACK close/);
+  const later = screen.frame(() => jog(8));
+  assert.notEqual(later, first, 'the jog moved it');
+  screen.restore();
+});
+
+test('Info pauses a running exercise, and Back returns to it paused', () => {
+  freezeClock();
+  const screen = capture();
+  armScale();
+  globalThis.onMidiMessageInternal(CC(RECORD, 127));
+  advanceMs(3000);
+  assert.match(screen.frame(MENU_PRESS), /INFO/);
+  assert.match(screen.frame(BACK_PRESS), /PAUSED/, 'back where it was, holding');
+  screen.restore();
+  thawClock();
+});
+
+test('the first time a kind of practice is opened, its Info comes first, once', () => {
+  withSettings({ autoInfo: true, quizSounds: false }, () => {
+    const screen = capture();
+    globalThis.init();
+    jog(1);
+    click();
+    click();
+    click();                                            /* Basics › Scales › Major */
+    const first = screen.frame(click);                  /* Up & down */
+    assert.match(first, /INFO/, 'shown by itself: ' + first);
+    assert.match(first, /The scale up an/);
+    assert.match(screen.frame(BACK_PRESS), /S1 pads lit/, 'Back lands on the ready screen');
+    BACK_PRESS();                                       /* to the list */
+    jog(1);
+    const second = screen.frame(click);                 /* Up: another scale drill */
+    assert.doesNotMatch(second, /INFO/, 'a scale drill explained once is explained');
+    screen.restore();
+  });
+});
+
+test('an answer sounds a chime when right and an uh-oh when wrong', () => {
+  withSettings({ autoInfo: false, quizSounds: true }, () => {
+    freezeClock();
+    const heard = new Set();
+    for (let round = 0; round < 6 && heard.size < 2; round++) {
+      openQuiz(4);                                      /* Name › Notes: jog and click */
+      for (let tries = 0; tries < 3; tries++) {
+        hostCalls.notes.length = 0;
+        globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+        advanceMs(500);
+        const ons = hostCalls.notes.join(',').split(',').filter((n) => n && !n.endsWith(':0'))
+          .map((n) => Number(n.split(':')[0]));
+        if (ons.some((p) => p >= 84)) heard.add('chime');
+        if (ons.some((p) => p <= 54)) heard.add('uh-oh');
+        if (ons.some((p) => p >= 84)) break;
+        globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+      }
+    }
+    assert.ok(heard.has('chime'), 'a right answer chimes');
+    assert.ok(heard.has('uh-oh'), 'a wrong one says so');
+    thawClock();
+  });
+});
+
+test('with Quiz sounds off, an answer is silent', () => {
+  freezeClock();
+  openQuiz(4);
+  hostCalls.notes.length = 0;
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  advanceMs(500);
+  assert.deepEqual(hostCalls.notes, []);
+  thawClock();
 });
 
 test('unloading is clean, and resume does not throw', () => {

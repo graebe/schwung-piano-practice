@@ -19,6 +19,7 @@ import { countInRemaining } from './controls.mjs';
 import { drillLabel, sparkline, summarise, errorFraction } from './stats.mjs';
 import { accuracySeries } from './progress.mjs';
 import { LIST_MAX, shortLabel } from './answer_pads.mjs';
+import { wrapLines } from './info.mjs';
 
 export const SETTINGS_HINT = 'shift + jog: settings';
 /* Inside a folder of the lesson list, where Back no longer means leave. */
@@ -737,6 +738,49 @@ function drawAnswerMap(ctx, state, options) {
   }
   const name = truncate(ctx, options[state.index] || '', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(name)) >> 1, MAP_NAME_Y, name, 1);
+}
+
+/*
+ * An Info page: what a practice is and the words it uses. Wrapped text,
+ * scrolled a line at a time with the jog, headings underlined, and a bar at
+ * the right edge saying how much there is and where you are in it.
+ *
+ * state = { title, lines: [{ text, head }], scroll, footer }
+ */
+export function drawInfo(ctx, state) {
+  const lines = state.lines || [];
+  ctx.clear();
+  const tag = 'INFO';
+  R.drawChrome(ctx, {
+    left: truncate(ctx, (state.title || '').toUpperCase(), L.SCREEN_W - ctx.textWidth(tag) - 6),
+    right: tag,
+  });
+  const top = Math.max(0, Math.min(state.scroll || 0, lines.length - L.INFO_ROWS));
+  for (let i = 0; i < L.INFO_ROWS; i++) {
+    const line = lines[top + i];
+    if (!line || !line.text) continue;
+    const y = L.INFO_TOP_Y + i * L.INFO_LINE_H;
+    const text = truncate(ctx, line.text, L.INFO_TEXT_PX);
+    ctx.text(2, y, text, 1);
+    if (line.head) ctx.fillRect(2, y + L.TEXT_H, ctx.textWidth(text), 1, 1);
+  }
+  /* The bar: only when there is more than one screen of it. */
+  if (lines.length > L.INFO_ROWS) {
+    const trackY = L.INFO_TOP_Y;
+    const trackH = L.INFO_ROWS * L.INFO_LINE_H - 2;
+    const thumbH = Math.max(3, Math.round((trackH * L.INFO_ROWS) / lines.length));
+    const span = lines.length - L.INFO_ROWS;
+    const thumbY = trackY + Math.round(((trackH - thumbH) * top) / span);
+    ctx.fillRect(L.SCREEN_W - 2, trackY, 1, trackH, 1);
+    ctx.fillRect(L.SCREEN_W - 3, thumbY, 3, thumbH, 1);
+  }
+  drawFooterHint(ctx, state.footer || 'BACK close');
+  return ctx;
+}
+
+/* The lines an Info page wraps to, measured with the panel's own font. */
+export function infoLines(ctx, paragraphs) {
+  return wrapLines(paragraphs, L.INFO_TEXT_PX, (s) => ctx.textWidth(s));
 }
 
 /* Scrolling list used for both the exercise picker and the settings page. */

@@ -673,3 +673,18 @@ test('an answer pad is a button: it answers before any note is struck', () => {
   const up = code.match(/function onPadUp\(pad\) \{([\s\S]*?)\n\}/)[1];
   assert.ok(up.indexOf('answerPressed[pad]') < up.indexOf('noteOff('), 'no note-off for a note never struck');
 });
+
+test('reading Info is not part of a round: the clock is moved on by the time away', () => {
+  const close = code.match(/function closeInfo\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(close, /quiz\.startedAt \+= away/);
+  assert.match(close, /quizSolvedAt \+= away/);
+  const open = code.match(/function openInfo\(target\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(open, /stopPrompt\(\)/, 'and the prompt stops while you read');
+  assert.match(open, /togglePause\(\)/, 'a running exercise pauses');
+});
+
+test('the answer cues go through the quiz scheduler and the Quiz sounds setting', () => {
+  const cue = code.match(/function playCue\(res\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(cue, /if \(!settings\.quizSounds\) return;/);
+  assert.match(cue, /guessOn\.push/);
+});

@@ -39,6 +39,8 @@ import * as STATS from './stats.mjs';
 import * as PROG from './progress.mjs';
 import * as PLAN from './program.mjs';
 import * as AP from './answer_pads.mjs';
+import * as INFO from './info.mjs';
+import * as CUES from './cues.mjs';
 import * as NOTATION from './notation.mjs';
 import {
   msToBeats, beatsToMs, chartTotalBeats, beatsPerBar, isBeatEdge, applyWait, xToBeat,
@@ -343,6 +345,8 @@ const settings = {
   anyOctave: false,
   halfTones: true,   /* the guesser asks about black notes too */
   roundSize: 20,     /* prompts per round; 0 = endless practice, unrecorded */
+  quizSounds: true,  /* a chime when right, a soft uh-oh when wrong */
+  autoInfo: true,    /* show a practice's Info page the first time it is opened */
   chordSet: 'triads',
   click: true,
   reference: true,   /* hear the line you are meant to be playing */
@@ -480,6 +484,7 @@ const GUESS_VIEW = 'guess';
 const RESULT_VIEW = CTRL.SUMMARY;
 const PROGRESS_VIEW = 'progress';
 const PROGRESS_DETAIL = 'progress-detail';
+const INFO_VIEW = 'info';
 
 let view = MENU;
 let chart = null;
@@ -528,6 +533,11 @@ const agg = PROG.createAggregator();
 let tracks = [];             /* the Learning Program (program.mjs) */
 let progressRows = [];       /* the Progress list: overview, tracks, recent items */
 let progressCursor = 0;
+/* The Info page open: { title, lines, scroll, back }. `back` is the view
+ * it came from, which Back and Menu return to exactly as it was. */
+let info = null;
+let infoEnv = { songs: {} };
+let infoOpenedAt = 0;
 let quiz = null;
 let quizHear = false;        /* ear training: the prompt is played, not shown */
 let quizPick = false;        /* multiple choice: the pad is lit, you name it */
@@ -598,6 +608,8 @@ function loadFileExercises() {
 /* The program's song track is made from the files, so it follows them. */
 function buildTracks() {
   tracks = PLAN.buildProgram({ songs: fileSongs });
+  infoEnv = { songs: {} };
+  for (let i = 0; i < fileSongs.length; i++) infoEnv.songs[fileSongs[i].chart.id] = fileSongs[i].chart;
 }
 
 /*
@@ -643,7 +655,7 @@ function hearFolder() {
   const hearing = tracks.find((t) => t.key === 'hearing');
   const units = hearing ? hearing.units : [];
   return CAT.folder('Hear', units.map((u) =>
-    CAT.folder(u.name, u.steps.map(PLAN.stepRow))), 'hear');
+    CAT.folder(u.name, u.steps.map(PLAN.stepRow), u.exercise)), 'hear');
 }
 
 function quizRows(rows) {
@@ -813,6 +825,7 @@ function startQuiz(spec) {
   } else {
     announce('Note guesser. Play ' + promptName() + '.');
   }
+  autoInfo({ id: quizId(spec) });
 }
 
 /* What the prompt is called: its chord symbol if it has one, else its notes. */
@@ -915,6 +928,7 @@ function armLeaf(node) {
   announce(chart.name + '. Stage ' + stage + '. Press play to start.');
   dirty = true;
   ledDirty = true;
+  autoInfo({ id: armedId, label: chart.name });
 }
 
 /*
@@ -1476,7 +1490,7 @@ function serviceGuess() {
   }
   for (let i = 0; i < guessOn.length;) {
     if (guessOn[i].atMs > t) { i++; continue; }
-    noteOn(guessOn[i].pitch, 90);
+    noteOn(guessOn[i].pitch, guessOn[i].vel || 90);
     guessOff.push({ pitch: guessOn[i].pitch, atMs: guessOn[i].offMs });
     guessOn.splice(i, 1);
   }
@@ -1533,6 +1547,13 @@ function draw() {
     else VIEW.drawRoundResult(ctx, lastResult);
   } else if (view === PROGRESS_DETAIL) {
     drawProgressDetail();
+  } else if (view === INFO_VIEW) {
+    VIEW.drawInfo(ctx, {
+      title: info.title,
+      lines: info.lines,
+      scroll: info.scroll,
+      footer: info.lines.length > L.INFO_ROWS ? 'JOG scroll BACK close' : 'BACK close',
+    });
   } else if (view === GUESS_VIEW && quizPick) {
     const ear = quiz.kind === GUESS.EAR;
     let ask = 'which pad is lit?';
@@ -1655,6 +1676,75 @@ function decorateRow(row) {
     if (next && next.id === id) mark = 'next';
   }
   return { value: it && it.plays ? PROG.itemPercent(it) + '%' : '', mark };
+}
+
+/* ---- Info -------------------------------------------------------------------- */
+/*
+ * Menu explains whatever is in front of you: the highlighted row of the list,
+ * the armed exercise, the drill under way, a result. Opening it pauses what
+ * is running — the scroll, the round's clock — so reading costs nothing.
+ */
+function infoTarget() {
+  if (view === MENU) {
+    const row = CAT.navCurrent(nav) || CAT.navTop(nav).node;
+    if (row.continueRow) return { kind: 'continue' };
+    if (row.skipRow) return { kind: 'skip' };
+    if (row.progress) return { kind: 'progress' };
+    return { id: row.repId || row.id, label: row.label };
+  }
+  if (view === READY || view === RUNNING) return { id: armedId, label: chart ? chart.name : '' };
+  if (view === GUESS_VIEW && quizSpec) return { id: quizId(quizSpec) };
+  if (view === RESULT_VIEW) return { kind: 'result' };
+  if (view === PROGRESS_VIEW || view === PROGRESS_DETAIL) return { kind: 'progress' };
+  return null;
+}
+
+function openInfo(target) {
+  const pageInfo = INFO.infoFor(target, infoEnv);
+  if (!pageInfo) return false;
+  if (view === RUNNING && !paused) togglePause();
+  if (view === GUESS_VIEW) {
+    /* Silence the prompt: it is played again on the way back. */
+    stopPrompt();
+    infoOpenedAt = now();
+  }
+  info = {
+    title: pageInfo.title,
+    lines: VIEW.infoLines(ctx, INFO.infoParagraphs(pageInfo)),
+    scroll: 0,
+    back: view,
+  };
+  if (!PROG.infoSeen(progress, pageInfo.key)) {
+    PROG.markInfoSeen(progress, pageInfo.key, Date.now());
+    saveProgress();
+  }
+  view = INFO_VIEW;
+  dirty = true;
+  ledDirty = true;
+  announce(pageInfo.title + '. Info.');
+  return true;
+}
+
+function closeInfo() {
+  if (!info) return;
+  view = info.back;
+  if (view === GUESS_VIEW && quiz) {
+    /* The time spent reading is not part of the round. */
+    const away = now() - infoOpenedAt;
+    if (quiz.startedAt !== null && quiz.finishedAt === null) quiz.startedAt += away;
+    if (quizSolvedAt) quizSolvedAt += away;
+    if ((quizHear || quiz.kind === GUESS.EAR) && !quiz.solved) hearPrompt();
+  }
+  info = null;
+  dirty = true;
+  ledDirty = true;
+}
+
+/* The first time a kind of practice is opened, its Info page comes first. */
+function autoInfo(target) {
+  if (!settings.autoInfo) return;
+  const pageInfo = INFO.infoFor(target, infoEnv);
+  if (pageInfo && !PROG.infoSeen(progress, pageInfo.key)) openInfo(target);
 }
 
 /* ---- Progress --------------------------------------------------------------- */
@@ -1810,6 +1900,7 @@ function onPadDown(pad, vel) {
   }
   if (view === GUESS_VIEW) {
     const res = GUESS.pressPitch(quiz, pitch, now());
+    playCue(res);
     if (res === GUESS.WRONG) flashPad(pad, PAD.LED_MISS, 200);
     else if (res === GUESS.CORRECT) {
       quizSolvedAt = now();
@@ -1857,6 +1948,11 @@ function onPadUp(pad) {
 }
 
 function onJog(delta) {
+  if (view === INFO_VIEW) {
+    info.scroll = clamp(info.scroll + (delta > 0 ? 1 : -1), 0, Math.max(0, info.lines.length - L.INFO_ROWS));
+    dirty = true;
+    return;
+  }
   /* The one view where the jog is the answer rather than navigation. */
   if (view === GUESS_VIEW && quizPick && quiz && !quiz.solved) {
     GUESS.moveChoice(quiz, delta, now());
@@ -1901,8 +1997,22 @@ function onJog(delta) {
   dirty = true;
 }
 
+/* The answer cue, on the module's own piano: see cues.mjs. */
+function playCue(res) {
+  if (!settings.quizSounds) return;
+  const events = res === GUESS.CORRECT ? CUES.successCue(settings.rootPc)
+    : res === GUESS.WRONG ? CUES.failureCue(settings.rootPc) : null;
+  if (!events) return;
+  const t = now();
+  for (let i = 0; i < events.length; i++) {
+    const e = events[i];
+    guessOn.push({ pitch: e.pitch, atMs: t + e.at, offMs: t + e.at + e.dur, vel: e.vel });
+  }
+}
+
 /* An answer was given, by the jog or by its pad. */
 function answered(res) {
+  playCue(res);
   if (res === GUESS.CORRECT) {
     quizSolvedAt = now();
     /* Heard, named, now shown: where it sits on the grid. */
@@ -1913,6 +2023,10 @@ function answered(res) {
 }
 
 function onJogClick() {
+  if (view === INFO_VIEW) {
+    closeInfo();
+    return;
+  }
   if (view === GUESS_VIEW && quizPick && quiz && !shiftHeld) {
     if (quiz.solved) return;
     answered(GUESS.pickChoice(quiz, now()));
@@ -2038,6 +2152,7 @@ globalThis.init = function init() {
   quizHear = false;
   quizPick = false;
   quizSpec = null;
+  info = null;
   lastResult = null;
   progressRows = [];
   progressCursor = 0;
@@ -2217,6 +2332,8 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
   /* Play listens, Record practises: at an instrument "play" means play it to
    * me, and "record" means capture what I do. Pressing the running mode's own
    * button stops it; pressing the other switches, so no press is ever a no-op. */
+  /* Play and Record start things; on an Info page nothing is to be started. */
+  if ((d1 === CC_PLAY || d1 === CC_RECORD) && view === INFO_VIEW) return;
   if (d1 === CC_PLAY) {
     if (view === RESULT_VIEW) {
       if (lastResult.kind === 'quiz') startQuiz(quizSpec);
@@ -2249,10 +2366,20 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
   }
   /* Move's Menu button reached the module and was ignored, so the hardware
    * control most likely to be pressed looking for a menu did nothing. */
+  /* Menu is Info: what the thing in front of you is, and its words. Press
+   * it again to go back. From Settings it still leaves for the list. */
   if (d1 === CC_MENU) {
-    view = MENU;
-    settingsEditing = false;
-    dirty = true;
+    if (view === INFO_VIEW) {
+      closeInfo();
+      return;
+    }
+    if (view === SETTINGS) {
+      view = MENU;
+      settingsEditing = false;
+      dirty = true;
+      return;
+    }
+    openInfo(infoTarget());
     return;
   }
   if (d1 === CC_BACK) {
@@ -2261,6 +2388,10 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
      * same gesture Schwung uses for a full exit elsewhere. */
     if (shiftHeld) {
       exitModule();
+      return;
+    }
+    if (view === INFO_VIEW) {
+      closeInfo();
       return;
     }
     if (view === SETTINGS) {

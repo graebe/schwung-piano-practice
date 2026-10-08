@@ -267,3 +267,18 @@ test('the pass timeline rises by one per stage passed, along time', () => {
   assert.equal(tl.points[tl.points.length - 1].y, 0, 'the last pass reaches the top');
   assert.ok(tl.points.every((pt) => pt.x >= 0 && pt.x < 100 && pt.y >= 0 && pt.y < 11));
 });
+
+test('which Info pages have been seen is remembered, and survives a round trip', async () => {
+  const { infoSeen, markInfoSeen } = await import('../src/progress.mjs');
+  const p = emptyProgress();
+  assert.equal(infoSeen(p, 'scales'), false);
+  markInfoSeen(p, 'scales', T0);
+  assert.equal(infoSeen(p, 'scales'), true);
+  const back = parseProgress(serialiseProgress(p));
+  assert.equal(infoSeen(back, 'scales'), true);
+  assert.equal(infoSeen(parseProgress('{"seen":{"a":"x","b":5}}'), 'a'), false, 'junk is dropped');
+  assert.equal(infoSeen(parseProgress('{"seen":{"a":"x","b":5}}'), 'b'), true);
+  const bare = { items: {} };
+  markInfoSeen(bare, 'k');
+  assert.ok(infoSeen(bare, 'k'));
+});

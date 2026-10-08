@@ -167,6 +167,7 @@ const CHORD_TRACK = [
  */
 const HEARING = EXERCISES.map((ex, i) => ({
   name: (i + 1) + ' ' + ex.name,
+  exercise: ex.key,
   steps: ex.levels.map((lv) => quiz(isNaming(ex)
     ? { kind: EAR, exercise: ex.key, level: lv.key }
     : lv.quiz)),

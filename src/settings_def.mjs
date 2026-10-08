@@ -70,6 +70,10 @@ export const SETTINGS_DEF = [
     key: 'roundSize', label: 'Round', type: 'enum',
     values: [0, 10, 20, 30], labels: ['endless', '10', '20', '30'],
   },
+  /* A chime for a right answer and a soft uh-oh for a wrong one, in quizzes. */
+  { key: 'quizSounds', label: 'Quiz sounds', type: 'bool', format: onOff },
+  /* The Info page of a practice, shown by itself the first time you open it. */
+  { key: 'autoInfo', label: 'Auto info', type: 'bool', format: onOff },
   { key: 'waitForNote', label: 'Wait', type: 'bool', format: onOff },
   { key: 'graceBeats', label: 'Grace', type: 'enum', values: GRACE_VALUES, labels: GRACE_LABELS },
   { key: 'click', label: 'Click', type: 'bool', format: onOff },

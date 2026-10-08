@@ -1,6 +1,6 @@
 {
   "name": "schwung-piano-practice",
-  "version": "1.7.3",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -12,6 +12,7 @@
     "test:package": "sh tests/package/run.sh",
     "build": "sh scripts/build.sh",
     "preview": "node tools/preview.mjs",
-    "test:rust": "cd dsp && cargo test --no-default-features"
+    "test:rust": "cd dsp && cargo test --no-default-features",
+    "docs": "node tools/docs.mjs"
   }
 }

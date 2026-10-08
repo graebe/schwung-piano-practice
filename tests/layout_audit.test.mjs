@@ -162,7 +162,15 @@ const SCREENS = {
     title: 'Overall', percent: 0, done: 0, half: 0, count: 551, timeline: { points: [], total: 0 },
     index: 0, total: 1,
   }),
-  'ready, stage 2': (c) => V.drawReadyView(c, {
+  'info, long and scrolled': (c) => V.drawInfo(c, {
+    title: 'Scarborough Fair L3 Both hands',
+    lines: Array.from({ length: 30 }, (_, i) => ({ text: 'Line ' + i + ' of an Info page here', head: i % 7 === 0 })),
+    scroll: 12, footer: 'JOG scroll BACK close',
+  }),
+  'info, short': (c) => V.drawInfo(c, {
+    title: 'Continue', lines: [{ text: 'Opens the next step.', head: false }], scroll: 0, footer: 'BACK close',
+  }),
+    'ready, stage 2': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
     footer: V.stageFooter(2),
   }),
@@ -314,6 +322,7 @@ test('every footer this module can show fits across the screen', () => {
     'PLAY again CLICK next', 'REC again  CLICK next', 'CLICK S2  SHIFT next',
     'CLICK chart BACK list', 'jog: 99/99', '24 plays',
     V.stageFooter(1), V.stageFooter(2),
+    'JOG scroll BACK close', 'BACK close',
   ];
   for (const f of footers) {
     assert.ok(c.textWidth(f) <= L.TEXT_MAX_PX, `${JSON.stringify(f)} is ${c.textWidth(f)}px`);
