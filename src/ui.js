@@ -1290,14 +1290,20 @@ const ledState = {
 };
 
 /*
- * The answer bar of a multiple-choice drill: which pads, in which colours.
- * Everywhere else the bar does not exist and the bottom row is keys again.
+ * The answer bar: the Hear drills' answers as coloured pads. Only there —
+ * in Name the lit pads ARE the question, and a bar across the bottom row
+ * covered the very pads you were being asked about, so Name answers with the
+ * jog. Everywhere else the bar does not exist and the bottom row is keys.
  */
+function answerBarActive() {
+  return view === GUESS_VIEW && Boolean(quiz) && quiz.kind === GUESS.EAR;
+}
+
 const answerColourBuf = [];
 const answerStruck = (i) => GUESS.isEliminated(quiz, i);
 
 function collectAnswers() {
-  if (view !== GUESS_VIEW || !quizPick || !quiz) {
+  if (!answerBarActive()) {
     ledState.answerRows = 0;
     ledState.answerPads = null;
     return;
@@ -1540,15 +1546,15 @@ function draw() {
         : String(GUESS.quizStats(quiz).correct),
       options: quiz.choices.map((c) => GUESS.optionLabel(quiz, c)),
       /* The legend for the answer pads: their colours, and for a map the
-       * short names drawn where the pads sit. */
-      colours: quiz.choices.map((c, i) => AP.answerColour(i).name),
+       * short names drawn where the pads sit. Name has no pads to explain. */
+      colours: ear ? quiz.choices.map((c, i) => AP.answerColour(i).name) : null,
       short: quiz.choices.map(AP.shortLabel),
       index: quiz.choiceIndex,
       eliminated: quiz.eliminated,
       hint: ask,
-      footer: GUESS.hintsLeft(quiz)
-        ? 'PAD answer  REC help'
-        : 'PAD or JOG  CLICK ok',
+      footer: ear
+        ? (GUESS.hintsLeft(quiz) ? 'PAD answer  REC help' : 'PAD or JOG  CLICK ok')
+        : (GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok'),
     });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
@@ -1781,7 +1787,7 @@ const answerPressed = {};
 function onPadDown(pad, vel) {
   /* In a multiple-choice drill the bottom of the grid is answer buttons.
    * They sound nothing: a press there is a choice, not a note. */
-  if (view === GUESS_VIEW && quizPick && quiz && AP.inAnswerBar(quiz.choices.length, pad)) {
+  if (answerBarActive() && AP.inAnswerBar(quiz.choices.length, pad)) {
     answerPressed[pad] = 1;
     const at = AP.answerAt(quiz.choices.length, pad);
     const res = at >= 0 ? GUESS.chooseAnswer(quiz, at, now()) : null;

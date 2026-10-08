@@ -225,7 +225,8 @@
         "",
         "Name > notes / chords",
         "A pad lights and you name",
-        "it on the answer pads.",
+        "it, choosing with the",
+        "jog. Click to answer.",
         "The other two are",
         "near misses - a semitone",
         "away, or the same chord",
@@ -290,8 +291,8 @@
     {
       "title": "Answers",
       "lines": [
-        "Choosing from answers -",
-        "Name, and Hear - turns",
+        "A Hear drill that asks",
+        "what you heard turns",
         "the bottom pads into",
         "answer buttons, each its",
         "own colour. The screen",
@@ -311,7 +312,11 @@
         "",
         "JOG and CLICK work too.",
         "The jog's answer pulses",
-        "on its pad."
+        "on its pad.",
+        "",
+        "Name keeps the jog: its",
+        "lit pads are the question",
+        "and stay pressable."
       ]
     },
     {

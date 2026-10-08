@@ -726,22 +726,13 @@ test('choosing an answer by its pad is a jog move and a click in one', async () 
   assert.equal(again.wrong, 0);
 });
 
-test('naming a lit pad never asks about a note that only the answer bar can show', async () => {
-  const { padsForPitch, PAD_FIRST, DEFAULT_TRANSPOSE } = await import('../src/padmap.mjs');
-  for (const kind of [NOTES, CHORDS]) {
-    for (const halfTones of [false, true]) {
-      const quiz = createQuiz({ kind, pick: true, halfTones, transpose: DEFAULT_TRANSPOSE, seed: 2 });
-      assert.ok(quiz.pool.length > 3, 'still plenty to ask');
-      for (const e of quiz.pool) {
-        for (const p of e.pitches) {
-          assert.ok(padsForPitch(p, DEFAULT_TRANSPOSE).some((pad) => pad >= PAD_FIRST + 8),
-            `${kind}: ${p} is only on the bottom row`);
-        }
-      }
-    }
+test('naming a lit pad asks about every note playing one does', () => {
+  /* Name answers with the jog, so the whole grid — bottom row included — is
+   * free for the question. */
+  for (const halfTones of [false, true]) {
+    const play = createQuiz({ kind: NOTES, halfTones, seed: 2 });
+    const named = createQuiz({ kind: NOTES, halfTones, pick: true, seed: 2 });
+    assert.equal(named.pool.length, play.pool.length);
   }
-  /* Playing a note is unaffected: the bottom row is keys there. */
-  const play = createQuiz({ kind: NOTES, halfTones: true, seed: 2 });
-  const named = createQuiz({ kind: NOTES, halfTones: true, pick: true, seed: 2 });
-  assert.ok(play.pool.length > named.pool.length);
 });
+

@@ -935,28 +935,29 @@ test('the Quiz folder is Hear, Play and Name, and each opens its drills', () => 
   screen.restore();
 });
 
+/* Hear › 5 Major or minor 3rd: two answers, on pads 2 and 5 of the bottom row. */
+const THIRDS = { number: 5, pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
+
 test('an answer pad answers without a sound, and the bar shows the answers', async () => {
   const { ANSWER_COLOURS } = await import(new URL('../src/answer_pads.mjs', import.meta.url));
+  freezeClock();
   globalThis.__leds = {};
   const screen = capture();
-  openQuiz(4);                                      /* Name › Notes: three answers */
-  for (let i = 0; i < 5; i++) globalThis.tick();
-  /* Three answers on pads 1, 3, 5 of the bottom row, in their colours; gaps dark. */
-  assert.ok([ANSWER_COLOURS[0].bright, ANSWER_COLOURS[0].dim].includes(globalThis.__leds[PAD + 1]),
+  openHearing(THIRDS.number);
+  advanceMs(2000);                                   /* let the prompt play out */
+  assert.ok([ANSWER_COLOURS[0].bright, ANSWER_COLOURS[0].dim].includes(globalThis.__leds[PAD + 2]),
     'the first answer, pulsing under the jog');
-  assert.equal(globalThis.__leds[PAD + 3], ANSWER_COLOURS[1].bright);
-  assert.equal(globalThis.__leds[PAD + 5], ANSWER_COLOURS[2].bright);
-  for (const gap of [0, 2, 4, 6, 7]) assert.equal(globalThis.__leds[PAD + gap], 0, `gap ${gap}`);
-  assert.match(screen.frame(), /blue[\s\S]*orange[\s\S]*cyan/, 'the screen names the colours');
+  assert.equal(globalThis.__leds[PAD + 5], ANSWER_COLOURS[1].bright);
+  for (const gap of THIRDS.gaps) assert.equal(globalThis.__leds[PAD + gap], 0, `gap ${gap}`);
+  assert.match(screen.frame(), /blue[\s\S]*orange/, 'the screen names the colours');
 
   hostCalls.notes.length = 0;
   const before = hostCalls.midi;
-  globalThis.onMidiMessageInternal([0x90, PAD + 3, 100]);   /* answer 2 */
+  globalThis.onMidiMessageInternal([0x90, PAD + 5, 100]);   /* an answer */
   globalThis.tick();
+  globalThis.onMidiMessageInternal([0x80, PAD + 5, 0]);
+  globalThis.onMidiMessageInternal([0x90, PAD + 3, 100]);   /* a gap */
   globalThis.onMidiMessageInternal([0x80, PAD + 3, 0]);
-  globalThis.tick();
-  globalThis.onMidiMessageInternal([0x90, PAD + 2, 100]);   /* a gap */
-  globalThis.onMidiMessageInternal([0x80, PAD + 2, 0]);
   globalThis.tick();
   assert.deepEqual(hostCalls.notes, [], 'no note on, no note off');
   assert.equal(hostCalls.midi, before, 'nothing sent at all');
@@ -969,27 +970,48 @@ test('an answer pad answers without a sound, and the bar shows the answers', asy
   globalThis.tick();
   screen.restore();
   delete globalThis.__leds;
+  thawClock();
 });
 
 test('pressing the right answer pad scores it, a wrong one counts against you', () => {
+  freezeClock();
   const screen = capture();
-  let right = 0;
-  let wrong = 0;
-  for (let seed = 0; seed < 4; seed++) {
-    openQuiz(4);
-    /* Try each answer pad in turn: exactly one of the three is right. */
-    for (const col of [1, 3, 5]) {
+  for (let round = 0; round < 3; round++) {
+    openHearing(THIRDS.number);
+    advanceMs(2000);
+    let solved = false;
+    for (const col of THIRDS.pads) {
       globalThis.onMidiMessageInternal([0x90, PAD + col, 100]);
       globalThis.onMidiMessageInternal([0x80, PAD + col, 0]);
       globalThis.tick();
-      const shown = screen.frame();
-      if (/right/.test(shown)) { right++; break; }
-      wrong++;
+      if (/1\/20/.test(screen.frame())) { solved = true; break; }
     }
+    assert.ok(solved, 'one of the two pads is the answer');
   }
-  assert.equal(right, 4, 'every question was answered by a pad');
-  assert.ok(wrong <= 8);
   screen.restore();
+  thawClock();
+});
+
+test('Name has no answer bar: its lit question stays pressable and the jog answers', async () => {
+  const { ANSWER_COLOURS } = await import(new URL('../src/answer_pads.mjs', import.meta.url));
+  globalThis.__leds = {};
+  const screen = capture();
+  openQuiz(4);                                        /* Name › Notes */
+  for (let i = 0; i < 5; i++) globalThis.tick();
+  const colours = new Set(ANSWER_COLOURS.flatMap((c) => [c.bright, c.dim]));
+  for (let col = 0; col < 8; col++) {
+    assert.ok(!colours.has(globalThis.__leds[PAD + col]), `pad ${col} is not an answer pad`);
+  }
+  assert.match(screen.frame(), /JOG pick/, 'the jog answers here');
+  /* Every pad sounds, the bottom row included. */
+  hostCalls.notes.length = 0;
+  globalThis.onMidiMessageInternal([0x90, PAD + 1, 100]);
+  globalThis.tick();
+  assert.equal(hostCalls.notes.length, 1, 'the bottom row is keys');
+  globalThis.onMidiMessageInternal([0x80, PAD + 1, 0]);
+  globalThis.tick();
+  screen.restore();
+  delete globalThis.__leds;
 });
 
 test('unloading is clean, and resume does not throw', () => {

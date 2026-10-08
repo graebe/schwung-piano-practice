@@ -10,7 +10,7 @@
 
 import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './generator.mjs';
 import { inStaffRange } from './notation.mjs';
-import { DEFAULT_TRANSPOSE, PAD_FIRST, padsForPitch } from './padmap.mjs';
+import { DEFAULT_TRANSPOSE, padsForPitch } from './padmap.mjs';
 import {
   QUALITIES, ADVANCED_QUALITIES, buildChord, chordSymbol, qualitySpan, nameChord,
 } from './chords.mjs';
@@ -132,13 +132,9 @@ export function createQuiz({
 } = {}) {
   const ear = kind === EAR ? exerciseByKey(exercise) : null;
   const earLevel = ear ? levelByKey(ear, level) : null;
-  let pool = ear
+  const pool = ear
     ? buildEarPool(ear, earLevel.key, transpose)
     : buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths);
-  /* Naming a lit pad: the bottom row is the answer bar, so the question has
-   * to be visible above it. The lowest notes of the grid live on that row
-   * only, and are left out rather than lit under the answers. */
-  if (pick && !ear) pool = pool.filter((e) => visibleAboveBar(e.pitches, transpose));
   const answers = ear ? answersFor(ear, earLevel) : null;
   const quiz = {
     kind: ear ? EAR : (kind === CHORDS ? CHORDS : NOTES),
@@ -179,13 +175,6 @@ export function createQuiz({
   };
   nextPrompt(quiz);
   return quiz;
-}
-
-function visibleAboveBar(pitches, transpose) {
-  for (let i = 0; i < pitches.length; i++) {
-    if (!padsForPitch(pitches[i], transpose).some((pad) => pad >= PAD_FIRST + 8)) return false;
-  }
-  return true;
 }
 
 /* A new question. Never the same one twice running — a repeat reads as the

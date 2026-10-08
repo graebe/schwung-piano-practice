@@ -367,7 +367,7 @@ The **Quiz** folder asks in three ways, one folder each:
 | --- | --- | --- |
 | **Hear** | a sound | naming it, or playing it back — the Hearing exercises below |
 | **Play** | a note or chord on the staff | finding it on the pads |
-| **Name** | a lit pad | pressing the coloured pad of its name |
+| **Name** | a lit pad | choosing its name with the jog |
 
 Play and Name each hold **Notes** and **Chords**; which one you open is how you choose. They follow
 the **Half tones** and **Chords** settings.
@@ -383,7 +383,7 @@ isn't in the chord is what makes it wrong. A wrong answer is counted once and th
 until you get it.
 
 **Name › Notes** and **Name › Chords** run the other way round: a pad lights up — several for a chord
-— and you name it on the **answer pads** (below). The two
+— and you name it, choosing with the jog and confirming with a click. The two
 wrong options are near misses: a semitone either side for a note, or the same root with a different
 quality for a chord (`Cm7` against `C7` against `Cmaj7`), so answering from a rough sense of high or
 low will not get you through. Note options carry their octave, because on an isomorphic grid the
@@ -393,8 +393,8 @@ It is the only drill that goes pad → name, and the only one you can do without
 
 ### Answering on the pads
 
-Wherever you choose from a set of answers — **Name**, and every **Hear** exercise that asks what you
-heard — the bottom of the grid turns into **answer pads**: one pad per answer, each in its own
+Every **Hear** exercise that asks what you heard turns the bottom of the grid into **answer
+pads**: one pad per answer, each in its own
 colour, and the screen is the legend.
 
 ```
@@ -416,8 +416,8 @@ something out before you answer. A right answer flashes green, a wrong one red.
 The **jog still works**: turn to choose, click to answer. The answer the jog is on pulses on its
 pad, so screen and pads always agree. When a hint strikes an answer out, its pad goes dark.
 
-In **Name**, the lit question never sits on the answer row: the handful of lowest notes that only the
-bottom row can play are left out of that drill.
+**Name** keeps the jog. There the lit pads *are* the question, anywhere on the grid, and an answer
+bar across the bottom row would cover them.
 
 **Hear** is the same quiz with the notation withheld: you hear the note or chord and play it back,
 and the staff shows a `?` until you get it right, then reveals what it was — which is where the
