@@ -11,7 +11,7 @@ import { createSession } from '../../src/session.mjs';
 const SRC = new URL('../../src/', import.meta.url).pathname;
 export const QUIET = { version: 7, autoInfo: false, quizSounds: false, roundSize: 10 };
 
-export function fakeHost({ settings = QUIET } = {}) {
+export function fakeHost({ settings = QUIET, opts = {} } = {}) {
   let ms = 1000;
   const files = new Map();
   if (settings) files.set('settings.json', JSON.stringify(settings));
@@ -47,7 +47,7 @@ export function fakeHost({ settings = QUIET } = {}) {
     settingChanged: (key) => log.push(['changed', key]),
     reveal: (pitches, ms2) => log.push(['reveal', pitches.slice(), ms2]),
   };
-  const session = createSession(fx);
+  const session = createSession(fx, opts);
   return {
     session,
     fx,

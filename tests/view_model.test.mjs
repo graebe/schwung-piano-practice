@@ -1,0 +1,218 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+/*
+ * view_model.test.mjs — what a browser is sent is plain data, small enough for
+ * Schwung's state key, and never gives an answer away.
+ */
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { fakeHost, openPath } from './support/fake_host.mjs';
+import {
+  viewModel, clockOf, encodeViewModel, decodeViewModel, encodedSize, STATE_LIMIT,
+  NOTE_HIT, NOTE_PENDING, NOTE_MISSED, VM_VERSION,
+} from '../src/view_model.mjs';
+import { MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_DETAIL } from '../src/session.mjs';
+
+const plain = (vm) => JSON.parse(JSON.stringify(vm));
+
+test('the list arrives decorated, with its path and cursor', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Basics']);
+  const vm = viewModel(h.session);
+  assert.equal(vm.v, VM_VERSION);
+  assert.equal(vm.screen, MENU);
+  assert.deepEqual(vm.nav.path, ['Exercise', 'Basics'].slice(-vm.nav.path.length));
+  assert.equal(vm.nav.title, 'Basics');
+  assert.deepEqual(vm.nav.rows.map((r) => r.label), ['Scales', 'Chords', 'Progressions', 'Random']);
+  assert.ok(vm.nav.rows.every((r) => r.folder));
+  assert.deepEqual(vm, plain(vm), 'plain JSON');
+});
+
+test('a running drill sends its chart, judgements, markers and clock', () => {
+  const h = fakeHost({ opts: { keepMarkersBeats: 16 } });
+  h.session.init();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  const ready = viewModel(h.session);
+  assert.equal(ready.screen, READY);
+  assert.equal(ready.chart.name, 'C Major');
+  assert.equal(ready.chart.events.length, ready.run.notes.length);
+  assert.ok(ready.run.notes.every((codes) => [...codes].every((c) => c === NOTE_PENDING)));
+  assert.ok(ready.can.listen && ready.can.practice && ready.can.scrub);
+  assert.deepEqual(ready.armed, { id: h.session.armedId, stage: 1 });
+
+  h.session.recordButton();
+  const beatMs = 60000 / h.session.chart.bpm;
+  const first = h.session.chart.events[0];
+  h.run((h.session.settings.countIn + first.beat) * beatMs);
+  h.session.play(first.pitches[0], 100);
+  h.session.play(61, 100);                       /* and a stray */
+  h.run(12 * beatMs);                            /* the next notes go by unplayed */
+  const vm = viewModel(h.session);
+  assert.equal(vm.screen, RUNNING);
+  assert.equal(vm.run.notes[0], NOTE_HIT);
+  assert.ok(vm.run.notes.some((c) => c.includes(NOTE_MISSED)), 'a missed note shows');
+  assert.equal(vm.run.markers.length, 2, 'both presses are marked');
+  assert.equal(vm.run.stats.strays, 1);
+  assert.equal(vm.can.scrub, false, 'no scrubbing while it runs');
+  assert.ok(vm.clock.running);
+  assert.ok(vm.clock.bar >= 1);
+  assert.deepEqual(vm, plain(vm));
+});
+
+test('stuck on a note: the block index and the stuck cue say which', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  h.session.recordButton();
+  h.run(10000);
+  const vm = viewModel(h.session);
+  assert.ok(vm.clock.blocked);
+  assert.equal(vm.run.blockIndex, 0);
+  assert.deepEqual(vm.cue.stuck, h.session.chart.events[0].pitches.slice().sort((a, b) => a - b));
+});
+
+test('listening: the cue names what is sounding', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  h.session.playButton();
+  const beatMs = 60000 / h.session.chart.bpm;
+  h.run((h.session.settings.countIn + 0.2) * beatMs);
+  const vm = viewModel(h.session);
+  assert.ok(vm.clock.listening);
+  assert.ok(vm.cue.sounding.includes(h.session.chart.events[0].pitches[0]));
+});
+
+test('a hidden prompt is never sent — not its notes, not its name', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']);
+  let vm = viewModel(h.session);
+  assert.equal(vm.screen, GUESS_VIEW);
+  assert.equal(vm.quiz.mode, 'ear');
+  assert.equal(vm.quiz.prompt, null);
+  assert.equal(vm.quiz.label, null);
+  assert.ok(!JSON.stringify(vm.cue.prompt.length ? vm.cue : {}).includes('prompt'), 'nor lit');
+  assert.ok(vm.quiz.options.length >= 2);
+  assert.ok(vm.quiz.options.every((o) => o.colour), 'answer pads have colours');
+  /* Answered: now it may be shown. */
+  const q = h.session.quiz;
+  for (let i = 0; i < q.choices.length && !q.solved; i++) h.session.answer(i);
+  vm = viewModel(h.session);
+  assert.ok(Array.isArray(vm.quiz.prompt) && vm.quiz.prompt.length > 0);
+});
+
+test('a Play quiz shows its prompt; a Name quiz lights it as the question', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes']);
+  let vm = viewModel(h.session);
+  assert.equal(vm.quiz.mode, 'play');
+  assert.equal(vm.quiz.prompt.length, 1);
+  assert.deepEqual(vm.cue.prompt, [], 'the answer is not lit');
+  h.session.back();                              /* to Play */
+  h.session.back();                              /* to Quiz */
+  openPath(h.session, ['Name', 'Notes']);
+  vm = viewModel(h.session);
+  assert.equal(vm.quiz.mode, 'pick');
+  assert.deepEqual(vm.cue.prompt, vm.quiz.prompt, 'the lit pad is the question');
+});
+
+test('results and progress charts are data', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Name', 'Notes']);
+  for (let i = 0; i < 40 && h.session.view === GUESS_VIEW; i++) {
+    const q = h.session.quiz;
+    h.session.answer(q.choices.findIndex((c) => c.pitches.join() === q.prompt.join()));
+    h.run(500);
+  }
+  let vm = viewModel(h.session);
+  assert.equal(vm.screen, RESULT_VIEW);
+  assert.equal(vm.result.kind, 'quiz');
+  assert.equal(vm.result.n, 10);
+  assert.ok(Array.isArray(vm.result.records));
+  h.session.back();
+  h.session.back();
+  h.session.back();
+  h.session.back();
+  openPath(h.session, ['Progress']);
+  h.session.selectProgress(0);
+  h.session.activate(false);
+  vm = viewModel(h.session, { plotW: 300, plotH: 100 });
+  assert.equal(vm.screen, PROGRESS_DETAIL);
+  assert.equal(vm.progress.detail.kind, 'overview');
+  assert.ok(vm.progress.rows.length >= 5);
+  assert.deepEqual(vm, plain(vm));
+});
+
+test('encode and decode round-trip, one string per field', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  const vm = viewModel(h.session);
+  const flat = encodeViewModel(vm);
+  for (const v of Object.values(flat)) assert.equal(typeof v, 'string');
+  assert.deepEqual(decodeViewModel(flat), plain(vm));
+  assert.equal(decodeViewModel({ broken: '{' }).broken, null, 'a damaged field reads as empty');
+});
+
+test('every bundled song at every level fits Schwung\'s 64KB state key', () => {
+  const h = fakeHost();
+  h.session.init();
+  let largest = { size: 0, name: '' };
+  let checked = 0;
+  for (const category of ['Classics', 'Electronic', 'Techno', 'Styles']) {
+    h.session.init();
+    openPath(h.session, [category]);
+    const songs = h.session.nav[1].node.children;
+    for (let s = 0; s < songs.length; s++) {
+      h.session.selectRow(s);
+      h.session.activate(false);
+      const levels = h.session.nav.length > 2 ? h.session.nav[2].node.children : [null];
+      for (let l = 0; l < levels.length; l++) {
+        if (levels[l]) {
+          h.session.selectRow(l);
+          h.session.activate(false);
+        }
+        assert.equal(h.session.view, READY, `${category} ${s}/${l} armed`);
+        h.session.recordButton();
+        h.run(2000);
+        const size = encodedSize(viewModel(h.session));
+        if (size > largest.size) largest = { size, name: h.session.chart.name };
+        checked++;
+        h.session.back();                         /* restart */
+        h.session.back();                         /* to the levels */
+      }
+      if (levels[0]) h.session.back();            /* to the songs */
+    }
+  }
+  assert.ok(checked > 60, `checked ${checked}`);
+  assert.ok(largest.size < STATE_LIMIT, `${largest.name}: ${largest.size} bytes`);
+});
+
+test('the clock alone is small and moves with the run', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  h.session.playButton();
+  const a = clockOf(h.session);
+  h.run(1000);
+  const b = clockOf(h.session);
+  assert.ok(b.beats > a.beats);
+  assert.ok(JSON.stringify(b).length < 300);
+});
+
+test('without the option, marks go at the panel\'s edge, as on the Move', () => {
+  /* Wait off, so the scroll keeps moving and the mark scrolls away. */
+  const h = fakeHost({ settings: { version: 7, autoInfo: false, quizSounds: false, waitForNote: false } });
+  h.session.init();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  h.session.recordButton();
+  h.run(5000);
+  h.session.play(61, 90);
+  assert.equal(viewModel(h.session).run.markers.length, 1);
+  h.run(5000);
+  assert.equal(viewModel(h.session).run.markers.length, 0);
+});

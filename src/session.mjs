@@ -99,7 +99,14 @@ const SETTINGS_FILE = 'settings.json';
 const STATS_FILE = 'stats.json';
 const PROGRESS_FILE = 'progress.json';
 
-export function createSession(fx) {
+/*
+ * opts.keepMarkersBeats: how far behind the playhead the marks of your presses
+ * are kept. By default, to the panel's left edge — on a 128px screen that is
+ * barely a beat; a browser's lane shows far more of what you just played.
+ */
+export function createSession(fx, opts = {}) {
+  const keepMarkersBeats = typeof opts.keepMarkersBeats === 'number' ? opts.keepMarkersBeats : null;
+
   /* ---- The host, through fx ------------------------------------------------ */
   function now() {
     return fx.now();
@@ -1873,7 +1880,9 @@ export function createSession(fx) {
       if (isBeatEdge(prevBeats, songBeats)) serviceClick();
       serviceReference();
       serviceNoteOffs();
-      SCORE.pruneMarkers(run, xToBeat(L.DESPAWN_X, songBeats, settings.pxPerBeat));
+      SCORE.pruneMarkers(run, keepMarkersBeats === null
+          ? xToBeat(L.DESPAWN_X, songBeats, settings.pxPerBeat)
+          : songBeats - keepMarkersBeats);
       if (SCORE.runFinished(run, songBeats, blocked) ||
           (listening && songBeats > chartTotalBeats(chart))) {
         allNotesOff();
