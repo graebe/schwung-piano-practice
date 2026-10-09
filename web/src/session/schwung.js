@@ -10,15 +10,15 @@
  *   clock()         the playhead, extrapolated between updates
  *   dispatch(a)     an action (src/actions.mjs), applied by ui.js on the Move
  *
- * WHAT THE MOVE MUST DO FOR THIS (docs/schwung-web.md; not built yet):
+ * WHAT THE MOVE DOES FOR THIS (docs/schwung-web.md):
  *   - its DSP answers get_param("module_id") with "piano-practice", which is
  *     what makes Schwung offer this page at all
  *   - get_param("state") answers the view model encoded by encodeViewModel —
  *     one flat object, a JSON string per field, under 64KB
  *   - get_param("rui_poll") answers "rev:on:tick:bpm", so the manager reads
  *     `state` again only when rev moves
- *   - set_param("action", json) is handed to ui.js, which applies it with
- *     applyAction — the same function the browser's own session uses
+ *   - set_param("action", json) is queued for ui.js, which collects it and
+ *     applies it with applyAction — the function the browser's own session uses
  *
  * Here: the bridge Schwung injects (window.schwungRemote, from
  * /static/schwung-remote-api.js) delivers each field as `overtake_dsp:<field>`

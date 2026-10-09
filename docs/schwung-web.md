@@ -1,4 +1,4 @@
-# The web page on a Move — what is built, and what the device still needs
+# The web page on a Move — how the page and the device talk
 
 The practice page (`web/`) talks to a *session* through one interface. Two
 sessions implement it:
@@ -8,8 +8,8 @@ sessions implement it:
 | **local** (`web/src/session/local.js`) | in the browser, beside the page | the module's piano as wasm, in an AudioWorklet | computer keys, Web MIDI, pointer |
 | **schwung** (`web/src/session/schwung.js`) | on the Move, in `ui.js` | the Move | the Move's pads; the page's keys and buttons as actions |
 
-The local session is complete. The Move's is built and tested on the page's
-side against a fake bridge; **the device side below is not built yet**.
+Both are built. This page is about the second: how a page in Schwung's web
+manager watches and steers a session that runs on the Move.
 
 ## How a tool's page reaches its module
 
@@ -45,50 +45,76 @@ and steers.
   `overtake_dsp:*`, decodes the fields, carries the playhead forward between
   updates (unless paused or waiting on a note), and dispatches actions.
 
-## What the device still needs
+## The device's half
 
-1. **The DSP answers `module_id`** with `piano-practice`, and keeps two
-   strings it is handed: `state` and `poll`.
-   - `set_param("vm", json)` stores the encoded view model.
-   - `set_param("poll", "rev:on:tick:bpm")` stores the poll line.
-   - `get_param("state")` and `get_param("rui_poll")` answer them.
-   - `set_param("action", json)` queues it for `ui.js`. Keep at most a few,
-     in order.
+```
+ page (web_ui.html)          Schwung manager            piano DSP (remote.rs)        ui.js (remote.mjs)
+ ──────────────────          ───────────────            ─────────────────────        ──────────────────
+ setParam action    ──────►  web-set ring    ──────►    inbox (32 actions)  ◄──────  get('inbox'), paced
+ onParamChange      ◄──────  state read      ◄──────    picture, rev        ◄──────  set('vm', …), paced
+                             on rev change              rui_poll "rev:0:0:0"
+```
 
-   All of this is copying bytes, no allocation on the audio thread: fixed
-   buffers in the `piano` adapter, beside `n`, `panic` and `gain`.
+**The DSP is a mailbox** (`dsp/piano/src/remote.rs`), and nothing more. It
+never looks inside what it holds.
 
-2. **`ui.js` publishes.** When the session marks a change that the page shows
-   (not on every scroll tick), it writes `encodeViewModel(viewModel(S))`
-   through `host_module_set_param("vm", …)`, and the poll line with a new
-   `rev`.
-   - **The parameter channel is a single-slot mailbox.** The note list `n`
-     and the view model written in the same tick overwrite each other. Write
-     at most one parameter per tick: notes first, the view model on the next
-     free tick, by `rev` diff.
-   - The chart is the bulk of the payload and changes only when something is
-     armed. If the host's limit on one value turns out to be below what a
-     song needs, send `chart` as its own key, by `chartRev`. Measure first.
+| param | who | what |
+| --- | --- | --- |
+| `module_id` (get) | manager | `piano-practice`: what makes the Tool tab offer the page |
+| `vm` (set) | ui.js | the picture, `encodeViewModel(viewModel(S))` as JSON; moves `rev` |
+| `stale` (set) | ui.js | moves `rev` without a picture (see *Watching*) |
+| `state` (get) | manager | the picture as last set, or `{}` |
+| `rui_poll` (get) | shim | `rev:0:0:0`; the transport fields are Move's and stay 0 |
+| `action` (set) | page | one action, queued for ui.js; a full queue or a value over 255 bytes is refused whole |
+| `inbox` (get) | ui.js | `w` or `-`, then the queued actions, one a line |
 
-3. **`ui.js` takes actions.** This is the one open question: how a page's
-   action gets from the DSP back to `ui.js`.
-   - A `get_param` costs ~2.8ms and is banned from the frame path.
-   - So either `ui.js` polls a single `action` key at a slow, throttled rate
-     outside the draw, or the DSP forwards actions as internal MIDI
-     (e.g. SysEx on a private cable) that `onMidiMessageInternal` decodes.
-   - Whichever lands, it ends in `applyAction(S, action)`, and the Move's own
-     LEDs and panel follow as they do for its buttons.
+It allocates once, in `create` (the 128KB picture buffer), and copies bounded
+bytes on the audio thread after that. The plugin shim bounds keys at 4KB and
+values at 128KB, the host's own channel size.
 
-4. **Packaging.**
-   - `npm run web:build` writes `dist/web/web_ui.html` and `assets/` with
-     relative URLs.
-   - `scripts/package.sh` copies them into the module folder. Schwung serves
-     them at `/api/remote-ui/module-assets/piano-practice/`.
-   - The wasm and the worklet are fetched only by the local session, so on a
-     Move they are never loaded. They could be left out of the tarball to
-     save space.
+**ui.js keeps the pace** (`src/remote.mjs`). Two host facts set it:
 
-5. **Tests on the device side.**
-   - The trace test gains a scenario where a page steers.
-   - A golden `state` per screen.
-   - The 64KB check, run against the real host limit once measured.
+- A param read waits for the next audio block, about 3ms, which is longer than
+  a frame. So the inbox is read once a second while nobody watches and five
+  times a second while somebody does. It is the only read in `ui.js`;
+  `tests/ui_contract.test.mjs` holds it to that one site, outside the draw.
+- A param write in overtake mode is fire-and-forget into one shared slot, and
+  is dropped when the slot is busy. The notes for the piano use the same slot.
+  So the picture is never written on a tick that already wrote, and a write
+  the host refused is retried on the next tick.
+
+**Watching.** The DSP counts a page as open while the manager keeps reading
+`state`, which it does only when `rev` moves. While a page watches, ui.js sends
+the picture when it changes (at most every 300ms, the manager's own read
+throttle) and at least once a second; that heartbeat keeps the DSP's
+three-second watch alive. A change in the playhead's position alone waits for
+the heartbeat, because the page carries the beat forward itself. While nobody
+watches, nothing but a `stale` goes out every two seconds. That nudge lets a
+page whose watch lapsed, for example over a stalled WiFi link, pull again and
+be seen again.
+
+**Actions** are applied with `applyAction(S, action)` (`src/actions.mjs`), the
+function the browser's own session uses, so the Move's LEDs and panel follow
+as they do for its buttons. A page cannot close the tool: `ui.js` ignores the
+session's exit while it applies a page's action.
+
+**Packaging.** `npm run web:build` writes `dist/web/web_ui.html` with relative
+URLs. `scripts/package.sh` puts it beside `module.json`, with its `assets/`
+(not the gallery's), the bundle's licence notices and the fonts' OFL texts.
+Schwung serves them at `/api/remote-ui/module-assets/piano-practice/`.
+`web_ui.html` loads the manager's bridge from `/static/schwung-remote-api.js`
+before the app, and that bridge is what selects the Move's session. The wasm
+and the worklet ship too, but on a Move they are never fetched.
+
+## Tests
+
+- `dsp/piano/src/remote.rs`: the mailbox, its bounds and the watch.
+- `dsp/piano/src/lib.rs`: the params end to end, and proof that the sound is
+  untouched.
+- `tests/remote.test.mjs`: the pace (reads, heartbeat, one write a tick,
+  retries, the 64KB limit).
+- `tests/ui_trace.test.mjs`, scenario `page`: ui.js steered through a fake DSP
+  and manager (`tests/support/fake_dsp.mjs`), recorded call for call. It checks
+  that the page sees the drill armed, that its note sounds, and that its Back
+  never closes the tool.
+- `web/e2e`: `web_ui.html` with a fake bridge served at the manager's path.

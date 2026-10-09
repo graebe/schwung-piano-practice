@@ -15,7 +15,11 @@ for entry in \
   piano-practice/dsp.so \
   piano-practice/help.json \
   piano-practice/exercises/index.json \
-  piano-practice/LICENSE
+  piano-practice/LICENSE \
+  piano-practice/web_ui.html \
+  piano-practice/assets/THIRD_PARTY_LICENSES.txt \
+  piano-practice/assets/OFL.txt \
+  piano-practice/assets/Bravura-OFL.txt
 do
   echo "$LIST" | grep -qx "$entry" || { echo "missing from package: $entry" >&2; exit 1; }
 done
@@ -49,6 +53,19 @@ for f in "$MODDIR/ui.js" "$MODDIR"/*.mjs; do
   done
 done
 rm -rf "$TMPD"
+
+# Every file the page loads must be in the archive, relative to the page —
+# except the manager's own bridge, which the manager serves.
+for ref in $(grep -oE '(src|href)="[^"]*"' "$ROOT/dist/web/web_ui.html" | sed 's/^[a-z]*="\(.*\)"$/\1/'); do
+  case "$ref" in
+    /static/schwung-remote-api.js|data:*) ;;
+    ./*) echo "$LIST" | grep -qx "piano-practice/${ref#./}" || { echo "web_ui.html loads $ref, not packaged" >&2; exit 1; } ;;
+    *) echo "web_ui.html loads $ref: not relative, so not served from the module" >&2; exit 1 ;;
+  esac
+done
+if echo "$LIST" | grep -q '/assets/gallery-'; then
+  echo "the gallery page's assets are in the package" >&2; exit 1
+fi
 
 # Every exercise the manifest names must be in the archive.
 for file in $(sed -n 's/.*"file": *"\([^"]*\)".*/\1/p' "$ROOT/src/exercises/index.json"); do

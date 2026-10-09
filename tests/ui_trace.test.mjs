@@ -15,7 +15,8 @@
  * MIDI to the track and to USB, file writes (path and text), screen-reader
  * announcements, exit. Drawing and LEDs are the bulk of the traffic and are
  * folded into one digest per tick, so a fixture stays readable and a changed
- * frame still fails the test.
+ * frame still fails the test. So is the picture sent to a browser page: one
+ * digest per write, with what it showed checked by the `page` scenario itself.
  *
  *   UPDATE_TRACE=1 node --test tests/ui_trace.test.mjs   re-record
  *
@@ -31,6 +32,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { padPitch } from '../src/padmap.mjs';
+import { fakeDsp } from './support/fake_dsp.mjs';
 
 const SRC = new URL('../src/', import.meta.url).pathname;
 const FIXTURES = new URL('./fixtures/ui_trace/', import.meta.url).pathname;
@@ -63,7 +65,7 @@ const EPOCH = Date.UTC(2026, 9, 9, 8, 0, 0);   /* a fixed wall clock */
 
 /* A host that writes down everything it is told. Files live in memory, so a
  * scenario can read back what it wrote. */
-function makeHost(files) {
+function makeHost(files, dsp) {
   let ms = 0;
   let events = [];
   let tickNo = 0;
@@ -121,7 +123,14 @@ function makeHost(files) {
     host_write_file: (p, t) => { files.set(p, t); host.call('write', p, t); return true; },
     host_exit_module: () => host.call('exit'),
     host_send_screenreader: (t) => host.call('sr', t),
-    host_module_set_param: (k, v) => host.call('dsp', k, v),
+    host_module_set_param: (k, v) => {
+      host.call('dsp', k, k === 'vm' ? 'sha:' + createHash('sha1').update(v).digest('hex').slice(0, 12) : v);
+      if (dsp) dsp.set(k, v);
+      return true;
+    },
+    /* Only a scenario with a page has a DSP to read; without one ui.js must
+     * not read at all, which is what every other recording holds it to. */
+    host_module_get_param: dsp ? (k) => { host.call('read', k); return dsp.get(k); } : undefined,
     move_midi_inject_to_move: (p) => { host.call('track', ...p); return true; },
     move_midi_external_send: (p) => { host.call('usb', ...p); return true; },
     move_midi_internal_send: (p) => { host.led('int', ...p); return true; },
@@ -215,7 +224,7 @@ function driver(host) {
   const toTop = () => {
     for (let i = 0; i < 8 && !host.screen().startsWith('EXERCISE'); i++) press(BACK);
   };
-  return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, toTop };
+  return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, toTop, host };
 }
 
 const QUIET = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false, roundSize: 10 });
@@ -321,6 +330,27 @@ const SCENARIOS = {
     d.jog(1); d.click(); d.jog(1); d.jog(1); d.press(BACK); d.press(BACK);
   } },
 
+  /*
+   * A browser page on the Move's session: nobody watching, then a page opens,
+   * steers into the scales drill, listens, plays a note, and backs out past
+   * the top of the list — which must not close the tool. Then it closes, and
+   * ui.js goes back to sending nothing but the occasional nudge.
+   */
+  page: { settings: QUIET, page: true, play(d, dsp) {
+    d.run(2500);                                  /* unwatched: reads, nudges */
+    dsp.openPage(); d.run(1200);
+    for (const a of [{ type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' }, { type: 'open' }, { type: 'open' }]) {
+      dsp.act(a); d.run(250);
+    }
+    dsp.act({ type: 'listen' }); d.run(2000);
+    dsp.act({ type: 'listen' }); d.run(400);      /* pause */
+    dsp.act({ type: 'noteOn', pitch: 60, vel: 90 }); d.run(250);
+    dsp.act({ type: 'noteOff', pitch: 60 }); d.run(250);
+    for (let i = 0; i < 8; i++) { dsp.act({ type: 'back' }); d.run(250); }
+    d.run(1500);
+    dsp.closePage(); d.run(6000);
+  } },
+
   /* A song: its levels, a level armed, practised briefly; then Shift+Back. */
   exit: { settings: QUIET, play(d) {
     d.jog(3); d.click(); d.click(); d.run(100); d.click(); d.run(100);
@@ -335,16 +365,20 @@ const SCENARIOS = {
 const uiPath = stageModule();
 let loads = 0;
 
-async function record(name, scenario) {
+async function record(name, scenario, seen = {}) {
   const files = new Map();
   if (scenario.settings) files.set(MODULE_DIR + '/settings.json', scenario.settings);
-  const host = makeHost(files);
+  let clockOf = () => 0;
+  const dsp = scenario.page ? fakeDsp(() => clockOf()) : null;
+  const host = makeHost(files, dsp);
+  clockOf = host.now;
+  seen.dsp = dsp;
   const thaw = freezeWorld(host);
   try {
     await import(`${uiPath}?trace=${name}-${loads++}`);
     globalThis.init();
     host.endTick();
-    scenario.play(driver(host));
+    scenario.play(driver(host), dsp);
     return host.take();
   } finally {
     thaw();
@@ -380,4 +414,24 @@ test('every scenario reaches the host', async () => {
   assert.ok(practice.some((e) => e[0] === 'dsp' && e[1] === 'n'), 'practice: no notes reached the piano');
   const exit = await record('exit', SCENARIOS.exit);
   assert.ok(exit.some((e) => e[0] === 'exit'), 'exit: the module never left');
+});
+
+/* What the `page` recording means, said outright. */
+test('a page watches and steers the Move, and cannot close it', async () => {
+  const seen = {};
+  const events = await record('page', SCENARIOS.page, seen);
+  const { dsp } = seen;
+  const firstVm = events.findIndex((e) => e[0] === 'dsp' && e[1] === 'vm');
+  const before = events.slice(0, firstVm);
+  assert.ok(before.some((e) => e[0] === 'read' && e[1] === 'inbox'), 'unwatched: the inbox is read');
+  assert.ok(before.some((e) => e[0] === 'dsp' && e[1] === 'stale'), 'unwatched: a nudge, no picture');
+  assert.ok(dsp.pictures.length >= 5, `pictures sent while watched: ${dsp.pictures.length}`);
+  const screens = dsp.pictures.map((p) => JSON.parse(p.screen));
+  assert.ok(screens.includes('ready'), 'the page saw the drill armed: ' + [...new Set(screens)]);
+  assert.ok(events.some((e) => e[0] === 'dsp' && e[1] === 'n' && /(^|,)60:90/.test(e[2])), 'its note sounded');
+  assert.ok(!events.some((e) => e[0] === 'exit'), 'a page closed the tool');
+  assert.equal(dsp.last().screen, 'menu');
+  const lastVm = events.map((e, i) => (e[0] === 'dsp' && e[1] === 'vm' ? i : -1)).filter((i) => i >= 0).pop();
+  const tail = events.slice(lastVm + 1);
+  assert.ok(tail.filter((e) => e[0] === 'read').length <= 7, 'closed: back to a read a second');
 });

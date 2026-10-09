@@ -40,6 +40,10 @@ pub const MOVE_FRAMES_PER_BLOCK: usize = 128;
  * was never NUL-terminated. Walking it forever is how a bad caller becomes our
  * crash. */
 const MAX_CSTR: usize = 4096;
+/* A VALUE may be far longer: a tool's remote UI hands its whole view model
+ * over as one (docs/MODULES.md), and the host's param channel carries up to
+ * SHADOW_PARAM_VALUE_LEN, 128KB. Still bounded, for the same reason. */
+const MAX_VALUE: usize = 131_072;
 /* frames is a c_int off the wire. The host sends 128. */
 const MAX_FRAMES: c_int = 1 << 16;
 
@@ -134,7 +138,7 @@ pub trait SchwungPlugin: Sized {
 /* ---- helpers the macro uses ---------------------------------------------- */
 #[doc(hidden)]
 pub mod rt {
-    use super::{MAX_CSTR, MAX_FRAMES};
+    use super::{MAX_CSTR, MAX_FRAMES, MAX_VALUE};
     use core::ffi::{c_char, c_int};
 
     /// NUL-terminated C string to bytes, bounded. `None` for NULL.
@@ -142,11 +146,23 @@ pub mod rt {
     /// # Safety
     /// `p` is NULL or points to a NUL-terminated string.
     pub unsafe fn cstr<'a>(p: *const c_char) -> Option<&'a [u8]> {
+        bounded(p, MAX_CSTR)
+    }
+
+    /// A param value: the same, with the longer bound values are allowed.
+    ///
+    /// # Safety
+    /// `p` is NULL or points to a NUL-terminated string.
+    pub unsafe fn value<'a>(p: *const c_char) -> Option<&'a [u8]> {
+        bounded(p, MAX_VALUE)
+    }
+
+    unsafe fn bounded<'a>(p: *const c_char, max: usize) -> Option<&'a [u8]> {
         if p.is_null() {
             return None;
         }
         let mut n = 0usize;
-        while n < MAX_CSTR && *p.add(n) != 0 {
+        while n < max && *p.add(n) != 0 {
             n += 1;
         }
         Some(core::slice::from_raw_parts(p.cast::<u8>(), n))
@@ -219,7 +235,7 @@ macro_rules! schwung_plugin {
         ) {
             let Some(p) = inst.cast::<$ty>().as_mut() else { return };
             let Some(k) = $crate::rt::cstr(key) else { return };
-            <$ty as $crate::SchwungPlugin>::set_param(p, k, $crate::rt::cstr(val));
+            <$ty as $crate::SchwungPlugin>::set_param(p, k, $crate::rt::value(val));
         }
 
         unsafe extern "C" fn __schwung_get_param(
@@ -321,9 +337,21 @@ mod tests {
     fn cstr_is_bounded_and_none_for_null() {
         unsafe {
             assert_eq!(rt::cstr(core::ptr::null()), None);
-            assert_eq!(rt::cstr(b"ab\0".as_ptr().cast::<c_char>()), Some(&b"ab"[..]));
+            assert_eq!(rt::cstr(c"ab".as_ptr()), Some(&b"ab"[..]));
             let long = [b'a'; MAX_CSTR + 8];
             assert_eq!(rt::cstr(long.as_ptr().cast::<c_char>()).unwrap().len(), MAX_CSTR);
+        }
+    }
+
+    #[test]
+    fn a_value_may_be_longer_than_a_key_but_is_still_bounded() {
+        unsafe {
+            assert_eq!(rt::value(core::ptr::null()), None);
+            let mut view = alloc::vec![b'v'; 100_000];
+            view.push(0);
+            assert_eq!(rt::value(view.as_ptr().cast::<c_char>()).unwrap().len(), 100_000);
+            let long = alloc::vec![b'v'; MAX_VALUE + 8];
+            assert_eq!(rt::value(long.as_ptr().cast::<c_char>()).unwrap().len(), MAX_VALUE);
         }
     }
 

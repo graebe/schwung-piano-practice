@@ -19,8 +19,9 @@ So what you learn here transfers. The screens come in the same order, the
 buttons mean the same things, and a lesson's progress is counted the same way.
 
 What the page keeps is kept **in this browser**: settings, progress and quiz
-rounds are stored on this computer, not on your Move. (Steering the Move itself
-from the page is planned; see [The Move from the page](#the-move-from-the-page).)
+rounds are stored on this computer, not on your Move. Opened from the Move
+itself, the page works on the Move's session instead; see
+[The Move from the page](#the-move-from-the-page).
 
 ## Starting it
 
@@ -182,11 +183,31 @@ keyboard where the browser supports Web MIDI.
 
 ## The Move from the page
 
-Schwung's web manager (`move.local:7700`, Remote UI › Tool) can show a tool's
-own web page. Piano Practice's page is built for it: inside Schwung it shows
-and steers the session running **on the Move**, which then makes the sound and
-reads the pads. The page's side of this is built and tested; the Move's side is
-the next step, described in [schwung-web.md](schwung-web.md).
+The same page ships inside the module. Opened through Schwung's web manager, it
+works on the session running **on the Move**: the Move makes the sound and
+reads its pads, and the page shows that session large and lets you steer it.
+
+1. On the Move, open Piano Practice: **Shift + Step 13** for the Tools menu,
+   then pick it.
+2. On a laptop on the same network as the Move (or connected by its USB
+   cable), open **http://move.local:7700/remote-ui** and choose the **Tool**
+   tab.
+
+The page now follows the Move. Turn the jog on the Move and the page's list
+moves with it; click a lesson on the page and the Move opens it. The page's
+keys play on the Move, so you hear them through the Move's piano or whatever
+**MIDI out** sends them to. Settings, progress and quiz rounds are the Move's:
+nothing is kept in the browser in this mode.
+
+Some things stay with the Move's own buttons:
+
+- **Closing the tool.** Back at the top of the list closes Piano Practice on
+  the Move. From the page it does nothing, so a click cannot end your session.
+- **Timing.** The page draws the scrolling staff from the Move's clock, and
+  shows changes within a fraction of a second. For practice, play on the pads
+  or a keyboard plugged into the Move: those are judged on the Move, at once.
+
+How the page and the Move talk is described in [schwung-web.md](schwung-web.md).
 
 ## Keys at a glance
 

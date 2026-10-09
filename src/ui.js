@@ -15,6 +15,10 @@
  * Everything that can be reasoned about without a Move lives in the .mjs
  * modules beside it and is covered by `npm test`.
  *
+ * The module's page in Schwung's web manager watches and steers the session
+ * from a browser (src/remote.mjs); the device's half of that is at the end of
+ * the host bindings below.
+ *
  * Two host facts shape the code here:
  *  - tick() runs at ~500Hz in overtake mode but the OLED tops out near 49Hz,
  *    so the draw is throttled off performance.now() and the rest of the frame
@@ -47,6 +51,9 @@ import {
   createSession, OUT_TRACK, OUT_USB, OUT_INTERNAL,
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
 } from './session.mjs';
+import { viewModel, encodeViewModel } from './view_model.mjs';
+import { applyAction } from './actions.mjs';
+import { createRemote } from './remote.mjs';
 
 /* ---- Host bindings ------------------------------------------------------ */
 /* Several documented host_* functions do not exist on device; guard them all. */
@@ -206,17 +213,24 @@ function midiOutCh(kind, d1, d2) {
  * note would have a chord overwrite itself and only the last note would sound.
  */
 const dspNotes = [];
+/* Whether this tick has written a param: the mailbox takes one per tick. */
+let paramWritten = false;
 
 function dspNote(pitch, vel) {
   dspNotes.push(pitch + ':' + vel);
 }
 
+/* False when the host refused the write: in overtake mode a write is dropped,
+ * not queued, while the single slot is busy. */
 function dspSet(key, val) {
-  if (typeof host_module_set_param !== 'function') return;
+  if (typeof host_module_set_param !== 'function') return false;
+  paramWritten = true;
   try {
-    host_module_set_param(key, val);
+    const ok = host_module_set_param(key, val);
+    return ok !== false && ok !== 0;
   } catch (e) {
     /* the slot may not be loaded; silence is the right failure here */
+    return false;
   }
 }
 
@@ -279,6 +293,52 @@ function silence(held) {
   panicChannel(midiChannel);
 }
 
+/* ---- The page ------------------------------------------------------------ */
+/*
+ * The browser page reaches ui.js through the piano's DSP (src/remote.mjs). Its
+ * actions are the same ones the page applies to a session of its own
+ * (src/actions.mjs), so here they are applied exactly as the page would.
+ *
+ * The one param READ in this file is here, and it is paced: remote.mjs reads
+ * the inbox at most five times a second, never from the draw.
+ *
+ * A page steers but does not close the tool. Its Back at the top of the list
+ * would; the Move's own Back is the only way out.
+ */
+let page = null;
+let fromPage = false;
+
+function pageRead(key) {
+  try {
+    return host_module_get_param(key);
+  } catch (e) {
+    return null;
+  }
+}
+
+function openPage() {
+  page = typeof host_module_get_param === 'function'
+    ? createRemote({
+      get: pageRead,
+      set: dspSet,
+      snapshot: () => encodeViewModel(viewModel(S)),
+    })
+    : null;
+}
+
+function servicePage(t) {
+  const actions = page.poll(t);
+  if (!actions.length) return;
+  fromPage = true;
+  try {
+    for (let i = 0; i < actions.length; i++) applyAction(S, actions[i]);
+  } finally {
+    fromPage = false;
+  }
+  ledDirty = true;
+  S.dirty = true;
+}
+
 /* ---- The session ---------------------------------------------------------- */
 const S = createSession({
   now,
@@ -289,7 +349,9 @@ const S = createSession({
   announce,
   readText: (name) => readFile(MODULE_DIR + '/' + name),
   writeText: (name, text) => writeFile(MODULE_DIR + '/' + name, text),
-  exit: exitModule,
+  exit() {
+    if (!fromPage) exitModule();
+  },
   settingChanged(key) {
     if (key === 'midiCh') midiChannel = S.settings.midiCh > 0 ? S.settings.midiCh - 1 : 0;
   },
@@ -678,6 +740,7 @@ globalThis.init = function init() {
   for (const k in padFlash) delete padFlash[k];
 
   S.init();
+  openPage();
   invalidateLedCache();
   ledDirty = true;
   S.dirty = true;
@@ -699,6 +762,7 @@ globalThis.tick = function tick() {
   }
 
   const t = now();
+  if (page) servicePage(t);
   S.tick(t);
 
   /* Repaint when the pulse flips, so the cached setLED emits one packet per
@@ -723,6 +787,8 @@ globalThis.tick = function tick() {
   S.flushSettings(false);
   flushDsp();
   flushOutbox(false);
+  if (page) page.publish(t, paramWritten);
+  paramWritten = false;
 
   /* ~50Hz: the panel refreshes at about 49Hz, so anything faster is wasted. */
   if (S.dirty && t - lastDrawMs >= DRAW_INTERVAL_MS) {

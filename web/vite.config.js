@@ -13,8 +13,10 @@
  * and the grain are bundled. The ports are this module's own, strict, so two
  * agents' servers cannot quietly swap places.
  *
- * Two pages: index.html, the app (a placeholder until the app lands), and
- * gallery.html, every component in its states, for review and screenshots.
+ * Three pages: index.html, the app; web_ui.html, the same app as Schwung's web
+ * manager shows it in the Tool tab, steering the Move (it loads the manager's
+ * bridge first); and gallery.html, every component in its states, for review
+ * and screenshots.
  * `fs.allow ['..']` lets the pages import the module's pure engine
  * (../src/*.mjs) and its exercises, which live outside web/.
  */
@@ -44,15 +46,16 @@ export default defineConfig({
     rollupOptions: {
       input: {
         index: here('index.html'),
+        web_ui: here('web_ui.html'),
         gallery: here('gallery.html'),
       },
-      /* What the two pages share is the kit and the music components; name it
+      /* What the pages share is the kit and the music components; name it
        * that rather than after whichever module rollup met first. */
       output: {
         chunkFileNames: 'assets/shared-[hash].js',
         assetFileNames: (asset) => {
           const name = (asset.names && asset.names[0]) || asset.name || '';
-          const page = /^(index|gallery)\./.test(name);
+          const page = /^(index|web_ui|gallery)\./.test(name);
           return name.endsWith('.css') && !page ? 'assets/shared-[hash][extname]' : 'assets/[name]-[hash][extname]';
         },
       },

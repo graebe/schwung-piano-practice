@@ -1,7 +1,8 @@
 #!/usr/bin/env sh
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 Torben Gräber
-# Build dist/piano-practice-module.tar.gz. Pure JS — nothing to compile.
+# Build dist/piano-practice-module.tar.gz from the module's JS, dist/dsp.so
+# (scripts/build-dsp.sh) and the page in dist/web (npm run web:build).
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname "$0")/.." && pwd)
@@ -13,7 +14,7 @@ mkdir -p "$STAGE/exercises"
 cp "$ROOT/src/module.json" "$STAGE/module.json"
 cp "$ROOT/src/ui.js" "$STAGE/ui.js"
 
-MODULES="layout notation staff_render chart scoring generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices chord_lessons catalog progress program ear answer_pads info cues session view_model actions"
+MODULES="layout notation staff_render chart scoring generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices chord_lessons catalog progress program ear answer_pads info cues session view_model actions remote"
 
 # Cache-bust the sibling modules.
 #
@@ -51,6 +52,22 @@ cp "$ROOT/LICENSE" "$STAGE/LICENSE"
 # binary. It did not, for three releases — the README claimed the notice rode
 # along "in the vendored source", but libm is a cargo dependency, not vendored.
 cp "$ROOT/THIRD_PARTY_LICENSES.md" "$STAGE/THIRD_PARTY_LICENSES.md"
+
+# The page Schwung's web manager shows in its Tool tab (docs/schwung-web.md):
+# web_ui.html beside module.json, everything it loads under assets/. Not the
+# gallery, which is a review page. The fonts are OFL-1.1, whose texts travel
+# with them.
+WEB="$ROOT/dist/web"
+[ -f "$WEB/web_ui.html" ] || { echo "no $WEB/web_ui.html — run npm run web:build" >&2; exit 1; }
+cp "$WEB/web_ui.html" "$STAGE/web_ui.html"
+mkdir -p "$STAGE/assets"
+for f in "$WEB/assets/"*; do
+  case "$(basename "$f")" in
+    gallery-*) ;;
+    *) cp "$f" "$STAGE/assets/" ;;
+  esac
+done
+cp "$ROOT/web/fonts/OFL.txt" "$ROOT/web/fonts/Bravura-OFL.txt" "$STAGE/assets/"
 
 # COPYFILE_DISABLE stops macOS bsdtar writing AppleDouble "._*" resource
 # forks into the archive; they unpack onto the Move as junk beside every file.

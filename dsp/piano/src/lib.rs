@@ -6,7 +6,9 @@
  * An adapter, and only that. The synthesis is piano-engine, shared with the
  * browser build; this crate maps the plugin API onto it — set_param's `n`,
  * `panic` and `gain`, the panic CCs, `ping` and `voices` — and scales the
- * engine's f32 into the host's i16. The FFI boundary lives entirely in
+ * engine's f32 into the host's i16. It also keeps the mailbox between ui.js
+ * and a browser page on Schwung's web manager (remote.rs), which is why the
+ * tool's DSP answers `module_id`, `state` and `rui_poll`. The FFI boundary lives entirely in
  * schwung-plugin, so this crate has no unchecked code of its own.
  *
  * EVERYTHING HERE RUNS ON THE SPI CALLBACK. No allocation after `create`, no
@@ -18,7 +20,10 @@
 
 extern crate alloc;
 
+mod remote;
+
 use piano_engine::{parse, Engine};
+use remote::Remote;
 use schwung_plugin::{schwung_plugin, SchwungPlugin, MOVE_SAMPLE_RATE};
 
 /// Answered by get_param("ping"), so the UI can tell the engine loaded.
@@ -26,8 +31,13 @@ const ENGINE_VERSION: &[u8] = b"1";
 /// Full scale for the engine's -1..=1, a little under i16::MAX for headroom.
 const FULL_SCALE: f32 = 26000.0;
 
+/// The id Schwung's web manager asks for to offer the Tool tab's page.
+const MODULE_ID: &[u8] = b"piano-practice";
+
 pub struct Piano {
     engine: Engine,
+    /// The browser page's mailbox; see remote.rs.
+    remote: Remote,
 }
 
 /// The engine's sample as the host's: scaled, truncated toward zero, clamped.
@@ -39,6 +49,7 @@ impl SchwungPlugin for Piano {
     fn create(_module_dir: Option<&[u8]>, _json_defaults: Option<&[u8]>) -> Option<Self> {
         Some(Piano {
             engine: Engine::new(MOVE_SAMPLE_RATE as f32),
+            remote: Remote::new(),
         })
     }
 
@@ -80,6 +91,17 @@ impl SchwungPlugin for Piano {
                 }
             }
             b"panic" => self.engine.panic(),
+            b"vm" => {
+                if let Some(v) = val {
+                    self.remote.set_state(v);
+                }
+            }
+            b"stale" => self.remote.touch(),
+            b"action" => {
+                if let Some(v) = val {
+                    self.remote.push_action(v);
+                }
+            }
             b"gain" => {
                 if let Some(g) = val.and_then(parse::float) {
                     self.engine.set_gain(g);
@@ -92,12 +114,17 @@ impl SchwungPlugin for Piano {
     fn get_param(&mut self, key: &[u8], out: &mut [u8]) -> usize {
         match key {
             b"ping" => write_bytes(out, ENGINE_VERSION),
+            b"module_id" => write_bytes(out, MODULE_ID),
+            b"state" => self.remote.read_state(out),
+            b"rui_poll" => self.remote.poll(out),
+            b"inbox" => self.remote.drain_inbox(out),
             b"voices" => write_u32(out, self.engine.active_voices() as u32),
             _ => 0,
         }
     }
 
     fn render(&mut self, out: &mut [i16]) {
+        self.remote.tick();
         self.engine.apply_pending();
         for frame in out.as_chunks_mut::<2>().0 {
             let s = to_i16_range(self.engine.next_sample());
@@ -269,6 +296,50 @@ mod tests {
         assert_eq!(write_u32(&mut out, 4_294_967_295), 10);
         assert_eq!(&out[..10], b"4294967295");
         assert_eq!(write_u32(&mut out[..2], 12345), 2, "truncates");
+    }
+
+    /* The Tool tab's whole path through this crate: the manager finds the
+     * module by id, ui.js leaves the picture, the page reads it and asks for
+     * something, ui.js collects the ask. */
+    #[test]
+    fn the_remote_page_reaches_ui_js_through_the_params() {
+        let mut p = piano();
+        let mut out = [0u8; 256];
+        let n = p.get_param(b"module_id", &mut out);
+        assert_eq!(&out[..n], b"piano-practice");
+        let n = p.get_param(b"rui_poll", &mut out);
+        assert_eq!(&out[..n], b"0:0:0:0");
+
+        p.set_param(b"vm", Some(br#"{"screen":""menu""}"#));
+        p.set_param(b"stale", None);
+        let n = p.get_param(b"rui_poll", &mut out);
+        assert_eq!(&out[..n], b"2:0:0:0");
+        let n = p.get_param(b"state", &mut out);
+        assert_eq!(&out[..n], br#"{"screen":""menu""}"#);
+
+        p.set_param(b"action", Some(br#"{"type":"back"}"#));
+        p.set_param(b"action", None);
+        let n = p.get_param(b"inbox", &mut out);
+        assert_eq!(&out[..n], b"w\n{\"type\":\"back\"}");
+        p.render(&mut [0i16; FRAMES * 2]);
+        let n = p.get_param(b"inbox", &mut out);
+        assert_eq!(&out[..n], b"w", "drained, and the page still counts as open");
+    }
+
+    /* A page that never opened leaves the instrument exactly as it was. */
+    #[test]
+    fn the_remote_params_do_not_touch_the_sound() {
+        let mut a = piano();
+        let mut b = piano();
+        b.set_param(b"vm", Some(b"{}"));
+        b.set_param(b"action", Some(b"{}"));
+        for p in [&mut a, &mut b] {
+            p.set_param(b"n", Some(b"60:100,67:90"));
+        }
+        let (mut x, mut y) = (Vec::new(), Vec::new());
+        blocks(&mut a, 20, &mut x);
+        blocks(&mut b, 20, &mut y);
+        assert_eq!(x, y);
     }
 
     #[test]

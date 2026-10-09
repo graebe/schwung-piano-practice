@@ -224,6 +224,31 @@ test('inside Schwung the page shows the Move\'s session and steers it', async ({
   expect(sent).toContainEqual(['overtake_dsp:action', '{"type":"listen"}']);
 });
 
+/* The page as it ships in the module: web_ui.html loads the manager's bridge
+ * from the manager (/static/schwung-remote-api.js), and that alone must make
+ * it the Move's. Here the manager is a route serving a fake bridge. */
+test('web_ui.html, as Schwung serves it, drives the Move', async ({ page }) => {
+  const flat = moveState();
+  await page.route('**/static/schwung-remote-api.js', (route) => route.fulfill({
+    contentType: 'text/javascript',
+    body: `window.__sent = [];
+      window.schwungRemote = {
+        component: 'tool',
+        onParamChange(fn) {
+          setTimeout(() => fn(${JSON.stringify(Object.fromEntries(Object.entries(flat).map(([k, v]) => ['overtake_dsp:' + k, v])))}), 50);
+          return () => {};
+        },
+        setParam(k, v) { window.__sent.push([k, v]); },
+      };`,
+  }));
+  await page.goto('./web_ui.html');
+  await expect(page.locator('#piece-title')).toHaveText(/marys lamb/i);
+  await expect(page.locator('.status-pill', { hasText: 'sound on the Move' })).toBeVisible();
+  await page.getByRole('button', { name: 'Practice' }).click();
+  const sent = await page.evaluate(() => window.__sent);
+  expect(sent).toContainEqual(['overtake_dsp:action', '{"type":"practice"}']);
+});
+
 /* ---- The gallery: every component, for review ---------------------------- */
 
 test('the component gallery renders', async ({ page }) => {

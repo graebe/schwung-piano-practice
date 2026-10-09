@@ -67,8 +67,19 @@ test('the draw is throttled off the monotonic clock, not Date.now()', () => {
   assert.doesNotMatch(code, /=\s*Date\.now\(\)\s*;/, 'wall-clock time can jump mid-run');
 });
 
+/*
+ * One read is allowed, and only one: the page's inbox (src/remote.mjs), which
+ * paces it to five a second at most. It lives in pageRead, which only the
+ * remote calls — never the draw, never the tick body directly.
+ */
 test('no per-frame IPC: a param read costs more than a whole frame', () => {
-  assert.doesNotMatch(code, /host_module_get_param/);
+  const reads = code.match(/host_module_get_param\(/g) || [];
+  assert.equal(reads.length, 1, 'one paced read site, no more');
+  assert.match(fnBody(uiSource, 'pageRead'), /host_module_get_param\(key\)/);
+  assert.equal((code.match(/\bpageRead\b/g) || []).length, 2, 'defined, and handed to the remote');
+  assert.match(code, /get: pageRead/);
+  assert.doesNotMatch(fnBody(uiSource, 'tick'), /pageRead|host_module_get_param/);
+  assert.doesNotMatch(fnBody(uiSource, 'draw'), /servicePage|pageRead|host_module_get_param/);
   assert.doesNotMatch(code, /shadow_get_param/);
   assert.doesNotMatch(code, /host_module_set_param_blocking/);
 });
