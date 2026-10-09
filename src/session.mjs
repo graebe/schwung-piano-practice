@@ -1905,10 +1905,30 @@ export function createSession(fx) {
     return view === READY || (view === RUNNING && paused);
   }
 
+  /*
+   * Point straight at a row, for a renderer with a pointer: a click lands on
+   * the row it hit rather than stepping there one jog click at a time.
+   */
+  function selectRow(index) {
+    if (view !== MENU) return;
+    const top = CAT.navTop(nav);
+    if (index < 0 || index >= top.node.children.length) return;
+    top.cursor = index;
+    dirty = true;
+  }
+
+  function selectProgress(index) {
+    if (view !== PROGRESS_VIEW && view !== PROGRESS_DETAIL) return;
+    if (index < 0 || index >= progressRows.length) return;
+    progressCursor = index;
+    dirty = true;
+  }
+
+  /* Moves the cursor only; whoever moved it decides whether that alone is
+   * worth a redraw (a knob's edit redraws anyway, a touch does not). */
   function selectSetting(row) {
     if (row < 0 || row >= SET.SETTINGS_COUNT) return;
     settingsCursor = row;
-    dirty = true;
   }
 
   return {
@@ -1931,6 +1951,8 @@ export function createSession(fx) {
     scrubAllowed,
     editSetting,
     selectSetting,
+    selectRow,
+    selectProgress,
     settingsRows,
     decorateRow,
     progressDetail,
