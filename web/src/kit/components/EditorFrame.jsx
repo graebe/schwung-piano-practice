@@ -1,10 +1,11 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/EditorFrame.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/EditorFrame.jsx).
 // Changed: no iPlug2 bridge. The height goes to an `onHeight` callback instead of
 // a shell message, the Ground's handle to `onGround` instead of bridge.setGround,
 // and with no `width` the window is fluid (no scale) for a page that reflows.
 /*
  * The window every editor is drawn in.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * What the design system gives EVERY window, so no editor lays it out itself:
  * the ground as its first child, the content from the top ("nothing is centred

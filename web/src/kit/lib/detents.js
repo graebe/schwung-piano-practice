@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/detents.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/detents.js).
 /*
  * Detents: values a control holds on while it is dragged past them.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * A Length knob at 1/32 has 128 values on 200px of travel, a step and a half
  * of a pixel each, and the four a user is reaching for -- 16, 32, 64, 128 --

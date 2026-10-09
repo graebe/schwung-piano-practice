@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/field.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/field.js).
 /*
  * The animated ground: a damped wave field on the dot paper.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * A PORT, NOT A DESIGN. Every number and every step here comes from the
  * Ultraviolet design system's own reference implementation,

@@ -1,5 +1,8 @@
-/* Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components.css
- * and the rules of ui-kit/src/tokens.css that are not tokens), MIT, Torben Gräber.
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Torben Gräber */
+
+/* From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components.css
+ * and the rules of ui-kit/src/tokens.css that are not tokens).
  * Changed: the tokens come from the generated web/src/styles/tokens.gen.css; the
  * three values tokens.json does not carry are defined below from the design's
  * own bundle.css; the glow filters are the system's drop-shadows rather than the

@@ -1,8 +1,9 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/test/edit.test.mjs), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/test/edit.test.mjs).
 // Changed: the import paths, to web/src/kit/lib.
 /*
  * An in-place edit ends once, and Escape abandons it.
- * Copyright (c) 2026 Torben Gräber. MIT.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

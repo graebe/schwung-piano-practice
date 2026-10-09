@@ -1,6 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Tabs.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Tabs.jsx).
 /*
- * Tabs. Copyright (c) 2026 Torben Gräber. MIT.
+ * Tabs.
  *
  * A VERTICAL STRIP, each tab a block of the height divided evenly, the text a
  * quarter turn so it reads bottom-to-top. The lit one is a uv fill with on-uv

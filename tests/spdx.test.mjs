@@ -23,8 +23,6 @@ const OWNER = 'Copyright (C) 2026 Torben Gräber';
 const ROOTS = ['src', 'tests', 'tools', 'scripts', 'dsp', 'web', '.github'];
 const SKIP_DIRS = new Set(['node_modules', 'target', 'vendor', 'exercises', 'fixtures', 'dist', 'pkg']);
 const SOURCE = /\.(m?js|jsx|rs|c|h|sh|css|yml)$|^Dockerfile$/;
-/* Code copied in from elsewhere keeps its own header, which names its source. */
-const FOREIGN = /\/kit\//;
 
 function* walk(dir) {
   for (const name of readdirSync(dir)) {
@@ -47,7 +45,6 @@ test('every source file carries the SPDX and copyright lines', () => {
   const missing = [];
   for (const path of sources()) {
     const rel = relative(ROOT, path);
-    if (FOREIGN.test('/' + rel)) continue;
     const head = readFileSync(path, 'utf8').split('\n').slice(0, 4).join('\n');
     if (!head.includes(SPDX) || !head.includes(OWNER)) missing.push(rel);
   }

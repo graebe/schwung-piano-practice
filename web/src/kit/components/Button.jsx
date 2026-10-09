@@ -1,6 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Button.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Button.jsx).
 /*
- * A button. Copyright (c) 2026 Torben Gräber. MIT.
+ * A button.
  *
  * The design's Button: a bg-200 well on a line-200 hairline, 28px tall
  * (control-h), `button` text, rising to bg-300 under the pointer, optionally led

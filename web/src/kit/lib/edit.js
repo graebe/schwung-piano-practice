@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/edit.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/edit.js).
 /*
  * One edit of a text field: it ends exactly once, and Escape means no.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * THE BUG IT EXISTS FOR. The knob's readout and the pads' arrival numbers
  * closed their field on Escape -- and removing a focused input fires `blur`,

@@ -1,6 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Toggle.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Toggle.jsx).
 /*
- * A switch. Copyright (c) 2026 Torben Gräber. MIT.
+ * A switch.
  *
  * THE SWITCH FORM: a 28x14 bg-200 housing with an 8x8 square at 2px that moves
  * to 16px and lights.

@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Knob.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Knob.jsx).
 /*
  * A knob that can be dragged finely, and its readout.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * Ported from UvLookAndFeel::drawRotarySlider and UvReadout::paint.
  *

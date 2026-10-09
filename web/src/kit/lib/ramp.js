@@ -1,8 +1,10 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/ramp.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/ramp.js).
 // Changed: trimmed to the two functions the ground uses (readRgb, cssHex); the
 // spectrogram's ramp and lookup table are not part of this app.
 /*
- * System colours, for a canvas. Copyright (c) 2026 Torben Gräber. MIT.
+ * System colours, for a canvas.
  *
  * NO COLOUR IS SPELLED HERE, and that is the point of the file existing at all.
  * A canvas cannot use a CSS variable, so it reads the tokens back through

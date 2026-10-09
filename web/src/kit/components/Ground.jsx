@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Ground.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Ground.jsx).
 /*
  * The window's animated ground.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * THE DESIGN SYSTEM GIVES EVERY WINDOW ONE OF THESE, and it is the only thing in
  * the whole system that animates. `lib/field.js` is the simulation, ported from

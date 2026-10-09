@@ -1,6 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Select.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Select.jsx).
 /*
- * A choice, not a quantity. Copyright (c) 2026 Torben Gräber. MIT.
+ * A choice, not a quantity.
  *
  * THE MECHANISM IS THE PART WORTH KEEPING: a styled div with a REAL, invisible
  * <select> stretched over it. The popup is then the OS's -- which is the only

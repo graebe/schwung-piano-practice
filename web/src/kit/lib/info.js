@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/info.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/info.js).
 /*
  * Info: what the control under the pointer or the keyboard does, in the hint bar.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * AN ELEMENT DECLARES ITS STRING ONCE, as `data-info` -- the kit's controls take
  * it as an `info` prop, anything else spreads `infoAttrs(text)` -- and the

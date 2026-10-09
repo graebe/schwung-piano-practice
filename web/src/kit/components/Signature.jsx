@@ -1,6 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Signature.jsx), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components/Signature.jsx).
 /*
- * The publisher's signature. Copyright (c) 2026 Torben Gräber. MIT.
+ * The publisher's signature.
  *
  * Ultraviolet 1.0.0 added this, and its card is exact: "a 6px square lit in
  * `uv` with `glow-led`, then NEON INGVY in 10px mono, weight 500, tracked

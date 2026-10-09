@@ -1,6 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/icon-svg.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/icon-svg.js).
 /*
- * The design system's icon files, read. Copyright (c) 2026 Torben Gräber. MIT.
+ * The design system's icon files, read.
  *
  * Plain JavaScript so node can test it against the files themselves.
  */

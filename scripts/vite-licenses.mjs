@@ -2,9 +2,8 @@
 // Copyright (C) 2026 Torben Gräber
 /*
  * The licence notices of whatever the web build bundles, written beside it.
- * From neon-ingvy-audio-plugins (scripts/vite-licenses.mjs @4e15cc8, MIT there,
- * same author), with its notice list read from this repository's
- * THIRD_PARTY_LICENSES.md headings.
+ * From neon-ingvy-audio-plugins (scripts/vite-licenses.mjs @4e15cc8), with its
+ * notice list read from this repository's THIRD_PARTY_LICENSES.md headings.
  *
  * WHY THIS EXISTS. An editor's ui.js is minified, and minifying removes every
  * comment -- including the notices MIT asks to accompany each copy. Solid's

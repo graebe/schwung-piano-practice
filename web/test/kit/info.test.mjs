@@ -1,8 +1,9 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/test/info.test.mjs), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/test/info.test.mjs).
 // Changed: the import paths, to web/src/kit/lib.
 /*
  * Info in the hint bar: in at once, out after a beat, and an outcome first.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * Run with --conditions=browser (npm test does), so Solid's signals update.
  */

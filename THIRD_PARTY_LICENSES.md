@@ -117,14 +117,11 @@ copies, and a subset is a modification, so it ships as "NI Notation" with the
 copyright, licence and reserved-name notices unchanged in
 `web/fonts/Bravura-OFL.txt`.
 
-## Neon Ingvy ui-kit — MIT
-
-`web/src/kit/` is a copy of the Ultraviolet Solid kit from
-neon-ingvy-audio-plugins (commit 4e15cc8), by the same author, released there
-under MIT; each file names its source. MIT is compatible with this module's
-GPL.
-
 ## Not third-party
+
+- `web/src/kit/` is the Ultraviolet Solid kit from neon-ingvy-audio-plugins
+  (commit 4e15cc8), by the same author, GPL-3.0-or-later here like the rest of
+  this module; each file names its source.
 
 - `src/vendor/host/plugin_api_v1.h` is Schwung's plugin API header
   ([charlesvestal/schwung](https://github.com/charlesvestal/schwung), MIT), kept

@@ -3,8 +3,7 @@
 // Copyright (C) 2026 Torben Gräber
 /*
  * Chrome's coverage of the editor bundles, mapped back to their sources.
- * From neon-ingvy-audio-plugins (scripts/e2e-coverage.mjs @4e15cc8), where the
- * same author released it under MIT before that repository moved to the GPL.
+ * From neon-ingvy-audio-plugins (scripts/e2e-coverage.mjs @4e15cc8).
  *
  *   node scripts/e2e-coverage.mjs <coverage-dir> <web-dir> <out.info>
  *

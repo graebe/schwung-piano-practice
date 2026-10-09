@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/motion.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/motion.js).
 /*
  * The Motion switch's state, remembered per editor.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * The design system requires a Motion switch in every window that has a Ground,
  * and a switch a person has to find again every time they open the editor is not

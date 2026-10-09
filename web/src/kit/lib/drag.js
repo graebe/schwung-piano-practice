@@ -1,7 +1,8 @@
-// Copied from neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/drag.js), MIT, Torben Gräber.
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
+// From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/lib/drag.js).
 /*
  * One drag gesture, tracked on the window.
- * Copyright (c) 2026 Torben Gräber. MIT.
  *
  * LISTENERS GO ON THE WINDOW, NOT THE ELEMENT, and that is the whole reason
  * this file exists. Both the knob and the pads attached `pointermove` to the
