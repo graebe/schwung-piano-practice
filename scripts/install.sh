@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Torben Gräber
 # Deploy to a Move over SSH. Stages beside the live directory and swaps, so a
 # failed transfer cannot leave a half-installed module behind.
 set -eu

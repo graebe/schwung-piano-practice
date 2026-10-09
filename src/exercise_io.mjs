@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * exercise_io.mjs — load and validate hand-written exercises. Pure: the caller
  * supplies the file text, so this stays testable and the host's file bindings

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * preview.mjs — render the module's screens as ASCII art, with no Move attached.
  *

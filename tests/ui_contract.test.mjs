@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * ui_contract.test.mjs — source-level assertions on the one file that cannot
  * be executed off-device. ui.js talks to host globals that only exist inside

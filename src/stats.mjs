@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * stats.mjs — what you scored, kept over time. Pure: no host calls.
  *

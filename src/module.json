@@ -5,7 +5,7 @@
     "version": "1.8.1",
     "description": "Scrolling sight-reading trainer: read the staff, hit the pad in time.",
     "author": "graebe",
-    "license": "MIT",
+    "license": "GPL-3.0-or-later",
     "ui": "ui.js",
     "api_version": 2,
     "component_type": "tool",

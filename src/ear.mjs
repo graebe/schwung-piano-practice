@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * ear.mjs — the Hearing exercises: you hear something, you name it. Pure.
  *

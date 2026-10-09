@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * Rendering tests. These draw into a real 128x64 byte buffer and assert on the
  * pixels, because the interesting failures in a 1-bit staff are geometric: a

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * notation.mjs — pitch spelling and staff placement. Pure; no host calls.
  *

@@ -955,10 +955,17 @@ human maintainer. Please validate functionality and licence compatibility before
 
 ## Licence
 
-**MIT**, copyright © 2026 Torben Gräber. See [LICENSE](LICENSE).
+**GPL-3.0-or-later**, copyright © 2026 Torben Gräber. See [LICENSE](LICENSE).
 
-Nothing in this module needs anything stronger. The one third-party dependency
-is [`libm`](https://crates.io/crates/libm), taken under **MIT**, compiled into
-`dsp.so`; its notice ships in the tarball as
-[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md). There are no JavaScript
-dependencies at all.
+Piano Practice is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE.
+
+Up to 1.8.1 the module was released under MIT; those releases keep that licence.
+
+The one third-party dependency compiled into `dsp.so` is
+[`libm`](https://crates.io/crates/libm), taken under **MIT**; its notice ships in
+the tarball as [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).

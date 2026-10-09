@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * controls.mjs — what the transport lights should show, and where the jog
  * should take you. Pure: no host calls, no module state.

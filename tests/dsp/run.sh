@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Torben Gräber
 # The DSP conformance suite.
 #
 # tests/dsp/test_piano.c is C on purpose, and stays C. It is the only thing in

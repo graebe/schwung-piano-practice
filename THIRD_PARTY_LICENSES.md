@@ -1,7 +1,9 @@
 # Third-party licences
 
-Piano Practice is MIT (see [LICENSE](LICENSE)). One third-party library is
-compiled into the shipped binary, and its notice has to travel with it.
+Piano Practice is GPL-3.0-or-later (see [LICENSE](LICENSE)), copyright © 2026
+Torben Gräber. One third-party library is compiled into the shipped binary, and
+its notice has to travel with it. MIT is compatible with the GPL: the combined
+work is conveyed under the GPL, and libm's own notice is kept intact.
 
 ## libm 0.2.16 — MIT
 
@@ -57,7 +59,7 @@ and its notice is reproduced in full as that licence requires.
   arrangement any game shipped.
 
   The left-hand parts and the harmonisations at levels 2 and 3 were written for
-  this module and are MIT with everything else. So are the genre studies —
+  this module and are GPL-3.0-or-later with everything else. So are the genre studies —
   Ambient, Cinematic, Funk Clav, House Stabs, Indie Anthem, Lofi Sunday, Minor
   Trap, Neo Soul, Pop Ballad, Synthwave — which are original pieces written to
   drill a style, not transcriptions of anything. The fourteen techno studies
@@ -76,13 +78,12 @@ and its notice is reproduced in full as that licence requires.
   written for this module from the chords' own tones, and the left hand plays
   roots and fifths. The track title is used only to say which progression the
   study is of; the artists are credited in the README and nothing here claims
-  any connection with them. The studies are MIT with everything else.
+  any connection with them. The studies are GPL-3.0-or-later with everything else.
 
-## One thing to be aware of, which is not a conflict
+## Schwung's shim, for completeness
 
 `schwung-shim.so` is conveyed under **GPL-3.0-or-later**, because it links
-eSpeak NG for the screen reader. This module is a separate work: its own repo,
-its own tarball, no GPL code compiled in, and it is `dlopen`ed by the host at
-runtime on the user's device rather than distributed combined with it. That is
-the same footing as every other module in Schwung's catalog. It is written down
-because the adjacency is real and is the one question a reviewer would ask.
+eSpeak NG for the screen reader. This module is under the same licence, so the
+adjacency raises no question; it is still a separate work — its own repo, its
+own tarball, `dlopen`ed by the host at runtime on the user's device.
+

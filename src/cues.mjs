@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * cues.mjs — the little sounds a quiz makes when you answer. Pure.
  *
