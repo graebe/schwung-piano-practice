@@ -7,12 +7,30 @@
   "author": "Torben Gräber",
   "scripts": {
     "test": "npm run test:js && npm run test:dsp && npm run test:rust && npm run test:package",
-    "test:js": "node --test tests/*.test.mjs",
+    "test:js": "node --test tests/*.test.mjs web/test/*.test.mjs",
     "test:dsp": "sh tests/dsp/run.sh",
     "test:package": "sh tests/package/run.sh",
     "build": "sh scripts/build.sh",
     "preview": "node tools/preview.mjs",
-    "test:rust": "cd dsp && cargo test --no-default-features",
-    "docs": "node tools/docs.mjs"
+    "test:rust": "cd dsp && cargo test --workspace --no-default-features",
+    "docs": "node tools/docs.mjs",
+    "web:dev": "sh scripts/build-wasm.sh && vite --config web/vite.config.js",
+    "web:build": "sh scripts/build-wasm.sh && vite build --config web/vite.config.js",
+    "web:preview": "vite preview --config web/vite.config.js",
+    "test:quick": "bash scripts/test.sh quick",
+    "test:full": "bash scripts/test.sh full",
+    "test:e2e": "playwright test --config web/e2e/playwright.config.mjs",
+    "coverage": "bash scripts/coverage.sh"
+  },
+  "dependencies": {
+    "solid-js": "1.9.16"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "vite": "6.4.3",
+    "vite-plugin-solid": "2.11.14"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

@@ -34,8 +34,18 @@ if [ -z "${CARGO:-}" ]; then
   exit 0
 fi
 
+# CARGO_TARGET_DIR is honoured so scripts/coverage.sh can run this suite
+# against an instrumented build: the C ABI is the only way in to
+# schwung-plugin, so this is the only test that can count it.
+TARGET=${CARGO_TARGET_DIR:-$ROOT/dsp/target}
+
 ( cd "$ROOT/dsp" && "$CARGO" build --release --quiet )
 cc -std=c11 -Wall -Wextra -Werror -I"$ROOT/src/vendor" \
-  "$ROOT/tests/dsp/test_piano.c" "$ROOT/dsp/target/release/libpiano.$EXT" \
+  "$ROOT/tests/dsp/test_piano.c" "$TARGET/release/libpiano.$EXT" \
   -lm -o "$ROOT/build/tests/test_piano"
 "$ROOT/build/tests/test_piano"
+
+cc -std=c11 -Wall -Wextra -Werror -I"$ROOT/src/vendor" \
+  "$ROOT/tests/dsp/test_abi.c" "$TARGET/release/libpiano.$EXT" \
+  -o "$ROOT/build/tests/test_abi"
+"$ROOT/build/tests/test_abi"

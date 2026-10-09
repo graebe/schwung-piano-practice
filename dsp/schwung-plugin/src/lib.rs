@@ -285,3 +285,68 @@ macro_rules! schwung_plugin {
         }
     };
 }
+
+#[cfg(test)]
+#[allow(clippy::unwrap_used, clippy::indexing_slicing)]
+mod tests {
+    use super::*;
+    use core::ffi::c_char;
+
+    /* A plugin that implements only what it must, so the defaults answer. */
+    struct Bare;
+    impl SchwungPlugin for Bare {
+        fn create(_: Option<&[u8]>, _: Option<&[u8]>) -> Option<Self> {
+            Some(Bare)
+        }
+        fn render(&mut self, _out: &mut [i16]) {}
+    }
+
+    #[test]
+    fn the_defaults_do_nothing_and_answer_nothing() {
+        let mut p = Bare::create(None, None).unwrap();
+        p.on_midi(&[0xB0, 120, 0], 0);
+        p.set_param(b"x", Some(b"1"));
+        let mut out = [0u8; 8];
+        assert_eq!(p.get_param(b"x", &mut out), 0);
+        p.render(&mut [0; 4]);
+    }
+
+    #[test]
+    fn host_is_none_until_init_says_otherwise() {
+        __set_host(core::ptr::null());
+        assert!(host().is_none());
+    }
+
+    #[test]
+    fn cstr_is_bounded_and_none_for_null() {
+        unsafe {
+            assert_eq!(rt::cstr(core::ptr::null()), None);
+            assert_eq!(rt::cstr(b"ab\0".as_ptr().cast::<c_char>()), Some(&b"ab"[..]));
+            let long = [b'a'; MAX_CSTR + 8];
+            assert_eq!(rt::cstr(long.as_ptr().cast::<c_char>()).unwrap().len(), MAX_CSTR);
+        }
+    }
+
+    #[test]
+    fn bytes_refuses_null_empty_and_oversized() {
+        let data = [1u8, 2, 3];
+        unsafe {
+            assert_eq!(rt::bytes(core::ptr::null(), 3), None);
+            assert_eq!(rt::bytes(data.as_ptr(), 0), None);
+            assert_eq!(rt::bytes(data.as_ptr(), -1), None);
+            assert_eq!(rt::bytes(data.as_ptr(), MAX_CSTR as c_int + 1), None);
+            assert_eq!(rt::bytes(data.as_ptr(), 3), Some(&data[..]));
+        }
+    }
+
+    #[test]
+    fn samples_refuses_null_and_impossible_frame_counts() {
+        let mut buf = [0i16; 8];
+        unsafe {
+            assert!(rt::samples(core::ptr::null_mut(), 4).is_none());
+            assert!(rt::samples(buf.as_mut_ptr(), 0).is_none());
+            assert!(rt::samples(buf.as_mut_ptr(), MAX_FRAMES + 1).is_none());
+            assert_eq!(rt::samples(buf.as_mut_ptr(), 4).unwrap().len(), 8);
+        }
+    }
+}
