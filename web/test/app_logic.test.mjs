@@ -84,3 +84,18 @@ test('a press near no note of its pitch is a stray', () => {
   assert.equal(runSummary(null), null);
   assert.deepEqual(runSummary({ stats: { hits: 2, misses: 1, strays: 3, total: 9 } }), { hits: 2, misses: 1, strays: 3, total: 9 });
 });
+
+import { readFileSync } from 'node:fs';
+import { inPageWords, PHRASES } from '../src/app/words.js';
+
+test('the session\'s Move words are said the page\'s way', () => {
+  assert.equal(inPageWords('Ode. Stage 1. Press play to start.'), 'Ode. Stage 1. Listen or Practice to start.');
+  assert.equal(inPageWords(null), '');
+  /* Every announcement in the session that names a Move control is covered. */
+  const src = readFileSync(new URL('../../src/session.mjs', import.meta.url), 'utf8');
+  const said = [...src.matchAll(/announce\(([^;]*)\);/g)].map((m) => m[1]);
+  const naming = said.filter((s) => /\b(jog|click|pads?|press play|record|shift)\b/i.test(s));
+  for (const s of naming) {
+    assert.ok(PHRASES.some(([move]) => s.includes(move.trim())), `not in words.js: ${s}`);
+  }
+});

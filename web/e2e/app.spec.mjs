@@ -76,7 +76,7 @@ test('scrubbing picks the start; tempo follows the knob-less stepper', async ({ 
   await slider.fill('8');
   await expect(page.locator('.practice-head .t-hint')).toContainText('bar 3');
   await page.getByRole('button', { name: 'Faster' }).click();
-  await expect(page.locator('.tempo .readout')).toHaveText('85');
+  await expect(page.locator('.tempo .pp-value')).toHaveText('85');
 });
 
 test('a Name round answered from the lit keys runs to its result, and Progress charts it', async ({ page }) => {

@@ -16,6 +16,7 @@ import { createStore } from './store.js';
 import { ListView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, KeysPanel } from './views.jsx';
 import { keyIntent, DEFAULT_OCTAVE_C } from '../input/keys.js';
 import { connectMidi } from '../input/midi.js';
+import { inPageWords } from './words.js';
 
 const PLOT = { w: 320, h: 120 };
 
@@ -73,7 +74,7 @@ export function App(props) {
     const a = vm() && vm().announcement;
     if (!a || a.n === saidN) return;
     saidN = a.n;
-    setSaid(a.text);
+    setSaid(inPageWords(a.text));
     clearTimeout(saidTimer);
     saidTimer = setTimeout(() => setSaid(''), 3500);
   });
@@ -181,7 +182,7 @@ export function App(props) {
   };
 
   const extraSettings = () => (
-    <div class="panel browser-settings">
+    <div class="browser-settings">
       <h2 class="t-label">This browser</h2>
       <p class="t-hint">Computer keys: A–; from {['C1', 'C2', 'C3', 'C4', 'C5', 'C6', 'C7'][octaveC() / 12 - 2] || ''} · Z and X move the octave</p>
       <p class="t-hint">MIDI: <Show when={midi().available} fallback={midi().denied ? 'the browser refused access' : 'not available in this browser'}>
@@ -200,7 +201,7 @@ export function App(props) {
                  signatureInfo="Neon Ingvy — Piano Practice"
                  onGround={(h) => { ground = h; }}>
       <div class="app" classList={{ narrow: narrow() }}>
-        <p class="sr-only" aria-live="polite">{vm() && vm().announcement ? vm().announcement.text : ''}</p>
+        <p class="sr-only" aria-live="polite">{vm() && vm().announcement ? inPageWords(vm().announcement.text) : ''}</p>
         <nav class="app-bar" aria-label="Piano Practice">
           <Button icon="chevron" title="Back" ariaLabel="Back" disabled={atTop()}
                   info="Back — up a level; from a run, back to its start"

@@ -142,7 +142,7 @@ export function PracticeView(props) {
         </label>
         <div class="tempo" data-info="Tempo — for generated drills; a song keeps its own">
           <Button title="Slower" ariaLabel="Slower" onClick={() => props.dispatch({ type: 'tempo', delta: -5 })}>−</Button>
-          <span class="readout">{vm().chart ? vm().chart.bpm : ''}</span>
+          <span class="pp-value">{vm().chart ? vm().chart.bpm : ''}</span>
           <Button title="Faster" ariaLabel="Faster" onClick={() => props.dispatch({ type: 'tempo', delta: 5 })}>+</Button>
         </div>
         <Show when={stats() && running() && !listening()}>
@@ -270,7 +270,8 @@ export function ResultView(props) {
               <span class="hero-number">{Math.round(r().rate)}<small>/min</small></span>
               <span class="t-value">
                 {r().n} in {Math.round(r().ms / 1000)}s · {r().wrong} wrong
-                {r().hints ? ` · ${r().hints} hint${r().hints > 1 ? 's' : ''}` : ''} · best {Math.round(r().best || 0)}/min
+                {r().hints ? ` · ${r().hints} hint${r().hints > 1 ? 's' : ''}` : ''}
+                {r().best > 0 && !r().isBest ? ` · best ${Math.round(r().best)}/min` : ''}
               </span>
             </div>
             <RoundsChart records={r().records} />
@@ -356,7 +357,7 @@ export function SettingsView(props) {
             <span class="row-label">{row.label}</span>
             <Button title={`Less ${row.label}`} ariaLabel={`Less ${row.label}`}
                     onClick={() => props.dispatch({ type: 'editSetting', index: row.index, delta: -1 })}>−</Button>
-            <span class="readout setting-value">{row.value}</span>
+            <span class="pp-value setting-value">{row.value}</span>
             <Button title={`More ${row.label}`} ariaLabel={`More ${row.label}`}
                     onClick={() => props.dispatch({ type: 'editSetting', index: row.index, delta: 1 })}>+</Button>
           </li>
