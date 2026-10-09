@@ -41,6 +41,15 @@ test('a bad or missing settings file starts from the defaults', () => {
   assert.equal(h.session.settings.autoInfo, true);
 });
 
+test('an old settings file is migrated, and written back once', () => {
+  const h = fakeHost({ settings: { version: 5, mode: 'pentatonic', bpm: 90 } });
+  h.session.init();
+  assert.equal(h.session.settings.mode, 'majorPent');
+  assert.equal(h.session.settings.bpm, 90);
+  h.session.flushSettings(true);
+  assert.deepEqual(h.log.filter((e) => e[0] === 'write').map((e) => e[1]), ['settings.json']);
+});
+
 test('selectRow points at a row; activate opens it; back steps out', () => {
   const h = fakeHost();
   h.session.init();

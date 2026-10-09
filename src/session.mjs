@@ -263,7 +263,9 @@ export function createSession(fx) {
      * `majorPent` in it. coerceInto drops a stored value that is no longer in
      * the list, so without this anyone who had chosen it would silently be
      * playing in major. */
-    if (storedVersion < 6 && settings.mode === 'pentatonic') {
+    /* The STORED value: coerceInto has already refused 'pentatonic' as no
+     * longer in the list, so `settings.mode` can never be it here. */
+    if (storedVersion < 6 && obj.mode === 'pentatonic') {
       settings.mode = 'majorPent';
       migrated = true;
     }
