@@ -65,9 +65,12 @@ test('the on-screen keyboard plays, and Wait holds the scroll on an unplayed not
   await expect(page.locator('.staff-badge')).toHaveText(/waiting/i, { timeout: 9000 });
   const lit = page.locator('.kb-key.lit').first();
   const name = await lit.getAttribute('aria-label');
-  await lit.click();
-  await expect(page.locator('.staff-badge')).toHaveCount(0);
   expect(name).toMatch(/^C 4$/);
+  await lit.click();
+  /* Played, the halt releases and the music moves on to the next note — which,
+   * left unplayed, halts it again. So the proof is that the note it waits on
+   * is no longer C 4, not that the badge is ever seen gone. */
+  await expect(page.locator('.kb-key.lit').first()).not.toHaveAttribute('aria-label', name, { timeout: 8000 });
 });
 
 test('scrubbing picks the start; tempo follows the knob-less stepper', async ({ page }) => {
