@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Torben Gräber
 # Build dist/piano-practice-module.tar.gz. Pure JS — nothing to compile.
 set -eu
 

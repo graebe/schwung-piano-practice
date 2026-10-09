@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * screen_buffer.mjs — a desktop stand-in for the Move's 128x64 1-bit screen.
  *

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * Renders real blocks and measures them. The synth runs on the audio thread
  * where nothing can be inspected, so everything worth knowing has to be

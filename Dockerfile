@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Torben Gräber
 FROM debian:bookworm
 
 # gcc is the NATIVE compiler and is not redundant with the cross one below.

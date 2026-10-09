@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * program.mjs — the Learning Program: what to practise next. Pure.
  *

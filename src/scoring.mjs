@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * scoring.mjs — hit windows and run state. Pure: the caller supplies the time.
  *

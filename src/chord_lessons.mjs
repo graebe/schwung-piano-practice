@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * chord_lessons.mjs — the Basics chord and progression lessons. Pure.
  *

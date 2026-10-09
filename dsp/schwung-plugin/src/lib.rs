@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * schwung-plugin — the Schwung native DSP plugin API (v2), in Rust.
  *

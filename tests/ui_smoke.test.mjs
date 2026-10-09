@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * ui_smoke.test.mjs — actually RUN ui.js, with the host stubbed out.
  *

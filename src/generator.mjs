@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * generator.mjs — procedural exercises. Pure and seeded, so the same seed
  * always yields the same exercise (which is what makes it testable, and lets

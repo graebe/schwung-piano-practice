@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * piano — the built-in piano for Piano Practice, as a Schwung v2 DSP plugin.
  *

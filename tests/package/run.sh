@@ -1,4 +1,6 @@
 #!/usr/bin/env sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 Torben Gräber
 set -eu
 
 node -e '
@@ -42,10 +44,13 @@ test -f THIRD_PARTY_LICENSES.md
 
 # One licence, stated once. module.json said MIT while LICENSE was GPL-3 for
 # three releases, and the catalog entry repeated the module.json answer.
-grep -q '"license": "MIT"' src/module.json
-grep -q '^MIT License' LICENSE
-grep -q 'Torben Gräber' LICENSE
-! grep -q 'GNU GENERAL PUBLIC LICENSE' LICENSE
+# LICENSE is the FSF's text verbatim — held to its published checksum, since a
+# reflowed or trimmed copy is no longer the licence — and the copyright line
+# lives in the README and in every source file's SPDX header.
+grep -q '"license": "GPL-3.0-or-later"' src/module.json
+grep -q '"license": "GPL-3.0-or-later"' package.json
+test "$(shasum -a 256 LICENSE | cut -d' ' -f1)" = 3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986
+grep -q 'copyright © 2026 Torben Gräber' README.md
 
 # Every crate compiled into dsp.so must be named in the notice file, or the
 # attribution silently rots the next time a dependency is added.

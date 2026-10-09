@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * guess.mjs — the note guesser. Pure: no host calls, no rendering, no clock.
  *

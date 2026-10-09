@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Copyright (C) 2026 Torben Gräber
 /*
  * The distractors are the difficulty. Two obviously-wrong options make it a
  * one-option quiz — you answer from a rough sense of high-or-low and never
