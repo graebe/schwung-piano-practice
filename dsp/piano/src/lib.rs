@@ -3,11 +3,11 @@
 /*
  * piano — the built-in piano for Piano Practice, as a Schwung v2 DSP plugin.
  *
- * Ported from src/dsp/piano.c. The synthesis is unchanged by design: the
- * constants were tuned by ear on the hardware, so an A/B test against the C
- * fails if any of them drifts. What changed is the language, and with it the
- * indexing, the parser and the FFI boundary — which lives entirely in
- * schwung-plugin, so there is no `unsafe` in this crate at all.
+ * An adapter, and only that. The synthesis is piano-engine, shared with the
+ * browser build; this crate maps the plugin API onto it — set_param's `n`,
+ * `panic` and `gain`, the panic CCs, `ping` and `voices` — and scales the
+ * engine's f32 into the host's i16. The FFI boundary lives entirely in
+ * schwung-plugin, so this crate has no unchecked code of its own.
  *
  * EVERYTHING HERE RUNS ON THE SPI CALLBACK. No allocation after `create`, no
  * locks, no I/O, and — see the denies below — no reachable Rust panic: a fault
@@ -18,138 +18,28 @@
 
 extern crate alloc;
 
-mod parse;
-mod ring;
-mod voice;
-
-use alloc::boxed::Box;
-use libm::{powf, sinf};
-use ring::{Event, Ring};
-use schwung_plugin::{schwung_plugin, SchwungPlugin};
-use voice::{Voice, SINE_SIZE};
+use piano_engine::{parse, Engine};
+use schwung_plugin::{schwung_plugin, SchwungPlugin, MOVE_SAMPLE_RATE};
 
 /// Answered by get_param("ping"), so the UI can tell the engine loaded.
 const ENGINE_VERSION: &[u8] = b"1";
-const MAX_VOICES: usize = 16;
+/// Full scale for the engine's -1..=1, a little under i16::MAX for headroom.
+const FULL_SCALE: f32 = 26000.0;
 
 pub struct Piano {
-    sine: [f32; SINE_SIZE],
-    freq: [f32; 128],
-    voices: [Voice; MAX_VOICES],
-    counter: u32,
-    gain: f32,
-    ring: Ring,
+    engine: Engine,
 }
 
-impl Piano {
-    /// Retrigger the same pitch first so repeated notes do not stack, then any
-    /// free voice, then steal the one that has been going longest.
-    fn pick(&mut self, pitch: u8) -> Option<&mut Voice> {
-        if let Some(i) = self
-            .voices
-            .iter()
-            .position(|v| v.active && v.pitch == pitch)
-            .or_else(|| self.voices.iter().position(|v| !v.active))
-        {
-            return self.voices.get_mut(i);
-        }
-        let oldest = self
-            .voices
-            .iter()
-            .enumerate()
-            .min_by_key(|(_, v)| v.age)
-            .map(|(i, _)| i)?;
-        self.voices.get_mut(oldest)
-    }
-
-    fn apply(&mut self, e: Event) {
-        match e {
-            Event::None => {}
-            Event::Panic => {
-                for v in self.voices.iter_mut() {
-                    v.active = false;
-                }
-            }
-            Event::ReleaseAll => {
-                for v in self.voices.iter_mut() {
-                    if v.active {
-                        v.release();
-                    }
-                }
-            }
-            Event::NoteOn { pitch, vel } => {
-                self.counter = self.counter.wrapping_add(1);
-                let age = self.counter;
-                let f0 = self.freq.get(pitch as usize & 127).copied().unwrap_or(0.0);
-                /* Velocity 0 arrives as a note-off elsewhere; a note-on that
-                 * still carries 0 is floored at 1, as the C did. */
-                let vel = if vel == 0 { 1 } else { vel };
-                if let Some(v) = self.pick(pitch) {
-                    v.start(f0, pitch, vel, age);
-                }
-            }
-            Event::NoteOff { pitch } => {
-                for v in self.voices.iter_mut() {
-                    if v.active && v.pitch == pitch {
-                        v.release();
-                    }
-                }
-            }
-        }
-    }
-
-    fn set_notes(&mut self, list: &[u8]) {
-        /*
-         * A list rather than one note per call because the overtake parameter
-         * channel is a single-slot mailbox — three calls in a row for a chord
-         * would overwrite each other and two of the notes would never arrive.
-         * One write carries the whole frame's worth.
-         */
-        for entry in parse::notes(list) {
-            let Some((pitch, vel)) = parse::note(entry) else {
-                continue;
-            };
-            self.ring.push(if vel > 0 {
-                Event::NoteOn { pitch, vel }
-            } else {
-                Event::NoteOff { pitch }
-            });
-        }
-    }
+/// The engine's sample as the host's: scaled, truncated toward zero, clamped.
+fn to_i16_range(sample: f32) -> i32 {
+    ((sample * FULL_SCALE) as i32).clamp(-32768, 32767)
 }
 
 impl SchwungPlugin for Piano {
     fn create(_module_dir: Option<&[u8]>, _json_defaults: Option<&[u8]>) -> Option<Self> {
-        /*
-         * Zeroed on the heap and filled in place. `Box::new(Piano { .. })`
-         * would build ~10KB of tables on the stack first and then copy — on
-         * the SPI callback, where the frame is not ours to spend.
-         */
-        let mut p: Box<Piano> = unsafe {
-            let layout = alloc::alloc::Layout::new::<Piano>();
-            let raw = alloc::alloc::alloc_zeroed(layout).cast::<Piano>();
-            if raw.is_null() {
-                return None;
-            }
-            raw.write(Piano {
-                sine: [0.0; SINE_SIZE],
-                freq: [0.0; 128],
-                voices: [Voice::default(); MAX_VOICES],
-                counter: 0,
-                gain: 0.22,
-                ring: Ring::new(),
-            });
-            Box::from_raw(raw)
-        };
-
-        for (i, s) in p.sine.iter_mut().enumerate() {
-            *s = sinf(6.283_185_3 * i as f32 / SINE_SIZE as f32);
-        }
-        for (i, f) in p.freq.iter_mut().enumerate() {
-            *f = 440.0 * powf(2.0, (i as f32 - 69.0) / 12.0);
-        }
-        /* The trait owns the box; hand back the value. */
-        Some(*p)
+        Some(Piano {
+            engine: Engine::new(MOVE_SAMPLE_RATE as f32),
+        })
     }
 
     /*
@@ -172,10 +62,10 @@ impl SchwungPlugin for Piano {
      */
     fn on_midi(&mut self, msg: &[u8], _source: i32) {
         match msg {
-            [0xFF, ..] => self.ring.push(Event::Panic),
+            [0xFF, ..] => self.engine.panic(),
             [status, cc, _, ..] if status & 0xF0 == 0xB0 => match cc {
-                120 => self.ring.push(Event::Panic),
-                123 => self.ring.push(Event::ReleaseAll),
+                120 => self.engine.panic(),
+                123 => self.engine.release_all(),
                 _ => {}
             },
             _ => {}
@@ -186,15 +76,13 @@ impl SchwungPlugin for Piano {
         match key {
             b"n" => {
                 if let Some(v) = val {
-                    self.set_notes(v);
+                    self.engine.set_notes(v);
                 }
             }
-            b"panic" => self.ring.push(Event::Panic),
+            b"panic" => self.engine.panic(),
             b"gain" => {
                 if let Some(g) = val.and_then(parse::float) {
-                    if (0.0..=1.0).contains(&g) {
-                        self.gain = g;
-                    }
+                    self.engine.set_gain(g);
                 }
             }
             _ => {}
@@ -204,45 +92,15 @@ impl SchwungPlugin for Piano {
     fn get_param(&mut self, key: &[u8], out: &mut [u8]) -> usize {
         match key {
             b"ping" => write_bytes(out, ENGINE_VERSION),
-            b"voices" => {
-                let n = self.voices.iter().filter(|v| v.active).count();
-                write_u32(out, n as u32)
-            }
+            b"voices" => write_u32(out, self.engine.active_voices() as u32),
             _ => 0,
         }
     }
 
     fn render(&mut self, out: &mut [i16]) {
-        while let Some(e) = self.ring.pop() {
-            self.apply(e);
-        }
-
-        /* Split the borrow: the voices need the sine table while being ticked. */
-        let (sine, voices, gain) = (&self.sine, &mut self.voices, self.gain);
-
-        for frame in out.chunks_exact_mut(2) {
-            let mut mix = 0.0f32;
-            for v in voices.iter_mut() {
-                if !v.active {
-                    continue;
-                }
-                mix += v.tick(sine);
-            }
-
-            mix *= gain;
-            /* Soft knee rather than a hard clip: a stacked chord should
-             * compress, not buzz. */
-            mix = if mix > 1.0 {
-                1.0
-            } else if mix < -1.0 {
-                -1.0
-            } else {
-                mix - (mix * mix * mix) / 3.0
-            };
-
-            let s = (mix * 26000.0) as i32;
-            let s = s.clamp(-32768, 32767);
-
+        self.engine.apply_pending();
+        for frame in out.as_chunks_mut::<2>().0 {
+            let s = to_i16_range(self.engine.next_sample());
             /* The host zeroes this buffer before the call; ADD so we stay
              * correct even if that ever changes — and because an overtake
              * generator is mixed into the deferred buffer, so assigning would
@@ -290,3 +148,137 @@ fn write_u32(dst: &mut [u8], mut v: u32) -> usize {
 }
 
 schwung_plugin!(Piano);
+
+/* Tests may index and panic: a failed assertion is how they report. */
+#[cfg(test)]
+#[allow(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
+mod tests {
+    extern crate std;
+    use super::*;
+    use std::format;
+    use std::vec::Vec;
+
+    const FRAMES: usize = 128;
+
+    fn piano() -> Piano {
+        Piano::create(Some(b"/tmp"), Some(b"{}")).expect("create")
+    }
+
+    /// `blocks` host blocks into `sink`, each zeroed first as the host does.
+    fn blocks(p: &mut Piano, n: usize, sink: &mut Vec<i16>) {
+        let mut buf = [0i16; FRAMES * 2];
+        for _ in 0..n {
+            buf.fill(0);
+            p.render(&mut buf);
+            sink.extend_from_slice(&buf);
+        }
+    }
+
+    fn fnv1a(samples: &[i16]) -> u64 {
+        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+        for b in samples.iter().flat_map(|s| s.to_le_bytes()) {
+            h ^= b as u64;
+            h = h.wrapping_mul(0x0100_0000_01b3);
+        }
+        h
+    }
+
+    /*
+     * The device's output, pinned to what it was before the synthesis moved
+     * into piano-engine. The checksum was taken from the previous build through
+     * the C ABI (217344 samples); a change here is a change to the instrument
+     * on every Move, and has to be one somebody meant.
+     */
+    #[test]
+    fn the_device_output_is_unchanged_by_the_engine_split() {
+        let mut p = piano();
+        let mut out = Vec::new();
+        p.set_param(b"n", Some(b"60:100"));
+        blocks(&mut p, 40, &mut out);
+        p.set_param(b"n", Some(b"64:80,67:60,72:127,21:30,108:127"));
+        blocks(&mut p, 60, &mut out);
+        p.set_param(b"n", Some(b"60:0,64:0"));
+        blocks(&mut p, 60, &mut out);
+        p.set_param(b"gain", Some(b"0.9"));
+        for pitch in (30..100).step_by(4) {
+            p.set_param(b"n", Some(format!("{pitch}:{pitch}").as_bytes()));
+            blocks(&mut p, 3, &mut out);
+        }
+        blocks(&mut p, 100, &mut out);
+        p.on_midi(&[0xB0, 123, 0], 0);
+        blocks(&mut p, 80, &mut out);
+        p.set_param(b"n", Some(b"48:127,52:127,55:127,60:127,64:127,67:127,72:127,76:127"));
+        blocks(&mut p, 50, &mut out);
+        p.set_param(b"panic", Some(b"1"));
+        blocks(&mut p, 5, &mut out);
+        p.set_param(b"gain", Some(b"1"));
+        p.set_param(b"n", Some(b"100:127,105:127,110:127,115:127,120:127,127:127"));
+        blocks(&mut p, 400, &mut out);
+
+        assert_eq!(out.len(), 217_344);
+        assert_eq!(fnv1a(&out), 0xd1d6_9f72_8ca2_e9cd);
+    }
+
+    #[test]
+    fn the_device_is_the_engine_scaled_to_i16() {
+        let mut p = piano();
+        let mut e = Engine::new(44100.0);
+        let list = b"36:127,48:90,60:100,64:70,67:60,72:127,84:40";
+        p.set_param(b"n", Some(list));
+        e.set_notes(list);
+
+        let mut f = [0.0f32; FRAMES];
+        let mut i = [0i16; FRAMES * 2];
+        for _ in 0..200 {
+            e.render_f32(&mut f);
+            i.fill(0);
+            p.render(&mut i);
+            for (frame, s) in i.as_chunks::<2>().0.iter().zip(f.iter()) {
+                let want = (*s * 26000.0) as i32;
+                assert_eq!(*frame, [want as i16, want as i16]);
+            }
+        }
+    }
+
+    #[test]
+    fn render_adds_into_the_buffer() {
+        let mut p = piano();
+        p.set_param(b"n", Some(b"60:127"));
+        let mut a = [0i16; FRAMES * 2];
+        p.render(&mut a);
+        let mut q = piano();
+        q.set_param(b"n", Some(b"60:127"));
+        let mut b = [100i16; FRAMES * 2];
+        q.render(&mut b);
+        for (x, y) in a.iter().zip(b.iter()) {
+            assert_eq!(*x as i32 + 100, *y as i32);
+        }
+    }
+
+    #[test]
+    fn get_param_answers_ping_and_voices() {
+        let mut p = piano();
+        let mut out = [0u8; 16];
+        assert_eq!(p.get_param(b"ping", &mut out), 1);
+        assert_eq!(&out[..1], b"1");
+        p.set_param(b"n", Some(b"60:100,64:100,67:100"));
+        p.render(&mut [0i16; FRAMES * 2]);
+        assert_eq!(p.get_param(b"voices", &mut out), 1);
+        assert_eq!(&out[..1], b"3");
+        assert_eq!(p.get_param(b"nope", &mut out), 0);
+        assert_eq!(write_u32(&mut out, 4_294_967_295), 10);
+        assert_eq!(&out[..10], b"4294967295");
+        assert_eq!(write_u32(&mut out[..2], 12345), 2, "truncates");
+    }
+
+    #[test]
+    fn gain_out_of_range_is_ignored() {
+        let mut p = piano();
+        p.set_param(b"gain", Some(b"2"));
+        p.set_param(b"gain", Some(b"junk"));
+        p.set_param(b"gain", None);
+        assert_eq!(p.engine.gain(), piano_engine::DEFAULT_GAIN);
+        p.set_param(b"gain", Some(b"0.5"));
+        assert_eq!(p.engine.gain(), 0.5);
+    }
+}

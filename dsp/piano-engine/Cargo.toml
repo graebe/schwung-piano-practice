@@ -1,0 +1,9 @@
+[package]
+name = "piano-engine"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "The Piano Practice piano synthesis: no_std, no alloc, no unsafe."
+
+[dependencies]
+libm = "0.2"

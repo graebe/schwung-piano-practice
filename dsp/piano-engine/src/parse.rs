@@ -133,7 +133,10 @@ mod tests {
 
     #[test]
     fn a_bad_entry_loses_only_itself() {
-        let parsed: alloc::vec::Vec<_> = notes(b"60:100,garbage,64:100").map(note).collect();
-        assert_eq!(parsed, [Some((60, 100)), None, Some((64, 100))]);
+        let mut parsed = notes(b"60:100,garbage,64:100").map(note);
+        assert_eq!(parsed.next(), Some(Some((60, 100))));
+        assert_eq!(parsed.next(), Some(None));
+        assert_eq!(parsed.next(), Some(Some((64, 100))));
+        assert_eq!(parsed.next(), None);
     }
 }

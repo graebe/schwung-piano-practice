@@ -20,12 +20,14 @@ GLIBC_MAX=2.35
 SIZE_MAX=$((512 * 1024))
 
 mkdir -p "$ROOT/dist"
-( cd "$ROOT/dsp" && cargo build --release --target "$TARGET" )
+# -p piano: the device artifact and nothing else. The workspace also holds
+# piano-wasm, which is the browser's and is built by build-wasm.sh.
+( cd "$ROOT/dsp" && cargo build --release --target "$TARGET" -p piano )
 
 BUILT=${CARGO_TARGET_DIR:-$ROOT/dsp/target}/$TARGET/release/libpiano.so
 test -f "$BUILT" || { echo "cargo produced no $BUILT" >&2; exit 1; }
 cp "$BUILT" "$ROOT/dist/dsp.so"
-"$STRIP" --strip-unneeded "$ROOT/dist/dsp.so" 2>/dev/null || true
+"$STRIP" --strip-unneeded "$ROOT/dist/dsp.so"
 
 file "$ROOT/dist/dsp.so"
 

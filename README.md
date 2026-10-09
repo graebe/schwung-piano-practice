@@ -891,18 +891,32 @@ npm run preview       # dump the screens as ASCII art in the terminal
 
 ### The DSP
 
-The piano is Rust, in `dsp/`, as two crates: `schwung-plugin` — the reusable Schwung plugin-API
-binding, where every FFI hazard is paid for once — and `piano`, the synth, which contains no
-`unsafe` at all.
+The piano is Rust, in `dsp/`, and the browser plays the same one the Move does. Four crates:
 
-It is `no_std` over libc. Not for elegance: the Move runs **glibc 2.35** and the build image is
+| crate | what it is |
+| --- | --- |
+| `piano-engine` | the synthesis — voices, tables, the event ring, the `n` note-list parser. `no_std`, no allocation, `#![forbid(unsafe_code)]`, and no dependency but libm. Renders f32 at any sample rate; at the Move's 44100 its arithmetic is the C's, operation for operation |
+| `piano` | the device plugin, `dsp.so`: maps Schwung's `set_param`/`on_midi`/`render_block` onto the engine and scales its f32 into the host's i16. No `unsafe` of its own |
+| `schwung-plugin` | the reusable Schwung plugin-API binding, where every FFI hazard is paid for once |
+| `piano-wasm` | the browser build, `piano.wasm`: the engine behind eleven raw `extern "C"` exports, no wasm-bindgen, ~17KB. Its one `unsafe` is the module's single-threaded global state |
+
+`scripts/build-wasm.sh` builds `build/wasm/piano.wasm` (it needs the `wasm32-unknown-unknown` target
+installed, and says so if it is not). In the browser, `web/src/audio/piano-worklet.js` runs it in an
+AudioWorklet and `web/src/audio/engine.js` drives it with the device's own `n` lists, one per task.
+
+That the two hosts sound alike is tested, not hoped: `dsp/piano-engine/tests/golden.txt` is a
+scenario both replay at 44100 — the native engine in `cargo test`, the wasm in
+`tests/wasm_piano.test.mjs` — against the same `golden-44100.f32`, bit for bit. The device's own
+i16 output is pinned by a checksum taken before the engine was split out of `piano`.
+
+The device build is `no_std` over libc. Not for elegance: the Move runs **glibc 2.35** and the build image is
 Debian bookworm at **2.36**, so `std` could reference a symbol that links here and fails to load
 there. `no_std` removes the hazard instead of guarding it — the shipped object needs only
 `GLIBC_2.17` and `libc.so.6`, and comes to 67KB. `scripts/build-dsp.sh` refuses any build that is
 not aarch64, needs a glibc above the ceiling, or has ballooned in size.
 
 `panic = "abort"`, a `#[panic_handler]` that calls `abort()`, and
-`#![deny(clippy::indexing_slicing, unwrap_used, expect_used, panic)]` on both crates. `render_block`
+`#![deny(clippy::indexing_slicing, unwrap_used, expect_used, panic)]` on every crate. `render_block`
 runs on the SPI callback: unwinding out through `extern "C"` is undefined behaviour and a fault
 there takes Move's firmware down with it, so a Rust panic has to be unreachable rather than merely
 unlikely.

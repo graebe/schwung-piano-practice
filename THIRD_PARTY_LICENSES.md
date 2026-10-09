@@ -1,15 +1,18 @@
 # Third-party licences
 
 Piano Practice is GPL-3.0-or-later (see [LICENSE](LICENSE)), copyright © 2026
-Torben Gräber. One third-party library is compiled into the shipped binary, and
-its notice has to travel with it. MIT is compatible with the GPL: the combined
+Torben Gräber. One third-party library is compiled into the shipped binaries,
+and its notice has to travel with them. MIT is compatible with the GPL: the combined
 work is conveyed under the GPL, and libm's own notice is kept intact.
 
 ## libm 0.2.16 — MIT
 
-`dsp.so` links [`libm`](https://crates.io/crates/libm) for `sinf`, `powf`,
-`expf` and `sqrtf`. The DSP is `no_std`, so it cannot call the platform's maths
-library through Rust's standard library and uses this crate instead.
+The piano engine (`dsp/piano-engine`) uses [`libm`](https://crates.io/crates/libm)
+for `sinf`, `powf`, `expf` and `sqrtf`, so libm is compiled into both builds of
+it: the Move's `dsp.so` and the browser's `piano.wasm`. The engine is `no_std`,
+so it cannot call the platform's maths library through Rust's standard library
+and uses this crate instead — which is also what makes the two builds compute
+the same samples: one implementation of each function, in Rust, on both.
 
 The crate is offered under MIT or Apache-2.0; it is taken here under **MIT**,
 and its notice is reproduced in full as that licence requires.
@@ -34,8 +37,9 @@ and its notice is reproduced in full as that licence requires.
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
-`libm` is the only dependency of any kind. There are no JavaScript packages —
-`package.json` declares no `dependencies` and no `devDependencies`.
+`libm` is the only third-party Rust crate. The other crates in `dsp/` —
+`piano-engine`, `piano`, `piano-wasm` and `schwung-plugin` — are this module's
+own, GPL-3.0-or-later.
 
 ## Not third-party
 
