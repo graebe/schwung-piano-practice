@@ -23,6 +23,9 @@
 /* A key change in the lane is a mark, not music: dim, so the notes it may
  * crowd at a dense tempo stay legible. The gutter shows the key in force. */
 .staff-keys { fill: var(--ink-dim); }
+/* A key change in the lane: a double bar line and the new signature named. */
+.staff-keychange rect { fill: var(--line-200); }
+.staff-keychange text { fill: var(--ink-muted); font-family: var(--font-mono); font-size: 10px; }
 
 /* The hit line: the one lit line on the staff. */
 .staff-hit { fill: var(--uv); filter: var(--glow-led-filter); }

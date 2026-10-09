@@ -184,15 +184,18 @@ export function GrandStaff(props) {
   /* Key changes inside the lane: the new signature (or the naturals that
    * cancel the old one) just before the bar line it starts at, so it reads
    * before the notes it governs and never sits on them. */
+  /*
+   * A key change inside the lane is marked as engraving marks it — a double
+   * bar line where it starts — with the new key named above the staff. The
+   * full signature is drawn only in the gutter, once the change reaches the
+   * hit line: a signature in the lane needs room the notes around it do not
+   * leave at any brisk tempo, and drew over them.
+   */
   const keyMarks = createMemo(() => {
     const list = [];
-    let from = props.fifths ?? 0;
     for (const k of props.keyChanges ?? []) {
-      if (k.beat <= 0) { from = k.keySig; continue; }
-      const marks = { treble: S.keyChangeGlyphs(from, k.keySig, 'treble'), bass: S.keyChangeGlyphs(from, k.keySig, 'bass') };
-      const w = S.signatureWidth(marks.treble) * space();
-      list.push({ x: k.beat * ppb() - barOffset() - w - 0.4 * space(), marks });
-      from = k.keySig;
+      if (k.beat <= 0 || k.keySig === undefined) continue;
+      list.push({ x: Math.round(k.beat * ppb() - barOffset()), label: S.keyName(k.keySig) });
     }
     return list;
   });
@@ -322,13 +325,13 @@ export function GrandStaff(props) {
               )}</For>
             </g>
 
-            <g class="staff-keys notation" font-size={em()}>
+            <g class="staff-keychange">
               <For each={keyMarks()}>{(m) => (
-                <For each={['treble', 'bass']}>{(staff) => (
-                  <Index each={m.marks[staff]}>{(k) => (
-                    <text x={m.x + k().x * space()} y={sys().y(k().step, staff)}>{glyph(k().glyph)}</text>
-                  )}</Index>
-                )}</For>
+                <g>
+                  <rect x={m.x - 3} y={sys().trebleTop} width="1" height={sys().bassBottom - sys().trebleTop + 1} />
+                  <rect x={m.x} y={sys().trebleTop} width="1" height={sys().bassBottom - sys().trebleTop + 1} />
+                  <text class="t-hint" x={m.x + 4} y={sys().trebleTop - 0.8 * space()}>{m.label}</text>
+                </g>
               )}</For>
             </g>
 

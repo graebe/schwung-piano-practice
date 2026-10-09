@@ -152,12 +152,11 @@ test('Bravura metrics: em is four spaces, advances read from the subset', () => 
   assert.throws(() => S.advance(0xe000), /not in NI Notation/);
 });
 
-test('key changes: the new signature, or naturals where the key goes to C', () => {
-  assert.deepEqual(S.keyChangeGlyphs(0, 2, 'treble'), S.keySignature(2, 'treble'));
-  const cancel = S.keyChangeGlyphs(-3, 0, 'bass');
-  assert.equal(cancel.length, 3);
-  assert.ok(cancel.every((k) => k.glyph === S.GLYPH.natural));
-  assert.deepEqual(cancel.map((k) => k.step), S.keySignature(-3, 'bass').map((k) => k.step));
+test('a key change is labelled by the signature it changes to', () => {
+  assert.equal(S.keyName(0), '→ ♮');
+  assert.equal(S.keyName(-3), '→ 3♭');
+  assert.equal(S.keyName(2), '→ 2♯');
+  assert.equal(S.keyName(12), '→ 7♯', 'clamped to the seven a signature has');
   assert.equal(S.signatureWidth([]), 0);
   assert.ok(S.signatureWidth(S.keySignature(7, 'treble')) > S.signatureWidth(S.keySignature(1, 'treble')));
 });

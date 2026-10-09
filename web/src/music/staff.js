@@ -206,14 +206,14 @@ export function signatureWidth(marks) {
 }
 
 /**
- * The naturals that cancel a signature when the key changes to C: the old
- * signature's places, each a natural. Any other change writes the new
- * signature on its own, as most modern engraving does.
+ * A key change's label in the lane: the signature it changes to, which is all
+ * a chart knows — sharps or flats, not whether the key is major or minor.
+ * "→ 3♭", "→ 2♯", "→ ♮".
  */
-export function keyChangeGlyphs(from, to, staff) {
-  if (clampFifths(to) !== 0) return keySignature(to, staff);
-  return keySignature(from, staff)
-    .map((k, i) => ({ ...k, glyph: GLYPH.natural, x: i * signatureStep(GLYPH.natural) }));
+export function keyName(fifths) {
+  const f = clampFifths(fifths);
+  if (f === 0) return '→ ♮';
+  return `→ ${Math.abs(f)}${f > 0 ? '♯' : '♭'}`;
 }
 
 /** What the signature does to a letter (0 C to 6 B): -1, 0 or 1. */
