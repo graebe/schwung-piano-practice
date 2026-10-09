@@ -1512,6 +1512,9 @@ export function createSession(fx, opts = {}) {
    * sounds: a press there is a choice, not a note. Returns the result, or null.
    */
   function answer(at) {
+    /* Only an open multiple-choice question takes an answer; a page or a
+     * remote may send one at any moment. */
+    if (view !== GUESS_VIEW || !quiz || !quiz.pick) return null;
     const res = at >= 0 ? GUESS.chooseAnswer(quiz, at, now()) : null;
     if (res) answered(res);
     return res;
