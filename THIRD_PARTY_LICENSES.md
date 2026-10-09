@@ -41,6 +41,89 @@ and its notice is reproduced in full as that licence requires.
 `piano-engine`, `piano`, `piano-wasm` and `schwung-plugin` — are this module's
 own, GPL-3.0-or-later.
 
+## solid-js 1.9.16 — MIT
+
+The web page (`web/`, built to `dist/web`) is written with
+[Solid](https://www.solidjs.com). Its runtime is bundled into the page's
+script; the build (scripts/vite-licenses.mjs) writes this notice into
+`assets/THIRD_PARTY_LICENSES.txt` beside it, and refuses to build if a bundled
+package is not listed here.
+
+> MIT License
+>
+> Copyright (c) 2016-2025 Ryan Carniato
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+## vite 6.4.3 — MIT
+
+The build tool. Only its module-preload polyfill, a few dozen lines, is
+bundled into the page; the rest of Vite stays on the developer's machine.
+
+> Vite core license
+> Vite is released under the MIT license:
+>
+> MIT License
+>
+> Copyright (c) 2019-present, VoidZero Inc. and Vite contributors
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+## JetBrains Mono — OFL-1.1
+
+The web page's typeface, the Ultraviolet design system's only one
+(`web/fonts/JetBrainsMono-*.woff`). Shipped as separate font files with their
+licence, `web/fonts/OFL.txt`. Fonts under the SIL Open Font License may be
+bundled with any software; the licence covers the font files only.
+
+## Bravura, as NI Notation — OFL-1.1
+
+The staff's clefs, noteheads and accidentals (SMuFL glyphs) are a subset of
+Steinberg's Bravura, `web/fonts/NINotation.woff`, made by
+`scripts/subset-fonts.sh`. Bravura's licence reserves its name for unmodified
+copies, and a subset is a modification, so it ships as "NI Notation" with the
+copyright, licence and reserved-name notices unchanged in
+`web/fonts/Bravura-OFL.txt`.
+
+## Neon Ingvy ui-kit — MIT
+
+`web/src/kit/` is a copy of the Ultraviolet Solid kit from
+neon-ingvy-audio-plugins (commit 4e15cc8), by the same author, released there
+under MIT; each file names its source. MIT is compatible with this module's
+GPL.
+
 ## Not third-party
 
 - `src/vendor/host/plugin_api_v1.h` is Schwung's plugin API header

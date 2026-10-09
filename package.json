@@ -7,7 +7,7 @@
   "author": "Torben Gräber",
   "scripts": {
     "test": "npm run test:js && npm run test:dsp && npm run test:rust && npm run test:package",
-    "test:js": "node --test tests/*.test.mjs web/test/*.test.mjs",
+    "test:js": "node --test tests/*.test.mjs web/test/*.test.mjs web/test/kit/*.test.mjs",
     "test:dsp": "sh tests/dsp/run.sh",
     "test:package": "sh tests/package/run.sh",
     "build": "sh scripts/build.sh",

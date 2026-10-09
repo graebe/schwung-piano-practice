@@ -41,7 +41,7 @@ stage() {
 
 stage tokens node scripts/gen-tokens.mjs --check
 stage wasm sh scripts/build-wasm.sh
-stage unit node --test --test-reporter=dot tests/*.test.mjs web/test/*.test.mjs
+stage unit node --test --test-reporter=dot tests/*.test.mjs web/test/*.test.mjs web/test/kit/*.test.mjs
 stage rust sh -c 'cd dsp && cargo test --workspace --no-default-features --quiet'
 
 if [ "$tier" = full ]; then

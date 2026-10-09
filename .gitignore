@@ -6,3 +6,4 @@ dsp/target/
 coverage/
 test-results/
 playwright-report/
+*.profraw

@@ -1,0 +1,138 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Torben Gräber */
+
+/*
+ * The music components' looks: the grand staff, the keyboard, the pads.
+ *
+ * Every colour is a token (web/test/tokens.test.mjs holds it so), and every
+ * state is a class the component sets: what a state MEANS is written in the
+ * component's header, and here only what it looks like.
+ */
+
+/* ============================================================ notation == */
+
+/* NI Notation is Bravura: em = four staff spaces, set per group as a
+ * font-size attribute from the staff space. */
+.notation { font-family: 'NI Notation'; }
+
+.staff { position: relative; width: 100%; line-height: 0; }
+.staff svg { display: block; overflow: visible; }
+
+.staff-lines rect, .staff-bars rect, .staff-ledgers rect { fill: var(--line-200); }
+.staff-gutter { fill: var(--ink-muted); }
+/* A key change in the lane is a mark, not music: dim, so the notes it may
+ * crowd at a dense tempo stay legible. The gutter shows the key in force. */
+.staff-keys { fill: var(--ink-dim); }
+
+/* The hit line: the one lit line on the staff. */
+.staff-hit { fill: var(--uv); filter: var(--glow-led-filter); }
+
+/* A note, by state: pending ink; on the hit line lit; judged as an open head
+ * (or an x) ranked by brightness; a miss red. */
+.staff-note { fill: var(--ink); }
+.staff-note.now { fill: var(--uv); filter: var(--glow-led-filter); }
+.staff-note.hit { fill: var(--uv); filter: var(--glow-led-filter); }
+.staff-note.good { fill: var(--uv); }
+.staff-note.late { fill: var(--ink-muted); }
+.staff-note.missed { fill: var(--red); }
+
+.staff-tail { fill: var(--line-200); }
+.staff-tail.now { fill: var(--uv-deep); }
+.staff-tail.missed { fill: var(--line-100); }
+
+/* Where the player played: a ring, so the head it answers shows through. */
+.staff-marker { fill: none; stroke: var(--ink-muted); stroke-width: 1.5; }
+.staff-marker.stray { stroke: var(--red); }
+
+/* The names: muted, ink while on the hit line, and the note the scroll waits
+ * on as a lit chip -- a primary button's uv and on-uv. */
+.staff-name text { fill: var(--ink-muted); }
+.staff-name.now text { fill: var(--ink); }
+.staff-chip { fill: var(--uv); filter: var(--glow-led-filter); }
+.staff-name.waiting text { fill: var(--on-uv); }
+
+/* ============================================================ keyboard == */
+
+.kb { position: relative; width: 100%; line-height: 0; }
+.kb svg { display: block; touch-action: none; }
+.kb.playable svg { cursor: pointer; }
+.kb svg:focus { outline: none; }
+.kb svg:focus-visible .kb-key.cursor .kb-face { stroke: var(--uv); stroke-width: 2; }
+
+.kb-key.white .kb-face { fill: var(--bg-300); }
+.kb-key.black .kb-face { fill: var(--line-200); }
+.kb-key.black .kb-well { fill: var(--bg-000); }
+.kb-label { fill: var(--ink-dim); }
+
+.kb.playable .kb-key.white.rest:hover .kb-face { fill: var(--line-200); }
+.kb.playable .kb-key.black.rest:hover .kb-well { fill: var(--bg-200); }
+
+/* lit: what sounds */
+.kb-key.lit .kb-face, .kb-key.lit .kb-well { fill: var(--uv); }
+.kb-key.lit { filter: var(--glow-led-filter); }
+/* hit: right, and no glow, so it stays apart from what sounds */
+.kb-key.hit .kb-face, .kb-key.hit .kb-well { fill: var(--uv); }
+.kb-key.lit .kb-label, .kb-key.hit .kb-label { fill: var(--on-uv); }
+/* held: your finger */
+.kb-key.held .kb-face, .kb-key.held .kb-well { fill: var(--amber); }
+/* miss */
+.kb-key.miss .kb-face, .kb-key.miss .kb-well { fill: var(--red); }
+.kb-key.held .kb-label, .kb-key.miss .kb-label { fill: var(--bg-000); }
+/* dim: held over, not sounding */
+.kb-key.dim .kb-face, .kb-key.dim .kb-well { fill: var(--uv-deep); }
+.kb-key.dim .kb-label { fill: var(--bg-000); }
+/* target: a ghost of what is next */
+.kb-ghost { fill: none; stroke: var(--uv-deep); stroke-width: 2; }
+.kb-key.target .kb-label { fill: var(--ink-muted); }
+
+.kb-bass { fill: var(--uv); }
+.kb-bass.held { fill: var(--amber); }
+.kb-bass.miss { fill: var(--red); }
+.kb-bass.dim, .kb-bass.target { fill: var(--uv-deep); }
+
+/* =============================================================== pads == */
+
+.pads {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, var(--step)));
+  gap: var(--space-2);
+  width: max-content;
+  max-width: 100%;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pads:focus { outline: none; }
+.pads.playable .pad { cursor: pointer; }
+
+.pad {
+  position: relative;
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: var(--radius-1);
+  background: var(--bg-200);
+  border: var(--stroke-hair) solid var(--line-100);
+  color: var(--ink-dim);
+}
+.pad-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; padding: 0 2px; }
+
+.pads.playable .pad.off:hover, .pads.playable .pad.scale:hover { background: var(--bg-300); border-color: var(--ink-dim); }
+.pads:focus-visible .pad.cursor { box-shadow: var(--glow-focus); }
+
+.pad.scale { background: var(--bg-300); border-color: var(--line-200); color: var(--ink-muted); }
+.pad.root { background: var(--line-200); border-color: var(--ink-dim); color: var(--ink); }
+.pad.coming { background: var(--bg-300); box-shadow: inset 0 0 0 var(--stroke-rail) var(--uv-deep); border-color: var(--uv-deep); color: var(--ink); }
+.pad.now { background: var(--uv); border-color: var(--uv); color: var(--on-uv); box-shadow: var(--glow-led); }
+.pad.hit { background: var(--uv); border-color: var(--uv); color: var(--on-uv); }
+.pad.held { background: var(--amber); border-color: var(--amber); color: var(--bg-000); }
+.pad.miss { background: var(--red); border-color: var(--red); color: var(--bg-000); }
+.pad.struck { background: var(--bg-100); border-color: var(--line-100); color: var(--ink-dim); }
+
+.pad.answer { color: var(--bg-000); }
+.pad.answer.answer-blue { background: var(--answer-blue); border-color: var(--answer-blue); }
+.pad.answer.answer-orange { background: var(--answer-orange); border-color: var(--answer-orange); }
+.pad.answer.answer-cyan { background: var(--answer-cyan); border-color: var(--answer-cyan); }
+.pad.answer.answer-pink { background: var(--answer-pink); border-color: var(--answer-pink); }
+.pad.answer.answer-white { background: var(--answer-white); border-color: var(--answer-white); }

@@ -1,0 +1,327 @@
+{
+ "name": "Ultraviolet",
+ "version": 1,
+ "meta": {
+  "source": "Derived from the Phosphor system; hue swapped to ultraviolet",
+  "publisher": "Neon Ingvy",
+  "release": "1.1.0"
+ },
+ "color": {
+  "themes": [
+   {
+    "id": "ultraviolet",
+    "name": "Ultraviolet"
+   }
+  ],
+  "note": "One theme. Plugins live inside Ableton's dark session view and never follow the host theme. Data colours (spec-*, plot-*) colour pictures of a signal and nothing else: never a control, a panel or text.",
+  "tokens": [
+   {
+    "name": "bg-000",
+    "value": "#060410",
+    "usage": "Window ground: the plugin's outermost surface. Everything sits on this."
+   },
+   {
+    "name": "bg-dot",
+    "value": "#2a1e4a",
+    "usage": "The dot of the dot-paper pattern on the window ground: 1px dots at a 12px (space-3) pitch, under a 5% uv-deep uniform noise. Grows, brightens and gains grain on a Ground wave peak. Only on the window ground, never inside a panel or well."
+   },
+   {
+    "name": "bg-100",
+    "value": "#0c0818",
+    "usage": "Panel: a grouped section of controls inside the window (envelope, sequencer)."
+   },
+   {
+    "name": "bg-200",
+    "value": "#140e24",
+    "usage": "Control well: knob disc, slider rail bed, select field, a step that is off."
+   },
+   {
+    "name": "bg-300",
+    "value": "#1d1533",
+    "usage": "Raised well: a well on hover, a pressed button's ground, a list row under the pointer."
+   },
+   {
+    "name": "line-100",
+    "value": "#1d1533",
+    "usage": "Hairline: dividers between panels and around wells. Decorative, never carries meaning."
+   },
+   {
+    "name": "line-200",
+    "value": "#3a2a66",
+    "usage": "Rail: the unlit part of a knob arc or slider track. Marks range, not value."
+   },
+   {
+    "name": "ink",
+    "value": "#f3ecff",
+    "usage": "Primary text: values, readouts, titles. Near-white with a violet cast. On bg-000 to bg-300 (15:1+)."
+   },
+   {
+    "name": "ink-muted",
+    "value": "#b9a3e6",
+    "usage": "Secondary text: parameter labels, units, the hint bar. On bg-000 to bg-300 (8:1+)."
+   },
+   {
+    "name": "ink-dim",
+    "value": "#7a5fb5",
+    "usage": "Disabled text and inactive marks (ring segments, tick marks). Not for running text: 3.1:1 on bg-300, use at 12px+ bold or for marks only."
+   },
+   {
+    "name": "uv",
+    "value": "#efe3ff",
+    "usage": "The signal, as near-white violet: lit steps, value arcs (and the detent tick a value sits on), LED, focus, primary button fill. It is the bright core; the violet lives in its halo (uv-deep)."
+   },
+   {
+    "name": "uv-deep",
+    "value": "#a259ff",
+    "usage": "The saturated violet. Never a fill on its own: it is the glow around every lit uv element (glow-led, arc and fill drop-shadows) and the tint of the ground noise."
+   },
+   {
+    "name": "uv-glow",
+    "value": "#a259ff80",
+    "usage": "Halo around a lit element (uv-deep at 50%): LED, lit and playhead steps, focus. Alpha only; never a fill."
+   },
+   {
+    "name": "on-uv",
+    "value": "#5d00d6",
+    "usage": "Text and glyphs on a uv fill (primary button, a lit icon button, a lit step's index): deep ultraviolet, uv-deep's hue darkened, 7.0:1 on uv, so a lit control keeps its violet in its own letters. Never on red: the record button's glyph on its red fill is bg-000 (on-uv on red is 2.6:1)."
+   },
+   {
+    "name": "amber",
+    "value": "#ffb000",
+    "usage": "Warning state: record armed, clipping about to happen, an unsaved patch. Small marks only, at most one per window."
+   },
+   {
+    "name": "red",
+    "value": "#ff4d4d",
+    "usage": "Error/clip: a meter past 0 dB, a failed paste. Never decorative."
+   },
+   {
+    "name": "spec-0",
+    "value": "#060410",
+    "usage": "Spectrogram ramp, stop 0 of 5: silence. The value of bg-000, so a silent spectrogram is the window's own ground. The five stops are one sequence, sampled between by magnitude; a stop means a position on the ramp, not a colour of its own. Data colour: only in a picture of a signal."
+   },
+   {
+    "name": "spec-1",
+    "value": "#2a1e4a",
+    "usage": "Spectrogram ramp, stop 1: the quietest band that shows. The value of bg-dot. Data colour."
+   },
+   {
+    "name": "spec-2",
+    "value": "#6a2fd0",
+    "usage": "Spectrogram ramp, stop 2: the middle of the range. The one stop that appears nowhere else in the system. Data colour."
+   },
+   {
+    "name": "spec-3",
+    "value": "#a259ff",
+    "usage": "Spectrogram ramp, stop 3: loud. The value of uv-deep, here as data rather than light: uv-deep's never-a-fill rule governs the interface, and the ramp is a picture of sound."
+   },
+   {
+    "name": "spec-4",
+    "value": "#efe3ff",
+    "usage": "Spectrogram ramp, stop 4: the loudest band, at full scale. The value of uv, so the loudest part of the picture is lit in the system's own signal."
+   },
+   {
+    "name": "plot-fill",
+    "value": "#1d1533",
+    "usage": "The area under a curve in a PlotWell (an envelope, the gate across one cycle). The value of bg-300, so the curve's own 2px uv line is the only light in the well. Data colour."
+   },
+   {
+    "name": "plot-ghost",
+    "value": "#3a2a66",
+    "usage": "A reference curve behind the one that plays, 1px: the envelope as dialled behind what the gate leaves of it. The value of line-200, a rail: it marks what could be, not what is. Data colour, only in a PlotWell."
+   },
+   {
+    "name": "plot-dry",
+    "value": "#6b6b78",
+    "usage": "The dry input behind a processed trace, at half opacity under the uv one. Deliberately achromatic, the one grey in the system, so it reads as 'not the signal': the violet is what the plugin did, the grey is what came in. Data colour, only in a PlotWell."
+   }
+  ]
+ },
+ "type": {
+  "fonts": [],
+  "families": {
+   "mono": "\"JetBrains Mono\", \"SF Mono\", Menlo, Consolas, monospace"
+  },
+  "note": "One family, monospace, loaded from Google Fonts (previews) or bundled with the plugin (JetBrains Mono, OFL). Digits must be tabular: a readout must not jitter while a knob turns.",
+  "groups": [
+   {
+    "name": "Machine text",
+    "family": "mono",
+    "styles": [
+     {
+      "name": "readout",
+      "fontSize": "28px",
+      "lineHeight": "32px",
+      "fontWeight": 500,
+      "letterSpacing": "-0.01em",
+      "sample": "127.00",
+      "usage": "The one big number a plugin is about (step count, BPM, dB). ink on bg-000."
+     },
+     {
+      "name": "title",
+      "fontSize": "12px",
+      "lineHeight": "16px",
+      "fontWeight": 500,
+      "letterSpacing": "0.08em",
+      "sample": "TRANCE GATE",
+      "usage": "Plugin or panel name, uppercase. ink-muted."
+     },
+     {
+      "name": "label",
+      "fontSize": "11px",
+      "lineHeight": "14px",
+      "fontWeight": 500,
+      "letterSpacing": "0.1em",
+      "sample": "ATTACK",
+      "usage": "Parameter label above a knob or slider, uppercase. ink-muted."
+     },
+     {
+      "name": "value",
+      "fontSize": "13px",
+      "lineHeight": "16px",
+      "fontWeight": 400,
+      "sample": "32 ms",
+      "usage": "Value readout under a control, select text, list rows. ink."
+     },
+     {
+      "name": "button",
+      "fontSize": "12px",
+      "lineHeight": "16px",
+      "fontWeight": 500,
+      "letterSpacing": "0.04em",
+      "sample": "Copy patch",
+      "usage": "Button text. ink, or on-uv on a primary button."
+     },
+     {
+      "name": "hint",
+      "fontSize": "10px",
+      "lineHeight": "14px",
+      "fontWeight": 400,
+      "letterSpacing": "0.02em",
+      "sample": "click a step to toggle",
+      "usage": "The hint bar at the bottom of a window, and a PlotWell's caption. ink-muted, with the verb or an info string's name in ink."
+     }
+    ]
+   }
+  ]
+ },
+ "spacing": {
+  "note": "A 4px grid. Controls snap to it; the knob (48) and step (40) are multiples.",
+  "tokens": [
+   {
+    "name": "space-1",
+    "value": "4px",
+    "usage": "Gap between a rail and its bed; LED to its label."
+   },
+   {
+    "name": "space-2",
+    "value": "8px",
+    "usage": "Gap between steps in a grid; label to control; padding inside a readout."
+   },
+   {
+    "name": "space-3",
+    "value": "12px",
+    "usage": "Padding inside buttons and selects."
+   },
+   {
+    "name": "space-4",
+    "value": "16px",
+    "usage": "Gap between controls in a row; panel padding."
+   },
+   {
+    "name": "space-6",
+    "value": "24px",
+    "usage": "Gap between control groups (envelope, gate)."
+   },
+   {
+    "name": "space-8",
+    "value": "32px",
+    "usage": "Window padding; gap between the big readout and the control block."
+   }
+  ]
+ },
+ "radius": {
+  "note": "Square by default. Round only what physically turns.",
+  "tokens": [
+   {
+    "name": "radius-0",
+    "value": "0px",
+    "usage": "Panels, wells, buttons, steps, readouts, selects. The default."
+   },
+   {
+    "name": "radius-1",
+    "value": "2px",
+    "usage": "Slider thumb, LED housing, the caret in a select. The only softening allowed on a rectangle."
+   },
+   {
+    "name": "radius-full",
+    "value": "999px",
+    "usage": "Knob discs, LED lens, ring segments' end caps."
+   }
+  ]
+ },
+ "shadow": {
+  "note": "No drop shadows: nothing floats. The only shadow is light, and the light is violet around a white core.",
+  "tokens": [
+   {
+    "name": "glow-led",
+    "value": "0 0 10px #a259ff, 0 0 2px #efe3ff",
+    "usage": "Halo on every lit element: LED on, a lit step, the playhead, a primary button."
+   },
+   {
+    "name": "glow-focus",
+    "value": "0 0 0 1px #efe3ff, 0 0 8px #a259ff80",
+    "usage": "Keyboard focus ring on any control."
+   }
+  ]
+ },
+ "size": {
+  "note": "Control sizes, in px. Keep them: a plugin is a machine, and its knobs are all the same knob.",
+  "tokens": [
+   {
+    "name": "knob",
+    "value": "48",
+    "usage": "Knob disc diameter, label above, readout below."
+   },
+   {
+    "name": "knob-lg",
+    "value": "64",
+    "usage": "One larger knob per window at most, for the parameter the plugin is about."
+   },
+   {
+    "name": "step",
+    "value": "40",
+    "usage": "Sequencer step, square."
+   },
+   {
+    "name": "control-h",
+    "value": "28",
+    "usage": "Height of buttons, selects and readouts."
+   },
+   {
+    "name": "rail",
+    "value": "2",
+    "usage": "Knob arc and slider track stroke."
+   },
+   {
+    "name": "hairline",
+    "value": "1",
+    "usage": "Every border."
+   }
+  ]
+ },
+ "stroke": {
+  "tokens": [
+   {
+    "name": "stroke-rail",
+    "value": "2px",
+    "usage": "Knob arc, slider track, ring segments."
+   },
+   {
+    "name": "stroke-hair",
+    "value": "1px",
+    "usage": "Borders and dividers."
+   }
+  ]
+ }
+}

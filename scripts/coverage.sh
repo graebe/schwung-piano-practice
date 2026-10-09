@@ -29,7 +29,7 @@ fi
 ni_time_stage coverage-js -- node --test --experimental-test-coverage \
     --test-reporter=dot --test-reporter-destination=stdout \
     --test-reporter=lcov --test-reporter-destination="$OUT/js.lcov" \
-    tests/*.test.mjs web/test/*.test.mjs || exit
+    tests/*.test.mjs web/test/*.test.mjs web/test/kit/*.test.mjs || exit
 
 # The crates' own tests, then the C conformance suite against the same
 # instrumented build: schwung-plugin is reached only through the C ABI.

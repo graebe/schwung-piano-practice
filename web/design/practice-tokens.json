@@ -1,0 +1,36 @@
+{
+ "name": "Piano Practice",
+ "extends": "Ultraviolet",
+ "release": "1.1.0",
+ "note": "The practice app's additions to Ultraviolet, held to the same generator. Only what the system has no token for: the answer pads, which are a picture of Move's hardware. Everything else the app draws -- the staff, the keyboard, every judgement -- is in the system's own tokens. Reviewed against the release named above; a different release stops the generator until this file is looked at again.",
+ "color": {
+  "note": "Data colours, as the system's spec-* and plot-* are: they paint a picture of something outside the window and nothing else -- never a control, a panel or text. Each is the browser's picture of one answer colour of answer_pads.mjs, whose pad on the Move is lit in a Schwung palette index; the legend on the Move's screen names them blue, orange, cyan, pink and white, so the browser's pad must be recognisably that colour. Tuned to sit on bg-000 at the luminance of ink-muted, so no answer outshines uv, and kept apart from amber and red, which mean held and wrong.",
+  "tokens": [
+   {
+    "name": "answer-blue",
+    "value": "#6f8cff",
+    "usage": "Answer pad 1 and its legend swatch: Move's AzureBlue (palette 16). Data colour."
+   },
+   {
+    "name": "answer-orange",
+    "value": "#ff8a4c",
+    "usage": "Answer pad 2 and its legend swatch: Move's BrightOrange (palette 3). Redder than amber, so it never reads as a held key. Data colour."
+   },
+   {
+    "name": "answer-cyan",
+    "value": "#4fd6d6",
+    "usage": "Answer pad 3 and its legend swatch: Move's CyanTeal (palette 14). Data colour."
+   },
+   {
+    "name": "answer-pink",
+    "value": "#ff6fb5",
+    "usage": "Answer pad 4 and its legend swatch: Move's BrightPink (palette 25). Bluer than red, so it never reads as a miss. Data colour."
+   },
+   {
+    "name": "answer-white",
+    "value": "#f3ecff",
+    "usage": "Answer pad 5 and its legend swatch: Move's White (palette 120). The value of ink; it carries no glow, which is what keeps it apart from a lit uv pad. Data colour."
+   }
+  ]
+ }
+}
