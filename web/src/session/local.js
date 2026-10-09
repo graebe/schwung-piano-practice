@@ -192,7 +192,7 @@ export function bundleExercises(globbed) {
   const out = {};
   for (const [path, text] of Object.entries(globbed)) {
     const name = path.slice(path.lastIndexOf('/') + 1);
-    out[name] = typeof text === 'string' ? text : text.default;
+    out[name] = typeof text === 'string' ? text : JSON.stringify(text);
   }
   return out;
 }

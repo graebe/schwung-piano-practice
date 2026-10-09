@@ -9,14 +9,13 @@
  *   node scripts/e2e-coverage.mjs <coverage-dir> <web-dir> <out.info>
  *
  * WHY THIS EXISTS. node's own coverage (coverage.sh's JS half) sees what a
- * unit test imports -- the plain-JS libraries. Every .jsx component, and the
- * editors' App.jsx files with them, runs only in a browser, so until this they
- * were absent from the report rather than counted. The end-to-end suite runs
- * exactly that code, in Chrome, against the mock hosts; with NI_E2E_COVERAGE
- * set, tests/e2e/harness.mjs records V8's block coverage of each editor's
- * ui.js, and this reduces it to lcov for the sources the bundle was built
- * from, through the source map vite wrote beside it (build.sh's
- * NI_HARNESS_SOURCEMAP mode, which never touches the bundle a plugin ships).
+ * unit test imports -- the plain-JS modules. Every .jsx component, and the app
+ * that composes them, runs only in a browser, so without this they would be
+ * absent from the report rather than counted. The end-to-end suite runs
+ * exactly that code, in Chrome; with PP_E2E_COVERAGE=1, web/e2e/fixtures.mjs
+ * records V8's block coverage of every page script, and this reduces it to
+ * lcov for the sources the bundle was built from, through the source map vite
+ * wrote beside it (PP_SOURCEMAP=1, which the page that ships never has).
  *
  * THE METHOD, and what it claims. V8 reports nested ranges of the generated
  * file with an execution count each; the innermost range around an offset
@@ -98,22 +97,22 @@ const lines = new Map();
 const maps = new Map();
 
 const mapFor = (url) => {
-  /* /plugins/<plugin>/ui/test/harness/assets/ui.js -> <web-dir>/<plugin>/... */
-  const plugin = /\/plugins\/([^/]+)\/ui\/test\/harness\/assets\/ui\.js$/.exec(new URL(url).pathname)?.[1];
-  if (!plugin) return null;
-  if (!maps.has(plugin)) {
-    const file = join(webDir, plugin, 'assets', 'ui.js.map');
-    if (!existsSync(file)) throw new Error(`${file} is missing -- was the harness built with NI_HARNESS_SOURCEMAP?`);
+  /* <origin>/assets/<name>-<hash>.js -> <web-dir>/assets/<name>-<hash>.js.map */
+  const asset = /\/(assets\/[^/]+\.js)$/.exec(new URL(url).pathname)?.[1];
+  if (!asset) return null;
+  if (!maps.has(asset)) {
+    const file = join(webDir, asset + '.map');
+    if (!existsSync(file)) throw new Error(`${file} is missing -- was the page built with PP_SOURCEMAP=1?`);
     const map = JSON.parse(readFileSync(file, 'utf8'));
     const base = resolve(dirname(file), map.sourceRoot ?? '');
-    maps.set(plugin, { segs: segments(map), sources: map.sources.map((s) => resolve(base, s)) });
+    maps.set(asset, { segs: segments(map), sources: map.sources.map((s) => resolve(base, s)) });
   }
-  return maps.get(plugin);
+  return maps.get(asset);
 };
 
 const files = existsSync(covDir) ? readdirSync(covDir).filter((f) => f.endsWith('.json')) : [];
 if (files.length === 0) {
-  console.error(`no coverage in ${covDir} -- run the e2e suite with NI_E2E_COVERAGE=1`);
+  console.error(`no coverage in ${covDir} -- run the e2e suite with PP_E2E_COVERAGE=1`);
   process.exit(1);
 }
 

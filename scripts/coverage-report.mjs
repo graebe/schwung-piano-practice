@@ -42,6 +42,9 @@ const INCLUDE = [/^src\//, /^web\/src\//, /^dsp\//];
 const EXCLUDE = [
   /^external\//, /^build/, /node_modules\//, /^target\//, /\/target\//,
   /^src\/vendor\//, /^src\/exercises\//,
+  /* A bundler's virtual module ("worker.js?url"), named in a source map but
+   * not a file: the stub that hands over an asset's URL. */
+  /\?/,
   /(^|\/)tests?\//, /\.test\.mjs$/, /(^|\/)dist\//,
   /* A crate's unit tests, in the `#[cfg(test)] mod tests;` file beside the
    * code: test code, as surely as anything under tests/. */

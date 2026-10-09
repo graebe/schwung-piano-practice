@@ -34,11 +34,27 @@ export default defineConfig({
   build: {
     outDir: here('../dist/web'),
     emptyOutDir: true,
+    /* Source maps only for the end-to-end suite's coverage (PP_SOURCEMAP=1):
+     * the page that ships carries none. */
+    sourcemap: process.env.PP_SOURCEMAP === '1',
     assetsDir: 'assets',
+    /* Never a script as a data: URL — audioWorklet.addModule needs a real one.
+     * Fonts and images keep Vite's default. */
+    assetsInlineLimit: (file) => (file.endsWith('.js') ? false : undefined),
     rollupOptions: {
       input: {
         index: here('index.html'),
         gallery: here('gallery.html'),
+      },
+      /* What the two pages share is the kit and the music components; name it
+       * that rather than after whichever module rollup met first. */
+      output: {
+        chunkFileNames: 'assets/shared-[hash].js',
+        assetFileNames: (asset) => {
+          const name = (asset.names && asset.names[0]) || asset.name || '';
+          const page = /^(index|gallery)\./.test(name);
+          return name.endsWith('.css') && !page ? 'assets/shared-[hash][extname]' : 'assets/[name]-[hash][extname]';
+        },
       },
     },
   },
