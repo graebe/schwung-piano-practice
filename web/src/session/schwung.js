@@ -26,31 +26,56 @@
  * in, so a test drives this with a fake one.
  */
 import { decodeViewModel } from '../../../src/view_model.mjs';
+import { createPlayhead } from './clocksync.js';
 
 const PREFIX = 'overtake_dsp:';
 
 export function createSchwungSession({ bridge, now = () => performance.now() }) {
   const listeners = new Set();
-  const fields = {};
+  /* field -> { raw, value }: what arrived, and what it decoded to. */
+  const fields = new Map();
   let vm = null;
-  let clockAt = 0;
   let unsubscribe = null;
+  const playhead = createPlayhead();
 
-  function rebuild() {
-    vm = decodeViewModel(fields);
-    if (!vm.clock) return;
-    clockAt = now();
+  /*
+   * ONLY WHAT CHANGED IS DECODED. Every picture carries every field, and a
+   * field decoded afresh is a new object even when its text is the same --
+   * so the chart, the bulk of the picture and the same piece for minutes at a
+   * time, would be a new chart on every update, and the staff would rebuild
+   * every note in it several times a second. A field whose text did not
+   * change keeps the object it decoded to.
+   */
+  function rebuild(changed) {
+    if (!changed.size && vm) return;
+    const next = {};
+    for (const [key, f] of fields) {
+      if (changed.has(key)) f.value = decodeViewModel({ [key]: f.raw })[key];
+      next[key] = f.value;
+    }
+    if (!next.clock) return;
+    vm = next;
+    if (changed.has('clock')) {
+      const c = vm.clock;
+      /* An older module's clock has no perBeatMs; its bpm says the same. */
+      if (!(c.perBeatMs > 0) && c.bpm > 0) c.perBeatMs = 60000 / c.bpm;
+      playhead.anchor(c, now());
+    }
     for (const fn of listeners) fn(vm);
   }
 
   function onChange(changes) {
-    let touched = false;
+    const changed = new Set();
     for (const [key, value] of Object.entries(changes)) {
       if (!key.startsWith(PREFIX)) continue;
-      fields[key.slice(PREFIX.length)] = String(value);
-      touched = true;
+      const name = key.slice(PREFIX.length);
+      const raw = String(value);
+      const f = fields.get(name);
+      if (f && f.raw === raw) continue;
+      fields.set(name, { raw, value: undefined });
+      changed.add(name);
     }
-    if (touched) rebuild();
+    if (changed.size) rebuild(changed);
   }
 
   return {
@@ -76,15 +101,14 @@ export function createSchwungSession({ bridge, now = () => performance.now() }) 
     },
     /*
      * The Move sends its clock only when the picture changes, so between
-     * updates the playhead is carried forward at the tempo — unless it is
-     * standing still: paused, waiting on a note, or not running at all.
+     * updates the playhead is carried forward -- from the Move's own time,
+     * at the Move's tempo, never past where it waits for a note, and with a
+     * correction eased in rather than stepped (clocksync.js).
      */
     clock() {
       if (!vm || !vm.clock) return null;
-      const c = vm.clock;
-      if (!c.running || c.paused || c.blocked) return c;
-      const beats = c.beats + ((now() - clockAt) * c.bpm) / 60000;
-      return { ...c, beats };
+      const beats = playhead.at(now());
+      return beats === vm.clock.beats ? vm.clock : { ...vm.clock, beats };
     },
     dispatch(action) {
       bridge.setParam(PREFIX + 'action', JSON.stringify(action));

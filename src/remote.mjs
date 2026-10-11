@@ -28,8 +28,9 @@
  * (a stalled WiFi link) pull again and so be seen again.
  *
  * WHAT COUNTS AS A CHANGE. Everything but the playhead's position: the page
- * carries `clock.beats` forward itself, so a picture that differs only there
- * waits for the heartbeat rather than going out four times a second.
+ * carries `clock.beats` forward itself from `clock.t`, so a picture that
+ * differs only there waits for the heartbeat rather than going out four times
+ * a second. `waitAt` does count: the page stops there.
  */
 import { STATE_LIMIT } from './view_model.mjs';
 
@@ -63,6 +64,7 @@ function signature(flat) {
     const c = JSON.parse(clock);
     if (c && typeof c === 'object') {
       delete c.beats;
+      delete c.t;
       delete c.bar;
       delete c.beat;
       delete c.beatFlash;
@@ -77,7 +79,9 @@ function signature(flat) {
 /*
  *   get(key) -> string | null    a param read (the host's host_module_get_param)
  *   set(key, val) -> boolean     a param write; false when the host refused it
- *   snapshot() -> flat object    encodeViewModel(viewModel(S))
+ *   snapshot(t) -> flat object   encodeViewModel(viewModel(S, { t })): the
+ *                                picture as of the tick at `t`, so a page can
+ *                                tell how old it is when it gets there
  */
 export function createRemote({ get, set, snapshot }) {
   let watched = false;
@@ -111,7 +115,7 @@ export function createRemote({ get, set, snapshot }) {
       }
       const heartbeat = t - lastPublish >= HEARTBEAT_MS;
       if (!heartbeat && t - lastPublish < PUBLISH_MIN_MS) return false;
-      const flat = snapshot();
+      const flat = snapshot(t);
       const sig = signature(flat);
       if (!heartbeat && sig === sent) return false;
       const json = JSON.stringify(flat);

@@ -218,6 +218,47 @@ test('between updates the Move\'s playhead is carried forward, unless it stands 
   assert.equal(remote.clock().beats, 2, 'waiting on a note: it stands');
 });
 
+test('a field that did not change keeps its object, so the staff is not rebuilt', () => {
+  const src = local();
+  src.backend.start();
+  for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(src, label);
+  const flat = encodeViewModel(viewModel(src.backend.session));
+  const bridge = fakeBridge();
+  const remote = createSchwungSession({ bridge, now: () => 0 });
+  const seen = [];
+  remote.subscribe((vm) => seen.push(vm));
+  remote.start();
+  bridge.push(flat);
+  bridge.push({ ...flat, clock: JSON.stringify({ ...JSON.parse(flat.clock), beats: 1 }) });
+  assert.equal(seen.length, 2);
+  assert.equal(seen[1].chart, seen[0].chart, 'the same chart object');
+  assert.notEqual(seen[1].clock, seen[0].clock);
+  const other = JSON.stringify({ ...JSON.parse(flat.chart), name: 'Other' });
+  bridge.push({ chart: other });
+  assert.notEqual(seen.at(-1).chart, seen[0].chart, 'a new chart is a new object');
+  assert.equal(seen.at(-1).chart.name, 'Other');
+  const before = seen.length;
+  bridge.push({ chart: other });
+  assert.equal(seen.length, before, 'the same text again is no update at all');
+});
+
+/* The Move stamps its clock with its own time: a picture that arrives late
+ * puts the playhead where the Move is NOW, not where it was. */
+test('a late picture still puts the playhead where the Move is now', () => {
+  let t = 0;
+  const bridge = fakeBridge();
+  const remote = createSchwungSession({ bridge, now: () => t });
+  remote.start();
+  const clock = { beats: 0, bpm: 120, perBeatMs: 500, running: true, paused: false, blocked: false, waitAt: null };
+  /* Move time 10000 is page time 100 + 20 ms of delay. */
+  t = 10020;
+  bridge.push({ screen: JSON.stringify('running'), clock: JSON.stringify({ ...clock, t: 10000 }) });
+  /* The next picture, taken at Move time 11000 (beat 2), arrives 300 ms late. */
+  t = 11320;
+  bridge.push({ clock: JSON.stringify({ ...clock, t: 11000, beats: 2 }) });
+  assert.ok(Math.abs(remote.clock().beats - 2.6) < 0.01, `beat ${remote.clock().beats}`);
+});
+
 test('actions go to the Move as one parameter write each', () => {
   const bridge = fakeBridge();
   const remote = createSchwungSession({ bridge });

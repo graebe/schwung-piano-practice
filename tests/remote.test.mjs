@@ -74,7 +74,7 @@ test('the playhead alone waits for the heartbeat; a pause does not', () => {
   const r = rig({ inbox: 'w' });
   r.remote.poll(0);
   r.remote.publish(0, false);
-  r.picture.clock = JSON.stringify({ beats: 3.5, bpm: 90, paused: false, bar: 1, beat: 3, beatFlash: true });
+  r.picture.clock = JSON.stringify({ beats: 3.5, t: 4000, bpm: 90, paused: false, bar: 1, beat: 3, beatFlash: true });
   assert.equal(r.remote.publish(500, false), false, 'the page carries the beat itself');
   assert.equal(r.remote.publish(HEARTBEAT_MS, false), true, 'the heartbeat keeps the watch alive');
   r.picture.clock = JSON.stringify({ beats: 4, bpm: 90, paused: true });

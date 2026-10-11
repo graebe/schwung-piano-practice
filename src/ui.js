@@ -321,7 +321,7 @@ function openPage() {
     ? createRemote({
       get: pageRead,
       set: dspSet,
-      snapshot: () => encodeViewModel(viewModel(S)),
+      snapshot: (t) => encodeViewModel(viewModel(S, { t })),
     })
     : null;
 }

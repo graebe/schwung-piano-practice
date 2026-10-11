@@ -71,9 +71,15 @@ export function PracticeView(props) {
   const clock = createFrameClock(props.store);
   const running = () => vm().screen === 'running';
   const moving = () => running() && vm().clock.running && !vm().clock.paused && !vm().clock.blocked;
-  const events = createMemo(() => staffEvents(vm().chart));
-  const judgements = () => staffJudgements(vm().chart, vm().run);
-  const markers = () => staffMarkers(vm().chart, vm().run);
+  /* BY IDENTITY: the chart and the run are the same objects across updates
+   * until they change (a Move's backend keeps a field it did not receive
+   * again), so the staff's notes are laid out once per piece, not once per
+   * update. A memo on vm() alone would rebuild them on every one. */
+  const chart = createMemo(() => vm().chart);
+  const run = createMemo(() => vm().run);
+  const events = createMemo(() => staffEvents(chart()));
+  const judgements = createMemo(() => staffJudgements(chart(), run()));
+  const markers = createMemo(() => staffMarkers(chart(), run()));
   const total = () => (vm().chart ? vm().chart.total : 0);
   const beats = () => (clock() ? clock().beats : 0);
   const stats = () => vm().run && vm().run.stats;

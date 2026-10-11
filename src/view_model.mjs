@@ -10,8 +10,8 @@
  * Schwung's parameter channel. So the page renders from THIS — a snapshot
  * that is the same object in both cases — and never from session internals.
  *
- *   viewModel(session, { plotW, plotH }) -> vm      everything on screen now
- *   clockOf(session)                     -> clock   the part that moves every frame
+ *   viewModel(session, { plotW, plotH, t }) -> vm   everything on screen now
+ *   clockOf(session, t)                  -> clock   the part that moves every frame
  *   encodeViewModel(vm) / decodeViewModel(flat)     for Schwung's `state` key
  *
  * Two rules keep it honest:
@@ -120,14 +120,34 @@ export function runOf(run, blocked) {
   };
 }
 
-/* The part of the picture that moves every frame: kept apart so a renderer
- * can follow it without rebuilding everything else. */
-export function clockOf(S) {
+/*
+ * The part of the picture that moves every frame: kept apart so a renderer
+ * can follow it without rebuilding everything else.
+ *
+ * WHAT A RENDERER ELSEWHERE NEEDS TO RUN IT ON ITS OWN. A page on another
+ * machine gets this some unknown time after it was taken, so the clock says
+ * WHEN it was taken and how fast it runs, and where it will stop:
+ *
+ *   t          the session's time when `beats` was true (the `t` its tick
+ *              was given: the Move's performance.now()), or null when the
+ *              caller has none -- a renderer beside the session reads it live
+ *   perBeatMs  one beat in ms: the session's own conversion (msToBeats)
+ *   waitAt     the beat the scroll will freeze on, waiting for a note to be
+ *              played (Wait for note, while practising), else null -- the
+ *              session's own rule (applyWait, SCORE.blockingBeat), so a
+ *              renderer never draws past where the Move stops
+ */
+export function clockOf(S, t = null) {
   const chart = S.chart;
   const where = chart && S.songBeats >= 0 ? barBeatOf(chart, S.songBeats) : null;
+  const bpm = chart ? chart.bpm : S.settings.bpm;
+  const waiting = S.view === RUNNING && S.settings.waitForNote && !S.listening && S.run;
   return {
+    t: Number.isFinite(t) ? t : null,
+    perBeatMs: bpm > 0 ? 60000 / bpm : 0,
+    waitAt: waiting ? SCORE.blockingBeat(S.run) : null,
     beats: S.songBeats,
-    bpm: chart ? chart.bpm : S.settings.bpm,
+    bpm,
     running: S.view === RUNNING,
     listening: S.listening,
     paused: S.paused,
@@ -226,7 +246,7 @@ function progressOf(S, plotW, plotH) {
 
 /* ---- The whole picture -------------------------------------------------------- */
 
-export function viewModel(S, { plotW = 240, plotH = 96 } = {}) {
+export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
   const view = S.view;
   const settings = S.settings;
   const inSong = view === READY || view === RUNNING;
@@ -239,7 +259,7 @@ export function viewModel(S, { plotW = 240, plotH = 96 } = {}) {
     armed: S.armedId ? { id: S.armedId, stage: S.stage } : null,
     chart: inSong ? chartOf(S.chart) : null,
     run: inSong ? runOf(S.run, S.blocked) : null,
-    clock: clockOf(S),
+    clock: clockOf(S, t),
     cue: cueOf(S),
     quiz: view === GUESS_VIEW ? quizOf(S) : null,
     result: view === RESULT_VIEW && S.lastResult ? JSON.parse(JSON.stringify(S.lastResult)) : null,

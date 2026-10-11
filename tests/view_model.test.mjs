@@ -204,6 +204,27 @@ test('the clock alone is small and moves with the run', () => {
   assert.ok(JSON.stringify(b).length < 300);
 });
 
+test('the clock says when it was taken, how long a beat is, and where it will wait', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  h.session.recordButton();
+  h.run(500);
+  const c = clockOf(h.session, 12345.5);
+  assert.equal(c.t, 12345.5);
+  assert.equal(c.perBeatMs, 60000 / h.session.chart.bpm);
+  assert.equal(c.waitAt, h.session.chart.events[0].beat, 'waiting for the first note');
+  assert.equal(clockOf(h.session).t, null, 'no time given, none claimed');
+  assert.equal(viewModel(h.session, { t: 7 }).clock.t, 7);
+  /* Listening never waits. */
+  const l = fakeHost();
+  l.session.init();
+  openPath(l.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  l.session.playButton();
+  l.run(500);
+  assert.equal(clockOf(l.session).waitAt, null);
+});
+
 test('without the option, marks go at the panel\'s edge, as on the Move', () => {
   /* Wait off, so the scroll keeps moving and the mark scrolls away. */
   const h = fakeHost({ settings: { version: 7, autoInfo: false, quizSounds: false, waitForNote: false } });

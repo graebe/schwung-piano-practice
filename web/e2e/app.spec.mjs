@@ -224,6 +224,79 @@ test('inside Schwung the page shows the Move\'s session and steers it', async ({
   expect(sent).toContainEqual(['overtake_dsp:action', '{"type":"listen"}']);
 });
 
+/*
+ * THE SCROLL ON A MOVE, THROUGH A NETWORK THAT DELAYS EVERY PICTURE
+ * DIFFERENTLY. A fake Move in the page runs its own clock (an offset from the
+ * page's), publishes its clock every 330 ms as ui.js does, and delivers each
+ * picture 20 to 400 ms late. The staff's own transform is sampled every frame:
+ * it must never step back, and must follow the Move's beat with no more
+ * wobble than a frame's worth of pixels -- where the page used to be pulled
+ * back by each picture's delay.
+ */
+test('on a Move the staff scrolls with the Move\'s beat, however late each picture is', async ({ page }) => {
+  const flat = moveState();
+  await page.addInitScript((state) => {
+    const chart = JSON.parse(state.chart);
+    const perBeatMs = 60000 / chart.bpm;
+    const MOVE_OFFSET = 987654.321;             /* the Move's clock is not ours */
+    const moveNow = () => performance.now() + MOVE_OFFSET;
+    let start = null;
+    let seed = 1234567;
+    const rand = () => { seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5; return (seed >>> 0) / 4294967296; };
+    window.__beatAt = (pageMs) => (start === null ? 0 : (pageMs + MOVE_OFFSET - start) / perBeatMs);
+    window.schwungRemote = {
+      onParamChange(fn) {
+        const send = (fields) => fn(Object.fromEntries(Object.entries(fields).map(([k, v]) => ['overtake_dsp:' + k, v])));
+        const clock = JSON.parse(state.clock);
+        setTimeout(() => {
+          start = moveNow();
+          send({ ...state, screen: JSON.stringify('running') });
+          setInterval(() => {
+            const t = moveNow();
+            const c = { ...clock, t, perBeatMs, waitAt: null, beats: (t - start) / perBeatMs,
+                        running: true, paused: false, blocked: false, countIn: false };
+            const text = JSON.stringify(c);
+            setTimeout(() => send({ clock: text }), 20 + rand() * 380);
+          }, 330);
+        }, 50);
+        return () => {};
+      },
+      setParam() {},
+    };
+  }, flat);
+  await page.goto('./');
+  await expect(page.locator('#piece-title')).toHaveText(/marys lamb/i);
+  await page.waitForTimeout(3000);              /* ten pictures: the clocks agree */
+  const samples = await page.evaluate(() => new Promise((done) => {
+    const lane = document.querySelector('.staff-bars').parentElement;
+    const out = [];
+    const end = performance.now() + 3000;
+    /* The frame's own time, which the page's drawing used too. */
+    const frame = (now) => {
+      const tx = Number(/translate\(([-\d.e]+)/.exec(lane.getAttribute('transform'))[1]);
+      out.push([window.__beatAt(now), tx]);
+      if (now < end) requestAnimationFrame(frame); else done(out);
+    };
+    requestAnimationFrame(frame);
+  }));
+  expect(samples.length).toBeGreaterThan(60);
+  for (let i = 1; i < samples.length; i++) {
+    expect(samples[i][1], `stepped back at sample ${i}`).toBeLessThanOrEqual(samples[i - 1][1] + 0.5);
+  }
+  /* tx = a - beat * ppb: fit it, and the residual is the wobble. */
+  const n = samples.length;
+  const mb = samples.reduce((s, [b]) => s + b, 0) / n;
+  const mx = samples.reduce((s, [, x]) => s + x, 0) / n;
+  const slope = samples.reduce((s, [b, x]) => s + (b - mb) * (x - mx), 0) /
+                samples.reduce((s, [b]) => s + (b - mb) ** 2, 0);
+  const residual = samples.map(([b, x]) => x - (mx + slope * (b - mb)));
+  const wobble = Math.max(...residual) - Math.min(...residual);
+  const pxPerFrame = Math.abs(slope) * (1000 / 60) / (60000 / JSON.parse(flat.chart).bpm);
+  /* A frame's motion, and the device pixel place() rounds the lane to. */
+  expect(wobble, `the staff wobbles by ${wobble.toFixed(1)} px; a frame is ${pxPerFrame.toFixed(1)} px`)
+    .toBeLessThanOrEqual(pxPerFrame + 1);
+});
+
 /* The page as it ships in the module: web_ui.html loads the manager's bridge
  * from the manager (/static/schwung-remote-api.js), and that alone must make
  * it the Move's. Here the manager is a route serving a fake bridge. */

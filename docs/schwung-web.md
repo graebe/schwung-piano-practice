@@ -93,6 +93,31 @@ watches, nothing but a `stale` goes out every two seconds. That nudge lets a
 page whose watch lapsed, for example over a stalled WiFi link, pull again and
 be seen again.
 
+**The playhead.** A picture reaches the page anything from about 20 to 400 ms
+after it was taken, and every one is late by a different amount. Starting the
+scroll from each picture's arrival drew it pulled back by that delay, a
+different amount each time: the notes wobbled, and in Wait mode they ran past
+the note the Move was waiting on, then snapped back.
+
+So the session stamps its clock (`src/view_model.mjs`, `clockOf`):
+
+- `t` is the Move's time at the tick the picture shows;
+- `perBeatMs` is how long a beat lasts;
+- `waitAt` is the beat the scroll will freeze on.
+
+The page (`web/src/session/clocksync.js`) learns the offset between the
+Move's clock and its own from the smallest delay it has seen. A picture can be
+late but never early. The page then draws the beat the Move is at *now*:
+
+- it never passes `waitAt`;
+- a correction is eased in over about 100 ms, never stepped;
+- a moving staff never steps back;
+- a real jump (a restart, a seek) is drawn at once.
+
+What is left is a steady lag the size of the smallest delay, a few ms on a
+LAN, which does not move. `web/test/clocksync.test.mjs` measures the wobble
+through simulated delivery, and an e2e test measures it on the staff itself.
+
 **Actions** are applied with `applyAction(S, action)` (`src/actions.mjs`), the
 function the browser's own session uses, so the Move's LEDs and panel follow
 as they do for its buttons. A page cannot close the tool: `ui.js` ignores the
