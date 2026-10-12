@@ -11,11 +11,12 @@
  * behaviour, and a plugin fault on that thread takes MoveOriginal down with it.
  *
  * Not to be confused with the MIDI panic the synth implements (CC 120, CC 123,
- * System Reset), which is a feature and lives in the piano crate.
+ * System Reset), which is a feature and lives in piano and piano-engine.
  */
 #[cfg(feature = "rt")]
 use core::panic::PanicInfo;
 
+#[cfg(feature = "rt")]
 #[link(name = "c")]
 extern "C" {
     fn abort() -> !;

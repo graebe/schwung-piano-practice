@@ -12,8 +12,22 @@ checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 name = "piano"
 version = "0.1.0"
 dependencies = [
- "libm",
+ "piano-engine",
  "schwung-plugin",
+]
+
+[[package]]
+name = "piano-engine"
+version = "0.1.0"
+dependencies = [
+ "libm",
+]
+
+[[package]]
+name = "piano-wasm"
+version = "0.1.0"
+dependencies = [
+ "piano-engine",
 ]
 
 [[package]]

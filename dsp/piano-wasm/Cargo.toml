@@ -1,0 +1,12 @@
+[package]
+name = "piano-wasm"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "The Piano Practice piano engine for the browser: raw wasm32 exports, no bindgen."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+piano-engine = { path = "../piano-engine" }

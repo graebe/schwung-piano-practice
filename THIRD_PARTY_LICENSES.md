@@ -1,15 +1,18 @@
 # Third-party licences
 
 Piano Practice is GPL-3.0-or-later (see [LICENSE](LICENSE)), copyright © 2026
-Torben Gräber. One third-party library is compiled into the shipped binary, and
-its notice has to travel with it. MIT is compatible with the GPL: the combined
+Torben Gräber. One third-party library is compiled into the shipped binaries,
+and its notice has to travel with them. MIT is compatible with the GPL: the combined
 work is conveyed under the GPL, and libm's own notice is kept intact.
 
 ## libm 0.2.16 — MIT
 
-`dsp.so` links [`libm`](https://crates.io/crates/libm) for `sinf`, `powf`,
-`expf` and `sqrtf`. The DSP is `no_std`, so it cannot call the platform's maths
-library through Rust's standard library and uses this crate instead.
+The piano engine (`dsp/piano-engine`) uses [`libm`](https://crates.io/crates/libm)
+for `sinf`, `powf`, `expf` and `sqrtf`, so libm is compiled into both builds of
+it: the Move's `dsp.so` and the browser's `piano.wasm`. The engine is `no_std`,
+so it cannot call the platform's maths library through Rust's standard library
+and uses this crate instead — which is also what makes the two builds compute
+the same samples: one implementation of each function, in Rust, on both.
 
 The crate is offered under MIT or Apache-2.0; it is taken here under **MIT**,
 and its notice is reproduced in full as that licence requires.
@@ -34,10 +37,91 @@ and its notice is reproduced in full as that licence requires.
 > OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 > SOFTWARE.
 
-`libm` is the only dependency of any kind. There are no JavaScript packages —
-`package.json` declares no `dependencies` and no `devDependencies`.
+`libm` is the only third-party Rust crate. The other crates in `dsp/` —
+`piano-engine`, `piano`, `piano-wasm` and `schwung-plugin` — are this module's
+own, GPL-3.0-or-later.
+
+## solid-js 1.9.16 — MIT
+
+The web page (`web/`, built to `dist/web`) is written with
+[Solid](https://www.solidjs.com). Its runtime is bundled into the page's
+script; the build (scripts/vite-licenses.mjs) writes this notice into
+`assets/THIRD_PARTY_LICENSES.txt` beside it, and refuses to build if a bundled
+package is not listed here.
+
+> MIT License
+>
+> Copyright (c) 2016-2025 Ryan Carniato
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+## vite 6.4.3 — MIT
+
+The build tool. Only its module-preload polyfill, a few dozen lines, is
+bundled into the page; the rest of Vite stays on the developer's machine.
+
+> Vite core license
+> Vite is released under the MIT license:
+>
+> MIT License
+>
+> Copyright (c) 2019-present, VoidZero Inc. and Vite contributors
+>
+> Permission is hereby granted, free of charge, to any person obtaining a copy
+> of this software and associated documentation files (the "Software"), to deal
+> in the Software without restriction, including without limitation the rights
+> to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+> copies of the Software, and to permit persons to whom the Software is
+> furnished to do so, subject to the following conditions:
+>
+> The above copyright notice and this permission notice shall be included in all
+> copies or substantial portions of the Software.
+>
+> THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+> IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+> FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+> AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+> LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+> OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+> SOFTWARE.
+
+## JetBrains Mono — OFL-1.1
+
+The web page's typeface, the Ultraviolet design system's only one
+(`web/fonts/JetBrainsMono-*.woff`). Shipped as separate font files with their
+licence, `web/fonts/OFL.txt`. Fonts under the SIL Open Font License may be
+bundled with any software; the licence covers the font files only.
+
+## Bravura, as NI Notation — OFL-1.1
+
+The staff's clefs, noteheads and accidentals (SMuFL glyphs) are a subset of
+Steinberg's Bravura, `web/fonts/NINotation.woff`, made by
+`scripts/subset-fonts.sh`. Bravura's licence reserves its name for unmodified
+copies, and a subset is a modification, so it ships as "NI Notation" with the
+copyright, licence and reserved-name notices unchanged in
+`web/fonts/Bravura-OFL.txt`.
 
 ## Not third-party
+
+- `web/src/kit/` is the Ultraviolet Solid kit from neon-ingvy-audio-plugins
+  (commit 4e15cc8), by the same author, GPL-3.0-or-later here like the rest of
+  this module; each file names its source.
 
 - `src/vendor/host/plugin_api_v1.h` is Schwung's plugin API header
   ([charlesvestal/schwung](https://github.com/charlesvestal/schwung), MIT), kept

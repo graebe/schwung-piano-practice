@@ -1,0 +1,85 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Torben Gräber */
+
+/*
+ * The gallery page's own layout: sections as panels down a column, demos in
+ * them. Only arrangement -- the components bring their own looks.
+ */
+.gallery {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4) var(--space-8);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.g-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: var(--stroke-hair) solid var(--line-100);
+}
+.g-head h1 { margin: 0; color: var(--ink); }
+.g-head p { margin: var(--space-1) 0 0; color: var(--ink-muted); }
+
+.g-section {
+  background: var(--bg-100);
+  border: var(--stroke-hair) solid var(--line-100);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.g-section-head h2 { margin: 0; color: var(--ink-muted); }
+.g-section-head p { margin: var(--space-1) 0 0; color: var(--ink-dim); }
+
+.g-demo { margin: 0; display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.g-demo figcaption { color: var(--ink-muted); }
+.g-note { margin: 0; color: var(--ink-muted); min-height: 14px; }
+
+/* Foundations */
+.g-swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(112px, 1fr)); gap: var(--space-2); }
+.g-colour { display: flex; align-items: center; gap: var(--space-2); min-width: 0; color: var(--ink-muted); }
+.g-colour i { flex: none; width: var(--control-h); height: var(--control-h); border: var(--stroke-hair) solid var(--line-200); }
+.g-colour span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-type { display: flex; flex-direction: column; gap: var(--space-2); }
+.g-type-row { display: flex; align-items: baseline; gap: var(--space-4); min-width: 0; }
+.g-type-name { flex: none; width: 64px; color: var(--ink-dim); }
+.g-type .t-title, .g-type .t-label, .g-type .t-hint { color: var(--ink-muted); }
+.g-icons { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-4); color: var(--ink); }
+.g-icon { display: inline-flex; align-items: center; gap: var(--space-2); }
+.g-icon .t-hint { color: var(--ink-muted); }
+
+/* Controls */
+.g-frame { border: var(--stroke-hair) solid var(--line-100); }
+.g-controls { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: stretch; }
+.g-panel { flex-wrap: wrap; align-items: flex-start; }
+.g-panel .knob-row { flex: none; }
+.g-stack { display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+.g-tabs-panel { height: 160px; padding: 0; }
+.g-tabs-panel .tabs { height: 100%; }
+
+/* Grand staff */
+.g-keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-3) var(--space-4); }
+.g-key { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; color: var(--ink-muted); }
+
+/* Pads */
+.g-pads { display: flex; flex-wrap: wrap; gap: var(--space-6); }
+.g-pads .g-demo { flex: 0 1 auto; }
+
+/* The legend: a swatch in each state's own colours. */
+.g-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-4); color: var(--ink-muted); }
+.g-legend li { display: inline-flex; align-items: center; gap: var(--space-2); }
+.g-swatch { width: 12px; height: 12px; background: var(--bg-300); border: var(--stroke-hair) solid var(--line-200); }
+.g-swatch.lit, .g-swatch.now { background: var(--uv); border-color: var(--uv); box-shadow: var(--glow-led); }
+.g-swatch.hit { background: var(--uv); border-color: var(--uv); }
+.g-swatch.target, .g-swatch.coming { background: var(--bg-300); border: var(--stroke-rail) solid var(--uv-deep); }
+.g-swatch.held { background: var(--amber); border-color: var(--amber); }
+.g-swatch.miss { background: var(--red); border-color: var(--red); }
+.g-swatch.dim { background: var(--uv-deep); border-color: var(--uv-deep); }
+.g-swatch.off { background: var(--bg-200); border-color: var(--line-100); }
+.g-swatch.root { background: var(--line-200); border-color: var(--ink-dim); }

@@ -6,11 +6,19 @@
  * A direct port of the C. The numbers are not adjustable-looking constants to
  * be tidied — each was tuned by ear against the hardware, so they are carried
  * across verbatim and the A/B test fails if any of them moves.
+ *
+ * The sample rate is a parameter rather than the Move's 44100 so the browser
+ * can run the same voice at whatever rate its AudioContext has. Every place it
+ * enters is the expression the C had with SAMPLE_RATE in it, evaluated in the
+ * same order, so at 44100 the arithmetic — and the output — is unchanged.
  */
 use libm::{expf, powf, sqrtf};
 
 pub const NUM_PARTIALS: usize = 4;
-pub const SAMPLE_RATE: f32 = 44100.0;
+/// The rate the constants were tuned at: the Move's.
+pub const REFERENCE_RATE: f32 = 44100.0;
+/// The damper's per-sample factor at REFERENCE_RATE.
+pub const DAMPER_AT_REFERENCE: f32 = 0.99975;
 pub const SINE_BITS: u32 = 11;
 pub const SINE_SIZE: usize = 1 << SINE_BITS;
 pub const SINE_MASK: u32 = (SINE_SIZE - 1) as u32;
@@ -52,6 +60,17 @@ impl Default for Voice {
     }
 }
 
+/// The damper's per-sample factor at `sample_rate`: the same fall per SECOND
+/// as 0.99975 per sample at 44100. At the reference rate it is that constant
+/// itself, not a pow that merely rounds to it.
+pub fn damper_for(sample_rate: f32) -> f32 {
+    if sample_rate == REFERENCE_RATE {
+        DAMPER_AT_REFERENCE
+    } else {
+        powf(DAMPER_AT_REFERENCE, REFERENCE_RATE / sample_rate)
+    }
+}
+
 /* Seconds of decay for a partial: low notes ring far longer than high ones,
  * and within a note the upper partials die away first. */
 fn partial_decay_seconds(freq: f32, partial: usize) -> f32 {
@@ -66,7 +85,7 @@ fn partial_decay_seconds(freq: f32, partial: usize) -> f32 {
 }
 
 impl Voice {
-    pub fn start(&mut self, f0: f32, pitch: u8, vel: u8, age: u32) {
+    pub fn start(&mut self, f0: f32, pitch: u8, vel: u8, age: u32, sample_rate: f32) {
         let velf = vel as f32 / 127.0;
         /* Harder strikes are brighter, not just louder — the upper partials
          * come up much faster with velocity than the fundamental does. */
@@ -77,7 +96,7 @@ impl Voice {
         self.pitch = pitch;
         self.age = age;
         self.attack = 0.0;
-        self.attack_inc = 1.0 / (0.004 * SAMPLE_RATE); /* ~4ms */
+        self.attack_inc = 1.0 / (0.004 * sample_rate); /* ~4ms */
         self.release = 1.0;
 
         for i in 0..NUM_PARTIALS {
@@ -85,15 +104,15 @@ impl Voice {
             /* Stiff-string stretch: overtones sit progressively sharp. */
             let stretch = sqrtf(1.0 + 0.0004 * (n * n));
             let f = f0 * n * stretch;
-            let (phase, inc, amp, decay) = if f > SAMPLE_RATE * 0.45 {
+            let (phase, inc, amp, decay) = if f > sample_rate * 0.45 {
                 /* Above Nyquist: silence rather than alias. */
                 (0.0, 0.0, 0.0, 1.0)
             } else {
                 (
                     0.0,
-                    f * SINE_SIZE as f32 / SAMPLE_RATE,
+                    f * SINE_SIZE as f32 / sample_rate,
                     velf * powf(bright, i as f32) / (n * n),
-                    expf(-1.0 / (partial_decay_seconds(f0, i) * SAMPLE_RATE)),
+                    expf(-1.0 / (partial_decay_seconds(f0, i) * sample_rate)),
                 )
             };
             if let (Some(p), Some(c), Some(a), Some(d)) = (
@@ -114,8 +133,10 @@ impl Voice {
         self.releasing = true;
     }
 
-    /// One sample. Advances the voice and returns its contribution.
-    pub fn tick(&mut self, sine: &[f32; SINE_SIZE]) -> f32 {
+    /// One sample. Advances the voice and returns its contribution. `damper`
+    /// is the per-sample release factor for the running rate — see
+    /// [`damper_for`].
+    pub fn tick(&mut self, sine: &[f32; SINE_SIZE], damper: f32) -> f32 {
         if self.attack < 1.0 {
             self.attack += self.attack_inc;
             if self.attack > 1.0 {
@@ -124,7 +145,7 @@ impl Voice {
         }
         if self.releasing {
             /* The damper falls: ~120ms to silence, as a key release does. */
-            self.release *= 0.99975;
+            self.release *= damper;
         }
 
         let mut sum = 0.0f32;

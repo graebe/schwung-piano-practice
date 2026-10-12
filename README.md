@@ -664,6 +664,21 @@ repetition schedule, and its last 24 attempts; `stats.json` holds the last 200 q
 rate charts. `scripts/install.sh` carries both across updates. A damaged file reads as a fresh start
 rather than stopping the module from opening.
 
+## In your browser
+
+The same practice runs in a web browser — the same lessons, scoring, Learning Program and piano —
+from a computer keyboard, the keys on screen, a MIDI keyboard, or your Move on its USB cable:
+
+```sh
+npm install
+npm run web:dev          # http://localhost:47331
+```
+
+[docs/web.md](docs/web.md) walks through it. The page is the module itself, not a copy: it runs the
+same `src/session.mjs` the Move does. Inside Schwung's web manager it is built to show and steer
+the session running on the Move instead; [docs/schwung-web.md](docs/schwung-web.md) says what the
+Move's side still needs.
+
 ## Requirements
 
 - Ableton Move with [Schwung](https://github.com/charlesvestal/schwung) 1.4.0 or newer installed —
@@ -878,31 +893,58 @@ module. Everything else bundled is original, or takes only a track's chords.
 ## Development
 
 ```sh
-npm test              # everything below, in order — no Move needed
+npm run test:quick    # seconds: tokens, the wasm piano, every unit test, the Rust tests
+npm run test:full     # minutes: + the C suites, the device build in Docker, the tarball,
+                      #   the web build, Chrome end to end, coverage against its 80% floor
+npm test              # the unit tiers below, in order — no Move, no browser
 npm run preview       # dump the screens as ASCII art in the terminal
+npm run web:dev       # the browser page, http://localhost:47331
 ```
+
+Every stage of the two tiers is timed into the shared build-timing log (`scripts/timing.sh`).
 
 | | |
 | --- | --- |
-| `test:js` | unit, rendering, contract and layout tests for the JavaScript |
+| `test:js` | unit, rendering, contract and layout tests for the JavaScript, the device's and the page's |
 | `test:dsp` | `tests/dsp/test_piano.c` against the engine, through the C ABI the Move calls. Kept in C deliberately: it is the only caller that exercises the engine the way the Move does |
 | `test:rust` | the Rust unit tests (`cargo test --no-default-features`) |
 | `test:package` | what the tarball must contain and what the install must not destroy |
+| `test:e2e` | the browser page in Chrome, at desktop and phone sizes (`web/e2e`) |
+| `coverage` | node, cargo-llvm-cov and Chrome coverage in one report, `build/coverage/` |
+
+`tests/ui_trace.test.mjs` records everything `ui.js` tells the Move — DSP params, MIDI, file writes,
+announcements, a digest of each frame's drawing and LEDs — over eight scripted sessions, and holds
+it to the recording. A change meant to be seen on the device re-records it (`UPDATE_TRACE=1`) and
+says so; any other change must leave it untouched.
 
 ### The DSP
 
-The piano is Rust, in `dsp/`, as two crates: `schwung-plugin` — the reusable Schwung plugin-API
-binding, where every FFI hazard is paid for once — and `piano`, the synth, which contains no
-`unsafe` at all.
+The piano is Rust, in `dsp/`, and the browser plays the same one the Move does. Four crates:
 
-It is `no_std` over libc. Not for elegance: the Move runs **glibc 2.35** and the build image is
+| crate | what it is |
+| --- | --- |
+| `piano-engine` | the synthesis — voices, tables, the event ring, the `n` note-list parser. `no_std`, no allocation, `#![forbid(unsafe_code)]`, and no dependency but libm. Renders f32 at any sample rate; at the Move's 44100 its arithmetic is the C's, operation for operation |
+| `piano` | the device plugin, `dsp.so`: maps Schwung's `set_param`/`on_midi`/`render_block` onto the engine and scales its f32 into the host's i16. No `unsafe` of its own |
+| `schwung-plugin` | the reusable Schwung plugin-API binding, where every FFI hazard is paid for once |
+| `piano-wasm` | the browser build, `piano.wasm`: the engine behind eleven raw `extern "C"` exports, no wasm-bindgen, ~17KB. Its one `unsafe` is the module's single-threaded global state |
+
+`scripts/build-wasm.sh` builds `build/wasm/piano.wasm` (it needs the `wasm32-unknown-unknown` target
+installed, and says so if it is not). In the browser, `web/src/audio/piano-worklet.js` runs it in an
+AudioWorklet and `web/src/audio/engine.js` drives it with the device's own `n` lists, one per task.
+
+That the two hosts sound alike is tested, not hoped: `dsp/piano-engine/tests/golden.txt` is a
+scenario both replay at 44100 — the native engine in `cargo test`, the wasm in
+`tests/wasm_piano.test.mjs` — against the same `golden-44100.f32`, bit for bit. The device's own
+i16 output is pinned by a checksum taken before the engine was split out of `piano`.
+
+The device build is `no_std` over libc. Not for elegance: the Move runs **glibc 2.35** and the build image is
 Debian bookworm at **2.36**, so `std` could reference a symbol that links here and fails to load
 there. `no_std` removes the hazard instead of guarding it — the shipped object needs only
 `GLIBC_2.17` and `libc.so.6`, and comes to 67KB. `scripts/build-dsp.sh` refuses any build that is
 not aarch64, needs a glibc above the ceiling, or has ballooned in size.
 
 `panic = "abort"`, a `#[panic_handler]` that calls `abort()`, and
-`#![deny(clippy::indexing_slicing, unwrap_used, expect_used, panic)]` on both crates. `render_block`
+`#![deny(clippy::indexing_slicing, unwrap_used, expect_used, panic)]` on every crate. `render_block`
 runs on the SPI callback: unwinding out through `extern "C"` is undefined behaviour and a fault
 there takes Move's firmware down with it, so a Rust panic has to be unreachable rather than merely
 unlikely.
@@ -935,7 +977,10 @@ before it.
 
 | File | |
 | --- | --- |
-| `src/ui.js` | host glue only: lifecycle, MIDI, LEDs, settings, state machine |
+| `src/ui.js` | the Move: lifecycle, MIDI out, the piano's mailbox, pads and LEDs, buttons, the panel |
+| `src/session.mjs` | what the module does — lessons, transport, scoring, quizzes, progress, settings — with no host in it |
+| `src/view_model.mjs` | a session as plain data, for a page to render |
+| `src/actions.mjs` | what a page may ask of a session, and how it is carried out |
 | `src/layout.mjs` | every screen coordinate, in one leaf module |
 | `src/notation.mjs` | pitch spelling and staff placement |
 | `src/staff_render.mjs` | clef, staff, noteheads, ledgers, accidentals, bar lines |
@@ -947,6 +992,17 @@ before it.
 | `src/padmap.mjs` | the isomorphic pad grid |
 
 Everything except `ui.js` is pure and runs under plain `node`.
+
+| `web/` | the browser page |
+| --- | --- |
+| `src/session/` | the page's two sessions: `local.js` runs `session.mjs` in the page; `schwung.js` watches one on a Move |
+| `src/app/` | the screens, the keys panel, the charts |
+| `src/music/` | the grand staff, keyboard and pad grid, ported from the Neon Ingvy plugins' JUCE components |
+| `src/kit/` | the Ultraviolet Solid kit, from neon-ingvy-audio-plugins |
+| `src/audio/` | the Move's piano as wasm, in an AudioWorklet |
+| `src/input/` | the computer keyboard and Web MIDI |
+| `design/` | the Ultraviolet design system's tokens, vendored; `scripts/gen-tokens.mjs` makes the CSS |
+| `e2e/` | the end-to-end suite |
 
 ## AI assistance disclaimer
 

@@ -2,10 +2,11 @@
 # Copyright (C) 2026 Torben Gräber
 name: release
 
+# Publishing only. Every test runs locally first (npm run test:full); this
+# re-runs the unit tier as a last gate and builds the release from the tag.
 on:
   push:
     tags: ['v*']
-  pull_request:
   workflow_dispatch:
 
 jobs:
@@ -15,7 +16,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
+      - run: rustup target add wasm32-unknown-unknown
+      - run: npm ci
       - run: npm test
 
   release:
@@ -28,7 +31,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: Check the tag matches the manifest
         run: |
           version=$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' src/module.json)

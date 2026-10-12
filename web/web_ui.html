@@ -1,0 +1,24 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Copyright (C) 2026 Torben Gräber -->
+<!--
+  The page Schwung's web manager shows in its Tool tab while Piano Practice
+  runs on the Move (docs/schwung-web.md). The same app as index.html; the one
+  difference is the manager's bridge, loaded first and from the manager itself,
+  which is what makes the app drive the Move's session instead of its own.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="icon" href="data:,">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Piano Practice</title>
+</head>
+<body>
+  <div id="app"></div>
+  <noscript>Piano Practice needs JavaScript.</noscript>
+  <script vite-ignore src="/static/schwung-remote-api.js"></script>
+  <script type="module" src="./src/main.jsx"></script>
+</body>
+</html>

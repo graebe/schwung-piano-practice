@@ -3,6 +3,11 @@
 # Copyright (C) 2026 Torben Gräber
 set -eu
 
+# A note on the checks below. Under `set -e` a command negated with `!` never
+# aborts the script — POSIX exempts it — so `! grep -q forbidden file` is a
+# check that cannot fail. Every "must NOT" here is spelled as an explicit `if`
+# that exits, and nothing in this file may start with `!`.
+
 node -e '
   const fs = require("fs");
   const manifest = JSON.parse(fs.readFileSync("src/module.json", "utf8"));
@@ -28,12 +33,36 @@ node -e '
 test -f src/ui.js
 test -f src/vendor/host/plugin_api_v1.h
 
-# The DSP is Rust. The reusable half must stay separable from the synth — that
-# split is what makes the next module an impl rather than a copy.
+# The DSP is Rust, in three layers. schwung-plugin is the reusable Schwung FFI
+# binding — the split that makes the next module an impl rather than a copy.
+# piano-engine is the synthesis, shared by the device and the browser, and can
+# hold no unsafe at all. piano (device) and piano-wasm (browser) adapt it.
 test -f dsp/Cargo.toml
 test -f dsp/schwung-plugin/src/lib.rs
+test -f dsp/piano-engine/src/lib.rs
 test -f dsp/piano/src/lib.rs
-! grep -rq 'unsafe' dsp/piano/src/   # every FFI hazard lives in schwung-plugin
+test -f dsp/piano-wasm/src/lib.rs
+test -f scripts/build-wasm.sh
+# The compiler holds the engine to its forbid; this holds the forbid in place.
+grep -q '^#!\[forbid(unsafe_code)\]' dsp/piano-engine/src/lib.rs \
+  || { echo "piano-engine must #![forbid(unsafe_code)]" >&2; exit 1; }
+if grep -rq 'unsafe' dsp/piano/src/; then
+  echo "unsafe in dsp/piano — every FFI hazard lives in schwung-plugin:" >&2
+  grep -rn 'unsafe' dsp/piano/src/ >&2
+  exit 1
+fi
+# The engine is the same on both hosts only while it depends on nothing but
+# libm, and the browser build stays small only while it has no bindgen.
+ENGINE_DEPS=$(sed -n '/^\[dependencies\]/,/^\[/s/^\([a-z][a-z0-9_-]*\) *=.*/\1/p' dsp/piano-engine/Cargo.toml)
+[ "$ENGINE_DEPS" = libm ] \
+  || { echo "piano-engine must depend on libm alone, has: $ENGINE_DEPS" >&2; exit 1; }
+if grep -q 'wasm-bindgen' dsp/Cargo.lock; then
+  echo "piano-wasm uses raw exports; wasm-bindgen must not come back" >&2
+  exit 1
+fi
+# The device build names its package, so the browser crate never rides along.
+grep -q -- '-p piano$\|-p piano )' scripts/build-dsp.sh \
+  || { echo "build-dsp.sh must build -p piano only" >&2; exit 1; }
 test -f Dockerfile
 test -f src/module.json
 test -f src/help.json
@@ -56,7 +85,7 @@ grep -q 'copyright © 2026 Torben Gräber' README.md
 # attribution silently rots the next time a dependency is added.
 for crate in $(sed -n 's/^name = "\(.*\)"$/\1/p' dsp/Cargo.lock); do
   case "$crate" in
-    piano|schwung-plugin) continue ;;   # ours
+    piano|piano-engine|piano-wasm|schwung-plugin) continue ;;   # ours
   esac
   grep -q "$crate" THIRD_PARTY_LICENSES.md \
     || { echo "THIRD_PARTY_LICENSES.md does not mention $crate" >&2; exit 1; }
@@ -80,7 +109,7 @@ done
 node --check src/ui.js
 test -f tests/ui_smoke.test.mjs   # ui.js must be executed by the suite, not only read
 for mod in src/*.mjs tools/*.mjs; do node --check "$mod"; done
-sh -n scripts/package.sh scripts/install.sh scripts/verify-package.sh scripts/build.sh scripts/build-dsp.sh
+sh -n scripts/package.sh scripts/install.sh scripts/verify-package.sh scripts/build.sh scripts/build-dsp.sh scripts/build-wasm.sh
 
 # The shipped binary must be for the Move, not the machine that built it —
 # and must not out-run the device's glibc or balloon in size. Each of these is
@@ -108,7 +137,11 @@ grep -q 'exercises' scripts/install.sh
 grep -q 'verify-package.sh' scripts/package.sh
 
 # Nothing in src/ may import the desktop-only test harness.
-! grep -rq 'screen_buffer' src/
+if grep -rq 'screen_buffer' src/; then
+  echo "src/ references screen_buffer, the desktop-only test harness:" >&2
+  grep -rn 'screen_buffer' src/ >&2
+  exit 1
+fi
 
 # Packaging needs a cross-compiled dist/dsp.so, which takes Docker and an ARM
 # toolchain. Everything above is static and must run anywhere — on a fresh

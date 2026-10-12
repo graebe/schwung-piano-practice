@@ -17,4 +17,6 @@ else
   exit 1
 fi
 
+# The page runs in the browser, so it builds here, not in the DSP container.
+npm --prefix "$ROOT" run web:build
 "$ROOT/scripts/package.sh"

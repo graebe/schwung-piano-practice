@@ -1,0 +1,410 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Torben Gräber */
+
+/* From the neon-ingvy-audio-plugins ui-kit @4e15cc8 (ui-kit/src/components.css
+ * and the rules of ui-kit/src/tokens.css that are not tokens).
+ * Changed: the tokens come from the generated web/src/styles/tokens.gen.css; the
+ * three values tokens.json does not carry are defined below from the design's
+ * own bundle.css; the glow filters are the system's drop-shadows rather than the
+ * kit's 0.55-alpha copies; the plot, spectrogram and checklist rules are not
+ * copied (no such components here). */
+
+/* ---------------------------------------------------- kit-level values --
+ * What the components need that tokens.json does not name, each taken from
+ * design/scheme/project/components/bundle.css, the system's own stylesheet:
+ *   --glow-led-filter  `.ph-ring .lit`: a lit shape that is not a box (an SVG,
+ *                      a rotated tab) carries glow-led as two drop-shadows
+ *   --glow-arc         `.ph-knob .arc`: the value arc's violet
+ *   --readout-w        `.ph-readout`: a readout's minimum width */
+:root {
+  --glow-led-filter: drop-shadow(0 0 10px var(--uv-glow)) drop-shadow(0 0 2px var(--uv));
+  --glow-arc: drop-shadow(0 0 3px var(--uv-deep));
+  --readout-w: 64px;
+}
+
+.glow-led { filter: var(--glow-led-filter); }
+.glow-arc { filter: var(--glow-arc); }
+.glow-focus { box-shadow: var(--glow-focus); }
+
+/* "Plugin or panel name, uppercase" and "Parameter label ..., uppercase": the
+ * system's usage notes ask for it, and the generated classes do not guess it. */
+.t-title, .t-label { text-transform: uppercase; }
+
+/* ------------------------------------------------------------- focus --
+ * Keyboard focus is glow-focus on any control, and only keyboard focus: a
+ * click focuses too, and a ring after every click is noise. */
+.knob:focus, .switch-row:focus, .btn:focus, .tab:focus, .select select:focus { outline: none; }
+.knob, .switch-row, .btn, .tab { -webkit-tap-highlight-color: transparent; }
+.switch-row:focus-visible, .btn:focus-visible, .tab:focus-visible {
+  outline: none;
+  box-shadow: var(--glow-focus);
+}
+.select:has(select:focus-visible) { box-shadow: var(--glow-focus); }
+.knob:focus-visible { box-shadow: none; filter: var(--glow-arc); }
+
+/* ------------------------------------------------------------ window --
+ * EditorFrame's <main>. The design: window padding space-8, content laid out
+ * from the top, the Hint bar pinned to the bottom edge with its rule running
+ * the full width of the window. `relative` and `isolate` are what the ground's
+ * canvas needs (see .ground below). The scale is a transform from the top-left
+ * corner, set by the frame.
+ *
+ * Clipped, not scrolled: `clip` is not a scroll container, so focusing a
+ * control that reaches past the edge cannot slide the window's content
+ * sideways (see `body` in tokens.css). `hidden` first, for WebKit before 16.
+ */
+.window {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  transform-origin: top left;
+  padding: var(--s8) var(--s8) var(--s4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overflow: clip;
+}
+.window > .hint-bar {
+  flex: none;
+  width: auto;
+  margin: auto calc(-1 * var(--s8)) 0;
+  padding: var(--s3) var(--s8) 0;
+}
+
+/* ------------------------------------------------------------ button --
+ * One well, two shapes: a word, optionally led by an Icon, or the 28px square
+ * icon-only form. Adjacent icon buttons join in a `.btn-group`, sharing their
+ * hairlines -- the design's joined Actions.
+ */
+.btn {
+  height: var(--control-h);
+  padding: 0 var(--s3);
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--s2);
+  background: var(--bg-200);
+  border: var(--hair) solid var(--line-200);
+  border-radius: var(--radius);
+  color: var(--ink);
+  font-family: inherit;
+  cursor: pointer;
+}
+.btn.icon { width: var(--control-h); padding: 0; }
+.btn:disabled { color: var(--ink-dim); border-color: var(--line-100); background: var(--bg-100); cursor: default; }
+.btn-group { display: inline-flex; }
+.btn-group .btn + .btn { margin-left: calc(-1 * var(--hair)); }
+.btn-group .btn:hover, .btn-group .btn:focus-visible { position: relative; z-index: 1; }
+
+/* An Icon: 16px, in its control's colour. */
+.icon { display: block; flex: none; width: 16px; height: 16px; }
+.btn:hover:not(:disabled) { background: var(--bg-300); border-color: var(--ink-dim); }
+.btn:active,
+.btn.on { background: var(--uv); border-color: var(--uv); color: var(--on-uv); }
+
+/*
+ * A PANEL: a hairlined bg-100 box that groups the controls of one function.
+ * Only what it LOOKS like -- where it sits and how big it is belong to the
+ * editor that has one.
+ *
+ * THE TITLE RUNS UP THE LEFT EDGE, bottom-to-top like the tab strip's labels:
+ * a heading above the knobs is a 28px band that says one word.
+ */
+.panel {
+  box-sizing: border-box;
+  background: var(--bg-100); border: 1px solid var(--line-100);
+  padding: var(--s4);
+  display: flex; gap: var(--s3);}
+
+.panel h2 {
+  margin: 0; color: var(--ink-muted); align-self: center;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  white-space: nowrap;}
+
+/* label, knob, readout stacked with space-2 between: 11 + 8 + 48 + 8 + 28 */
+.knob-row { display: flex; gap: var(--s4); flex: 1; min-width: 0;}
+
+.knob-card {
+  display: flex; flex-direction: column; align-items: center; gap: var(--s2);
+  min-width: var(--readout-w); flex: 1;}
+
+.knob-label { color: var(--ink-muted); white-space: nowrap;}
+
+.knob { cursor: ns-resize; touch-action: none; display: block;}
+
+/* THE READOUT: bg-000 well, number in ink, unit in ink-muted 2px after it. */
+.readout {
+  width: 100%; min-width: var(--readout-w); height: var(--control-h);
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg-000); border: 1px solid var(--line-200);
+  color: var(--ink); cursor: text; padding: 0 var(--s2); white-space: nowrap;}
+
+.readout .unit { color: var(--ink-muted); margin-left: 2px;}
+
+.readout.editing {
+  font-family: inherit; text-align: center; outline: none;
+  border-color: var(--uv);
+  /* The focus ring, from the token -- it was retyped here, which is how it
+   * came to sit at a different alpha from every other focused thing. */
+  box-shadow: var(--glow-focus);}
+
+.select-group { display: flex; align-items: center; gap: var(--s2);}
+
+.select-label { color: var(--ink-muted); white-space: nowrap;}
+
+.select {
+  position: relative; height: var(--control-h);
+  background: var(--bg-200); border: 1px solid var(--line-200);
+  display: flex; align-items: center; padding: 0 28px 0 12px;}
+
+.select:hover { background: var(--bg-300);}
+
+.select.open { border-color: var(--uv);}
+
+/*
+ * ONE LINE, AND CUT IF IT HAS TO BE.
+ *
+ * A Select is control-h tall and the row around it is laid out to that, so a
+ * value long enough to wrap does not overflow -- it makes the control twice as
+ * tall and shoves the window's whole vertical arithmetic down a row. Cutting
+ * with an ellipsis is the honest failure: the name is still recognisable from
+ * its head, and the layout is still the one that was designed.
+ */
+.select-value {
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* The caret: the design's chevron glyph, 6px in from the field's right edge. */
+.select .icon {
+  position: absolute; right: 6px; top: 50%; margin-top: -8px;
+  color: var(--ink-muted); pointer-events: none;}
+
+/* The real <select> sits invisibly on top so the popup is the OS's. */
+.select select {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  font-family: inherit;}
+
+/* A <button>, so the browser's own chrome is stripped back to the div it
+ * replaces -- it became one to be focusable; see tokens.css. */
+.switch-row {
+  display: flex; align-items: center; gap: var(--s2);
+  cursor: pointer; height: var(--control-h);
+  background: none; border: 0; padding: 0; margin: 0;
+  font: inherit; color: inherit; text-align: left;}
+
+.switch {
+  position: relative; width: 28px; height: 14px;
+  background: var(--bg-200); border: 1px solid var(--line-200);}
+
+.switch:hover { background: var(--bg-300);}
+
+.switch.on { border-color: var(--uv);}
+
+.switch-knob {
+  position: absolute; left: 2px; top: 2px; width: 8px; height: 8px;
+  background: var(--ink-dim);}
+
+.switch.on .switch-knob { left: 16px; background: var(--uv);}
+
+.switch-label { color: var(--ink-muted); white-space: nowrap;}
+
+/*
+ * TABS: a vertical strip, 24 wide, each tab an equal share of the height.
+ * The text is rotated a quarter turn so it reads bottom-to-top, which is how
+ * a tab on a right edge is read.
+ */
+/*
+ * A 24px STRIP, AND THE BAND NO LONGER MAKES ROOM FOR IT.
+ *
+ * It used to take 24 off the band's right edge with 8 of gap, so the plot drew
+ * 32px narrower than the pad grid below it -- which is the whole reason the
+ * window had grown from 824 to 856, buying an alignment the strip then spent.
+ * Laid OVER the plot's right edge instead, the plot spans the full content
+ * width, the pads and the signal line up, and the window goes back to 824 with
+ * one padding all round. Positioned by the layout that owns the band; this says
+ * only what the strip is.
+ */
+.tabs { display: flex; flex-direction: column; width: 24px;}
+
+.tab {
+  flex: 1; width: 24px; padding: 0;
+  background: var(--bg-200); border: 1px solid var(--line-200);
+  color: var(--ink-muted); font-family: inherit; cursor: pointer;
+  border-radius: var(--radius);
+  display: grid; place-items: center;}
+
+.tab:hover { background: var(--bg-300);}
+
+/* The glow is here rather than a class toggled from Tabs.jsx -- see the note
+ * there. Same arrangement as a lit pad. */
+.tab.on {
+  background: var(--uv); border-color: var(--uv); color: var(--on-uv);
+  filter: var(--glow-led-filter);}
+
+.tab-text {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  text-transform: uppercase; white-space: nowrap;}
+
+/* "The Hint bar pinned to the bottom edge" -- flush, not inside the window
+ * padding, with its rule along the top. */
+/*
+ * THE SIGNATURE, which Ultraviolet 1.0.0 added and the Hint bar carries.
+ *
+ * Transcribed from the component's own preview: a 6px square lit in uv with the
+ * LED glow, then the name in 10px mono at weight 500, tracked 0.2em, uppercase,
+ * ink-muted, 8px apart.
+ *
+ * `font-family` is NOT named here. The system's own stylesheet writes
+ * var(--font-mono), which is a token this kit does not define -- and the token
+ * guard would fail the build on it, correctly. `html, body` in tokens.css
+ * already sets the one typeface, so inheriting is both right and checkable.
+ */
+.signature {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: none;
+  font-size: 10px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  white-space: nowrap;
+}
+
+.signature .mark {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--uv);
+  box-shadow: var(--glow-led);
+}
+
+/*
+ * LEFT-ALIGNED, WITH THE SIGNATURE CLOSING THE BAR ON THE RIGHT.
+ *
+ * It was `justify-content: center`, which is what the Hint card said before
+ * Ultraviolet 1.0.0. The card now reads "The tips are left-aligned; the
+ * `Signature` closes the bar on the right", so the tips start at the left edge
+ * and the signature is pushed out by its own auto margin.
+ *
+ * This changes the Trance Gate's and the Spectrogram's hint bars too, which is
+ * the point of the rule being the design system's rather than one editor's.
+ */
+.hint-bar {
+  margin-top: var(--s6); width: 100%; height: 28px;
+  display: flex; justify-content: flex-start; align-items: baseline;
+  gap: var(--s1);
+  border-top: 1px solid var(--line-100); padding-top: var(--s3);
+  color: var(--ink-muted);}
+
+/*
+ * THE TIPS SHRINK, THE SIGNATURE DOES NOT.
+ *
+ * `min-width: 0` is the load-bearing half: a flex item's default minimum is its
+ * CONTENT width, so without it the tips refuse to shrink and the row overflows
+ * the window instead -- which is what a 360px editor did. `flex: 0 1 auto` lets
+ * them give way; the signature's `flex: none` and auto margin keep it whole and
+ * hard right.
+ */
+.hint-tips {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: inline-grid;
+}
+
+/*
+ * THE CLAUSES AND AN INFO STRING SHARE ONE CELL. The clauses always size it --
+ * hidden, not removed, while a string is shown -- and the string's
+ * `contain: inline-size` keeps it from sizing it at all, so the bar's width,
+ * and with it the Motion switch's place, is the clauses' whatever is laid over
+ * them. A string longer than the clauses truncates: the ellipsis says that
+ * string is too long for its window, as it says it of a fourth clause.
+ */
+.hint-clauses, .hint-info {
+  grid-area: 1 / 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hint-info { contain: inline-size; }
+.hint-clauses.held { visibility: hidden; }
+
+.hint-bar .signature { margin-left: auto; }
+
+.hint-key { color: var(--ink);}
+
+.hint-val { color: var(--ink-muted); margin-left: var(--s1);}
+
+.sep { margin: 0 var(--s3); color: var(--ink-dim);}
+
+
+/* THE ANIMATED GROUND -- the design system's Ground, as a canvas behind the
+ * window's contents.
+ *
+ * The static ground (the dot paper and its grain) is painted on `body` in
+ * tokens.css and stays there: it is the fallback, and a field at rest shows the
+ * same design -- the same dots in the same place, the same colours, grain of the
+ * same density, though not the same grain pixels (tokens.css says why). This
+ * canvas sits on top of that and is the same picture until a kick lands.
+ *
+ * WHAT EACH EDITOR MUST PROVIDE, because this rule cannot: `position: relative`
+ * AND `isolation: isolate` on the window element. Both, and the second is the
+ * one that is easy to miss.
+ *
+ * `position: relative` is what `inset: 0` resolves against; without it the canvas
+ * escapes to the viewport, which looks almost right at the design size and wrong
+ * at every other one.
+ *
+ * `isolation: isolate` is what keeps a NEGATIVE z-index inside the window. A
+ * negative child paints after its parent's own background but before the
+ * parent's content -- exactly where a ground belongs -- but only if the parent
+ * is a stacking context. A `position: relative` with `z-index: auto` is not one,
+ * so without `isolate` the canvas escapes outwards and paints BEHIND the
+ * window's background, which is opaque in at least one editor. It would then
+ * simply vanish there and nowhere else.
+ *
+ * z-index -1 AND NOT 0, which is the choice that keeps this to one rule. At 0
+ * the canvas is a positioned descendant and paints in step 8 of the painting
+ * order -- above every statically positioned thing in the window, including all
+ * of its text. Fixing that would mean giving every direct child of every window
+ * a `position` and a `z-index`, and in two of these editors those children are
+ * already absolutely positioned at hand-computed pixels. Going negative instead
+ * changes nothing about any child. */
+.ground {
+  position: absolute;
+  inset: 0;
+  /*
+   * width AND height ARE REQUIRED, AND `inset: 0` DOES NOT REPLACE THEM.
+   *
+   * A <canvas> is a REPLACED element: it has an intrinsic size of 300x150, and
+   * for a replaced element `width: auto` means "use the intrinsic width" rather
+   * than "stretch between left and right". The offsets are then over-constrained
+   * and the browser drops `right` and `bottom` instead of honouring them.
+   *
+   * So `inset: 0` alone gets you a 300x150 canvas pinned to the top-left corner
+   * -- which is invisible, because a field at rest looks the same as the
+   * static CSS ground it is sitting on. The window looks exactly right and only
+   * a patch in the corner ever animates. That is how this shipped once.
+   */
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  /* It carries no information and must never take a click: every control in the
+   * window sits above it, and a stray drag on the background should do nothing
+   * rather than something. */
+  pointer-events: none;
+}
+
+/* The Motion switch in the hint bar. It must not shrink -- the tips are the
+ * shrinkable child of that row (see Hint.jsx) -- and it sits on the baseline
+ * grid the rest of the bar uses. */
+.hint-bar .switch-row {
+  flex: 0 0 auto;
+  margin-left: var(--s4);
+  align-self: center;
+}

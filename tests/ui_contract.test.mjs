@@ -11,12 +11,46 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync(new URL('../src/ui.js', import.meta.url), 'utf8');
+/* The module's code: ui.js is the Move, session.mjs is what the module does.
+ * The rules below hold for the two together; where a rule is about one side
+ * of the line between them, it reads that file. */
+const uiSource = readFileSync(new URL('../src/ui.js', import.meta.url), 'utf8');
+const sessionSource = readFileSync(new URL('../src/session.mjs', import.meta.url), 'utf8');
+const source = uiSource + '\n' + sessionSource;
 const manifest = JSON.parse(readFileSync(new URL('../src/module.json', import.meta.url), 'utf8'));
 
 /* Comments explain which host calls are forbidden and why, so "must not appear"
  * checks run against the code with comments stripped. */
-const code = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const strip = (text) => text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+const code = strip(source);
+const uiCode = strip(uiSource);
+const sessionCode = strip(sessionSource);
+
+/*
+ * The body of a function, found by matching its braces — not by a regex that
+ * runs to the next "}" at the start of a line, which only works while every
+ * function sits at column 0. Strings and comments are skipped, so a brace in
+ * either cannot end the body early.
+ */
+function fnBody(text, name) {
+  const decl = new RegExp(`function ${name}\\s*\\(`).exec(text);
+  assert.ok(decl, `function ${name} not found`);
+  let i = text.indexOf('{', text.indexOf(')', decl.index));
+  const start = i + 1;
+  let depth = 0;
+  for (; i < text.length; i++) {
+    const c = text[i];
+    if (c === '/' && text[i + 1] === '/') { i = text.indexOf('\n', i); continue; }
+    if (c === '/' && text[i + 1] === '*') { i = text.indexOf('*/', i + 2) + 1; continue; }
+    if (c === "'" || c === '"' || c === '`') {
+      for (i++; i < text.length && text[i] !== c; i++) if (text[i] === '\\') i++;
+      continue;
+    }
+    if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return text.slice(start, i);
+  }
+  throw new Error(`function ${name}: unbalanced braces`);
+}
 
 test('all six lifecycle hooks are installed on globalThis', () => {
   for (const hook of ['init', 'tick', 'onMidiMessageInternal', 'onMidiMessageExternal', 'onResume', 'onUnload']) {
@@ -33,15 +67,26 @@ test('the draw is throttled off the monotonic clock, not Date.now()', () => {
   assert.doesNotMatch(code, /=\s*Date\.now\(\)\s*;/, 'wall-clock time can jump mid-run');
 });
 
+/*
+ * One read is allowed, and only one: the page's inbox (src/remote.mjs), which
+ * paces it to five a second at most. It lives in pageRead, which only the
+ * remote calls — never the draw, never the tick body directly.
+ */
 test('no per-frame IPC: a param read costs more than a whole frame', () => {
-  assert.doesNotMatch(code, /host_module_get_param/);
+  const reads = code.match(/host_module_get_param\(/g) || [];
+  assert.equal(reads.length, 1, 'one paced read site, no more');
+  assert.match(fnBody(uiSource, 'pageRead'), /host_module_get_param\(key\)/);
+  assert.equal((code.match(/\bpageRead\b/g) || []).length, 2, 'defined, and handed to the remote');
+  assert.match(code, /get: pageRead/);
+  assert.doesNotMatch(fnBody(uiSource, 'tick'), /pageRead|host_module_get_param/);
+  assert.doesNotMatch(fnBody(uiSource, 'draw'), /servicePage|pageRead|host_module_get_param/);
   assert.doesNotMatch(code, /shadow_get_param/);
   assert.doesNotMatch(code, /host_module_set_param_blocking/);
 });
 
 test('a parked module stops drawing', () => {
   assert.match(source, /globalThis\.overtakeParked/);
-  const tickBody = source.match(/globalThis\.tick = function tick\(\) \{([\s\S]*?)\n\};/)[1];
+  const tickBody = fnBody(source, 'tick');
   assert.match(tickBody, /^\s*if \(globalThis\.overtakeParked\) return;/m);
 });
 
@@ -61,15 +106,16 @@ test('MIDI goes out on cable 2, the path Move tracks listen on', () => {
 });
 
 test('nothing is left ringing on the way out', () => {
-  const unload = source.match(/globalThis\.onUnload = function onUnload\(\) \{([\s\S]*?)\n\};/)[1];
-  assert.match(unload, /allNotesOff\(\)/);
-  assert.match(code, /function exitModule\(\)[\s\S]{0,400}allNotesOff\(\)/);
+  const unload = fnBody(uiSource, 'onUnload');
+  assert.match(unload, /S\.silence\(\)/);
+  assert.match(code, /function exitModule\(\)[\s\S]{0,400}S\.halt\(\)/);
+  assert.match(fnBody(sessionCode, 'halt'), /allNotesOff\(\)/);
 });
 
 test('a panic is indiscriminate: every channel, both routes, sound and notes', () => {
   /* Being selective here is how a note ends up sounding in someone DAW after
    * the module has closed. */
-  const panic = code.match(/function panicChannel\(ch\) \{([\s\S]*?)\n\}/)[1];
+  const panic = fnBody(code, 'panicChannel');
   assert.match(panic, /sendTrack, sendUsb/, 'both routes regardless of the setting');
   assert.match(panic, /120, 0/, 'All Sound Off');
   assert.match(panic, /123, 0/, 'All Notes Off');
@@ -152,28 +198,30 @@ test('the stage decides the pad lights — there is no Guide pads setting any mo
 test('only a whole run from the top is recorded, and Listen never is', () => {
   assert.match(code, /runFromTop = from === 0/);
   assert.match(code, /!wasListening && runFromTop && armedId[\s\S]{0,40}finishExercise\(s\)/);
-  const fin = code.match(/function finishExercise\(s\) \{([\s\S]*?)\n\}/)[1];
+  const fin = fnBody(code, 'finishExercise');
   assert.match(fin, /PROG\.recordAttempt\(progress, armedId/);
   assert.match(fin, /saveProgress\(\)/);
-  assert.match(code, /PROGRESS_PATH = MODULE_DIR \+ '\/progress\.json'/);
+  assert.match(code, /PROGRESS_FILE = 'progress\.json'/);
+  assert.match(uiCode, /writeText: \(name, text\) => writeFile\(MODULE_DIR \+ '\/' \+ name, text\)/);
 });
 
 test('Back from a result starts again rather than leaving', () => {
-  const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}\n/)[1];
+  const back = fnBody(sessionCode, 'back');
   assert.match(back, /view === RESULT_VIEW\) \{\s*retryFromResult\(\)/);
-  const retry = code.match(/function retryFromResult\(\) \{([\s\S]*?)\n\}/)[1];
+  const retry = fnBody(code, 'retryFromResult');
   assert.match(retry, /startQuiz\(quizSpec\)/, 'a quiz gets a fresh round');
   assert.match(retry, /armRun\(\);\s*view = READY/, 'an exercise goes back to its start');
 });
 
 test('settings are persisted next to the module and survive a bad file', () => {
-  assert.match(source, /SETTINGS_PATH = MODULE_DIR \+ '\/settings\.json'/);
+  assert.match(source, /SETTINGS_FILE = 'settings\.json'/);
+  assert.match(uiCode, /readText: \(name\) => readFile\(MODULE_DIR \+ '\/' \+ name\)/);
   assert.match(source, /function loadSettings\(\)[\s\S]{0,400}try \{[\s\S]{0,120}JSON\.parse/);
   assert.match(source, /function saveSettings\(\)/);
   /* Load in one pass from the table, THEN migrate. Interleaving the two is how
    * v3 came to be overwritten by the value it was meant to replace. */
   assert.match(code, /SET\.coerceInto\(settings, obj\)/);
-  const load = code.match(/function loadSettings\(\) \{([\s\S]*?)\n\}/)[1];
+  const load = fnBody(code, 'loadSettings');
   assert.ok(load.indexOf('coerceInto') < load.indexOf('storedVersion'),
     'every stored value must be read before any migration runs');
   assert.doesNotMatch(load, /clamp\(obj\./, 'no second copy of the ranges');
@@ -184,7 +232,7 @@ test('settings are persisted next to the module and survive a bad file', () => {
   assert.match(code, /function saveSettings\(\)\s*\{\s*settingsDirty = true;\s*\}/);
   assert.match(code, /function flushSettings\(force\)[\s\S]{0,300}SAVE_INTERVAL_MS/);
   assert.match(code, /flushSettings\(true\)/, 'always flush on unload');
-  const unloadBody = code.match(/globalThis\.onUnload = function onUnload\(\) \{([\s\S]*?)\n\};/)[1];
+  const unloadBody = fnBody(code, 'onUnload');
   assert.match(unloadBody, /flushSettings\(true\)/);
 });
 
@@ -201,15 +249,16 @@ test('transport LEDs are decided in controls.mjs, not inline', () => {
 });
 
 test('the jog cannot drop out of a run', () => {
-  const jog = code.match(/function onJog\(delta\) \{([\s\S]*?)\n\}/)[1];
+  const jog = fnBody(code, 'moveSelection');
   assert.match(jog, /CTRL\.jogAction\(/);
   assert.doesNotMatch(jog, /view = MENU/, 'a nudge must not abandon the exercise');
-  const click = code.match(/function onJogClick\(\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(fnBody(uiCode, 'onJog'), /S\.moveSelection\(delta\)/);
+  const click = fnBody(code, 'activate');
   assert.match(click, /CTRL\.jogClickAction\(/);
 });
 
 test('the count-in resets, so a second run still clicks', () => {
-  const arm = code.match(/function armRun\(\) \{([\s\S]*?)\n\}/)[1];
+  const arm = fnBody(code, 'armRun');
   assert.match(arm, /lastClickBeat = null/);
   assert.match(arm, /songBeats = -settings\.countIn/);
 });
@@ -226,7 +275,7 @@ test('every settings row is reachable, not just the four on knobs', () => {
 
 test('the reference line is decided in controls.mjs, and skips the count-in', () => {
   assert.match(code, /CTRL\.referenceVelocity\(listening, settings\.reference, settings\.refVel\)/);
-  const ref = code.match(/function serviceReference\(\) \{([\s\S]*?)\n\}/)[1];
+  const ref = fnBody(code, 'serviceReference');
   assert.match(ref, /songBeats < 0/, 'the count-in has no notes to sound');
   /* The cursor must advance even when silent, or enabling it mid-run dumps
    * every skipped note at once. */
@@ -236,7 +285,8 @@ test('the reference line is decided in controls.mjs, and skips the count-in', ()
 
 test("Move's Menu button opens the exercise list", () => {
   assert.match(code, /const CC_MENU = 50;/);
-  assert.match(code, /d1 === CC_MENU[\s\S]{0,120}view = MENU/);
+  assert.match(uiCode, /d1 === CC_MENU\) \{\s*S\.menuButton\(\)/);
+  assert.match(fnBody(sessionCode, 'menuButton'), /view === SETTINGS\) \{\s*view = MENU/);
 });
 
 test('the scroll freezes on the note and the judge keeps real time', () => {
@@ -246,7 +296,7 @@ test('the scroll freezes on the note and the judge keeps real time', () => {
    * note's late window; scoreBeats reaches it frozen or not, so the freeze is
    * decided from the run and the judgement follows on real time.
    */
-  const tickBody = code.match(/globalThis\.tick = function tick\(\) \{([\s\S]*?)\n\};/)[1];
+  const tickBody = fnBody(sessionCode, 'tick');
   const expireAt = tickBody.indexOf('SCORE.expireMissed');
   const blockAt = tickBody.indexOf('SCORE.blockingBeat');
   assert.ok(expireAt >= 0 && blockAt >= 0);
@@ -263,7 +313,7 @@ test('switching wait on mid-run resyncs instead of dragging time backwards', () 
 });
 
 test('every press is marked, at the moment it happened', () => {
-  const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
+  const down = fnBody(sessionCode, 'play');
   /*
    * songBeats for the MARKER, scoreBeats for the JUDGEMENT, and the split is
    * the point. A marker is a statement about the picture — a ring clear of its
@@ -318,19 +368,21 @@ test('the metronome click is refcounted like any other note', () => {
   /* allNotesOff can only silence what pitchRefcount knows about. A click sent
    * with a raw midiOut was left sounding when the module closed between its
    * note-on and its scheduled note-off. */
-  const click = code.match(/function serviceClick\(\) \{([\s\S]*?)\n\}/)[1];
+  const click = fnBody(code, 'serviceClick');
   assert.match(click, /noteOn\(pitch,/);
   assert.doesNotMatch(click, /midiOut\(0x90/, 'the click must not bypass the refcount');
 });
 
 test('silencing also drops anything still scheduled', () => {
-  const off = code.match(/function allNotesOff\(\) \{([\s\S]*?)\n\}/)[1];
+  const off = fnBody(code, 'allNotesOff');
   assert.match(off, /listenOff\.length = 0/);
-  assert.match(off, /panicChannel\(midiChannel\)/);
+  assert.match(off, /fx\.silence\(held\)/, 'what is held goes to the host to silence');
+  const silence = fnBody(uiCode, 'silence');
+  assert.match(silence, /panicChannel\(midiChannel\)/);
   /* Note-offs go down both routes: the destination may have changed since the
    * note-on, and only the path that started a note can release it. */
-  assert.match(off, /sendTrack\(0x80/);
-  assert.match(off, /sendUsb\(0x80/);
+  assert.match(silence, /sendTrack\(0x80/);
+  assert.match(silence, /sendUsb\(0x80/);
 });
 
 test('the MIDI destination is a setting, not an assumption', () => {
@@ -339,7 +391,9 @@ test('the MIDI destination is a setting, not an assumption', () => {
   /* The route rides on each queued packet and is applied when the outbox drains. */
   assert.match(code, /route & OUT_TRACK[\s\S]{0,60}sendTrack/);
   assert.match(code, /route & OUT_USB[\s\S]{0,60}sendUsb/);
-  assert.match(code, /queue\(settings\.midiOut,/);
+  assert.match(code, /queue\(S\.settings\.midiOut,/);
+  /* Read per note, so a change of route takes effect at once. */
+  assert.match(fnBody(uiCode, 'strike'), /const out = S\.settings\.midiOut/);
   assert.match(code, /midiOut: OUT_INTERNAL/, 'the module makes its own sound by default');
   assert.match(code, /move_midi_external_send/);
 });
@@ -348,8 +402,8 @@ test('the exit waits for the MIDI ring before tearing overtake down', () => {
   /* move_midi_inject_to_move is held back a few SPI frames, and three more
    * after overtake ends: exiting on the same tick that queues the note-offs
    * races the teardown and drops them. */
-  const exit = code.match(/function exitModule\(\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(exit, /allNotesOff\(\)/);
+  const exit = fnBody(code, 'exitModule');
+  assert.match(exit, /S\.halt\(\)/);
   assert.doesNotMatch(exit, /host_exit_module/, 'must not exit on the same tick');
   assert.match(exit, /pendingExitAt = now\(\) \+ EXIT_DRAIN_MS/);
   assert.match(code, /function serviceExit\(\)[\s\S]{0,400}host_exit_module\(\)/);
@@ -357,20 +411,22 @@ test('the exit waits for the MIDI ring before tearing overtake down', () => {
 });
 
 test('nothing else runs while closing', () => {
-  const tickBody = code.match(/globalThis\.tick = function tick\(\) \{([\s\S]*?)\n\};/)[1];
+  const tickBody = fnBody(code, 'tick');
   assert.match(tickBody, /if \(pendingExitAt\) \{[\s\S]{0,80}serviceExit\(\);[\s\S]{0,40}return;/);
   /* and that guard comes before any note or clock work */
-  assert.ok(tickBody.indexOf('pendingExitAt') < tickBody.indexOf('serviceReference'));
+  assert.ok(tickBody.indexOf('pendingExitAt') < tickBody.indexOf('S.tick(t)'));
 });
 
 test('Shift+Back closes from anywhere, not three presses deep', () => {
-  const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}/)[1];
+  const back = uiCode.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}/)[1];
   assert.match(back, /if \(shiftHeld\) \{[\s\S]{0,60}exitModule\(\)/);
-  assert.ok(back.indexOf('shiftHeld') < back.indexOf('view === SETTINGS'), 'checked first');
+  assert.ok(back.indexOf('shiftHeld') < back.indexOf('S.back()'), 'checked first');
 });
 
 test('changing MIDI channel silences the channel being left behind', () => {
-  assert.match(code, /res\.key === 'midiCh'[\s\S]{0,260}allNotesOff\(\)[\s\S]{0,120}midiChannel = /);
+  /* Silenced first, on the old channel; only then is the new one taken. */
+  assert.match(code, /res\.key === 'midiCh'[\s\S]{0,260}allNotesOff\(\)[\s\S]{0,120}fx\.settingChanged\('midiCh'\)/);
+  assert.match(uiCode, /if \(key === 'midiCh'\) midiChannel = /);
 });
 
 test('Play listens, Record practises, and each PAUSES its own mode', () => {
@@ -379,8 +435,8 @@ test('Play listens, Record practises, and each PAUSES its own mode', () => {
    * throwing the position away, so you can scrub and carry on from where you
    * land. Back is what restarts; these two only ever toggle.
    */
-  const play = code.match(/if \(d1 === CC_PLAY\) \{([\s\S]*?)\n  \}/)[1];
-  const rec = code.match(/if \(d1 === CC_RECORD\) \{([\s\S]*?)\n  \}/)[1];
+  const play = fnBody(sessionCode, 'playButton');
+  const rec = fnBody(sessionCode, 'recordButton');
   assert.match(play, /startRun\(true\)/, 'Play must listen');
   assert.match(play, /view === RUNNING && listening[\s\S]{0,40}togglePause/);
   assert.match(rec, /startRun\(false\)/, 'Record must practise');
@@ -401,7 +457,8 @@ test('the scrub is off while running, and costs no MIDI when nothing sounds', ()
    */
   /* Whenever the music is NOT running: paused, or the ready screen. The half
    * that must not regress is that a running transport is excluded. */
-  assert.match(code, /view === READY \|\| \(view === RUNNING && paused\)\) scrubBy/);
+  assert.match(fnBody(sessionCode, 'scrubAllowed'), /view === READY \|\| \(view === RUNNING && paused\)/);
+  assert.match(uiCode, /if \(S\.scrubAllowed\(\)\) S\.scrubBy\(delta\)/);
   assert.match(code, /if \(sounding\) allNotesOff\(\)/);
 });
 
@@ -409,7 +466,7 @@ test('Play starts from where the playhead is, not always the top', () => {
   /* Scrubbing the ready screen picks a passage; resetting would make the SCRUB
    * row advertise a control that does nothing. Read BEFORE armRun, which is
    * the thing that resets. */
-  const start = code.match(/function startRun\(listen\) \{([\s\S]*?)\n\}/)[1];
+  const start = fnBody(code, 'startRun');
   assert.match(start, /const from = view === READY && songBeats > 0/);
   assert.ok(start.indexOf('const from') < start.indexOf('armRun()'),
     'the playhead must be read before armRun resets it');
@@ -428,15 +485,16 @@ test('the clock stands still while paused', () => {
 });
 
 test('Back restarts, and the press after it leaves', () => {
-  const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}\n/)[1];
+  const back = fnBody(sessionCode, 'back');
   assert.match(back, /view === RUNNING[\s\S]{0,200}armRun\(\)/, 'Back must restart');
-  assert.match(back, /shiftHeld[\s\S]{0,40}exitModule/, 'Shift+Back still leaves outright');
+  const button = uiCode.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}/)[1];
+  assert.match(button, /shiftHeld[\s\S]{0,40}exitModule/, 'Shift+Back still leaves outright');
 });
 
 test('the missed-note rescue keys off the wait pointer, not the scoring cursor', () => {
   /* The scoring cursor moves past a note the moment it is missed, so anything
    * reading it can never light the note you actually need shown. */
-  const fn = code.match(/function collectStuck\(\) \{([\s\S]*?)\n\}/)[1];
+  const fn = fnBody(code, 'collectStuck');
   assert.match(fn, /SCORE\.blockingNotes\(run\)/);
   assert.doesNotMatch(fn, /run\.cursor/);
   assert.match(fn, /stage !== 1/, 'stage 1 only: stage 2 is reading alone');
@@ -446,7 +504,7 @@ test('the missed-note rescue keys off the wait pointer, not the scoring cursor',
 test('the LED decision lives in led_paint.mjs, where it can be tested', () => {
   /* It shipped three bugs while it was inline here, reachable only by regex. */
   assert.match(code, /LEDS\.padColors\(ledState, ledWorkspace, padColorBuf\)/);
-  const paint = code.match(/function paintPads\(\) \{([\s\S]*?)\n\}/)[1];
+  const paint = fnBody(code, 'paintPads');
   assert.doesNotMatch(paint, /LED_PRESSED|LED_TARGET_NEAR|ledPhase \?/, 'no colours decided inline');
 });
 
@@ -454,8 +512,8 @@ test('the LED repaint is throttled, but a press still lights instantly', () => {
   /* It used to run at the full 500Hz tick, allocating ~68 objects a call, to
    * animate a pulse that changes twice a second. */
   assert.match(code, /LED_INTERVAL_MS = \d+/);
-  assert.match(code, /if \(ledDirty \|\| \(view === RUNNING && t - lastLedMs >= LED_INTERVAL_MS\)\)/);
-  const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(code, /if \(ledDirty \|\| S\.ledDirty \|\| \(S\.view === RUNNING && t - lastLedMs >= LED_INTERVAL_MS\)\)/);
+  const down = fnBody(code, 'onPadDown');
   assert.match(down, /ledDirty = true/, 'a press must bypass the throttle');
 });
 
@@ -477,14 +535,14 @@ test('a changed default is migrated, because a saved file always wins over it', 
    * v2 moves those over, and leaves a deliberate USB choice alone. */
   assert.ok(settingsVersion() >= 2, 'the version may not fall back past this migration');
   assert.match(code, /storedVersion < 2 && settings\.midiOut === \(OUT_TRACK \| OUT_USB\)[\s\S]{0,80}settings\.midiOut = OUT_TRACK/);
-  const load = code.match(/function loadSettings\(\) \{([\s\S]*?)\n\}/)[1];
+  const load = fnBody(code, 'loadSettings');
   assert.match(load, /settings\.version = SETTINGS_VERSION/);
   assert.match(load, /saveSettings\(\)/, 'the migration must persist');
 });
 
 test('a channel mismatch cannot silence the module', () => {
   assert.match(code, /midiCh: 0/, 'broadcast by default');
-  const each = code.match(/function eachChannel\(fn\) \{([\s\S]*?)\n\}/)[1];
+  const each = fnBody(code, 'eachChannel');
   assert.match(each, /settings\.midiCh === 0[\s\S]{0,120}ch < 16/);
   assert.ok(settingsVersion() >= 3, 'the version may not fall back past this migration');
   assert.match(code, /storedVersion < 3[\s\S]{0,40}settings\.midiCh = 0/);
@@ -517,13 +575,13 @@ test('chords reach the DSP in one write — the param channel is a single slot',
   assert.match(code, /const dspNotes = \[\]/);
   assert.match(code, /dspSet\('n', dspNotes\.join\(','\)\)/);
   assert.match(code, /flushDsp\(\)/);
-  assert.match(code, /function allNotesOff\(\)[\s\S]{0,200}dspSet\('panic'/);
+  assert.match(code, /function silence\(held\)[\s\S]{0,200}dspSet\('panic'/);
 });
 
 test('Listen lights the pads it is playing, ungated', () => {
   /* Watching the notes light up is the whole point of the mode, so unlike the
    * guidance hint this must not sit behind Guide pads. */
-  const fn = code.match(/function collectSounding\(\) \{([\s\S]*?)\n\}/)[1];
+  const fn = fnBody(code, 'collectSounding');
   assert.match(fn, /listening/);
   assert.doesNotMatch(fn, /stage/, 'must not be gated on the stage');
   assert.match(fn, /pitchRefcount/, 'exactly what is sounding, not what is scheduled');
@@ -532,7 +590,7 @@ test('Listen lights the pads it is playing, ungated', () => {
 test('the guesser runs no clock — it waits for you, it does not time you', () => {
   const guessDraw = code.match(/view === GUESS_VIEW\) \{([\s\S]*?)\n  \} else if/);
   assert.ok(guessDraw, 'the guess view must have its own draw branch');
-  const svc = code.match(/function serviceGuess\(\) \{([\s\S]*?)\n\}/)[1];
+  const svc = fnBody(code, 'serviceGuess');
   assert.doesNotMatch(svc, /expireMissed|serviceClick|applyWait|songBeats/,
     'no part of the timing engine belongs here');
   /* Its note-offs run on wall time, since there are no beats to schedule on. */
@@ -545,27 +603,27 @@ test('nothing ever lights the answer in the quiz modes', () => {
    * must not reach here at all — not even when it is on. */
   assert.doesNotMatch(code, /guessPads/, 'no answer-lighting path may exist');
   for (const fn of ['collectTarget', 'collectStuck', 'collectSounding']) {
-    const body = code.match(new RegExp('function ' + fn + '\\(\\) \\{([\\s\\S]*?)\\n\\}'))[1];
+    const body = fnBody(code, fn);
     assert.doesNotMatch(body, /quiz/, fn + ' must not read the quiz');
     assert.match(body, /view !== RUNNING|!listening/, fn + ' is confined to the reading mode');
   }
 });
 
 test('a scrub lights the note it lands on, and only while the music is parked', () => {
-  const target = code.match(/function collectTarget\(\) \{([\s\S]*?)\n\}/)[1];
+  const target = fnBody(code, 'collectTarget');
   assert.match(target, /scrubCue && run && \(view === READY \|\| \(view === RUNNING && paused\)\)/);
   assert.ok(target.indexOf('scrubCue') < target.indexOf('stage !== 1'),
     'not behind the stage: scrubbing is finding your place, not a playing aid');
-  assert.match(code.match(/function scrubBy\(delta\) \{([\s\S]*?)\n\}/)[1], /scrubCue = true/);
-  assert.match(code.match(/function armRun\(\) \{([\s\S]*?)\n\}/)[1], /scrubCue = false/,
+  assert.match(fnBody(code, 'scrubBy'), /scrubCue = true/);
+  assert.match(fnBody(code, 'armRun'), /scrubCue = false/,
     'a freshly armed exercise starts dark');
-  assert.match(code.match(/function togglePause\(\) \{([\s\S]*?)\n\}/)[1], /scrubCue = false/,
+  assert.match(fnBody(code, 'togglePause'), /scrubCue = false/,
     'and resuming hands the pads back to the reading-first rule');
 });
 
 test('the quiz is three folders — Hear, Play, Name — and the row picks notes or chords', () => {
-  const play = code.match(/const QUIZ_PLAY = \[([\s\S]*?)\n\];/)[1];
-  const name = code.match(/const QUIZ_NAME = \[([\s\S]*?)\n\];/)[1];
+  const play = code.match(/const QUIZ_PLAY = \[([\s\S]*?)\n\s*\];/)[1];
+  const name = code.match(/const QUIZ_NAME = \[([\s\S]*?)\n\s*\];/)[1];
   for (const rows of [play, name]) {
     assert.match(rows, /guess: GUESS\.NOTES/);
     assert.match(rows, /guess: GUESS\.CHORDS/);
@@ -573,12 +631,12 @@ test('the quiz is three folders — Hear, Play, Name — and the row picks notes
   assert.match(name, /pick: true/, 'Name is the multiple-choice drill');
   assert.doesNotMatch(play, /pick|hear/, 'Play is finding it on the pads');
   assert.match(code, /if \(row\.guess\)[\s\S]{0,100}startQuiz\(settingsQuiz\(row\)\)/);
-  const menu = code.match(/function rebuildMenu\(\) \{([\s\S]*?)\n\}/)[1];
+  const menu = fnBody(code, 'rebuildMenu');
   assert.match(menu, /hearFolder\(\),\s*CAT\.folder\('Play'[\s\S]{0,80}CAT\.folder\('Name'/, 'in that order');
 });
 
 test('leaving the guesser silences it', () => {
-  const back = code.match(/if \(d1 === CC_BACK\) \{([\s\S]*?)\n  \}/)[1];
+  const back = fnBody(sessionCode, 'back');
   assert.match(back, /view === READY \|\| view === GUESS_VIEW[\s\S]{0,80}allNotesOff\(\)/);
 });
 
@@ -586,7 +644,7 @@ test('hearing mode plays the prompt and withholds the notation', () => {
   assert.match(code, /let quizHear = false/);
   /* Played when the quiz starts, when it moves on, and when Play is pressed. */
   assert.match(code, /if \(quizHear\) \{\s*\n\s*hearPrompt\(\);/);
-  assert.match(code, /hidden: quizHear && !quiz\.solved/,
+  assert.match(code, /hidden: S\.quizHear && !quiz\.solved/,
     'the answer is revealed only once it has been played');
   /* And the screen reader must not simply read the answer out. */
   assert.match(code, /announce\('Listen\.'\)/);
@@ -595,7 +653,7 @@ test('hearing mode plays the prompt and withholds the notation', () => {
 test('the quiz rebuilds itself on a key change, rather than calling a build it has no', () => {
   /* A quiz row is a mode, not an exercise, so it carries no build(). Turning
    * the key knob with one open used to throw. */
-  const edit = code.match(/function editSetting\(index, delta\) \{([\s\S]*?)\n\}/)[1];
+  const edit = fnBody(code, 'editSetting');
   /* All three: dropping quizPick turned a Pick quiz into a Guess quiz the
    * moment the key changed. */
   assert.match(edit, /view === GUESS_VIEW && quiz\)[\s\S]{0,160}startQuiz\(quizSpec\.pinned \? quizSpec/);
@@ -609,7 +667,7 @@ test('the feedback flashes exist — they were deleted once and shipped', () => 
 });
 
 test('the jog cannot change what you are playing', () => {
-  const jog = code.match(/function onJog\(delta\) \{([\s\S]*?)\n\}/)[1];
+  const jog = fnBody(code, 'moveSelection');
   assert.doesNotMatch(jog, /selectExercise/, 'only Back then the list may do that');
   assert.doesNotMatch(jog, /'select'/);
   assert.match(jog, /next\.action !== 'cursor'/);
@@ -618,8 +676,8 @@ test('the jog cannot change what you are playing', () => {
 test('a finished round is recorded, and the history survives an update', () => {
   assert.match(code, /STATS\.makeRecord\(/);
   assert.match(code, /STATS\.addRecord\(stats, rec\)/);
-  assert.match(code, /function saveStats\(\)[\s\S]{0,200}writeFile\(STATS_PATH/);
-  assert.match(code, /STATS_PATH = MODULE_DIR \+ '\/stats\.json'/);
+  assert.match(code, /function saveStats\(\)[\s\S]{0,200}writeText\(STATS_FILE/);
+  assert.match(code, /STATS_FILE = 'stats\.json'/);
   /* The rate only means something within one drill. */
   assert.match(code, /function currentDrill\(\)[\s\S]{0,240}STATS\.drillId/);
 });
@@ -629,34 +687,35 @@ test('the round clock is the module clock, not wall time', () => {
   assert.match(code, /GUESS\.pressPitch\(quiz, pitch, now\(\)\)/);
   assert.match(code, /GUESS\.roundElapsed\(quiz, now\(\)\)/);
   /* The timestamp on the record is wall time, which is what a date needs. */
-  assert.match(code, /at: Date\.now\(\)/);
+  assert.match(code, /at: wallNow\(\)/);
+  assert.match(uiCode, /wallNow: \(\) => Date\.now\(\)/);
 });
 
 test('the jog answers in the multiple-choice drill, and only there', () => {
   /* Everywhere else the jog only moves a highlight; here it is the input. */
-  const jog = code.match(/function onJog\(delta\) \{([\s\S]*?)\n\}/)[1];
+  const jog = fnBody(code, 'moveSelection');
   assert.match(jog, /quizPick && quiz && !quiz\.solved[\s\S]{0,80}GUESS\.moveChoice/);
-  const click = code.match(/function onJogClick\(\) \{([\s\S]*?)\n\}/)[1];
+  const click = fnBody(code, 'activate');
   assert.match(click, /quizPick[\s\S]{0,160}GUESS\.pickChoice/);
 });
 
 test('the lit pad is the question, so pressing pads does not answer it', () => {
-  const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(down, /quizPick[\s\S]{0,140}return;/);
+  const down = fnBody(sessionCode, 'play');
+  assert.match(down, /quizPick[\s\S]{0,140}return null;/);
   /* And the prompt is lit deliberately — the one place a quiz lights pads. */
-  const fn = code.match(/function collectPrompt\(\) \{([\s\S]*?)\n\}/)[1];
+  const fn = fnBody(code, 'collectPrompt');
   assert.match(fn, /quizPick/);
   assert.doesNotMatch(fn, /stage/, 'the question is not a hint');
 });
 
 test('Record is the help button in a quiz, and no longer skips the question', () => {
-  const rec = code.match(/if \(d1 === CC_RECORD\) \{([\s\S]*?)\n  \}/)[1];
+  const rec = fnBody(sessionCode, 'recordButton');
   assert.match(rec, /view === GUESS_VIEW[\s\S]{0,60}takeHint\(\)/);
   assert.doesNotMatch(rec, /GUESS\.nextPrompt/, 'skipping was dropped when help took the button');
 });
 
 test('the top rung lights the pads, and only there', () => {
-  const fn = code.match(/function collectPrompt\(\) \{([\s\S]*?)\n\}/)[1];
+  const fn = fnBody(code, 'collectPrompt');
   assert.match(fn, /quiz\.hint < GUESS\.MAX_HINT/, 'below the top rung the pads stay dark');
   assert.match(fn, /quizPick/, 'except in the picking drill, where the pad is the question');
 });
@@ -667,26 +726,38 @@ test('hints are recorded, so the score does not quietly overstate the round', ()
 });
 
 test('an answer pad is a button: it answers before any note is struck', () => {
-  const down = code.match(/function onPadDown\(pad, vel\) \{([\s\S]*?)\n\}/)[1];
+  const down = fnBody(uiCode, 'onPadDown');
   const bar = down.indexOf('AP.inAnswerBar');
   assert.ok(bar >= 0, 'the answer bar is checked');
-  assert.ok(bar < down.indexOf('noteOn('), 'before the note is struck');
-  assert.match(down.slice(bar, down.indexOf('noteOn(')), /return;/, 'and the press stops there');
-  const up = code.match(/function onPadUp\(pad\) \{([\s\S]*?)\n\}/)[1];
-  assert.ok(up.indexOf('answerPressed[pad]') < up.indexOf('noteOff('), 'no note-off for a note never struck');
+  assert.ok(bar < down.indexOf('S.play('), 'before the note is struck');
+  assert.match(down.slice(bar, down.indexOf('S.play(')), /return;/, 'and the press stops there');
+  const up = fnBody(uiCode, 'onPadUp');
+  assert.ok(up.indexOf('answerPressed[pad]') < up.indexOf('S.release('), 'no note-off for a note never struck');
 });
 
 test('reading Info is not part of a round: the clock is moved on by the time away', () => {
-  const close = code.match(/function closeInfo\(\) \{([\s\S]*?)\n\}/)[1];
+  const close = fnBody(code, 'closeInfo');
   assert.match(close, /quiz\.startedAt \+= away/);
   assert.match(close, /quizSolvedAt \+= away/);
-  const open = code.match(/function openInfo\(target\) \{([\s\S]*?)\n\}/)[1];
+  const open = fnBody(code, 'openInfo');
   assert.match(open, /stopPrompt\(\)/, 'and the prompt stops while you read');
   assert.match(open, /togglePause\(\)/, 'a running exercise pauses');
 });
 
 test('the answer cues go through the quiz scheduler and the Quiz sounds setting', () => {
-  const cue = code.match(/function playCue\(res\) \{([\s\S]*?)\n\}/)[1];
+  const cue = fnBody(code, 'playCue');
   assert.match(cue, /if \(!settings\.quizSounds\) return;/);
   assert.match(cue, /guessOn\.push/);
+});
+
+/*
+ * The session is what makes the module portable: it runs in a browser as well
+ * as on a Move only as long as it never reaches for the host itself. Every
+ * host call goes through ui.js, and through fx into the session.
+ */
+test('session.mjs touches no host: everything goes through fx', () => {
+  for (const host of [/host_\w+/, /move_midi_\w+/, /setLED|setButtonLED/, /\bprint\(/, /globalThis/,
+    /performance\.now/, /Date\.now/, /input_filter|screen_reader/, /from '\.\/view\.mjs'/]) {
+    assert.doesNotMatch(sessionCode, host, String(host));
+  }
 });

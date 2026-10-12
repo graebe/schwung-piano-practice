@@ -1,0 +1,63 @@
+/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* Copyright (C) 2026 Torben Gräber */
+
+/*
+ * The page: its faces, its ground, and nothing about any component.
+ *
+ * Every page of the app imports tokens.gen.css, then this, then the kit's and
+ * the music components' stylesheets. Everything is bundled, relative to this
+ * file: the module's web page is served offline, inside Schwung's web manager.
+ */
+
+/* JetBrains Mono, the system's one family (OFL, web/fonts/OFL.txt). Blocking:
+ * a readout drawn in a fallback face and then re-drawn is a jump. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../fonts/JetBrainsMono-Regular.woff') format('woff');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../../fonts/JetBrainsMono-Medium.woff') format('woff');
+  font-weight: 500;
+  font-display: block;
+}
+
+/* The notation: Bravura's SMuFL glyphs, subset and renamed NI Notation (OFL,
+ * web/fonts/Bravura-OFL.txt). No fallback could draw a clef, so it blocks. */
+@font-face {
+  font-family: 'NI Notation';
+  src: url('../../fonts/NINotation.woff') format('woff');
+  font-display: block;
+}
+
+html {
+  background: var(--bg-000);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  /* "Digits must be tabular: a readout must not jitter while a knob turns." */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+}
+
+/*
+ * THE GROUND, at rest: the window ground in bg-000 with the dot paper (bg-dot
+ * 1px dots at a 12px pitch, offset half a pitch) and the 5% uv-deep grain over
+ * it, exactly as the design's `.ph-window` draws it. The grain is the design's
+ * own tile (web/design/ultraviolet-ground-grain.png). A Ground canvas, where a
+ * window has one, draws the same picture over this and moves it.
+ */
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--bg-000);
+  background-image:
+    url('../../design/ultraviolet-ground-grain.png'),
+    radial-gradient(circle, var(--bg-dot) 1px, transparent 1.2px);
+  background-size: 96px 96px, var(--space-3) var(--space-3);
+  background-position: 0 0, calc(var(--space-3) / 2) calc(var(--space-3) / 2);
+}
+
+*, *::before, *::after { box-sizing: border-box; }

@@ -1,6 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["schwung-plugin", "piano"]
+members = ["schwung-plugin", "piano-engine", "piano", "piano-wasm"]
+# What a bare `cargo build` / `cargo test` in dsp/ means: the native crates.
+# piano-wasm is only meaningful for wasm32-unknown-unknown and is built by
+# scripts/build-wasm.sh with an explicit -p and --target; the device build
+# names -p piano, so neither can drag the other along.
+default-members = ["schwung-plugin", "piano-engine", "piano"]
 
 # panic = "abort" is not a size preference. render_block runs ON THE SPI
 # CALLBACK, and unwinding across an `extern "C"` boundary is undefined
