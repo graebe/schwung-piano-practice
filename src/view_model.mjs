@@ -161,18 +161,22 @@ export function clockOf(S, t = null) {
 }
 
 /* What the pads — or a keyboard — would light: the same decision the Move
- * makes, in pitches. */
+ * makes, in pitches. `playing` is every note sounding now, on any screen --
+ * a pad held in the list included -- for a keyboard that shows what is
+ * played wherever you are (the click aside). */
 export function cueOf(S) {
   const near = S.collectTarget();
   S.collectStuck();
   S.collectSounding();
   S.collectPrompt();
+  S.collectPlaying();
   return {
     target: S.targetBuf.slice(),
     near: Boolean(near),
     stuck: S.stuckBuf.slice(),
     sounding: S.soundingBuf.slice(),
     prompt: S.promptBuf.slice(),
+    playing: S.playingBuf.slice(),
   };
 }
 

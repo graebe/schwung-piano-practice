@@ -297,6 +297,25 @@ test('on a Move the staff scrolls with the Move\'s beat, however late each pictu
     .toBeLessThanOrEqual(pxPerFrame + 1);
 });
 
+/* On the Move's list -- no piece, no practice -- a pad held on the Move lights
+ * its key on the page: what the Move plays shows wherever you are. */
+test('a note the Move plays lights the page\'s key on any screen', async ({ page }) => {
+  const flat = moveState();
+  await page.addInitScript((state) => {
+    const send = (fn, fields) => fn(Object.fromEntries(Object.entries(fields).map(([k, v]) => ['overtake_dsp:' + k, v])));
+    window.schwungRemote = {
+      onParamChange(fn) {
+        const cue = { ...JSON.parse(state.cue), playing: [60] };
+        setTimeout(() => send(fn, { ...state, screen: JSON.stringify('menu'), chart: 'null', cue: JSON.stringify(cue) }), 50);
+        return () => {};
+      },
+      setParam() {},
+    };
+  }, flat);
+  await page.goto('./');
+  await expect(page.locator('.kb-key.lit')).toHaveCount(1);
+});
+
 /* The page as it ships in the module: web_ui.html loads the manager's bridge
  * from the manager (/static/schwung-remote-api.js), and that alone must make
  * it the Move's. Here the manager is a route serving a fake bridge. */

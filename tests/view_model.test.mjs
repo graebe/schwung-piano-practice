@@ -225,6 +225,31 @@ test('the clock says when it was taken, how long a beat is, and where it will wa
   assert.equal(clockOf(l.session).waitAt, null);
 });
 
+/* A keyboard on a page shows what the Move plays wherever it is: a pad held
+ * in the list lights its key; the click does not. */
+test('cue.playing is every note sounding, on any screen, but the click', () => {
+  const h = fakeHost({ settings: { version: 7, autoInfo: false, quizSounds: false, click: true } });
+  h.session.init();
+  assert.equal(h.session.view, 'menu');
+  h.session.play(64, 100);
+  assert.deepEqual(viewModel(h.session).cue.playing, [64], 'a pad held in the list');
+  h.session.release(64);
+  assert.deepEqual(viewModel(h.session).cue.playing, []);
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  h.session.playButton();
+  let clicked = false;
+  for (let i = 0; i < 400 && !clicked; i++) {
+    h.run(10);
+    const struck = h.log.some((e) => e[0] === 'strike' && (e[1] === 91 || e[1] === 96));
+    if (struck) {
+      clicked = true;
+      const playing = viewModel(h.session).cue.playing;
+      assert.ok(!playing.includes(91) && !playing.includes(96), `the click is not a note: ${playing}`);
+    }
+  }
+  assert.ok(clicked, 'the click sounded');
+});
+
 test('without the option, marks go at the panel\'s edge, as on the Move', () => {
   /* Wait off, so the scroll keeps moving and the mark scrolls away. */
   const h = fakeHost({ settings: { version: 7, autoInfo: false, quizSounds: false, waitForNote: false } });

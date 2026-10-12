@@ -99,3 +99,12 @@ test('the session\'s Move words are said the page\'s way', () => {
     assert.ok(PHRASES.some(([move]) => s.includes(move.trim())), `not in words.js: ${s}`);
   }
 });
+
+test('the keys light what the Move is playing, on any screen', () => {
+  const vm = { screen: 'menu', cue: { playing: [60, 64] } };
+  const keys = keyStates(vm);
+  assert.equal(keys.get(60), 'lit');
+  assert.equal(keys.get(64), 'lit');
+  assert.equal(keyStates(vm, new Set([60])).get(60), 'held', 'your own finger wins');
+  assert.equal(padStates(vm).get(64), 'now');
+});

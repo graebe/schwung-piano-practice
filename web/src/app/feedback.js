@@ -55,6 +55,8 @@ export function keyStates(vm, held = new Set(), flash = new Map()) {
   put(cue.stuck, 'lit');
   put(cue.prompt, 'lit');
   put(cue.sounding, 'lit');
+  /* What the Move -- or this page's session -- is playing, on any screen. */
+  put(cue.playing, 'lit');
   put(vm.revealed, 'hit');
   for (const p of held) s.set(p, 'held');
   for (const [p, state] of live(flash)) s.set(p, state);
@@ -71,6 +73,7 @@ export function padStates(vm, held = new Set(), flash = new Map()) {
   put(cue.stuck, 'now');
   put(cue.prompt, 'now');
   put(cue.sounding, 'now');
+  put(cue.playing, 'now');
   put(vm.revealed, 'hit');
   for (const p of held) s.set(p, 'held');
   for (const [p, state] of live(flash)) s.set(p, state);

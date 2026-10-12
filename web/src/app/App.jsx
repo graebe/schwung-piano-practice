@@ -241,7 +241,9 @@ export function App(props) {
           </Show>
         </div>
 
-        <Show when={vm() && vm().screen !== 'info' && vm().screen !== 'settings'}>
+        {/* On every screen: what the Move plays lights the keys wherever you
+          * are, the list, the settings and Info included. */}
+        <Show when={vm()}>
           <KeysPanel vm={vm} store={store} dispatch={dispatch} narrow={narrow}
                      surface={surface} setSurface={setSurface} />
         </Show>

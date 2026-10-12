@@ -1114,6 +1114,25 @@ export function createSession(fx, opts = {}) {
     for (const key in pitchRefcount) soundingBuf.push(+key);
   }
   /*
+   * Every pitch sounding now, whatever the screen: a pad held in the list, a
+   * key played on a page, Listen, a quiz's prompt, the reference line. Not
+   * the click -- a metronome tick is not a note anyone played -- which is the
+   * scheduled offs marked as the click's, so nothing new has to be kept in
+   * step. The Move's own pads light from collectSounding, which is Listen's;
+   * this is for a renderer that shows a keyboard (view_model.mjs, cue.playing).
+   */
+  const playingBuf = [];
+  function collectPlaying() {
+    playingBuf.length = 0;
+    const clicks = {};
+    for (let i = 0; i < listenOff.length; i++) {
+      if (listenOff[i].click) clicks[listenOff[i].pitch] = (clicks[listenOff[i].pitch] || 0) + 1;
+    }
+    for (const key in pitchRefcount) {
+      if (pitchRefcount[key] > (clicks[key] || 0)) playingBuf.push(+key);
+    }
+  }
+  /*
    * The answer bar: the Hear drills' answers as coloured pads. Only there —
    * in Name the lit pads ARE the question, and a bar across the bottom row
    * covered the very pads you were being asked about, so Name answers with the
@@ -1139,7 +1158,7 @@ export function createSession(fx, opts = {}) {
      * ringing when the module closed between the note-on and its scheduled off. */
     const pitch = downbeat ? 96 : 91;
     noteOn(pitch, downbeat ? 90 : 55);
-    listenOff.push({ pitch, atBeats: songBeats + 0.1 });
+    listenOff.push({ pitch, atBeats: songBeats + 0.1, click: true });
   }
 
   /*
@@ -1974,6 +1993,8 @@ export function createSession(fx, opts = {}) {
     collectTarget,
     collectStuck,
     collectSounding,
+    collectPlaying,
+    playingBuf,
     collectPrompt,
     targetBuf,
     stuckBuf,
