@@ -169,3 +169,27 @@ test('a jump of a beat or more is drawn at once; a pause holds; no picture, no b
   old.anchor({ ...base, t: null, beats: 2 }, 1000);
   assert.equal(old.at(1500), 3);
 });
+
+test('a picture that teaches a smaller delay is eased in, not stepped', () => {
+  /* The first picture was 300 ms late; the next, 20 ms late, shows the page
+   * was drawing 280 ms behind -- under a beat, so a correction to ease. */
+  const ph = createPlayhead();
+  const base = { perBeatMs: 500, running: true, paused: false, blocked: false, waitAt: null };
+  ph.anchor({ ...base, t: 0, beats: 0 }, 300);
+  let last = ph.at(300);
+  let worst = 0;
+  let at = 300;
+  for (let page = 300; page <= 1500; page += 1000 / 60) {
+    if (page >= 920 && page - 1000 / 60 < 920) ph.anchor({ ...base, t: 900, beats: 1.8 }, 920);
+    const b = ph.at(page);
+    worst = Math.max(worst, b - last);
+    last = b;
+    at = page;
+  }
+  assert.ok(worst < 0.15, `the worst frame moved ${worst.toFixed(3)} beats`);
+  /* Half a second on, the correction has faded: the truth is the Move's
+   * beat at the page's time, 20 ms earlier on the Move. */
+  const truth = 1.8 + (at - 20 - 900) / 500;
+  assert.ok(Math.abs(last - truth) < 0.005, `and is in time by then: ${last} against ${truth}`);
+});
+
