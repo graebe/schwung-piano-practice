@@ -112,8 +112,10 @@ export function createPlayhead({ sync = createClockSync(), easeMs = EASE_MS, sna
   return {
     anchor(clock, local) {
       if (!clock) return;
-      if (Number.isFinite(clock.t)) sync.observe(clock.t, local);
+      /* What is drawn now, by the clock as it was -- before this picture
+       * teaches it a new offset, which is a correction to ease in too. */
       const was = c && shown !== null ? at(local) : null;
+      if (Number.isFinite(clock.t)) sync.observe(clock.t, local);
       c = clock;
       arrivedAt = local;
       const now = target(local);
