@@ -7,7 +7,17 @@
  * one semitone right, five semitones up — so the same pitch appears on several
  * pads and nothing looks like a keyboard. Finding a pitch is its own problem,
  * and the reading mode can never drill it because the note is always moving.
- * Here it sits still, named, until you play it.
+ * Here it waits, until you play it.
+ *
+ * The Play drills read it one of two ways, and show what is coming next:
+ *
+ *   name   the letter or chord symbol only — any octave, any voicing counts,
+ *          since a name carries no octave; this drills the grid
+ *   staff  the notation only, no name — the written pitches exactly; this
+ *          drills reading
+ *
+ * Either way a row of prompts is queued up, like the notes of a song, and it
+ * moves on one prompt per right answer.
  */
 
 import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './generator.mjs';
@@ -33,6 +43,14 @@ export const MAX_HINT = 2;        /* rungs on the help ladder */
 export const TRIADS = 'triads';   /* diatonic triads on scale degrees */
 export const TYPES = 'types';     /* a quality chosen deliberately: dim, sus, 7ths... */
 export const ADVANCED = 'advanced'; /* ...and ninths, and altered dominants */
+
+/* How a Play drill is read. Null for everything else: hearing, picking. */
+export const READ_NAME = 'name';
+export const READ_STAFF = 'staff';
+/* Prompts in a Play drill's row: the one to play and the five after it. Four
+ * fit on the Move's screen at the staff's spacing; the fifth is coming in at
+ * the edge and the sixth is already there to glide in behind it. */
+export const LOOKAHEAD = 6;
 
 export const CORRECT = 'correct';
 export const WRONG = 'wrong';
@@ -130,6 +148,7 @@ export function createQuiz({
   exercise = null,      /* EAR: which exercise of ear.mjs, by key */
   level = null,         /* EAR: and which of its levels */
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
+  read = null,          /* Play drills: READ_NAME or READ_STAFF */
   seed = 1,
 } = {}) {
   const ear = kind === EAR ? exerciseByKey(exercise) : null;
@@ -152,6 +171,10 @@ export function createQuiz({
     answers,
     groups: ear ? groupByAnswer(pool, answers) : null,
     fifths,
+    read: read === READ_NAME || read === READ_STAFF ? read : null,
+    /* The prompt and what follows it, head first. A Play drill shows them all;
+     * everything else only ever has the one. */
+    queue: [],
     entry: null,        /* the pool entry behind the current prompt */
     choices: [],        /* the options offered, when picking */
     choiceIndex: 0,
@@ -187,9 +210,19 @@ export function nextPrompt(quiz) {
     quiz.label = null;
     return quiz.prompt;
   }
-  const chosen = quiz.kind === EAR
-    ? pickEntry(quiz.groups, quiz.rand, quiz.entry)
-    : randomEntry(quiz);
+  let chosen;
+  if (quiz.kind === EAR) {
+    chosen = pickEntry(quiz.groups, quiz.rand, quiz.entry);
+  } else {
+    /* Drawn in order, each against the one before it, so a row reads exactly
+     * as the same prompts would have arrived one at a time. */
+    const depth = quiz.read ? LOOKAHEAD : 1;
+    quiz.queue.shift();
+    while (quiz.queue.length < depth) {
+      quiz.queue.push(randomEntry(quiz, quiz.queue[quiz.queue.length - 1] || quiz.entry));
+    }
+    chosen = quiz.queue[0];
+  }
   quiz.prompt = chosen.pitches.slice();
   quiz.label = chosen.label;
   quiz.entry = chosen;
@@ -212,9 +245,10 @@ export function nextPrompt(quiz) {
   return quiz.prompt;
 }
 
-function randomEntry(quiz) {
-  const previous = quiz.prompt.join(',') + '|' + (quiz.label || '');
-  const same = (e) => e.pitches.join(',') + '|' + (e.label || '') === previous;
+function randomEntry(quiz, before) {
+  const key = (e) => e.pitches.join(',') + '|' + (e.label || '');
+  const previous = before ? key(before) : '';
+  const same = (e) => key(e) === previous;
   let chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
   if (quiz.pool.length > 1) {
     let guard = 8;
@@ -240,13 +274,35 @@ function isRight(quiz, option) {
   return option === quiz.entry;
 }
 
+const pc = (pitch) => ((pitch % 12) + 12) % 12;
+
 function evaluate(quiz) {
+  if (quiz.read === READ_NAME) return evaluateByName(quiz);
   for (let i = 0; i < quiz.held.length; i++) {
     if (quiz.prompt.indexOf(quiz.held[i]) < 0) return WRONG;
   }
   /* Deduplicated on the way in, so equal lengths means the whole chord is
    * down — which is what makes a chord a chord rather than an arpeggio. */
   return quiz.held.length === quiz.prompt.length ? CORRECT : INCOMPLETE;
+}
+
+/*
+ * A name has no octave, so the answer is its pitch classes: any F for "F", and
+ * A, C and E in any octave or inversion for "Am". Still held together, and
+ * still nothing outside the chord — a doubled note is fine, a stray one is not.
+ */
+function evaluateByName(quiz) {
+  const wanted = quiz.prompt.map(pc);
+  const have = [];
+  for (let i = 0; i < quiz.held.length; i++) {
+    const p = pc(quiz.held[i]);
+    if (wanted.indexOf(p) < 0) return WRONG;
+    if (have.indexOf(p) < 0) have.push(p);
+  }
+  for (let i = 0; i < wanted.length; i++) {
+    if (have.indexOf(wanted[i]) < 0) return INCOMPLETE;
+  }
+  return CORRECT;
 }
 
 /*
@@ -345,6 +401,16 @@ export function labelFor(quiz, pitches) {
 
 export function optionLabel(quiz, entry) {
   return entry.label || labelFor(quiz, entry.pitches);
+}
+
+/*
+ * What a name drill shows for an entry: the letter without its octave, or the
+ * chord's symbol. A stack that is not a chord — degrees of a non-tertian scale —
+ * shows its notes, which is the honest name for it.
+ */
+export function entryName(quiz, entry) {
+  if (entry.pitches.length === 1) return spell(entry.pitches[0], quiz.fifths).label;
+  return entry.label || nameChord(entry.pitches, quiz.fifths) || chordLabel(entry.pitches, quiz.fifths);
 }
 
 export function isEliminated(quiz, index) {

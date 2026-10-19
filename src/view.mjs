@@ -352,6 +352,132 @@ export function drawGuessView(ctx, state) {
 }
 
 /*
+ * A Play drill: the prompt and the ones after it, in a row that moves on one
+ * step per right answer — the song's scroll, paced by your answers instead of
+ * a tempo.
+ *
+ *   staff  noteheads only, on the staff, the prompt on the hit line; the name
+ *          stays hidden (reading it is the drill) until Help reveals it
+ *   name   the names only, big, no staff; the prompt boxed at the left
+ *
+ * `glide` (0..1) is how far the row has moved towards the next prompt. The
+ * session eases it over the pause after a right answer and shifts the queue
+ * as it reaches 1, so a full glide and a fresh row are the same picture.
+ *
+ * state = { queue: [{ pitches, name }], read, glide, solved, hint, fifths,
+ *           title, score, footer }
+ */
+export const QUIZ_STEP_PX = L.PX_PER_BEAT_DEFAULT;   /* one prompt per beat */
+export const QUIZ_NAME_X = 4;
+export const QUIZ_NAME_SCALE = 3;
+export const QUIZ_NAME_GAP = 14;
+/* Centred on the staff, where the eye already is in every other drill. */
+export const QUIZ_NAME_Y = L.STAFF_TOP_Y + ((L.STAFF_BOTTOM_Y - L.STAFF_TOP_Y
+  - R.bigDigitHeight(QUIZ_NAME_SCALE)) >> 1);
+
+export function drawQuizRow(ctx, state) {
+  ctx.clear();
+  const staff = state.read === 'staff';
+  if (staff) drawStaffRow(ctx, state);
+  else drawNameRow(ctx, state);
+
+  R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: staff });
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+function drawStaffRow(ctx, state) {
+  const { queue, fifths = 0 } = state;
+  const shift = (state.glide || 0) * QUIZ_STEP_PX;
+  R.drawStaff(ctx);
+  R.drawHitLine(ctx);
+  for (let i = 0; i < queue.length; i++) {
+    const x = L.HIT_X + i * QUIZ_STEP_PX - shift;
+    if (x < L.DESPAWN_X) continue;
+    if (x > L.SCREEN_W + L.HEAD_W) break;
+    const notes = [];
+    const state0 = i === 0 && state.solved ? 'hit' : 'pending';
+    for (let n = 0; n < queue[i].pitches.length; n++) {
+      const pitch = queue[i].pitches[n];
+      if (!inStaffRange(pitch)) continue;
+      notes.push({ y: pitchToY(pitch, fifths), alter: spell(pitch, fifths).alter, state: state0 });
+    }
+    if (notes.length) R.drawEntry(ctx, { x, notes, label: '' });
+  }
+  /* Help names the prompt — under it, in the lane where names live. */
+  if (state.hint > 0 && queue.length && queue[0].name) {
+    R.drawLabel(ctx, L.HIT_X - shift, queue[0].name, L.TEXT_MAX_PX - L.HIT_X);
+  }
+  /* The clef over the staff lines, notes vanishing behind it, as in a song. */
+  ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
+  R.drawClef(ctx);
+}
+
+/*
+ * A name split for setting: the root in the big font — a letter and its
+ * accidental, which the big font has — and a chord's quality beside it in the
+ * host font, raised, as a chord symbol is written. A stack with no name comes
+ * as its notes, spaces and all, and goes in the host font whole.
+ */
+export function splitName(name) {
+  const m = /^[A-G][#b]*/.exec(name);
+  if (!m || name.indexOf(' ') >= 0) return { root: '', suffix: name };
+  return { root: m[0], suffix: name.slice(m[0].length) };
+}
+
+export function nameWidth(ctx, name) {
+  const { root, suffix } = splitName(name);
+  const big = root ? R.bigTextWidth(root, QUIZ_NAME_SCALE) : 0;
+  return big + (suffix ? (root ? 1 : 0) + ctx.textWidth(suffix) : 0);
+}
+
+function drawNameRow(ctx, state) {
+  const { queue } = state;
+  const h = R.bigDigitHeight(QUIZ_NAME_SCALE);
+  const head = queue.length ? nameWidth(ctx, queue[0].name) : 0;
+  let x = QUIZ_NAME_X - (state.glide || 0) * (head + QUIZ_NAME_GAP);
+  for (let i = 0; i < queue.length && x < L.SCREEN_W; i++) {
+    const name = queue[i].name;
+    const w = nameWidth(ctx, name);
+    const ix = Math.round(x);
+    if (ix + w > 0) {
+      /* The prompt: boxed while it waits, knocked out once it is played. */
+      const lit = i === 0 && state.solved;
+      if (i === 0) {
+        ctx.fillRect(ix - 2, QUIZ_NAME_Y - 2, w + 4, h + 4, lit ? 1 : 0);
+        if (!lit) ctx.drawRect(ix - 2, QUIZ_NAME_Y - 2, w + 4, h + 4, 1);
+      }
+      drawName(ctx, ix, name, lit ? 0 : 1);
+    }
+    x += w + QUIZ_NAME_GAP;
+  }
+}
+
+function drawName(ctx, x, name, colour) {
+  const { root, suffix } = splitName(name);
+  let cx = x;
+  if (root) {
+    drawBigTextColour(ctx, cx, QUIZ_NAME_Y, root, colour);
+    cx += R.bigTextWidth(root, QUIZ_NAME_SCALE) + 1;
+  }
+  if (suffix) {
+    /* Raised beside a root; centred on the row when it stands alone. */
+    const y = root ? QUIZ_NAME_Y : QUIZ_NAME_Y + ((R.bigDigitHeight(QUIZ_NAME_SCALE) - L.TEXT_H) >> 1);
+    ctx.text(cx, y, suffix, colour);
+  }
+}
+
+/* The big font in either colour: drawn lit, or punched out of a lit box. */
+function drawBigTextColour(ctx, x, y, text, colour) {
+  if (colour) {
+    R.drawBigText(ctx, x, y, text, QUIZ_NAME_SCALE);
+    return;
+  }
+  const lit = { fillRect: (fx, fy, fw, fh) => ctx.fillRect(fx, fy, fw, fh, 0) };
+  R.drawBigText(lit, x, y, text, QUIZ_NAME_SCALE);
+}
+
+/*
  * What you are stuck on, named, in the name lane.
  *
  * It used to be a big boxed callout across the middle of the staff — which

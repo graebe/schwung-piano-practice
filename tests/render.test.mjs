@@ -1567,3 +1567,92 @@ test('more than four answers draw a map of their pads, two rows past eight', () 
   /* The jog's choice is filled, and spelled out in full under the map. */
   assert.notEqual(shot(12, 0).pixels.join(''), shot(12, 11).pixels.join(''));
 });
+
+/* ---- The Play row ------------------------------------------------------------ */
+
+const row = (names, pitches) => names.map((name, i) => ({ name, pitches: pitches[i] || [65] }));
+const STAFF_ROW = row(['F', 'A', 'C', 'E', 'G', 'B'], [[65], [69], [72], [76], [67], [71]]);
+const headAt = (c, x, pitch) => countOn(c, Math.round(x) - 3, pitchToY(pitch, 0) - 2, 7, 5);
+
+test('by staff: the prompt sits on the hit line and the next ones follow it', () => {
+  const c = createScreen();
+  V.drawQuizRow(c, { queue: STAFF_ROW, read: 'staff', glide: 0, fifths: 0, title: 'NOTE STAFF' });
+  assert.ok(countOn(c, L.HIT_X, L.HIT_LINE_TOP_Y, 1, 3) > 0, 'a hit line: this is the song scroll');
+  for (let i = 0; i < 4; i++) {
+    assert.ok(headAt(c, L.HIT_X + i * V.QUIZ_STEP_PX, STAFF_ROW[i].pitches[0]) > 0, `entry ${i}`);
+  }
+  assert.ok(countOn(c, 0, L.CLEF_Y, L.STAFF_LEFT_X, 30) > 50, 'the clef');
+});
+
+test('by staff: no names — reading them is the drill — until Help', () => {
+  const c = createScreen();
+  V.drawQuizRow(c, { queue: STAFF_ROW, read: 'staff', glide: 0, fifths: 0 });
+  assert.equal(countOn(c, 0, L.NAME_LANE_Y, W, L.TEXT_H), 0, 'the lane is empty');
+  const helped = createScreen();
+  V.drawQuizRow(helped, { queue: STAFF_ROW, read: 'staff', glide: 0, fifths: 0, hint: 1 });
+  assert.ok(countOn(helped, L.HIT_X - 3, L.NAME_LANE_Y, 12, L.TEXT_H) > 0, 'Help names the prompt');
+});
+
+test('by staff: the row glides one step left, and the played prompt leaves before the clef', () => {
+  const half = createScreen();
+  V.drawQuizRow(half, { queue: STAFF_ROW, read: 'staff', glide: 0.5, solved: true, fifths: 0 });
+  const x = L.HIT_X + V.QUIZ_STEP_PX - V.QUIZ_STEP_PX * 0.5;
+  assert.ok(headAt(half, x, 69) > 0, 'the next one is half way to the line');
+  const done = createScreen();
+  V.drawQuizRow(done, { queue: STAFF_ROW, read: 'staff', glide: 1, solved: true, fifths: 0 });
+  const fresh = createScreen();
+  V.drawQuizRow(fresh, { queue: STAFF_ROW.slice(1), read: 'staff', glide: 0, fifths: 0 });
+  /* A full glide is the next row at rest, so the shift does not show. */
+  assert.equal(toAscii(done), toAscii(fresh));
+});
+
+test('by staff: a played prompt turns to the ring, as a hit note does in a song', () => {
+  const waiting = createScreen();
+  V.drawQuizRow(waiting, { queue: STAFF_ROW, read: 'staff', glide: 0, fifths: 0 });
+  const played = createScreen();
+  V.drawQuizRow(played, { queue: STAFF_ROW, read: 'staff', glide: 0, solved: true, fifths: 0 });
+  assert.notEqual(toAscii(waiting), toAscii(played));
+});
+
+test('by name: big letters, no staff, the prompt boxed', () => {
+  const c = createScreen();
+  V.drawQuizRow(c, { queue: row(['C#', 'F', 'Bb', 'G', 'E', 'D'], []), read: 'name', glide: 0, title: 'NOTE' });
+  let lines = 0;
+  for (const y of L.STAFF_LINE_YS) if (countOn(c, 40, y, 80, 1) === 80) lines++;
+  assert.equal(lines, 0, 'no staff lines');
+  assert.equal(countOn(c, 0, L.NAME_RULE_Y, W, 1) < W, true, 'no name lane rule');
+  const box = V.QUIZ_NAME_Y - 2;
+  assert.ok(countOn(c, V.QUIZ_NAME_X - 2, box, V.nameWidth(c, 'C#') + 4, 1) > 10, 'the box top');
+  const h = R.bigDigitHeight(V.QUIZ_NAME_SCALE);
+  assert.ok(h >= 15, 'big enough to read at a glance');
+});
+
+test('by name: a played prompt is knocked out, then glides off the left', () => {
+  const names = row(['A', 'C', 'E', 'G', 'B', 'D'], []);
+  const played = createScreen();
+  V.drawQuizRow(played, { queue: names, read: 'name', glide: 0, solved: true });
+  const w = V.nameWidth(played, 'A');
+  assert.equal(countOn(played, V.QUIZ_NAME_X - 2, V.QUIZ_NAME_Y - 2, w + 4, 1), w + 4, 'a lit box');
+  const done = createScreen();
+  V.drawQuizRow(done, { queue: names, read: 'name', glide: 1, solved: true });
+  const fresh = createScreen();
+  V.drawQuizRow(fresh, { queue: names.slice(1), read: 'name', glide: 0 });
+  /* The played name has left; what follows sits where the fresh row puts it.
+   * Only the box differs: it belongs to whichever prompt is current. */
+  const past = V.QUIZ_NAME_X + V.nameWidth(done, 'C') + 3;
+  for (let y = 10; y < L.NAME_RULE_Y; y++) {
+    assert.deepEqual(rowRun(done, y, past), rowRun(fresh, y, past), `row ${y}`);
+  }
+  assert.equal(countOn(done, V.QUIZ_NAME_X, V.QUIZ_NAME_Y, V.nameWidth(done, 'C'), 15),
+    countOn(fresh, V.QUIZ_NAME_X, V.QUIZ_NAME_Y, V.nameWidth(fresh, 'C'), 15), 'C, where the row starts');
+});
+
+test('by name: a chord symbol is its root, big, and its quality beside it', () => {
+  assert.deepEqual(V.splitName('F#m7b5'), { root: 'F#', suffix: 'm7b5' });
+  assert.deepEqual(V.splitName('Bb'), { root: 'Bb', suffix: '' });
+  assert.deepEqual(V.splitName('C D F#'), { root: '', suffix: 'C D F#' }, 'no chord: its notes, small');
+  const c = createScreen();
+  V.drawQuizRow(c, { queue: row(['F#maj7#11', 'C', 'Am'], []), read: 'name', glide: 0 });
+  const w = V.nameWidth(c, 'F#maj7#11');
+  assert.ok(V.QUIZ_NAME_X + w + 2 < W, 'the widest symbol fits the screen: ' + w);
+});

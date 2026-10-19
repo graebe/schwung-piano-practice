@@ -83,6 +83,13 @@ test('quiz steps carry their options, and the id says the same thing', () => {
     assert.equal(drillId(back), drillId(step.quiz), step.id);
   }
   for (const step of trackSteps(tracks[3])) assert.ok(step.quiz, step.id);
+  /* A staff drill, from a repetition or a Next, opens as a staff drill. */
+  for (const id of ['quiz:staff:notes:half', 'quiz:staff:chords:advanced']) {
+    const back = quizFromId(id);
+    assert.equal(back.read, 'staff', id);
+    assert.equal('quiz:' + drillId(back), id);
+  }
+  assert.equal(quizFromId('quiz:guess:notes:key').read, null, 'the name drill, as before');
   assert.equal(quizFromId('quiz:nonsense'), null);
   assert.equal(quizFromId('quiz:guess:planets:x'), null);
   assert.equal(quizFromId('quiz:ear:planets:up'), null);

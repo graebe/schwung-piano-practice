@@ -8,6 +8,8 @@
 import { For, Show, Switch, Match, createSignal, createMemo, onCleanup, onMount } from 'solid-js';
 import { Button } from '../kit/components/Button.jsx';
 import { GrandStaff } from '../music/GrandStaff.jsx';
+import { NameRow } from '../music/NameRow.jsx';
+import { createGlide } from '../music/glide.js';
 import { Keyboard } from '../music/Keyboard.jsx';
 import { PadGrid } from '../music/PadGrid.jsx';
 import { AttemptsChart, RoundsChart, TimelineChart } from './charts.jsx';
@@ -190,10 +192,37 @@ export function QuizView(props) {
     if (quiz.mode === 'ear') return quiz.solved ? quiz.label || '' : quiz.question || 'Listen, then answer.';
     if (quiz.mode === 'pick') return quiz.solved ? 'Right.' : 'Which is lit?';
     if (quiz.mode === 'hear') return quiz.solved ? 'That was it.' : 'Listen, then play it back.';
-    return quiz.solved ? 'Right.' : 'Play it.';
+    if (quiz.solved) return 'Right.';
+    /* Help names a staff drill's prompt here, not under the staff: a name lane
+     * would name the ones coming up too. */
+    if (quiz.read === 'staff' && quiz.queue[0]?.name) return `It is ${quiz.queue[0].name}.`;
+    if (quiz.read === 'staff') return 'Play what is written.';
+    if (quiz.read === 'name') return 'Play it — any octave.';
+    return 'Play it.';
   };
   const promptEvents = () => (q() && q().prompt ? [{ beat: 0, durBeats: 1, pitches: q().prompt, index: 0, symbol: q().label }] : []);
-  const showStaff = () => q() && (q().mode === 'play' || q().mode === 'hear');
+  const showStaff = () => q() && !q().read && (q().mode === 'play' || q().mode === 'hear');
+  const what = () => (q().kind === 'chords' ? 'chord' : 'note');
+
+  /* A Play drill's row on the staff, as a song's notes: one beat per prompt,
+   * the prompt on the hit line, the one just played kept while it leaves. */
+  const head = () => (q()?.queue?.[0]?.index ?? 0);
+  const rowEvents = createMemo((prev) => {
+    const queue = q()?.queue ?? [];
+    /* No length: a prompt is a pitch to find, not a note to hold. */
+    const events = queue.map((e) => ({ beat: e.index, durBeats: 0, pitches: e.pitches, index: e.index }));
+    const before = prev.find((e) => e.index === head() - 1);
+    return before ? [before, ...events] : events;
+  }, []);
+  const rowJudgements = () => {
+    const out = { [head() - 1]: 'hit' };
+    out[head()] = q().solved ? 'hit' : 'pending';
+    return out;
+  };
+  /* The row moves on as soon as the answer is right, while the session still
+   * holds the old prompt — so the queue's shift lands where the glide ends. */
+  const glide = createGlide();
+  const rowBeats = () => glide(head() + (q()?.solved ? 1 : 0));
   return (
     <Show when={q()}>
       <section class="screen quiz-screen" aria-labelledby="quiz-title">
@@ -215,6 +244,19 @@ export function QuizView(props) {
                             hitLine={false} judgements={[q().solved ? 'hit' : 'pending']}
                             label={`The ${q().kind === 'chords' ? 'chord' : 'note'} to play`} />
               </Show>
+            </div>
+          </Show>
+          <Show when={q().read === 'staff'}>
+            <div class="quiz-staff quiz-row">
+              <GrandStaff events={rowEvents()} judgements={rowJudgements()} fifths={q().fifths} timeSig={null}
+                          beats={rowBeats} hitX={0.2} showNames={false} barLines={false}
+                          blockingIndex={q().solved ? null : head()}
+                          label={`The ${what()} to play, and the ones after it`} />
+            </div>
+          </Show>
+          <Show when={q().read === 'name'}>
+            <div class="quiz-row">
+              <NameRow items={q().queue} solved={q().solved} label={`The ${what()} to play, and the ones after it`} />
             </div>
           </Show>
           <Show when={q().options.length}>

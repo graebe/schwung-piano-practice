@@ -133,7 +133,11 @@ date and tempo; *The numbers* opens them as a table.
 
 **Quiz** has three folders, each a different skill:
 
-- **Play** — a note or chord is shown; find it on the keys.
+- **Play** — notes or chords in a row; play the first and the row moves on.
+  Four drills: **Notes by alphabet** and **Chords by name** show only the name,
+  and any octave or inversion counts; **Notes by staff** and **Chords by staff**
+  show only the notation, and only the written notes count. **Help** names the
+  first one, then lights its keys.
 - **Name** — a key is lit; choose its name.
 - **Hear** — something is played; say what it was. Eighteen exercises, from
   *higher or lower* to seventh chords and scale degrees, easiest first.

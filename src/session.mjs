@@ -464,12 +464,17 @@ export function createSession(fx, opts = {}) {
    *   Play   a note or chord is shown; you find it on the pads
    *   Name   a pad is lit; you name it
    *
+   * Play is read two ways: by its name (any octave counts) or off the staff
+   * (the written pitches). Either way the next prompts queue up to the right.
+   *
    * Play and Name follow the Half tones and Chords settings, and their ids do
    * too, so a chromatic round and an in-key round are filed apart.
    */
   const QUIZ_PLAY = [
-    { label: 'Notes', guess: GUESS.NOTES },
-    { label: 'Chords', guess: GUESS.CHORDS },
+    { label: 'Notes by alphabet', guess: GUESS.NOTES, read: GUESS.READ_NAME },
+    { label: 'Notes by staff', guess: GUESS.NOTES, read: GUESS.READ_STAFF },
+    { label: 'Chords by name', guess: GUESS.CHORDS, read: GUESS.READ_NAME },
+    { label: 'Chords by staff', guess: GUESS.CHORDS, read: GUESS.READ_STAFF },
   ];
   const QUIZ_NAME = [
     { label: 'Notes', guess: GUESS.NOTES, pick: true },
@@ -478,7 +483,7 @@ export function createSession(fx, opts = {}) {
 
   function settingsQuiz(row) {
     return {
-      kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick),
+      kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick), read: row.read || null,
       halfTones: settings.halfTones, chordSet: settings.chordSet, pinned: false,
     };
   }
@@ -648,6 +653,7 @@ export function createSession(fx, opts = {}) {
       level: spec.level,
       roundSize: settings.roundSize,
       fifths: keyFifths(),
+      read: quizRead(spec),
       seed: (wallNow() & 0x7fffffff) || 1,
     });
     quizSolvedAt = 0;
@@ -662,15 +668,41 @@ export function createSession(fx, opts = {}) {
     } else if (quizHear) {
       hearPrompt();
       announce('Ear training. Listen, then play what you hear.');
+    } else if (quiz.read === GUESS.READ_STAFF) {
+      /* The name is the answer here; saying it would read the staff for you. */
+      announce((quiz.kind === GUESS.CHORDS ? 'Chords' : 'Notes') + ' by staff. Play what is written.');
     } else {
       announce('Note guesser. Play ' + promptName() + '.');
     }
     autoInfo({ id: quizId(spec) });
   }
 
+  /*
+   * How a quiz that is played on the pads is read. A Play row says; a program
+   * step or a repetition from before the split asked for the name and the
+   * notes together, which the name drill — same id — now is.
+   */
+  function quizRead(spec) {
+    if (spec.kind === GUESS.EAR || spec.hear || spec.pick) return null;
+    return spec.read === GUESS.READ_STAFF ? GUESS.READ_STAFF : GUESS.READ_NAME;
+  }
+
+  /*
+   * How far the row has moved on towards the next prompt: 0 at rest, rising to
+   * 1 over the pause after a right answer — which is exactly when nextPrompt
+   * shifts the queue, so the jump back to 0 lands on the same picture. Eased
+   * out, as the song staff settles: quick to leave, gentle to arrive.
+   */
+  function quizGlide() {
+    if (!quiz || !quiz.read || !quizSolvedAt) return 0;
+    const f = Math.min(1, Math.max(0, (now() - quizSolvedAt) / GUESS_ADVANCE_MS));
+    return 1 - Math.pow(1 - f, 3);
+  }
+
   /* What the prompt is called: its chord symbol if it has one, else its notes. */
   function promptName() {
     if (!quiz) return '';
+    if (quiz.read === GUESS.READ_NAME && quiz.entry) return GUESS.entryName(quiz, quiz.entry);
     return quiz.label || NOTATION.chordLabel(quiz.prompt, keyFifths());
   }
 
@@ -1270,10 +1302,13 @@ export function createSession(fx, opts = {}) {
       if (quizHear) {
         hearPrompt();
         announce('Listen.');
-      } else {
+      } else if (quiz.read !== GUESS.READ_STAFF) {
         announce(promptName());
       }
+      return;
     }
+    /* The row is gliding on: every frame of it is a new picture. */
+    if (quizSolvedAt && quiz && quiz.read) dirty = true;
   }
 
   function serviceNoteOffs() {
@@ -1990,6 +2025,7 @@ export function createSession(fx, opts = {}) {
     decorateRow,
     progressDetail,
     keyFifths,
+    quizGlide,
     collectTarget,
     collectStuck,
     collectSounding,

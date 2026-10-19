@@ -27,10 +27,13 @@ export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound *
  */
 export function drillId({ hear = false, pick = false, kind = 'notes',
                           chordSet = 'triads', halfTones = false,
-                          exercise = '', level = '' } = {}) {
+                          read = null, exercise = '', level = '' } = {}) {
   /* A hearing drill is its exercise and level: ear:thirds:up. */
   if (kind === 'ear') return 'ear:' + exercise + ':' + level;
-  const mode = pick ? 'pick' : (hear ? 'hear' : 'guess');
+  /* Reading the staff is a different skill from finding a name on the grid, so
+   * it is filed apart. The name drills keep 'guess': they are what Play asked
+   * before the split, and their history carries on. */
+  const mode = pick ? 'pick' : (hear ? 'hear' : (read === 'staff' ? 'staff' : 'guess'));
   if (kind === 'chords') {
     const set = chordSet === 'types' || chordSet === 'advanced' ? chordSet : 'triads';
     return mode + ':chords:' + set;
@@ -40,7 +43,7 @@ export function drillId({ hear = false, pick = false, kind = 'notes',
 
 const DRILL_WORDS = {
   /* The Quiz folder's own words: Play finds it on the pads, Name names a lit pad. */
-  guess: 'Play', hear: 'Hear', pick: 'Name',
+  guess: 'Play', hear: 'Hear', pick: 'Name', staff: 'Staff',
   notes: 'notes', chords: 'chords',
   half: 'chromatic', key: 'in key', types: 'types', triads: 'triads',
   advanced: 'advanced',

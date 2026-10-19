@@ -210,6 +210,23 @@ test('an empty history plots nothing rather than throwing', () => {
   assert.deepEqual(sparkline([], 100, 20), []);
 });
 
+test('reading the staff is its own trend; reading the name keeps the old one', () => {
+  assert.equal(drillId({ kind: 'notes', halfTones: true, read: 'name' }), 'guess:notes:half');
+  assert.equal(drillId({ kind: 'notes', halfTones: true }), 'guess:notes:half');
+  assert.equal(drillId({ kind: 'notes', halfTones: true, read: 'staff' }), 'staff:notes:half');
+  assert.equal(drillId({ kind: 'chords', chordSet: 'advanced', read: 'staff' }), 'staff:chords:advanced');
+  assert.equal(drillId({ kind: 'notes', pick: true, read: 'staff' }), 'pick:notes:key', 'read is a Play facet only');
+  for (const kind of ['notes', 'chords']) {
+    for (const set of ['triads', 'types', 'advanced']) {
+      for (const halfTones of [false, true]) {
+        const label = drillLabel(drillId({ kind, chordSet: set, halfTones, read: 'staff' }));
+        assert.match(label, /^Staff /);
+        assert.ok(label.length <= 21, `${label} is too wide for the screen`);
+      }
+    }
+  }
+});
+
 test('the multiple-choice drills get their own trends', () => {
   const ids = new Set();
   for (const pick of [false, true]) {

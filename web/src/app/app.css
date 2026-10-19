@@ -207,6 +207,43 @@ button.status-pill { cursor: pointer; }
 .quiz-stage { display: flex; flex-direction: column; gap: var(--space-4); }
 .quiz-ask { margin: 0; font-size: 18px; color: var(--ink); }
 .quiz-staff { max-width: 420px; background: var(--bg-000); border: 1px solid var(--line-100); padding: var(--space-2) 0; }
+.quiz-staff.quiz-row { max-width: 640px; }
+
+/* A name drill's row: the prompt a lit chip at the left, the ones after it
+ * muted and fading out to the right, the whole row sliding on under a fixed
+ * window as each is played. */
+.name-row {
+  position: relative;
+  max-width: 640px;
+  height: calc(32px + 2 * var(--space-3));
+  overflow: hidden;
+  background: var(--bg-000);
+  border: 1px solid var(--line-100);
+  /* A mask reads only alpha: any opaque token will do. */
+  -webkit-mask-image: linear-gradient(to right, var(--ink) 75%, transparent);
+  mask-image: linear-gradient(to right, var(--ink) 75%, transparent);
+}
+.name-row-track {
+  position: absolute;
+  inset: var(--space-3) 0 auto var(--space-4);
+  transition: transform 450ms cubic-bezier(0.33, 1, 0.68, 1);
+  white-space: pre;
+}
+.name-row-name {
+  position: absolute;
+  top: 0;
+  color: var(--ink-muted);
+}
+.name-row-name.head {
+  color: var(--on-uv);
+  background: var(--uv);
+  box-shadow: 0 0 0 var(--space-1) var(--uv), var(--glow-led);
+}
+.name-row-name.solved { color: var(--ink); background: var(--uv-deep); box-shadow: 0 0 0 var(--space-1) var(--uv-deep), var(--glow-led); }
+.name-row-name.gone { color: var(--ink-dim); }
+@media (prefers-reduced-motion: reduce) {
+  .name-row-track { transition: none; }
+}
 .quiz-hidden {
   display: grid;
   place-items: center;

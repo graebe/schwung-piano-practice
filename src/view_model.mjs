@@ -216,6 +216,15 @@ export function quizOf(S) {
     question: ear ? quiz.exercise.question || null : null,
     prompt: hidden ? null : quiz.prompt.slice(),
     label: hidden ? null : quiz.label || null,
+    /* A Play drill's row, head first. `index` counts prompts from the start, so
+     * a prompt keeps its place as the row moves on. A staff drill withholds the
+     * name — reading it is the drill — until Help gives it. */
+    read: quiz.read || null,
+    queue: quiz.read ? quiz.queue.map((e, i) => ({
+      index: quiz.asked - 1 + i,
+      pitches: e.pitches.slice(),
+      name: quiz.read === GUESS.READ_NAME || (i === 0 && quiz.hint > 0) ? GUESS.entryName(quiz, e) : null,
+    })) : [],
     fifths: quiz.fifths,
     solved: quiz.solved,
     hint: quiz.hint,

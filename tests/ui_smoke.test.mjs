@@ -933,7 +933,12 @@ test('the Quiz folder is Hear, Play and Name, and each opens its drills', () => 
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   jog(1);
   const play = screen.frame(click);
-  assert.match(play, /PLAY \| 1\/2 \| Notes .*\| Chords/, play);
+  assert.match(play, /PLAY \| 1\/4 \| Notes by alphabet .*\| Notes by staff .*\| Chords by name .*\| Chords by staff/, play);
+  assert.match(screen.frame(click), /NOTE\b(?! STAFF)/, 'Notes by alphabet opens the name row');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  jog(1);
+  assert.match(screen.frame(click), /NOTE STAFF/, 'Notes by staff opens the staff row');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   jog(1);
   const name = screen.frame(click);

@@ -309,6 +309,7 @@ export function quizFromId(id) {
     kind,
     hear: mode === 'hear',
     pick: mode === 'pick',
+    read: mode === 'staff' ? 'staff' : null,
     halfTones: kind === N ? set === 'half' : false,
     chordSet: kind === C ? set : 'triads',
   };

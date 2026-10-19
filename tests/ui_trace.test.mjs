@@ -282,8 +282,9 @@ const SCENARIOS = {
 
   /*
    * Every quiz kind, each from the Quiz folder (Hear, Play, Name):
-   *   Play notes   every pad in turn, so some are right and most are wrong
-   *   Play chords  both hints, then a few wrong pads
+   *   Play notes   by alphabet: every pad in turn, so some are right and
+   *                most are wrong, and the row glides on after each right one
+   *   Play chords  by staff: both hints, then a few wrong pads
    *   Hear         Higher or lower, answered with the jog until the round ends
    *   Name notes   the same, through to its result and the stats it writes
    */
@@ -301,7 +302,7 @@ const SCENARIOS = {
     for (let p = 0; p < 32; p++) d.pad(p, 40);
     d.run(600); leave();
 
-    open([1, 1]);
+    open([1, 3]);
     d.press(PLAY); d.press(RECORD); d.press(RECORD); d.run(400);
     for (const p of [0, 4, 7]) d.pad(p, 60);
     leave();

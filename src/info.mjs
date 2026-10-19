@@ -299,14 +299,23 @@ function quizPage(drill, label) {
   const what = chords
     ? (set === 'triads' ? 'the triads of the key' : set === 'advanced' ? 'every chord type, ninths and altered too' : 'chord types: dim, sus, 6ths, 7ths')
     : (set === 'half' ? 'every note, black keys too' : 'the notes of the key');
-  const sections = mode === 'pick'
-    ? [sec('', 'A pad lights up - several for a chord. Name it: turn the jog to an answer and click.'),
-      sec('', 'The wrong answers are near misses, so a rough guess will not do. Asks ' + what + '.')]
-    : [sec('', 'A ' + (chords ? 'chord' : 'note') + ' sits on the staff, named. Find it on the pads and play it' +
-        (chords ? ', all its notes at once' : '') + '.'),
-      sec('', 'On this grid one note sits on several pads: any of them counts. Asks ' + what + '.')];
+  const one = chords ? 'chord' : 'note';
+  const all = chords ? ', all its notes at once' : '';
+  let sections;
+  if (mode === 'pick') {
+    sections = [sec('', 'A pad lights up - several for a chord. Name it: turn the jog to an answer and click.'),
+      sec('', 'The wrong answers are near misses, so a rough guess will not do. Asks ' + what + '.')];
+  } else if (mode === 'staff') {
+    sections = [sec('', 'A row of ' + one + 's on the staff, no names: read the first, on the line, and play it' + all + '.'),
+      sec('', 'Play it right and the row moves on; the next ones are already in view. Only the written octave counts. REC once names it. Asks ' + what + '.')];
+  } else {
+    sections = [sec('', 'A row of ' + (chords ? 'chord names' : 'note names') + ': play the boxed one' + all + '.'),
+      sec('', 'A name has no octave, so any octave counts' + (chords ? ', and any inversion' : '') +
+        '. Play it right and the row moves on to the next. Asks ' + what + '.')];
+  }
   sections.push(sec('', 'A round is 20 right answers; the score is answers a minute. Half tones and Chords in settings change what is asked.'));
-  return page(mode === 'pick' ? 'quiz:name' : 'quiz:play', label || (mode === 'pick' ? 'Name' : 'Play'), sections,
+  const key = mode === 'pick' ? 'quiz:name' : mode === 'staff' ? 'quiz:staff' : 'quiz:play';
+  return page(key, label || (mode === 'pick' ? 'Name' : 'Play'), sections,
     chords ? ['chord', 'triad', 'quality', 'hint'] : ['sharp', 'octave', 'hint']);
 }
 
@@ -330,9 +339,9 @@ const FOLDERS = {
   'basics/chords': ['Chords', 'Thirteen families, one lesson per chord quality, each on all twelve roots.', ['chord', 'quality', 'formula']],
   'basics/progressions': ['Progressions', 'Ten common chord progressions in the Key setting\'s key.', ['progression', 'numerals']],
   'basics/random': ['Random', 'Random notes and chords, a new set every time.', ['key', 'chord']],
-  quiz: ['Quiz', 'Short timed rounds. Hear: name a sound. Play: find a shown note on the pads. Name: name a lit pad.', ['hint']],
+  quiz: ['Quiz', 'Short timed rounds. Hear: name a sound. Play: play the notes shown, by name or by staff. Name: name a lit pad.', ['hint']],
   'quiz/hear': ['Hear', 'Ear training, easiest first: high and low, steps, intervals, chords, keys.', ['interval', 'chord']],
-  'quiz/play': ['Play', 'A note or chord is shown on the staff; find it on the pads.', ['octave']],
+  'quiz/play': ['Play', 'Notes or chords in a row, read by name or off the staff; play each and the row moves on.', ['octave']],
   'quiz/name': ['Name', 'A pad lights; name it with the jog.', ['sharp']],
   classics: ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
   electronic: ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],

@@ -77,7 +77,7 @@ Basics            Scales        one folder per Move scale: Up & down, Up, Down, 
                   Progressions  ten progressions in the Key setting's key
                   Random        random notes, and random chords from the whole vocabulary
 Quiz              Hear    name what you hear, or play it back
-                  Play    find a note or chord on the pads
+                  Play    notes by alphabet or staff, chords by name or staff, in a moving row
                   Name    name the pad that is lit
 Classics          folk tunes and the classics, easy first
 Electronic        the chord loops of famous tracks, and five electronic style pieces
@@ -436,17 +436,34 @@ The **Quiz** folder asks in three ways, one folder each:
 | Folder | You are given | You answer by |
 | --- | --- | --- |
 | **Hear** | a sound | naming it, or playing it back — the Hearing exercises below |
-| **Play** | a note or chord on the staff | finding it on the pads |
+| **Play** | a row of notes or chords, by name or on the staff | playing each on the pads |
 | **Name** | a lit pad | choosing its name with the jog |
 
-Play and Name each hold **Notes** and **Chords**; which one you open is how you choose. They follow
-the **Half tones** and **Chords** settings.
+**Play** holds four drills, two ways of reading for notes and for chords:
 
-In **Play**, one note or chord sits still on the staff with its name below it, and it waits until you play it.
-No clock, no scrolling, nothing timed. This drills a different skill from the reading mode: the
-Move's grid is isomorphic — one semitone right, five up — so the same pitch appears on several pads
-and nothing resembles a keyboard. Finding a pitch is its own problem, and the scrolling mode can
-never isolate it because the note is always moving.
+| Drill | The screen shows | What counts |
+| --- | --- | --- |
+| **Notes by alphabet** | the letter only: `F`, `C#`, `Bb` | that note in any octave |
+| **Notes by staff** | the note on the staff, no name | the written note, in its octave |
+| **Chords by name** | the chord symbol only: `Am`, `G7`, `F#m7b5` | its notes in any octave or inversion |
+| **Chords by staff** | the chord on the staff, no name | the written notes |
+
+Each is a row, like the notes of a song: the one to play is first — boxed when it is a name, on the
+hit line when it is on the staff — and the next ones are already in view to the right. Play it right
+and the row glides on by one. Nothing moves until you do: there is no tempo, so the score is how
+many right answers a minute, as in every quiz.
+
+By example, in **Notes by alphabet** with the row `F  C#  A  E`: any F on the grid answers the
+first, the row moves on, and `C#` is next. In **Chords by name**, `Am` is answered by A, C and E held
+together in any order and octave; in **Chords by staff** only the notes as written count.
+
+The name drills are about finding a pitch on the grid, which is its own skill: the Move's grid is
+isomorphic — one semitone right, five up — so the same pitch appears on several pads and nothing
+resembles a keyboard. The staff drills are about reading, so they show no names. Help (REC) names
+the first one, and a second press lights its pads.
+
+Play and Name follow the **Half tones** and **Chords** settings. The name drills keep the history
+the old **Notes** and **Chords** rows had; the staff drills have their own.
 
 A chord has to be **held all at once**. Part of it down is *incomplete*, not a mistake — a note that
 isn't in the chord is what makes it wrong. A wrong answer is counted once and the question stays

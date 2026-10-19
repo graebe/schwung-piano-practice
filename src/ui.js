@@ -543,6 +543,24 @@ function draw() {
         ? (GUESS.hintsLeft(quiz) ? 'PAD answer  REC help' : 'PAD or JOG  CLICK ok')
         : (GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok'),
     });
+  } else if (view === GUESS_VIEW && quiz.read) {
+    const st = GUESS.quizStats(quiz);
+    const staff = quiz.read === GUESS.READ_STAFF;
+    VIEW.drawQuizRow(ctx, {
+      queue: quiz.queue.map((e) => ({ pitches: e.pitches, name: GUESS.entryName(quiz, e) })),
+      read: quiz.read,
+      glide: S.quizGlide(),
+      fifths: S.keyFifths(),
+      solved: quiz.solved,
+      hint: quiz.hint,
+      title: (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE') + (staff ? ' STAFF' : ''),
+      score: quiz.roundSize > 0
+        ? quiz.correct + '/' + quiz.roundSize
+        : st.correct + '/' + st.asked,
+      footer: GUESS.hintsLeft(quiz)
+        ? 'streak ' + st.streak + '   REC help'
+        : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
+    });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
     VIEW.drawGuessView(ctx, {

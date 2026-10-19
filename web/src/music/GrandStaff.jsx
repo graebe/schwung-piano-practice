@@ -55,6 +55,8 @@
  *   showNames     the name lane (default true)
  *   blockingIndex the event the scroll waits on, or null
  *   hitLine       draw the hit line (default true); off for a bare staff
+ *   barLines      draw bar lines (default true); off where there is no metre,
+ *                 as in a quiz's row of prompts
  *   space         the staff space in px (default 10)
  *   label         its accessible name (default "Notation")
  */
@@ -173,6 +175,7 @@ export function GrandStaff(props) {
   });
 
   const bars = createMemo(() => {
+    if (props.barLines === false) return [];
     const per = beatsPerBar(chart());
     const total = chartTotalBeats(chart());
     const off = barOffset();

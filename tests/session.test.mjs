@@ -212,7 +212,7 @@ test('changing the MIDI channel silences the old one before the host moves', () 
 test('a Play quiz: the right note is correct, a wrong one counted once', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Play', 'Notes']);
+  openPath(h.session, ['Quiz', 'Play', 'Notes by staff']);
   assert.equal(h.session.view, GUESS_VIEW);
   const prompt = h.session.quiz.prompt.slice();
   const wrong = h.session.play(prompt[0] + 1, 90);
@@ -221,6 +221,100 @@ test('a Play quiz: the right note is correct, a wrong one counted once', () => {
   const right = h.session.play(prompt[0], 90);
   assert.equal(right.res, GUESS.CORRECT);
   assert.equal(h.session.quiz.wrong, 1);
+});
+
+test('Play is four drills: notes and chords, each by name and by staff', () => {
+  const h = fakeHost();
+  h.session.init();
+  for (const [label, kind, read] of [
+    ['Notes by alphabet', GUESS.NOTES, GUESS.READ_NAME],
+    ['Notes by staff', GUESS.NOTES, GUESS.READ_STAFF],
+    ['Chords by name', GUESS.CHORDS, GUESS.READ_NAME],
+    ['Chords by staff', GUESS.CHORDS, GUESS.READ_STAFF],
+  ]) {
+    openPath(h.session, ['Quiz', 'Play', label]);
+    assert.equal(h.session.view, GUESS_VIEW, label);
+    assert.equal(h.session.quiz.kind, kind, label);
+    assert.equal(h.session.quiz.read, read, label);
+    assert.equal(h.session.quiz.queue.length, GUESS.LOOKAHEAD, label + ': the next ones are queued');
+    h.session.back();
+    h.session.back();
+    h.session.back();
+  }
+});
+
+test('the name drills keep the ids Notes and Chords had; the staff drills are filed apart', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play']);
+  const ids = h.session.nav.at(-1).node.children.map((r) => r.id);
+  assert.deepEqual(ids, [
+    'quiz:guess:notes:half', 'quiz:staff:notes:half', 'quiz:guess:chords:triads', 'quiz:staff:chords:triads',
+  ]);
+});
+
+test('Notes by alphabet takes the note in any octave', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes by alphabet']);
+  const [p] = h.session.quiz.prompt;
+  const res = h.session.play(p >= 72 ? p - 12 : p + 12, 90);
+  assert.equal(res.res, GUESS.CORRECT);
+});
+
+test('Notes by staff wants the written octave', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes by staff']);
+  const [p] = h.session.quiz.prompt;
+  const res = h.session.play(p >= 72 ? p - 12 : p + 12, 90);
+  assert.equal(res.res, GUESS.WRONG);
+});
+
+test('Chords by name takes an inversion; Chords by staff does not', () => {
+  for (const [label, want] of [['Chords by name', GUESS.CORRECT], ['Chords by staff', GUESS.WRONG]]) {
+    const h = fakeHost();
+    h.session.init();
+    openPath(h.session, ['Quiz', 'Play', label]);
+    const chord = h.session.quiz.prompt.slice().sort((a, b) => a - b);
+    const inverted = [...chord.slice(1), chord[0] + 12];
+    let res = null;
+    for (const p of inverted) res = h.session.play(p, 90);
+    assert.equal(res.res, want, label);
+  }
+});
+
+test('a right answer glides the row on, then the next prompt is the one that was queued', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes by staff']);
+  const q = h.session.quiz;
+  const next = q.queue[1];
+  assert.equal(h.session.quizGlide(), 0, 'at rest');
+  h.session.play(q.prompt[0], 90);
+  h.session.release(q.prompt[0]);
+  h.session.dirty = false;
+  h.run(200);
+  const mid = h.session.quizGlide();
+  assert.ok(mid > 0 && mid < 1, 'part way: ' + mid);
+  assert.ok(h.session.dirty, 'each step of the glide is a new frame');
+  h.run(400);
+  assert.equal(h.session.quizGlide(), 0, 'at rest again');
+  assert.equal(q.entry, next);
+  assert.equal(q.queue.length, GUESS.LOOKAHEAD);
+});
+
+test('a staff drill never says the answer out loud; a name drill does', () => {
+  const said = (label) => {
+    const h = fakeHost();
+    h.session.init();
+    openPath(h.session, ['Quiz', 'Play', label]);
+    const name = GUESS.entryName(h.session.quiz, h.session.quiz.entry);
+    const lines = h.log.filter((e) => e[0] === 'say').map((e) => e[1]);
+    return lines.some((t) => t.includes('Play ' + name));
+  };
+  assert.equal(said('Notes by staff'), false);
+  assert.equal(said('Notes by alphabet'), true);
 });
 
 test('a Name quiz answers by option, and a round runs to its result', () => {

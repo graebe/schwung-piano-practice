@@ -111,6 +111,49 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
   await expect(page.locator('.progress-detail svg[role="img"]').first()).toBeVisible();
 });
 
+/* The keys for a name, in every octave: "F#" is spoken "F sharp 4", and "F"
+ * must not match it. */
+const spoken = (name) => new RegExp(`^${name[0]}${name.slice(1).replace('#', ' sharp').replace('b', ' flat')} \\d$`);
+
+test('Notes by alphabet: a row of names, and a right note in any octave moves it on', async ({ page }) => {
+  await openPath(page, ['Quiz', 'Play', 'Notes by alphabet']);
+  const head = page.locator('.name-row-name.head');
+  await expect(head).toHaveAttribute('data-index', '0');
+  expect(await page.locator('.name-row-name').count()).toBeGreaterThanOrEqual(6);
+  for (let i = 0; i < 2; i++) {
+    await expect(page.locator('.quiz-ask')).toHaveText(/any octave/);
+    const name = (await head.textContent()).trim();
+    const labels = await page.locator('.kb-key[aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    const octaves = labels.filter((l) => spoken(name).test(l));
+    expect(octaves.length, `a key for ${name}`).toBeGreaterThan(0);
+    /* The lowest such key one round, the highest the next: either octave counts. */
+    await page.locator(`.kb-key[aria-label="${i === 0 ? octaves[0] : octaves.at(-1)}"]`).click();
+    await expect(head).toHaveAttribute('data-index', String(i + 1), { timeout: 3000 });
+  }
+  await expect(page.locator('.screen-head .t-hint')).toContainText(/^2 /);
+});
+
+test('Notes by staff: the next notes on the staff, no names until Help', async ({ page }) => {
+  await openPath(page, ['Quiz', 'Play', 'Notes by staff']);
+  await expect(page.locator('.quiz-row svg')).toBeVisible();
+  expect(await page.locator('.quiz-row .staff-event').count()).toBeGreaterThanOrEqual(4);
+  await expect(page.locator('.quiz-ask')).toHaveText('Play what is written.');
+  const help = page.getByRole('button', { name: /^Help/ });
+  await help.click();
+  await expect(page.locator('.quiz-ask')).toHaveText(/^It is [A-G]/);
+  await help.click();
+  await page.locator('.kb-key.lit').first().click();
+  await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /, { timeout: 3000 });
+  await expect(page.locator('.quiz-ask')).toHaveText('Play what is written.', { timeout: 3000 });
+});
+
+test('Chords by name: chord symbols in the row', async ({ page }) => {
+  await openPath(page, ['Quiz', 'Play', 'Chords by name']);
+  const names = await page.locator('.name-row-name').allTextContents();
+  expect(names.length).toBeGreaterThanOrEqual(6);
+  for (const n of names) expect(n.trim()).toMatch(/^[A-G][#b]?(m|dim|aug)?$|^[A-G][#b]? /);
+});
+
 test('settings are remembered across a reload', async ({ page }) => {
   await page.getByRole('button', { name: 'Settings' }).click();
   const tempo = page.locator('.setting', { hasText: 'Tempo' });
