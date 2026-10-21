@@ -9,7 +9,7 @@
  * generated and hand-written material are interchangeable downstream.
  */
 
-import { majorKeyFifths } from './notation.mjs';
+import { scaleKey } from './notation.mjs';
 import { DEFAULT_TRANSPOSE, MIDI_BASE_NOTE, ABS_SEMI_LO, ABS_SEMI_HI } from './padmap.mjs';
 
 /*
@@ -132,8 +132,16 @@ export function fitsTriad(pitches, index) {
   return index >= 0 && index + 4 <= pitches.length - 1;
 }
 
-function makeChart(id, name, bpm, keySig, events, extra = {}) {
-  return { id, name, bpm, timeSig: [4, 4], keySig, events, ...extra };
+/*
+ * The key a generated drill is written in: the scale's own spelling (C minor
+ * is Eb Ab Bb, F# major has its E#) and the signature it would carry.
+ */
+export function keyForScale(rootPc, mode) {
+  return scaleKey(rootPc, MODES[mode] || MODES.major, mode);
+}
+
+function makeChart(id, name, bpm, key, events, extra = {}) {
+  return { id, name, bpm, timeSig: [4, 4], keySig: key.fifths, spelling: key.map, events, ...extra };
 }
 
 /*
@@ -178,8 +186,9 @@ export function scaleRun({
   const events = seq.map((pitch, i) => ({ beat: i, durBeats: 1, pitches: [pitch] }));
   /* The display label, not the id: the header has room for "C# Phryg Dom",
    * and "C# phrygianDominant scale" ran off the end of it. */
-  const name = `${PC_NAMES[rootPc]} ${MODE_LABELS[mode] || mode}`;
-  return makeChart(`scale-${rootPc}-${mode}-${direction}-${octaves}`, name, bpm, majorKeyFifths(rootPc), events);
+  const key = keyForScale(rootPc, mode);
+  const name = `${key.root} ${MODE_LABELS[mode] || mode}`;
+  return makeChart(`scale-${rootPc}-${mode}-${direction}-${octaves}`, name, bpm, key, events);
 }
 
 /*
@@ -205,7 +214,8 @@ export function intervalDrill({
     events.push({ beat: i * 2 + 1, durBeats: 1, pitches: [stepInScale(all, base, steps)] });
   }
   const label = { 1: '2nds', 2: '3rds', 3: '4ths', 4: '5ths', 5: '6ths', 6: '7ths' }[steps] || `${steps + 1}ths`;
-  return makeChart(`iv-${rootPc}-${mode}-${steps}-${seed}`, `${PC_NAMES[rootPc]} ${label}`, bpm, majorKeyFifths(rootPc), events);
+  const key = keyForScale(rootPc, mode);
+  return makeChart(`iv-${rootPc}-${mode}-${steps}-${seed}`, `${key.root} ${label}`, bpm, key, events);
 }
 
 /*
@@ -238,7 +248,8 @@ export function triadDrill({
     pitches: triadOn(all, base + deg),
   }));
   const roman = degrees.map((d) => ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][d % size]).join('-');
-  return makeChart(`triad-${rootPc}-${mode}-${degrees.join('')}`, `${PC_NAMES[rootPc]} ${roman}`, bpm, majorKeyFifths(rootPc), events);
+  const key = keyForScale(rootPc, mode);
+  return makeChart(`triad-${rootPc}-${mode}-${degrees.join('')}`, `${key.root} ${roman}`, bpm, key, events);
 }
 
 /*
@@ -271,7 +282,8 @@ export function randomInKey({
     idx = Math.max(0, Math.min(all.length - 1, idx));
     events.push({ beat: i * step, durBeats: step, pitches: [all[idx]] });
   }
-  return makeChart(`rnd-${rootPc}-${mode}-${seed}`, `${PC_NAMES[rootPc]} reading`, bpm, majorKeyFifths(rootPc), events);
+  const key = keyForScale(rootPc, mode);
+  return makeChart(`rnd-${rootPc}-${mode}-${seed}`, `${key.root} reading`, bpm, key, events);
 }
 
 /*

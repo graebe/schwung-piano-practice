@@ -57,6 +57,16 @@ export function fifthsAt(chart, beat) {
   return fifths;
 }
 
+/*
+ * The key to spell in at `beat`: the signature in force, and — for a drill
+ * written in a scale — the scale's own letter for each of its degrees, which
+ * a signature cannot give (C harmonic minor's B natural, F# minor's E#).
+ */
+export function keyAt(chart, beat) {
+  const fifths = fifthsAt(chart, beat);
+  return chart.spelling ? { fifths, map: chart.spelling } : fifths;
+}
+
 /* Beats of the last event, plus its duration — how long the run lasts. */
 export function chartTotalBeats(chart) {
   let end = 0;

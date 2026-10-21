@@ -135,6 +135,7 @@ export function projectLevel(song, levelId) {
     source: 'file',
   };
   if (song.keyChanges) chart.keyChanges = song.keyChanges.map((k) => ({ ...k }));
+  if (song.spelling) chart.spelling = song.spelling;
   return chart;
 }
 

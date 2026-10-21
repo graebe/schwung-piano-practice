@@ -25,6 +25,7 @@ import * as SCORE from './scoring.mjs';
 import * as CAT from './catalog.mjs';
 import * as GUESS from './guess.mjs';
 import * as GEN from './generator.mjs';
+import * as NOTATION from './notation.mjs';
 import * as AP from './answer_pads.mjs';
 import { chartTotalBeats, beatsPerBar, barBeatOf } from './chart.mjs';
 import {
@@ -54,7 +55,10 @@ export function keyOf(settings, fifths) {
     rootPc: settings.rootPc,
     mode: settings.mode,
     modeLabel: GEN.MODE_LABELS[settings.mode] || settings.mode,
+    /* The key to spell in — signature and the scale's own letters — and the
+     * tonic's name as the scale spells it. */
     fifths,
+    root: fifths && fifths.root ? fifths.root : null,
     transpose: settings.transpose,
     scale,
   };
@@ -70,6 +74,7 @@ export function chartOf(chart) {
     bpm: chart.bpm,
     timeSig: chart.timeSig || [4, 4],
     keySig: chart.keySig || 0,
+    spelling: chart.spelling || null,
     keyChanges: chart.keyChanges ? chart.keyChanges.map((k) => ({ beat: k.beat, keySig: k.keySig })) : [],
     total: chartTotalBeats(chart),
     events: chart.events.map((e) => ({
@@ -241,7 +246,8 @@ export function quizOf(S) {
       pitches: e.pitches.slice(),
       name: quiz.read === GUESS.READ_NAME || (i === 0 && quiz.hint > 0) ? GUESS.entryName(quiz, e) : null,
     })) : [],
-    fifths: quiz.fifths,
+    fifths: NOTATION.keyFifths(quiz.fifths),
+    spelling: quiz.fifths && quiz.fifths.map ? quiz.fifths.map : null,
     solved: quiz.solved,
     hint: quiz.hint,
     maxHint: GUESS.MAX_HINT,

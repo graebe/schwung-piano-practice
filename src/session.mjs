@@ -720,8 +720,9 @@ export function createSession(fx, opts = {}) {
     return quiz.label || NOTATION.chordLabel(quiz.prompt, keyFifths());
   }
 
+  /* The Key and Scale settings' key, to spell in: C minor's Eb, not D#. */
   function keyFifths() {
-    return NOTATION.majorKeyFifths(settings.rootPc);
+    return GEN.keyForScale(settings.rootPc, settings.mode);
   }
 
   /*

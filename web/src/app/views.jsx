@@ -114,6 +114,7 @@ export function PracticeView(props) {
       <div class="staff-wrap" classList={{ paused: vm().clock.paused, waiting: vm().clock.blocked }}>
         <GrandStaff events={events()} judgements={judgements()} markers={markers()}
                     fifths={vm().chart ? vm().chart.keySig : 0} keyChanges={vm().chart ? vm().chart.keyChanges : []}
+                    spelling={vm().chart ? vm().chart.spelling : null}
                     timeSig={vm().chart ? vm().chart.timeSig : null}
                     blockingIndex={vm().run && vm().run.blockIndex >= 0 ? vm().run.blockIndex : null}
                     beats={moving() ? () => { const c = props.store.clock(); return c ? c.beats : 0; } : beats()}
@@ -171,7 +172,7 @@ function keyName(vm) {
     const major = ['Cb', 'Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#'][k + 7];
     return `key of ${major}`;
   }
-  return `${names[vm.key.rootPc]} ${vm.key.modeLabel}`;
+  return `${vm.key.root || names[vm.key.rootPc]} ${vm.key.modeLabel}`;
 }
 
 /* ---- Quiz ------------------------------------------------------------------ */
@@ -240,7 +241,7 @@ export function QuizView(props) {
           <Show when={showStaff()}>
             <div class="quiz-staff" classList={{ hidden: !q().prompt }}>
               <Show when={q().prompt} fallback={<div class="quiz-hidden" aria-label="hidden until you play it">?</div>}>
-                <GrandStaff events={promptEvents()} fifths={q().fifths} timeSig={null} beats={0} hitX={0.5}
+                <GrandStaff events={promptEvents()} fifths={q().fifths} spelling={q().spelling} timeSig={null} beats={0} hitX={0.5}
                             hitLine={false} judgements={[q().solved ? 'hit' : 'pending']}
                             label={`The ${q().kind === 'chords' ? 'chord' : 'note'} to play`} />
               </Show>
@@ -257,7 +258,7 @@ export function QuizView(props) {
           </Show>
           <Show when={q().read === 'staff'}>
             <div class="quiz-staff quiz-row">
-              <GrandStaff events={rowEvents()} judgements={rowJudgements()} fifths={q().fifths} timeSig={null}
+              <GrandStaff events={rowEvents()} judgements={rowJudgements()} fifths={q().fifths} spelling={q().spelling} timeSig={null}
                           beats={rowBeats} hitX={0.2} showNames={false} barLines={false}
                           blockingIndex={q().solved ? null : head()}
                           label={`The ${what()} to play, and the ones after it`} />

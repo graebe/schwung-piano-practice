@@ -14,7 +14,7 @@ import * as R from './staff_render.mjs';
 import { spell, pitchToY, diatonicToY, chordLabel, inStaffRange } from './notation.mjs';
 import { nameChord } from './chords.mjs';
 import {
-  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, fifthsAt,
+  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, keyAt,
 } from './chart.mjs';
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
@@ -103,7 +103,7 @@ export function drawReadingView(ctx, state) {
   for (let i = 0; i < visible.length; i++) {
     const v = visible[i];
     const entry = run ? run.entries[v.index] : null;
-    const fifths = fifthsAt(chart, v.event.beat);
+    const fifths = keyAt(chart, v.event.beat);
     const notes = [];
     for (let n = 0; n < v.event.pitches.length; n++) {
       const pitch = v.event.pitches[n];
@@ -133,7 +133,7 @@ export function drawReadingView(ctx, state) {
       if (!inStaffRange(m.pitch)) continue;
       const mx = beatToX(m.beat, songBeats, pxPerBeat);
       if (mx < L.DESPAWN_X || mx >= L.SCREEN_W) continue;
-      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch, fifthsAt(chart, m.beat)));
+      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch, keyAt(chart, m.beat)));
     }
   }
 
@@ -151,7 +151,7 @@ export function drawReadingView(ctx, state) {
   } else if (state.blocked && run) {
     const stuck = chart.events[blockingEntryIndex(run)];
     drawStuckLabel(ctx, blockingNotes(run).map((n) => n.pitch),
-      fifthsAt(chart, stuck ? stuck.beat : songBeats), stuck && stuck.symbol);
+      keyAt(chart, stuck ? stuck.beat : songBeats), stuck && stuck.symbol);
   }
 
   const bb = barBeatOf(chart, songBeats);
