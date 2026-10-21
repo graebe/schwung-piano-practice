@@ -175,3 +175,14 @@ test('the drill lists are stable and every entry builds', () => {
     assert.ok(validateExercise(chart).ok, b.label);
   }
 });
+
+test('every heptatonic mode has seven notes, and Phrygian dominant keeps its fifth', () => {
+  const seven = ['major', 'minor', 'dorian', 'mixolydian', 'lydian', 'phrygian', 'locrian',
+    'harmonicMinor', 'melodicMinor', 'superLocrian', 'phrygianDominant', 'bhairav', 'hungarianMinor'];
+  for (const m of seven) {
+    assert.equal(MODES[m].length, 7, m);
+    assert.deepEqual(MODES[m].slice().sort((a, b) => a - b), MODES[m], `${m} ascends`);
+  }
+  /* The 5th mode of harmonic minor: b2 and a major third, over a perfect fifth. */
+  assert.deepEqual(MODES.phrygianDominant, [0, 1, 4, 5, 7, 8, 10]);
+});

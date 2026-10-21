@@ -45,7 +45,7 @@ export const MODES = {
   melodicMinor: [0, 2, 3, 5, 7, 9, 11],
   wholeTone: [0, 2, 4, 6, 8, 10],
   superLocrian: [0, 1, 3, 4, 6, 8, 10],
-  phrygianDominant: [0, 1, 4, 5, 8, 10],
+  phrygianDominant: [0, 1, 4, 5, 7, 8, 10],
   bhairav: [0, 1, 4, 5, 7, 8, 11],
   hungarianMinor: [0, 2, 3, 6, 7, 8, 11],
   hirajoshi: [0, 2, 3, 7, 8],
