@@ -323,6 +323,15 @@ export function ResultView(props) {
               <span class="hero-number">{Math.round(r().percent)}<small>%</small></span>
               <span class="t-value">{r().hits} of {r().total} hit{r().wrong ? ` · ${r().wrong} wrong` : ''}</span>
             </div>
+            <Show when={r().timing && r().timing.hits}>
+              <p class="t-value timing-line">
+                in time {r().timing.inTime}% · early {r().timing.early}% · late {r().timing.late}%
+                <Show when={r().timing.lean}>
+                  {' · '}<strong>{r().timing.lean === 'rush' ? 'rushing' : 'dragging'}</strong>
+                  {` (${r().timing.meanMs > 0 ? '+' : ''}${r().timing.meanMs} ms)`}
+                </Show>
+              </p>
+            </Show>
             <AttemptsChart history={r().history} />
           </Match>
           <Match when={r().kind === 'quiz'}>

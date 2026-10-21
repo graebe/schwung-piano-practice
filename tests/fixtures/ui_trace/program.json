@@ -1048,7 +1048,7 @@
 ["usb",11,176,64,0],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{\"basics/scales/major/up-down\":{\"stages\":[{\"last\":0.25,\"best\":0.25,\"passedAt\":0},{\"last\":-1,\"best\":0,\"passedAt\":0}],\"plays\":1,\"t\":1791532817,\"skip\":0,\"movedOn\":0,\"rep\":null,\"h\":[[1791532817,25,1,80,0]]}},\"seen\":{}}"],
 ["announce","Done. 25 percent."],
-["tick",835,"3bdf142c1e8f","ff5c41f15196"],
+["tick",835,"63ac67721f69","ff5c41f15196"],
 ["tick",850,"-","43853d57b728"],
 ["tick",875,"-","ff5c41f15196"],
 ["tick",900,"-","43853d57b728"],

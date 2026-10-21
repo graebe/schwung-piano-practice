@@ -7,7 +7,7 @@ import {
   createRun, judgeNoteOn, expireMissed, runStats, runFinished,
   blockingBeat, blockingNotes, blockingEntryIndex, resyncWait,
   addMarker, pruneMarkers, nextEntryIndex,
-  DEFAULT_WINDOWS, PENDING, HIT, MISSED,
+  DEFAULT_WINDOWS, PENDING, HIT, MISSED, timingSummary,
 } from '../src/scoring.mjs';
 import { msToBeats } from '../src/chart.mjs';
 
@@ -510,4 +510,31 @@ test('nothing is blocking once everything is played', () => {
   const run = createRun(single);
   for (const [p, b] of [[60, 0], [62, 1], [64, 2]]) judgeNoteOn(run, p, b);
   assert.equal(blockingEntryIndex(run), -1);
+});
+
+/* ---- How the hits sat on the beat -------------------------------------------- */
+
+const fourBeats = { id: 't', bpm: 60, events: [0, 1, 2, 3].map((beat) => ({ beat, durBeats: 1, pitches: [60] })) };
+
+test('the timing summary splits the hits into in time, early and late', () => {
+  const run = createRun(fourBeats, { bpm: 60, graceBeats: 0.5 });
+  judgeNoteOn(run, 60, -0.2);   /* 200ms early */
+  judgeNoteOn(run, 60, 1.05);   /* 50ms late: in time */
+  judgeNoteOn(run, 60, 2.3);    /* 300ms late */
+  judgeNoteOn(run, 60, 3);
+  const t = timingSummary(run);
+  assert.deepEqual([t.hits, t.inTime, t.early, t.late], [4, 50, 25, 25]);
+  assert.ok(Math.abs(t.meanMs - 37.5) <= 1, String(t.meanMs));
+  assert.equal(t.lean, null, 'early and late cancel: no lean');
+});
+
+test('a run that is ahead of the beat throughout is rushing; behind, dragging', () => {
+  const ahead = createRun(fourBeats, { bpm: 60 });
+  for (let b = 0; b < 4; b++) judgeNoteOn(ahead, 60, b - 0.06);
+  assert.equal(timingSummary(ahead).lean, 'rush');
+  assert.equal(timingSummary(ahead).inTime, 100, 'still in time, note by note');
+  const behind = createRun(fourBeats, { bpm: 60 });
+  for (let b = 0; b < 4; b++) judgeNoteOn(behind, 60, b + 0.07);
+  assert.equal(timingSummary(behind).lean, 'drag');
+  assert.equal(timingSummary(createRun(fourBeats, { bpm: 60 })).hits, 0, 'nothing played: nothing to say');
 });

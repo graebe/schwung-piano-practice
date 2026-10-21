@@ -759,7 +759,16 @@ export function drawExerciseResult(ctx, state) {
   rightText(ctx, L.RESULT_SIDE_B_Y,
     state.wrong ? state.wrong + ' wrong' : 'stage ' + state.stage, minX);
 
-  drawAccuracyPlot(ctx, L.EXERCISE_PLOT, state.history || []);
+  /* How the notes you hit sat on the beat — and, when the run leaned one
+   * way, which: the first thing a teacher would tell you after the notes. */
+  const t = state.timing;
+  if (t && t.hits) {
+    twoCell(ctx, L.RESULT_ROW_A_Y, 'in time ' + t.inTime + '%',
+      t.lean === 'rush' ? 'rushing' : t.lean === 'drag' ? 'dragging' : '', L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
+    drawAccuracyPlot(ctx, L.RESULT_PLOT, state.history || []);
+  } else {
+    drawAccuracyPlot(ctx, L.EXERCISE_PLOT, state.history || []);
+  }
   drawFooterHint(ctx, state.footer || 'REC again  CLICK next');
   return ctx;
 }

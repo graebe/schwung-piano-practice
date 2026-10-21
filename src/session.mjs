@@ -1101,6 +1101,8 @@ export function createSession(fx, opts = {}) {
       passed: res.passed,
       isBest: played && score > prevBest,
       history: PROG.item(progress, armedId).h,
+      /* In time, early, late, and whether the run rushed or dragged. */
+      timing: SCORE.timingSummary(run),
     };
     lastResult.footer = resultFooter();
     armRun();
