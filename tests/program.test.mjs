@@ -32,8 +32,9 @@ const tracks = buildProgram({ songs });
 const root = buildCatalog({ songs, categories, lead: [programFolder(tracks)] });
 const index = leafIndex(root);
 
-test('four tracks, each with something in it', () => {
-  assert.deepEqual(tracks.map((t) => t.key), ['reading', 'chords', 'songs', 'hearing']);
+test('seven tracks, each with something in it: the four, then the three listening courses', () => {
+  assert.deepEqual(tracks.map((t) => t.key),
+    ['reading', 'chords', 'songs', 'hearing', 'intervals', 'compare', 'scales']);
   for (const t of tracks) assert.ok(trackSteps(t).length > 5, t.key);
 });
 
@@ -180,6 +181,8 @@ test('Continue starts with Reading, then rotates to the track left longest', () 
    * would count as practising Reading — which is the point of sharing ids. */
   play(p, trackSteps(tracks[2])[1].id, 1, 0.5, T0 + 2000);
   play(p, trackSteps(tracks[3])[0].id, 1, 0.5, T0 + 3000);
+  assert.equal(continueStep(p, tracks).track.key, 'intervals', 'the courses are still untouched');
+  for (let t = 4; t < tracks.length; t++) play(p, trackSteps(tracks[t])[0].id, 1, 0.5, T0 + 1000 * t);
   assert.equal(continueStep(p, tracks).track.key, 'reading', 'the one played longest ago');
   assert.equal(trackActivity(p, tracks[3]), Math.round((T0 + 3000) / 1000));
 });
@@ -207,9 +210,9 @@ test('the program folder: Continue, Skip, the tracks, then Repetition', () => {
   let asked = 0;
   const node = programFolder(tracks, () => { asked++; return [{ label: 'r', repId: 'x' }]; });
   assert.deepEqual(node.children.map((c) => c.label),
-    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Repetition']);
+    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Intervals', 'Compare', 'Scales', 'Repetition']);
   assert.equal(asked, 0, 'repetition is worked out only when looked at');
-  const rep = node.children[6];
+  const rep = node.children.at(-1);
   assert.ok(isFolder(rep) && rep.untracked);
   assert.equal(rep.children[0].repId, 'x');
   assert.equal(asked, 1);

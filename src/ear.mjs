@@ -28,146 +28,23 @@
  */
 
 import { MODES, scalePitches, playableRange } from './generator.mjs';
-import { MIN_PITCH, MAX_PITCH, LETTERS, NATURAL_PC, spell, majorKeyFifths } from './notation.mjs';
+import { MIN_PITCH, MAX_PITCH, majorKeyFifths } from './notation.mjs';
 import { qualityById, buildChord, chordSymbol } from './chords.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
+import {
+  NOTE_LEN, ev, melodic, together, broken, pcOf, rootName, noteNames,
+  SIMPLE_INTERVALS, intervalAnswers, intervalPrompts,
+} from './ear_core.mjs';
+import { COURSES } from './ear_course.mjs';
 
-/* ---- Time ------------------------------------------------------------------- */
+export { NOTE_GAP, INTERVALS, promptLength, slowed } from './ear_core.mjs';
 
-/* Milliseconds. Slow enough to hear each note as a note, quick enough that two
- * of them are still heard as one interval. */
-export const NOTE_GAP = 700;
-const NOTE_LEN = 650;
-const CHORD_LEN = 1400;
-const ARP_GAP = 300;
 const CADENCE_STEP = 750;
-const SLOW = 1.5;
-
-const ev = (pitch, at, dur) => ({ pitch, at, dur });
-
-function melodic(pitches, at = 0) {
-  return pitches.map((p, i) => ev(p, at + i * NOTE_GAP, NOTE_LEN));
-}
-
-function together(pitches, at = 0, dur = CHORD_LEN) {
-  return pitches.map((p) => ev(p, at, dur));
-}
-
-/* Low to high, then all together: hear the parts, then the colour. */
-function broken(pitches, at = 0) {
-  const sorted = pitches.slice().sort((a, b) => a - b);
-  const up = sorted.map((p, i) => ev(p, at + i * ARP_GAP, ARP_GAP));
-  return up.concat(together(sorted, at + sorted.length * ARP_GAP + 150));
-}
-
-/* When the last note of a prompt stops. */
-export function promptLength(events) {
-  let end = 0;
-  for (let i = 0; i < events.length; i++) {
-    end = Math.max(end, events[i].at + events[i].dur);
-  }
-  return end;
-}
-
-/*
- * The first rung of help: the same prompt, slower, with every chord broken
- * into its notes before it sounds whole. Groups are the notes that start
- * together; a single note keeps its place, only further apart.
- */
-export function slowed(events) {
-  const onsets = [];
-  for (let i = 0; i < events.length; i++) {
-    if (onsets.indexOf(events[i].at) < 0) onsets.push(events[i].at);
-  }
-  onsets.sort((a, b) => a - b);
-
-  const out = [];
-  let t = 0;
-  for (let g = 0; g < onsets.length; g++) {
-    const group = events.filter((e) => e.at === onsets[g]).sort((a, b) => a.pitch - b.pitch);
-    const dur = Math.max(...group.map((e) => e.dur));
-    const next = g + 1 < onsets.length ? onsets[g + 1] - onsets[g] : dur;
-    if (group.length > 1) {
-      for (let i = 0; i < group.length; i++) out.push(ev(group[i].pitch, t + i * ARP_GAP * SLOW, ARP_GAP * SLOW));
-      t += group.length * ARP_GAP * SLOW + 150;
-    }
-    for (let i = 0; i < group.length; i++) out.push(ev(group[i].pitch, t, dur * SLOW));
-    t += next * SLOW;
-  }
-  return out;
-}
-
-/* ---- Spelling the answer ---------------------------------------------------- */
-
-const pcOf = (pitch) => ((pitch % 12) + 12) % 12;
-const ACCIDENTAL = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: 'x' };
-
-/* A note named as the key it would be the tonic of names it: Eb, not D#. */
-function rootName(pitch) {
-  return spell(pitch, majorKeyFifths(pcOf(pitch)));
-}
-
-/*
- * The note `semis` above `root` with the letter `steps` on from the root's,
- * so a minor third above C reads Eb and never D#. That is what makes the
- * revealed answer agree with the interval's name.
- */
-function spellAbove(root, semis, steps) {
-  const r = rootName(root);
-  const letterIndex = (r.letterIndex + steps - 1) % 7;
-  let alter = pcOf(root + semis - NATURAL_PC[letterIndex]);
-  if (alter > 6) alter -= 12;
-  return LETTERS[letterIndex] + (ACCIDENTAL[alter] ?? '?');
-}
-
-function noteNames(pitches) {
-  return pitches.map((p) => rootName(p).label).join('-');
-}
-
-/* ---- Intervals -------------------------------------------------------------- */
-
-export const INTERVALS = [
-  { key: 'm2', semis: 1, steps: 2, label: 'Minor 2nd' },
-  { key: 'M2', semis: 2, steps: 2, label: 'Major 2nd' },
-  { key: 'm3', semis: 3, steps: 3, label: 'Minor 3rd' },
-  { key: 'M3', semis: 4, steps: 3, label: 'Major 3rd' },
-  { key: 'P4', semis: 5, steps: 4, label: 'Perfect 4th' },
-  { key: 'TT', semis: 6, steps: 4, label: 'Tritone' },
-  { key: 'P5', semis: 7, steps: 5, label: 'Perfect 5th' },
-  { key: 'm6', semis: 8, steps: 6, label: 'Minor 6th' },
-  { key: 'M6', semis: 9, steps: 6, label: 'Major 6th' },
-  { key: 'm7', semis: 10, steps: 7, label: 'Minor 7th' },
-  { key: 'M7', semis: 11, steps: 7, label: 'Major 7th' },
-  { key: 'P8', semis: 12, steps: 8, label: 'Octave' },
-];
-
-const interval = (key) => INTERVALS.find((i) => i.key === key);
-const intervalAnswers = (keys) => keys.map((k) => ({ key: k, label: interval(k).label }));
-
-/* Every root, every interval, played the way the level says. */
-function intervalPrompts(keys, way) {
-  return ({ lo, hi }) => {
-    const out = [];
-    for (let root = lo; root <= hi; root++) {
-      for (let k = 0; k < keys.length; k++) {
-        const iv = interval(keys[k]);
-        const top = root + iv.semis;
-        const names = rootName(root).label + '-' + spellAbove(root, iv.semis, iv.steps);
-        let events;
-        if (way === 'down') events = melodic([top, root]);
-        else if (way === 'together') events = together([root, top]);
-        else events = melodic([root, top]);
-        out.push({ answer: iv.key, events, label: names + ' ' + iv.key });
-      }
-    }
-    return out;
-  };
-}
 
 const SECONDS_THIRDS = ['m2', 'M2', 'm3', 'M3'];
 const GROUP_1 = ['m2', 'M2', 'm3', 'M3', 'P4', 'P5', 'P8'];
 const GROUP_2 = ['m2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'M6', 'P8'];
-const GROUP_3 = INTERVALS.map((i) => i.key);
+const GROUP_3 = SIMPLE_INTERVALS.map((i) => i.key);
 
 /* The three staged levels the full interval exercises share. */
 function groupLevels(way) {
@@ -478,13 +355,18 @@ export const EXERCISES = [
   },
 ];
 
+/* The hearing exercises, then every unit of every course: one namespace of
+ * keys, so an id like ear:cmp-6ths:fix-up resolves wherever it was filed. */
+const ALL = EXERCISES.concat(...COURSES.map((c) => c.exercises));
+
 export function exerciseByKey(key) {
-  return EXERCISES.find((e) => e.key === key) || null;
+  return ALL.find((e) => e.key === key) || null;
 }
 
-/* 1-based, from the list's order, so the numbering cannot drift from it. */
+/* 1-based, from its list's order, so the numbering cannot drift from it. */
 export function exerciseNumber(exercise) {
-  return EXERCISES.indexOf(exercise) + 1;
+  const course = COURSES.find((c) => c.exercises.indexOf(exercise) >= 0);
+  return (course ? course.exercises : EXERCISES).indexOf(exercise) + 1;
 }
 
 export function levelByKey(exercise, key) {
@@ -520,11 +402,23 @@ function pitchesOf(events) {
   return out;
 }
 
+/*
+ * Where a level's prompts may sit. On the pads when its widest prompt fits
+ * there with a few roots to spare, so what you heard can be played back; over
+ * the whole staff when it does not — a two-octave interval is wider than the
+ * grid, and hearing it needs no pad.
+ */
+export function levelRange(level, transpose = DEFAULT_TRANSPOSE) {
+  const pads = earRange(transpose);
+  if (!level.span || pads.hi - pads.lo >= level.span + 2) return pads;
+  return { lo: MIN_PITCH, hi: MAX_PITCH };
+}
+
 /* Every prompt the level can ask at this transpose: { answer, events, pitches, label }. */
 export function buildEarPool(exercise, levelKey, transpose = DEFAULT_TRANSPOSE) {
   if (!isNaming(exercise)) return [];
   const level = levelByKey(exercise, levelKey);
-  const range = earRange(transpose);
+  const range = levelRange(level, transpose);
   const make = level.prompts || exercise.prompts;
   const pool = [];
   const raw = make(range, level);

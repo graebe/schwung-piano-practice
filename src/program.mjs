@@ -26,6 +26,7 @@ import { drillId, drillLabel } from './stats.mjs';
 import { availableLevels } from './levels.mjs';
 import { item, isFinished } from './progress.mjs';
 import { EXERCISES, exerciseByKey, isNaming } from './ear.mjs';
+import { COURSES } from './ear_course.mjs';
 
 const SCALES = 'basics/scales/';
 const CHORDS = 'basics/chords/';
@@ -167,13 +168,21 @@ const CHORD_TRACK = [
  * each and one step per level. The two play-back exercises are the Hear
  * drills of the Quiz folder; the rest name what they heard.
  */
-const HEARING = EXERCISES.map((ex, i) => ({
-  name: (i + 1) + ' ' + ex.name,
-  exercise: ex.key,
-  steps: ex.levels.map((lv) => quiz(isNaming(ex)
-    ? { kind: EAR, exercise: ex.key, level: lv.key }
-    : lv.quiz)),
-}));
+function earUnits(exercises) {
+  return exercises.map((ex, i) => ({
+    name: (i + 1) + ' ' + ex.name,
+    exercise: ex.key,
+    steps: ex.levels.map((lv) => quiz(isNaming(ex)
+      ? { kind: EAR, exercise: ex.key, level: lv.key }
+      : lv.quiz)),
+  }));
+}
+
+const HEARING = earUnits(EXERCISES);
+
+/* The three listening courses, a track each, after Hearing: a course is a path
+ * through one skill, which is what a track is. */
+const COURSE_TRACKS = COURSES.map((c) => ({ key: c.key, name: c.track, units: earUnits(c.exercises) }));
 
 /* What the songs track calls a rung, short enough to follow a song's name. */
 const RUNG = { '1r': 'L1 RH', '1l': 'L1 LH', '2r': 'L2', '3': 'L3' };
@@ -213,6 +222,7 @@ export function buildProgram({ songs = [], categoryOrder = SONG_ORDER } = {}) {
     { key: 'chords', name: 'Chords', units: CHORD_TRACK },
     { key: 'songs', name: 'Songs', units: songUnits(songs, categoryOrder) },
     { key: 'hearing', name: 'Hearing', units: HEARING },
+    ...COURSE_TRACKS,
   ];
 }
 

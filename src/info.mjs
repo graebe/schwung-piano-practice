@@ -25,7 +25,8 @@
 import { MODES, MODE_LABELS } from './generator.mjs';
 import { qualityById } from './chords.mjs';
 import { CHORD_FAMILIES, PROGRESSIONS, LESSON_NAMES } from './chord_lessons.mjs';
-import { EXERCISES } from './ear.mjs';
+import { exerciseByKey, levelByKey, answersFor } from './ear.mjs';
+import { COURSES, courseOf } from './ear_course.mjs';
 import { LEVELS } from './levels.mjs';
 
 /* ---- Glossary ------------------------------------------------------------- */
@@ -44,6 +45,8 @@ export const TERMS = {
   majmin: ['Major, minor', 'Interval sizes. A major 3rd is 4 semitones, a minor 3rd 3. Major sounds brighter.'],
   perfect: ['Perfect', '4ths, 5ths and octaves: the most stable intervals, neither major nor minor.'],
   tritone: ['Tritone', '6 semitones, half an octave. Tense, unresolved.'],
+  compound: ['Compound interval', 'Wider than an octave: an octave plus a simple interval. A 9th is an octave and a 2nd, a 12th an octave and a 5th.'],
+  mode: ['Mode', 'A scale started from another of its notes: D to D on the white keys is Dorian. Each mode has its own pattern of steps.'],
   step: ['Step', 'Two neighbouring notes of the scale, a 2nd apart: C-D.'],
   leap: ['Leap', 'Two scale notes further apart than a step, a 3rd or more: C-E.'],
   contour: ['Contour', 'The shape of a melody: which way each note moves.'],
@@ -277,8 +280,37 @@ const EAR_TEXT = {
   'playback-chords': ['A chord plays. Find it and hold all its notes at once.', 'Find the bass note first, then build up. Part of it down is not yet wrong.', ['chord', 'root']],
 };
 
+/* One page per course, whichever unit opened it, so the first-time Info shows
+ * once a course rather than once a unit. */
+const COURSE_TEXT = {
+  intervals: ['One interval. Name it from the answers below.',
+    'Units add intervals a few at a time, a contrasting pair first. Up, down and together (tog) are learned apart: they sound different. Past the octave, hear the octave first and then what is left.',
+    ['interval', 'majmin', 'perfect', 'compound']],
+  compare: ['Two intervals, one after the other. Is the first bigger, the second, or are they the same?',
+    'Fixed (fix) levels start both on the same note: listen to where the second note lands. Random levels start each on its own note, so only the sizes tell.',
+    ['interval', 'majmin', 'compound']],
+  scales: ['A scale from a random note, up or down. Which scale is it?',
+    'Listen for where the semitones fall, and for the 3rd, 6th and 7th: they tell the scales apart. The root changes every time, so name the pattern, not the notes.',
+    ['scale', 'mode', 'tone', 'semitone']],
+};
+
+function coursePage(course, ex, levelKey) {
+  const text = COURSE_TEXT[course.key];
+  const sections = [sec('', text[0]), sec('Listen', text[1])];
+  if (ex) {
+    const level = levelByKey(ex, levelKey);
+    const answers = answersFor(ex, level).map((a) => a.label);
+    sections.push(sec(ex.name, (ex.set ? 'From: ' + ex.set.join(', ') : 'Answers: ' + answers.join(', ')) + '.'));
+  }
+  sections.push(sec('', 'Answer on the coloured pads at the bottom, or with the jog. PLAY repeats it; REC helps.'));
+  return page('course:' + course.key, course.name, sections, text[2].concat(['hint']));
+}
+
 function earPage(exKey, levelKey) {
-  const ex = EXERCISES.find((e) => e.key === exKey);
+  const course = COURSES.find((c) => c.key === exKey);
+  if (course) return coursePage(course, null);
+  const ex = exerciseByKey(exKey);
+  if (ex && courseOf(ex)) return coursePage(courseOf(ex), ex, levelKey);
   const text = EAR_TEXT[exKey];
   if (!ex || !text) return null;
   const sections = [sec('', text[0]), sec('Listen', text[1])];
@@ -353,6 +385,9 @@ const FOLDERS = {
   'program/chords': ['Chords', 'Triads to altered chords, and the progressions they make.', ['chord', 'progression']],
   'program/songs': ['Songs', 'Every bundled piece, rung by rung: L1 RH, L1 LH, L2, L3.', ['level']],
   'program/hearing': ['Hearing', 'The hearing exercises in order, easiest first.', ['interval']],
+  'program/intervals': ['Intervals', 'Identify intervals, unit by unit: 2nds up to two octaves.', ['interval', 'compound']],
+  'program/compare': ['Compare', 'Compare two intervals: which is bigger? From 2nds to the 12th.', ['interval']],
+  'program/scales': ['Scales', 'Identify scales: major and minor first, then the modes.', ['scale', 'mode']],
   'program/repetition': ['Repetition', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score.', ['score']],
 };
 
@@ -389,7 +424,7 @@ export function infoFor(target, env = {}) {
   if (parts[0] === 'basics' && parts[1] === 'chords' && parts[2]) return chordPage(parts[2], parts[3], parts[4], label);
   if (parts[0] === 'basics' && parts[1] === 'progressions' && parts[2]) return progressionPage(parts[2], parts[3], label);
   if (parts[0] === 'basics' && parts[1] === 'random' && parts[2]) return randomPage(parts[2], parts[3], label);
-  if (parts[0] === 'quiz' && parts[1] === 'hear' && parts[2]) return earPage(parts[2]);
+  if (parts[0] === 'quiz' && parts[1] === 'hear' && parts[2]) return earPage(parts[3] || parts[2]);
   if (parts[0] === 'program' && parts.length > 2) return infoFor({ id: parts.slice(0, 2).join('/') }, env);
 
   const folder = FOLDERS[id];

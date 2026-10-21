@@ -179,6 +179,28 @@ test('a hearing drill answers by colour, then shows where the answer sits', asyn
   await page.getByRole('button', { name: /Help/ }).click();
 });
 
+/* Click through the options until one is right: the question stays until then. */
+async function answerRight(page) {
+  for (const option of await page.locator('.option').all()) {
+    if (await option.isDisabled()) break;
+    await option.click();
+  }
+}
+
+for (const [course, unit, level, title, answers] of [
+  ['Identify intervals', '1 2nds', 'Int 2nds up', /2nds/i, 2],
+  ['Compare intervals', '9 6ths', 'Cmp 6ths fix up', /6ths/i, 3],
+  ['Identify scales', '6 Seven modes', 'Scale 7 modes up', /seven modes/i, 7],
+]) {
+  test(`${course}: a unit's level asks its own answers, and a right one counts`, async ({ page }) => {
+    await openPath(page, ['Quiz', 'Hear', course, unit, level]);
+    await expect(page.locator('#quiz-title')).toHaveText(title);
+    await expect(page.locator('.option')).toHaveCount(answers);
+    await answerRight(page);
+    await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /);
+  });
+}
+
 test('Info explains what is in front of you, and Escape closes it', async ({ page }) => {
   await page.keyboard.press('KeyI');
   await expect(page.locator('.info-screen')).toBeVisible();

@@ -149,7 +149,7 @@ bar is passage practice and is not, and neither is Listen.
 
 ## The Learning Program
 
-The lesson list holds everything; the **Learning Program** is a path through it. Four tracks run
+The lesson list holds everything; the **Learning Program** is a path through it. Seven tracks run
 side by side, because reading, harmony, repertoire and ear are different skills and a session that
 mixes them beats one that grinds a single list:
 
@@ -159,6 +159,9 @@ mixes them beats one that grinds a single list:
 | **Chords** | major and minor triads, alone then over their roots; diminished and augmented; inversions and sus chords; four progressions; sevenths and ii–V–I; sixths, add9 and ninths; the 12-bar blues; then the advanced chords |
 | **Songs** | every bundled piece in turn — classics, then styles, electronic and techno — each rung by rung: L1 RH, L1 LH, L2, L3 |
 | **Ear** | the quiz: notes in key, then every note, triads, chord types and advanced chords — each guessed, picked and heard |
+| **Intervals** | the Identify intervals course: 2nds up to two octaves |
+| **Compare** | the Compare intervals course: which of two intervals is bigger |
+| **Scales** | the Identify scales course: major and minor, then the modes |
 
 Each track is in units, and each unit is a few steps. A step is simply a row of the lesson list, so
 **it counts however you get there**: play Ode to Joy from Classics and its step in the program is
@@ -167,7 +170,7 @@ done too.
 **Continue** opens the next step of the track you have left longest, on the stage it needs. A
 track's next step is its first one that is neither finished nor skipped. Finished means stage 2
 passed — or stage 1 passed and then *moved on* from (below). So clicking Continue session after
-session walks all four tracks in turn, and you always know what to do next.
+session walks all the tracks in turn, and you always know what to do next.
 
 **Nothing is locked.** Open any track and any step in it, play anything in the list, go straight to
 stage 2 — the program only ever recommends. The step Continue will open is marked **▸**.
@@ -232,6 +235,8 @@ shows under Piano Practice › Terms:
 | **Major, minor** | Interval sizes. A major 3rd is 4 semitones, a minor 3rd 3. Major sounds brighter. |
 | **Perfect** | 4ths, 5ths and octaves: the most stable intervals, neither major nor minor. |
 | **Tritone** | 6 semitones, half an octave. Tense, unresolved. |
+| **Compound interval** | Wider than an octave: an octave plus a simple interval. A 9th is an octave and a 2nd, a 12th an octave and a 5th. |
+| **Mode** | A scale started from another of its notes: D to D on the white keys is Dorian. Each mode has its own pattern of steps. |
 | **Step** | Two neighbouring notes of the scale, a 2nd apart: C-D. |
 | **Leap** | Two scale notes further apart than a step, a 3rd or more: C-E. |
 | **Contour** | The shape of a melody: which way each note moves. |
@@ -589,6 +594,81 @@ upward before downward, and broken chords before block chords.
 
 The interval groups add answers a few at a time: first 2nds, 3rds, 4th, 5th and octave, then the
 6ths, then the tritone and 7ths.
+
+### The listening courses
+
+At the end of **Quiz › Hear** are three courses, each a numbered list of units that adds a little at
+a time. They are also the **Intervals**, **Compare** and **Scales** tracks of the Learning Program.
+Answering works as in every Hear exercise: the answer pads, or the jog and a click.
+
+**Identify intervals.** One interval; name it. Each unit offers only its own intervals, usually two
+to five, and has three levels: **up**, **down** and **tog** (together).
+
+| # | Unit | Answers |
+| --- | --- | --- |
+| 1–2 | 2nds · 3rds | m2 M2 · m3 M3 |
+| 3 | 2nds and 3rds | m2 M2 m3 M3 |
+| 4 | 4th 5th octave | P4 P5 P8 |
+| 5 | Up to the 5th | m2 … P5 |
+| 6–7 | 6ths · 7ths | m6 M6 · m7 M7 |
+| 8 | 6ths 7ths octave | m6 M6 m7 M7 P8 |
+| 9 | Up to the octave | all twelve |
+| 10–13 | Octave with 9ths and 10ths | P8 M9 M10 · P8 m9 M10 P11 P12 · P8 m9 m10 · P8 m9 m10 P11 P12 |
+| 14 | 11th d12 12th | P11 d12 P12 |
+| 15 | Octave to 12th | P8 … P12 |
+| 16–18 | 13ths, 14ths, two octaves | M13 M14 P15 · m13 m14 P15 · m13 … P15 |
+
+Intervals wider than an octave are *compound*: a 10th is an octave and a 3rd. Hear the octave
+first, then what is left over. When an interval is wider than the pads reach at your Octave
+setting, it is played over the whole staff instead. You can still hear and name it, but notes off
+the grid don't light up when it is revealed.
+
+**Compare intervals.** Two intervals, one after the other. Answer **First bigger**, **Same** or
+**Second bigger**. Each unit takes its intervals from a small set. From unit 9 on, every level
+comes twice:
+
+- **fix** (fixed root): both intervals start on the same note. Listen to where the second note lands.
+- random root: each starts on its own note, three to six semitones apart. The top notes give
+  nothing away, only the sizes do.
+
+For example, in **Compare › 9 6ths › fix up** you hear C–A, then C–A♭. The first is bigger. In
+**6ths › up** the same sizes might come as C–A, then E–C: still first bigger, but the notes no
+longer help.
+
+| # | Unit | Set | Levels |
+| --- | --- | --- | --- |
+| 1–2 | 2nds · 3rds | m2 M2 · m3 M3 | up, down, tog |
+| 3 | M2 and m3 | M2 m3 | mel (up or down) |
+| 4 | 5th and 4th | P4 P5 | up, down, tog |
+| 5–6 | 4th and tritone · 5th and tritone | P4 TT · P5 TT | mel |
+| 7 | 4th TT 5th | P4 TT P5 | any (up, down or together) |
+| 8 | Up to the 5th | m2 … P5 | up, down, tog |
+| 9–10 | 6ths · 7ths | m6 M6 · m7 M7 | fix and random × up, down, tog |
+| 11 | M6 and m7 | M6 m7 | fix and random × mel |
+| 12–13 | 6ths and 7ths · Up to the octave | m6 … M7 · all twelve | fix and random × up, down, tog |
+| 14–15 | 9ths · 10ths | m9 M9 · m10 M10 | 〃 |
+| 16 | M9 and m10 | M9 m10 | fix and random × mel |
+| 17 | 11th and 12th | P11 P12 | fix and random × up, down, tog |
+
+**Identify scales.** A scale from a random note, up through the octave or down from it. Name its
+type. The root changes every time, so you are naming the pattern of steps, not the notes.
+
+| # | Unit | Answers |
+| --- | --- | --- |
+| 1 | Minor and major | Major, Natural minor |
+| 2 | Major Lydian Mixo | Major, Lydian, Mixolydian |
+| 3 | Minor scales | Natural, Harmonic and Melodic minor |
+| 4 | Phrygian Locrian | Phrygian, Locrian |
+| 5 | Pentatonic | Major and Minor pentatonic |
+| 6 | Seven modes | Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian |
+| 7 | Whole tone + kin | Whole tone, Lydian dominant, Lydian augmented, Mixolydian b6 |
+| 8 | Diminished scales | Whole-half, Half-whole |
+| 9 | Melodic min modes | the seven modes of melodic minor, Dorian b2 to Altered |
+| 10 | Harmonic min modes | the seven modes of harmonic minor, Locrian #6 to Altered bb7 |
+
+To tell scales apart, listen for where the semitones fall, and for the 3rd, 6th and 7th. Melodic
+minor is played the same way down as up: the jazz form, not the classical one that comes down as
+natural minor.
 
 ### What to listen for
 

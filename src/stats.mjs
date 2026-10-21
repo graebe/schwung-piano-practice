@@ -56,7 +56,7 @@ export function drillLabel(id) {
   if (parts.length !== 3) return String(id);
   if (parts[0] === 'ear') {
     const ex = exerciseByKey(parts[1]);
-    return ex ? 'Hear ' + ex.short + ' ' + levelByKey(ex, parts[2]).name : String(id);
+    return ex ? (ex.tag || 'Hear') + ' ' + ex.short + ' ' + levelByKey(ex, parts[2]).name : String(id);
   }
   return [DRILL_WORDS[parts[0]], DRILL_WORDS[parts[1]], DRILL_WORDS[parts[2]]]
     .filter(Boolean)

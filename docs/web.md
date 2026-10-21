@@ -140,7 +140,10 @@ date and tempo; *The numbers* opens them as a table.
   first one, then lights its keys.
 - **Name** — a key is lit; choose its name.
 - **Hear** — something is played; say what it was. Eighteen exercises, from
-  *higher or lower* to seventh chords and scale degrees, easiest first.
+  *higher or lower* to seventh chords and scale degrees, easiest first, and
+  three courses after them: **Identify intervals** (2nds to two octaves),
+  **Compare intervals** (which of two is bigger, from a fixed or a random root)
+  and **Identify scales** (major and minor, then the modes).
 
 ![A hearing drill](media/web-hear.png)
 

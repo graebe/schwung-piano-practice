@@ -48,6 +48,7 @@ import * as GUESS from './guess.mjs';
 import * as STATS from './stats.mjs';
 import * as PROG from './progress.mjs';
 import * as PLAN from './program.mjs';
+import { COURSES } from './ear_course.mjs';
 import * as AP from './answer_pads.mjs';
 import * as INFO from './info.mjs';
 import * as CUES from './cues.mjs';
@@ -497,10 +498,12 @@ export function createSession(fx, opts = {}) {
    * as in the Learning Program — and playing back notes and chords is two of
    * its units, so they are not listed a second time. */
   function hearFolder() {
-    const hearing = tracks.find((t) => t.key === 'hearing');
-    const units = hearing ? hearing.units : [];
-    return CAT.folder('Hear', units.map((u) =>
-      CAT.folder(u.name, u.steps.map(PLAN.stepRow), u.exercise)), 'hear');
+    const unitFolders = (track) => (track ? track.units : []).map((u) =>
+      CAT.folder(u.name, u.steps.map(PLAN.stepRow), u.exercise));
+    /* The three courses close the list, each a folder of its units: the
+     * Hearing exercises stay where they were. */
+    const courses = COURSES.map((c) => CAT.folder(c.name, unitFolders(tracks.find((t) => t.key === c.key)), c.key));
+    return CAT.folder('Hear', unitFolders(tracks.find((t) => t.key === 'hearing')).concat(courses), 'hear');
   }
 
   function quizRows(rows) {
