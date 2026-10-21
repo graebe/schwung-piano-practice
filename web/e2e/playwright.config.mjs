@@ -8,12 +8,14 @@
  *
  *   npx playwright test --config web/e2e/playwright.config.mjs
  *   PP_E2E_COVERAGE=1 ...   also writes build/coverage/e2e.lcov
+ *   PP_E2E_PORT=47391 ...   another port, for a second checkout (a worktree,
+ *                           another session) running its suite at once
  */
 import { defineConfig, devices } from '@playwright/test';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const PORT = 47333;
+const PORT = Number(process.env.PP_E2E_PORT) || 47333;
 const coverage = process.env.PP_E2E_COVERAGE === '1';
 
 export default defineConfig({

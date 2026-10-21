@@ -96,6 +96,8 @@ pub struct Piece {
     /// between pieces where the module needs another.
     #[serde(default)]
     pub trim_db: f32,
+    /// This piece's tail cap, instead of max_seconds' for its key.
+    pub seconds: Option<f32>,
 }
 
 fn default_rate() -> u32 {
@@ -177,6 +179,8 @@ struct Source {
 struct Cell {
     /// The piece's name, for the report.
     name: String,
+    /// The piece's own tail cap, if it has one.
+    seconds: Option<f32>,
     key: CellKey,
     seq_len: u8,
     zone: Zone,
@@ -271,6 +275,15 @@ fn plan(m: &Manifest, inst: &Instrument) -> Result<Vec<Cell>, String> {
             None => (r.lokey(), r.hikey(), r.root()),
         };
         let key = CellKey { lokey, hikey, root, lovel: r.lovel(), hivel: r.hivel(), seq };
+        /* SFZ's built-in generators. *silence is what it says (a region kept
+         * for its envelope or its choke) and adds nothing to a take; the
+         * oscillators would need synthesising, which a pack of recordings
+         * has no business doing. */
+        match r.opcodes.get("sample").map(String::as_str) {
+            Some("*silence") => continue,
+            Some(g) if g.starts_with('*') => return Err(format!("the generator {g} is not a recording")),
+            _ => {}
+        }
         let path = inst.sample_path(r).ok_or_else(|| format!("a region without a sample: {:?}", r.opcodes))?;
         let trim = piece.map_or(1.0, |p| audio::db(p.trim_db));
         let source = Source {
@@ -279,7 +292,7 @@ fn plan(m: &Manifest, inst: &Instrument) -> Result<Vec<Cell>, String> {
             offset: r.f32("offset").map_or(0, |v| v.max(0.0) as usize),
             end: r.f32("end").map(|v| v.max(0.0) as usize + 1),
         };
-        let cell = cells.entry(key).or_insert_with(|| Cell { name: piece.map_or(String::new(), |p| p.name.clone()), key, seq_len: 1, zone: zone_for(m, inst, r, piece, key), sources: Vec::new() });
+        let cell = cells.entry(key).or_insert_with(|| Cell { name: piece.map_or(String::new(), |p| p.name.clone()), seconds: piece.and_then(|p| p.seconds), key, seq_len: 1, zone: zone_for(m, inst, r, piece, key), sources: Vec::new() });
         cell.sources.push(source);
     }
 
@@ -399,7 +412,7 @@ fn render(m: &Manifest, cell: &Cell) -> Result<Vec<f32>, String> {
 fn finish(m: &Manifest, cell: &Cell, mix: Vec<f32>, floor: f32) -> Vec<f32> {
     let rate = m.rate as f32;
     let died = audio::end(&mix, (audio::peak(&mix) * audio::db(m.silence_db)).max(floor));
-    let cap = (m.cap_seconds(cell.key.root) * rate) as usize;
+    let cap = (cell.seconds.unwrap_or_else(|| m.cap_seconds(cell.key.root)) * rate) as usize;
     let mut take = mix;
     take.truncate(died.min(cap).max(1));
     audio::fade_out(&mut take, (m.fade_ms * 0.001 * rate) as usize);
@@ -447,6 +460,7 @@ mod tests {
             }
         }
         sfz.push_str("<group> key=40 sw_last=c#0 <region> sample=close_loud_1.wav\n");
+        sfz.push_str("<group> key=38 lovel=1 hivel=64 seq_position=1 <region> sample=*silence\n");
         fs::write(dir.join("kit.sfz"), sfz).unwrap();
     }
 
@@ -458,7 +472,7 @@ mod tests {
     fn a_kit_becomes_a_pack_with_mics_mixed_and_levels_kept() {
         let dir = std::env::temp_dir().join(format!("nisp-build-{}", std::process::id()));
         fixture(&dir);
-        let m = manifest("one_shot = true\nround_robins = 2\n[[piece]]\nname = \"snare\"\nfrom = 38\nto = 38\ngroup = 3\noff_by = 4\n");
+        let m = manifest("one_shot = true\nround_robins = 2\n[[piece]]\nname = \"snare\"\nfrom = 38\nto = 38\ngroup = 3\noff_by = 4\nseconds = 0.05\n");
         let (bytes, report) = build(&m, &dir).unwrap();
         let p = Pack::validate(&bytes).unwrap();
         assert_eq!(report.zones, 4, "2 layers x 2 of 3 round robins; the keyswitched region is out");
@@ -473,7 +487,7 @@ mod tests {
         assert!((loud / soft - 4.0).abs() < 0.01, "and the layers keep their ratio: {}", loud / soft);
         assert_eq!((zones[0].lovel, zones[0].hivel, zones[2].lovel, zones[2].hivel), (1, 64, 65, 127));
         let z = &zones[0];
-        assert!(z.len < 4410 + 100, "the lead-in and the silent tail are trimmed: {}", z.len);
+        assert_eq!(z.len, 2205, "the piece's own cap, 0.05 s");
         fs::remove_dir_all(&dir).unwrap();
     }
 
@@ -514,6 +528,17 @@ mod tests {
         assert_eq!((a.veltrack, a.lovel, a.hivel), (100, 1, 127));
         let peak_of = |z: &Zone| (z.offset..z.offset + z.len).map(|i| p.frame(i).abs()).fold(0.0, f32::max);
         assert!((peak_of(&b) / peak_of(&a) - 2.0).abs() < 0.01, "0.8 against 0.2 raised 6 dB");
+    }
+
+    #[test]
+    fn an_oscillator_is_refused() {
+        let dir = std::env::temp_dir().join(format!("nisp-build-osc-{}", std::process::id()));
+        fixture(&dir);
+        fs::write(dir.join("osc.sfz"), "<region> key=60 sample=*sine").unwrap();
+        let m = Manifest::parse("sfz = \"osc.sfz\"\nbudget_mb = 1\nmax_seconds = [[0, 1.0]]").unwrap();
+        let err = build(&m, &dir).map(|_| ()).unwrap_err();
+        fs::remove_dir_all(&dir).unwrap();
+        assert!(err.contains("*sine"), "{err}");
     }
 
     #[test]
