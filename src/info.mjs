@@ -301,6 +301,33 @@ const COURSE_TEXT = {
 const ALL_COURSES = COURSES.concat(READ_COURSES);
 const courseOf = (ex) => ALL_COURSES.find((c) => c.exercises.indexOf(ex) >= 0) || null;
 
+/*
+ * A tune that starts with the interval, rising and falling — the anchor a
+ * beginner hears the interval against until it is known by itself. Titles
+ * only. Past the octave there are none worth the name: hear the octave, then
+ * what is left over.
+ */
+export const INTERVAL_TUNES = {
+  m2: ['Jaws', 'Fur Elise'],
+  M2: ['Happy Birthday', 'Mary Had a Little Lamb'],
+  m3: ['Greensleeves', 'Hey Jude'],
+  M3: ['Oh When the Saints', 'Swing Low, Sweet Chariot'],
+  P4: ['Here Comes the Bride', 'O Come, All Ye Faithful'],
+  TT: ['The Simpsons', 'Black Sabbath'],
+  P5: ['Twinkle Twinkle Little Star', 'The Flintstones'],
+  m6: ['The Entertainer', 'Love Story'],
+  M6: ['My Bonnie', 'Nobody Knows the Trouble'],
+  m7: ['Somewhere (West Side Story)', 'Watermelon Man'],
+  M7: ['Take On Me', 'I Love You (Cole Porter)'],
+  P8: ['Somewhere Over the Rainbow', 'Willow Weep for Me'],
+};
+
+function tunesFor(keys) {
+  const lines = keys.filter((k) => INTERVAL_TUNES[k])
+    .map((k) => k + ' up: ' + INTERVAL_TUNES[k][0] + '; down: ' + INTERVAL_TUNES[k][1] + '.');
+  return lines.length ? sec('Tunes', lines.join(' ')) : null;
+}
+
 function coursePage(course, ex, levelKey) {
   const text = COURSE_TEXT[course.key];
   const sections = [sec('', text[0]), sec('Listen', text[1])];
@@ -308,6 +335,11 @@ function coursePage(course, ex, levelKey) {
     const level = levelByKey(ex, levelKey);
     const answers = answersFor(ex, level).map((a) => a.label);
     sections.push(sec(ex.name, (ex.set ? 'From: ' + ex.set.join(', ') : 'Answers: ' + answers.join(', ')) + '.'));
+    /* Intervals, heard or read or compared: a tune for each to hear it by. */
+    if (/intervals|compare/.test(course.key)) {
+      const tunes = tunesFor(ex.set || answersFor(ex, level).map((a) => a.key));
+      if (tunes) sections.push(tunes);
+    }
   }
   sections.push(sec('', 'Answer on the coloured pads at the bottom, or with the jog. PLAY repeats it; REC helps.'));
   return page('course:' + course.key, course.name, sections, text[2].concat(['hint']));
