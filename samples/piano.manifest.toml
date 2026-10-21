@@ -1,0 +1,16 @@
+# Piano Practice's piano: Salamander Grand Piano V3 by Alexander Holm
+# (CC-BY 3.0, https://archive.org/details/SalamanderGrandPianoV3), cut down
+# for the Move by tools/nisp-build. Credits: THIRD_PARTY_LICENSES.md.
+#
+#   nisp-build build samples/piano.manifest.toml \
+#     --source <Salamander Grand Piano V3 folder> --out samples/piano.nisp
+#
+# 4 of the 16 velocity layers, every minor third as recorded, mono 44.1 kHz.
+# Tails end where they die away or at the cap for their key: a practice
+# instrument rarely holds a bass note for 8 s, and 57 MB is what the device
+# then carries.
+sfz = "Salamander Grand Piano V3.sfz"
+budget_mb = 60
+velocity_layers = [4, 8, 12, 16]
+max_seconds = [[21, 8.0], [60, 6.0], [84, 4.0], [108, 2.5]]
+fade_ms = 300

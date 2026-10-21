@@ -1,0 +1,19 @@
+[package]
+name = "nisp-build"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Builds NISP sample packs for the Neon Ingvy Schwung modules from SFZ instruments."
+publish = false
+
+# A workspace of its own: the device and browser builds in dsp/ never resolve
+# these host-only crates, and the Docker image never downloads them.
+[workspace]
+
+[dependencies]
+ni-sampler = { path = "../../dsp/ni-sampler", features = ["std"] }
+claxon = "0.4"
+hound = "3.5"
+rubato = "5"
+serde = { version = "1", features = ["derive"] }
+toml = "1"

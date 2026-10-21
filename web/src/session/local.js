@@ -16,7 +16,8 @@
  *   time       performance.now(); the session ticks every 4ms, apart from the
  *              page's 60Hz drawing, so the click and the reference line land
  *              in time rather than on frame boundaries
- *   sound      the piano engine (web/src/audio) — the Move's engine as wasm
+ *   sound      the piano engine (web/src/audio) — the Move's engine as wasm,
+ *              recorded piano and claves included
  *   files      settings, stats and progress in localStorage; the exercises
  *              bundled with the page
  *   announce   kept as `announcement` in the view model for an aria-live region
@@ -59,6 +60,13 @@ export function createLocalSession({
     strike: (pitch, vel) => piano && piano.strike(pitch, vel),
     release: (pitch) => piano && piano.release(pitch),
     silence: () => piano && piano.silence(),
+    /* The browser's piano clicks with its claves (or, before they load, its
+     * own notes); a piano without click() leaves it to the session's notes. */
+    click(downbeat) {
+      if (!piano || typeof piano.click !== 'function') return false;
+      piano.click(downbeat);
+      return true;
+    },
     announce(text) {
       announcement = text;
       announced++;

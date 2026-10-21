@@ -26,6 +26,10 @@ pub enum Event {
     },
     /// Cut every voice dead — CC 120 All Sound Off, and System Reset.
     Panic,
+    /// The metronome: the downbeat's sound, or every other beat's.
+    Click {
+        downbeat: bool,
+    },
     /// Release every voice so it rings out — CC 123 All Notes Off. The polite
     /// one, and the one a host broadcasts on the way out: cutting sixteen
     /// voices dead there would click on every close.

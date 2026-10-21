@@ -7,7 +7,9 @@
  * AudioWorklet does, and holds it to two things: that it behaves like an
  * instrument (sounds, decays, releases, panics, keeps its pitch at 48k), and
  * that at 44100 it renders the golden scenario sample for sample — the same
- * file dsp/piano-engine/tests/golden.rs holds the native engine to.
+ * file dsp/piano-engine/tests/golden.rs holds the native engine to. Then
+ * that the recorded piano and claves (samples/*.nisp) load the way the
+ * worklet loads them, and that a broken pack is refused.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -18,6 +20,7 @@ const ROOT = new URL('..', import.meta.url).pathname;
 const WASM = ROOT + 'build/wasm/piano.wasm';
 const ENGINE_TESTS = ROOT + 'dsp/piano-engine/tests/';
 const QUANTUM = 128;
+const PACKS = ROOT + 'samples/';
 
 if (!existsSync(WASM)) {
   execFileSync('sh', [ROOT + 'scripts/build-wasm.sh'], { stdio: 'inherit' });
@@ -35,6 +38,13 @@ function piano(rate = 44100) {
       const bytes = enc.encode(list);
       new Uint8Array(x.memory.buffer, x.pp_buf_ptr(), x.pp_buf_cap()).set(bytes);
       x.pp_notes(bytes.length);
+    },
+    /* A pack into linear memory and onto the engine, as the worklet does. */
+    pack(bytes, kind) {
+      const at = x.pp_pack_alloc(bytes.length);
+      if (at === 0) return 0;
+      new Uint8Array(x.memory.buffer, at, bytes.length).set(bytes);
+      return x.pp_pack_commit(kind);
     },
     /* `frames` frames as 128-frame quanta, the worklet's way. */
     render(frames) {
@@ -54,8 +64,9 @@ const energy = (s) => s.reduce((e, v) => e + v * v, 0) / s.length;
 test('the module is the raw ABI and nothing else', () => {
   const names = WebAssembly.Module.exports(MODULE).map((e) => e.name).sort();
   assert.deepEqual(names, [
-    'memory', 'pp_buf_cap', 'pp_buf_ptr', 'pp_gain', 'pp_init', 'pp_notes', 'pp_out_cap',
-    'pp_out_ptr', 'pp_panic', 'pp_release_all', 'pp_render', 'pp_voices',
+    'memory', 'pp_buf_cap', 'pp_buf_ptr', 'pp_gain', 'pp_init', 'pp_notes',
+    'pp_out_cap', 'pp_out_ptr', 'pp_pack_alloc', 'pp_pack_commit', 'pp_panic', 'pp_release_all',
+    'pp_render', 'pp_source', 'pp_voices',
   ]);
   assert.deepEqual(WebAssembly.Module.imports(MODULE), [], 'needs no host imports');
 });
@@ -228,4 +239,41 @@ test('the worklet reports a module it cannot run, and stays silent', async () =>
   const out = [[new Float32Array(QUANTUM)]];
   assert.equal(proc.process([], out), true);
   assert.equal(peak(out[0][0]), 0);
+});
+
+test('the recorded piano loads, plays and outlives a new engine', () => {
+  const p = piano();
+  assert.equal(p.x.pp_source(), 0, 'the synth until a pack arrives');
+  assert.equal(p.pack(readFileSync(PACKS + 'piano.nisp'), 0), 1);
+  assert.equal(p.x.pp_source(), 1);
+  p.notes('60:100,64:100,67:100');
+  assert.ok(peak(p.render(4096)) > 0.05);
+  assert.equal(p.x.pp_voices(), 3);
+  assert.equal(p.x.pp_init(48000), 1);
+  assert.equal(p.x.pp_source(), 1, 'a new engine keeps the committed pack');
+  p.notes('72:100');
+  assert.ok(peak(p.render(4096)) > 0.01, 'and plays it at 48k');
+});
+
+test('the claves click, louder on the downbeat, and are not piano voices', () => {
+  const p = piano();
+  assert.equal(p.pack(readFileSync(PACKS + 'click.nisp'), 1), 1);
+  p.notes('c:1');
+  const down = energy(p.render(4096));
+  assert.equal(p.x.pp_voices(), 0);
+  p.render(44100);
+  p.notes('c:0');
+  const beat = energy(p.render(4096));
+  assert.ok(beat > 0 && down > beat, `downbeat ${down} against beat ${beat}`);
+});
+
+test('a broken pack is refused and the synth plays on', () => {
+  const p = piano();
+  assert.equal(p.pack(new TextEncoder().encode('NISP but not really'), 0), 0);
+  assert.equal(p.x.pp_source(), 0);
+  assert.equal(p.x.pp_pack_commit(0), 0, 'nothing pending: nothing to commit');
+  assert.equal(p.x.pp_pack_alloc(0), 0, 'an empty pack has no room');
+  assert.equal(p.pack(readFileSync(PACKS + 'click.nisp'), 7), 0, 'an unknown kind');
+  p.notes('60:100');
+  assert.ok(peak(p.render(4096)) > 0.05);
 });

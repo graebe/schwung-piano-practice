@@ -1,0 +1,14 @@
+[package]
+name = "ni-sampler"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Recorded-instrument playback for the Neon Ingvy Schwung modules: the NISP pack format and a no_std, no-alloc voice engine."
+
+[features]
+# The pack WRITER (nisp-build's half). Off for every runtime build: the device
+# and the browser only ever read a pack.
+std = []
+
+[dependencies]
+libm = "0.2"

@@ -84,6 +84,18 @@ pub fn note(entry: &[u8]) -> Option<(u8, u8)> {
     Some((pitch as u8, vel))
 }
 
+/// A metronome entry in a note list: `c:1` the downbeat, `c:0` any other
+/// beat. It rides in the list rather than a parameter of its own because the
+/// device's parameter channel takes one write per tick, and the click falls
+/// on the same tick as the notes.
+pub fn click(entry: &[u8]) -> Option<bool> {
+    match entry.trim_ascii() {
+        b"c:1" => Some(true),
+        b"c:0" => Some(false),
+        _ => None,
+    }
+}
+
 /// Split a comma-separated note list. Borrows; allocates nothing.
 pub fn notes(list: &[u8]) -> impl Iterator<Item = &[u8]> {
     list.split(|&c| c == b',')
@@ -92,6 +104,15 @@ pub fn notes(list: &[u8]) -> impl Iterator<Item = &[u8]> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn click_entries_are_c_colon_one_or_zero() {
+        assert_eq!(click(b"c:1"), Some(true));
+        assert_eq!(click(b" c:0 "), Some(false));
+        assert_eq!(click(b"c:2"), None);
+        assert_eq!(click(b"60:1"), None);
+        assert_eq!(click(b"c"), None);
+    }
 
     #[test]
     fn integers_are_total() {

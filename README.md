@@ -894,10 +894,16 @@ instrument loaded on it, no MIDI channel to match. It is rendered by the Rust en
 the overtake generator slot and *mixed into* Move's audio, so it plays alongside whatever else is
 going on rather than replacing it.
 
-It is a synthesised piano, not a recorded one. Each voice is a small stack of partials whose higher
-ones decay faster — that property, more than the waveform, is what the ear reads as a struck,
-ringing string — and the partials are slightly stretched because real piano strings are stiff and
-their overtones sit progressively sharp.
+It is a recorded grand piano: the Salamander Grand Piano, a Yamaha C5, in four velocity layers
+sampled every minor third, so how hard you strike a pad is heard as well as scored. The
+metronome is a pair of recorded claves, the brighter one on the downbeat. Both ship in the module
+(`samples/`, about 57 MB) and are read into memory when it opens; see
+[Sounds and credits](#sounds-and-credits).
+
+Should the recordings be missing or damaged, the module still plays: then it is the synthesised
+piano it had before, a small stack of partials whose higher ones decay faster, and the click is two
+high piano notes. With **MIDI out** on a track or USB, the click goes out as those notes too, so the
+instrument at the other end clicks with you.
 
 **MIDI out** in settings can send elsewhere instead:
 
@@ -1214,3 +1220,22 @@ Up to 1.8.1 the module was released under MIT; those releases keep that licence.
 The one third-party dependency compiled into `dsp.so` is
 [`libm`](https://crates.io/crates/libm), taken under **MIT**; its notice ships in
 the tarball as [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+## Sounds and credits
+
+The piano and the metronome are recordings, and their makers are credited here as their licences
+ask:
+
+- **Piano:** [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) by
+  **Alexander Holm**, licensed under
+  [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/); the SFZ edition by kinwie
+  ([sfzinstruments](https://github.com/sfzinstruments/SalamanderGrandPiano)). **Modified:** four of
+  its sixteen velocity layers, resampled to 44.1 kHz, mono, the tails shortened with a fade.
+- **Metronome:** claves from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL)
+  by Versilian Studios, [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+Neither author endorses this module. The licence texts ship in the tarball under
+`samples/LICENSES/`, and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) has the details. The
+packs are cut by `tools/nisp-build` from the manifests in `samples/`
+(`scripts/build-samples.sh`); they are stored with Git LFS, so a clone needs `git lfs pull` before
+`scripts/build.sh`.

@@ -3,7 +3,11 @@ name = "piano-engine"
 version = "0.1.0"
 edition = "2021"
 license = "GPL-3.0-or-later"
-description = "The Piano Practice piano synthesis: no_std, no alloc, no unsafe."
+description = "The Piano Practice piano — recorded (ni-sampler) or synthesized: no_std, no alloc, no unsafe."
 
 [dependencies]
 libm = "0.2"
+ni-sampler = { path = "../ni-sampler" }
+
+[dev-dependencies]
+ni-sampler = { path = "../ni-sampler", features = ["std"] }

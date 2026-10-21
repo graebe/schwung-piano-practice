@@ -269,6 +269,18 @@ function strike(pitch, vel) {
   if (out & (OUT_TRACK | OUT_USB)) midiOutCh(0x90, pitch, vel);
 }
 
+/*
+ * The metronome. With the built-in piano as the only route it is the piano's
+ * recorded claves, a `c:1`/`c:0` entry in the same parameter write as the
+ * tick's notes. With any MIDI route on, the session sounds it as notes
+ * instead (false here), so the instrument at the other end clicks too.
+ */
+function click(downbeat) {
+  if (S.settings.midiOut !== OUT_INTERNAL) return false;
+  dspNotes.push(downbeat ? 'c:1' : 'c:0');
+  return true;
+}
+
 function release(pitch) {
   const out = S.settings.midiOut;
   if (out & OUT_INTERNAL) dspNote(pitch, 0);
@@ -345,6 +357,7 @@ const S = createSession({
   wallNow: () => Date.now(),
   strike,
   release,
+  click,
   silence,
   announce,
   readText: (name) => readFile(MODULE_DIR + '/' + name),
