@@ -47,6 +47,13 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
 });
 
 test('practising from the computer keyboard: a right note scores, a wrong one is counted', async ({ page }) => {
+  /* Grace to a whole beat, as for a new piece: the test presses once it has
+   * seen the bar start, a reaction later than the default quarter beat. */
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const grace = page.locator('.setting', { hasText: 'Grace' });
+  for (let i = 0; i < 3; i++) await grace.getByRole('button', { name: 'More Grace' }).click();
+  await expect(grace.locator('.setting-value')).toHaveText('1');
+  await page.keyboard.press('Escape');
   await openPath(page, SCALE);
   await page.keyboard.press('Space');                      /* practise */
   await expect(page.locator('.practice-head .t-hint')).toContainText('bar 1', { timeout: 6000 });
