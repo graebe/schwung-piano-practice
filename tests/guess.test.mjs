@@ -9,7 +9,7 @@ import {
   roundComplete, roundElapsed, roundProgress,
   moveChoice, pickChoice, optionLabel, PICK_COUNT,
   takeHint, hintsLeft, isEliminated, MAX_HINT,
-  EAR, promptEvents, READ_NAME, READ_STAFF, LOOKAHEAD, entryName,
+  EAR, promptEvents, READ_NAME, READ_STAFF, LOOKAHEAD, entryName, answerKey, chooseAnswer,
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
@@ -838,4 +838,49 @@ test('the name of an entry: a letter with no octave, or the chord symbol', () =>
   assert.equal(entryName(q, { pitches: [64, 67, 71], label: null }), 'Em', 'a triad is named');
   assert.equal(entryName(q, { pitches: [64, 67, 71, 74], label: 'Em7' }), 'Em7', 'a written symbol wins');
   assert.equal(entryName(q, { pitches: [60, 61, 62], label: null }), 'C C# D', 'no chord: its notes');
+});
+
+/* ---- Practising what you get wrong -------------------------------------------- */
+
+test('an answer missed before comes about four times as often as one never missed', () => {
+  const count = (history) => {
+    const q = createQuiz({ kind: EAR, exercise: 'id-3rds', level: 'up', seed: 11, history });
+    const seen = { m3: 0, M3: 0 };
+    for (let i = 0; i < 4000; i++) { seen[q.entry.answer]++; nextPrompt(q); }
+    return seen;
+  };
+  const even = count(null);
+  assert.ok(Math.abs(even.m3 - even.M3) < 400, 'no history: even');
+  const weighted = count({ m3: [10, 0], M3: [10, 10] });
+  const ratio = weighted.m3 / weighted.M3;
+  assert.ok(ratio > 3 && ratio < 5.5, `m3 always missed, M3 never: ${ratio.toFixed(2)}`);
+  assert.ok(weighted.M3 > 0, 'every answer still comes');
+});
+
+test('notes and chords weigh by their own answer too', () => {
+  const q = createQuiz({ kind: NOTES, halfTones: true, seed: 2, history: { 'C#': [5, 0] } });
+  let cs = 0;
+  for (let i = 0; i < 3000; i++) { if (answerKey(q, q.entry).key === 'C#') cs++; nextPrompt(q); }
+  const fair = 3000 / q.pool.length;
+  assert.ok(cs > 2 * fair, `C# missed every time comes more: ${cs} vs ${fair.toFixed(0)}`);
+});
+
+test('a prompt answered wrong is asked again three to five prompts later', () => {
+  for (let seed = 1; seed < 30; seed++) {
+    const q = createQuiz({ kind: EAR, exercise: 'id-to-8', level: 'up', seed });
+    const missed = q.entry;
+    const right = q.choices.findIndex((c) => c.key === missed.answer);
+    chooseAnswer(q, (right + 1) % q.choices.length);
+    chooseAnswer(q, right);
+    const after = [];
+    for (let i = 0; i < 6; i++) { nextPrompt(q); after.push(q.entry); }
+    const at = after.indexOf(missed) + 1;
+    assert.ok(at >= 3 && at <= 5, `seed ${seed}: asked again ${at} prompts later`);
+  }
+});
+
+test('a prompt answered right is not asked again on purpose', () => {
+  const q = createQuiz({ kind: EAR, exercise: 'id-to-8', level: 'up', seed: 4 });
+  chooseAnswer(q, q.choices.findIndex((c) => c.key === q.entry.answer));
+  assert.equal(q.reask.length, 0);
 });

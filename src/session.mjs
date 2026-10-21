@@ -670,6 +670,9 @@ export function createSession(fx, opts = {}) {
       roundSize: settings.roundSize,
       fifths: keyFifths(),
       read: quizRead(spec),
+      /* What this drill has asked before and how it went: the answers you
+       * miss come round more often. */
+      history: STATS.tallyFor(stats, STATS.drillId(spec)),
       seed: (wallNow() & 0x7fffffff) || 1,
     });
     quizSolvedAt = 0;

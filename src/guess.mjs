@@ -151,6 +151,7 @@ export function createQuiz({
   level = null,         /* EAR: and which of its levels */
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
   read = null,          /* Play drills: READ_NAME or READ_STAFF */
+  history = null,       /* the drill's tally over every round: { key: [asked, right] } */
   seed = 1,
 } = {}) {
   const ear = kind === EAR ? exerciseByKey(exercise) : null;
@@ -197,6 +198,13 @@ export function createQuiz({
     tally: {},
     tallyOrder: [],
     tallyLabels: {},
+    /* What the drill has asked before, and how it went: the answers you get
+     * wrong come round more often. */
+    history: history && typeof history === 'object' ? history : null,
+    keyCache: new Map(),
+    /* Prompts answered wrong, to ask again a few prompts later. */
+    reask: [],
+    draws: 0,
     roundSize,
     /*
      * Null until the first press. A round is timed from when you start
@@ -220,14 +228,18 @@ export function nextPrompt(quiz) {
   }
   let chosen;
   if (quiz.kind === EAR) {
-    chosen = pickEntry(quiz.groups, quiz.rand, quiz.entry);
+    chosen = dueReask(quiz, quiz.entry)
+      || pickEntry(quiz.groups, quiz.rand, quiz.entry, groupWeights(quiz));
+    quiz.draws++;
   } else {
     /* Drawn in order, each against the one before it, so a row reads exactly
      * as the same prompts would have arrived one at a time. */
     const depth = quiz.read ? LOOKAHEAD : 1;
     quiz.queue.shift();
     while (quiz.queue.length < depth) {
-      quiz.queue.push(randomEntry(quiz, quiz.queue[quiz.queue.length - 1] || quiz.entry));
+      const before = quiz.queue[quiz.queue.length - 1] || quiz.entry;
+      quiz.queue.push(dueReask(quiz, before) || randomEntry(quiz, before));
+      quiz.draws++;
     }
     chosen = quiz.queue[0];
   }
@@ -254,18 +266,69 @@ export function nextPrompt(quiz) {
   return quiz.prompt;
 }
 
+const promptKey = (e) => e.pitches.join(',') + '|' + (e.label || '');
+
 function randomEntry(quiz, before) {
-  const key = (e) => e.pitches.join(',') + '|' + (e.label || '');
-  const previous = before ? key(before) : '';
-  const same = (e) => key(e) === previous;
-  let chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+  const previous = before ? promptKey(before) : '';
+  const same = (e) => promptKey(e) === previous;
+  const draw = quiz.history ? () => weightedEntry(quiz) : () => quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+  let chosen = draw();
   if (quiz.pool.length > 1) {
     let guard = 8;
-    while (same(chosen) && guard-- > 0) {
-      chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
-    }
+    while (same(chosen) && guard-- > 0) chosen = draw();
   }
   return chosen;
+}
+
+/* ---- Practising what you get wrong ---------------------------------------------- */
+/*
+ * Two habits of a good teacher. What you have got wrong before comes round
+ * more often: an answer's weight is 1 + 3 x its error rate over every round
+ * of the drill, so one you always miss comes four times as often as one you
+ * never do — and every answer still comes. And a prompt you get wrong now is
+ * asked again three to five prompts later, while it is still fresh.
+ */
+const MISS_WEIGHT = 3;
+export const REASK_MIN = 3;
+export const REASK_SPREAD = 3;
+
+function weightOfKey(quiz, key) {
+  const t = quiz.history && quiz.history[key];
+  if (!t || !(t[0] > 0)) return 1;
+  return 1 + MISS_WEIGHT * ((t[0] - t[1]) / t[0]);
+}
+
+function entryKey(quiz, entry) {
+  let k = quiz.keyCache.get(entry);
+  if (k === undefined) {
+    k = answerKey(quiz, entry).key;
+    quiz.keyCache.set(entry, k);
+  }
+  return k;
+}
+
+function weightedEntry(quiz) {
+  let total = 0;
+  for (const e of quiz.pool) total += weightOfKey(quiz, entryKey(quiz, e));
+  let r = quiz.rand() * total;
+  for (const e of quiz.pool) {
+    r -= weightOfKey(quiz, entryKey(quiz, e));
+    if (r < 0) return e;
+  }
+  return quiz.pool[quiz.pool.length - 1];
+}
+
+/* Hearing draws an answer first, then a prompt for it: the answers weigh. */
+function groupWeights(quiz) {
+  if (!quiz.history) return null;
+  return quiz.groups.map((g) => weightOfKey(quiz, g[0].answer));
+}
+
+/* A missed prompt whose turn has come, unless it would repeat the last one. */
+function dueReask(quiz, before) {
+  const at = quiz.reask.findIndex((r) => r.due <= quiz.draws && !(before && promptKey(r.entry) === promptKey(before)));
+  if (at < 0) return null;
+  return quiz.reask.splice(at, 1)[0].entry;
 }
 
 /*
@@ -354,6 +417,12 @@ function solve(quiz, nowMs) {
     }
     quiz.tally[key][0]++;
     if (!quiz.missed) quiz.tally[key][1]++;
+    /* Missed: ask it again a few prompts on (the row already holds the next
+     * few, so it lands after them). */
+    if (quiz.missed) {
+      const due = quiz.draws + REASK_MIN - 1 + Math.floor(quiz.rand() * REASK_SPREAD);
+      quiz.reask.push({ entry: quiz.entry, due });
+    }
   }
 }
 

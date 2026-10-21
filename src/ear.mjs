@@ -438,11 +438,22 @@ export function groupByAnswer(pool, answers) {
  * straight from the pool would ask "leap" four times as often as "step",
  * and always answering leap would score 80%.
  */
-export function pickEntry(groups, rand, previous = null) {
+export function pickEntry(groups, rand, previous = null, weights = null) {
   if (!groups.length) return null;
+  let total = 0;
+  if (weights) for (const w of weights) total += w;
+  const pickGroup = () => {
+    if (!weights) return groups[Math.floor(rand() * groups.length)];
+    let r = rand() * total;
+    for (let i = 0; i < groups.length; i++) {
+      r -= weights[i];
+      if (r < 0) return groups[i];
+    }
+    return groups[groups.length - 1];
+  };
   let chosen = null;
   for (let guard = 8; guard >= 0; guard--) {
-    const group = groups[Math.floor(rand() * groups.length)];
+    const group = pickGroup();
     chosen = group[Math.floor(rand() * group.length)];
     if (chosen !== previous) break;
   }
