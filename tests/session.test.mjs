@@ -383,3 +383,56 @@ test('first-time Info opens by itself when Auto info is on, once', () => {
   openPath(h.session, ['Down']);
   assert.equal(h.session.view, READY, 'scale drills were explained already');
 });
+
+/* ---- Help that fades with the stage ------------------------------------------- */
+
+test('names are printed at stage 1 and not at stage 2, unless chosen otherwise', () => {
+  const h = fakeHost();
+  armScale(h);
+  assert.equal(h.session.namesShown(), true, 'stage 1');
+  h.session.moveSelection(1);
+  assert.equal(h.session.namesShown(), false, 'stage 2 reads the staff');
+  h.session.settings.names = 'always';
+  assert.equal(h.session.namesShown(), true);
+  h.session.settings.names = 'off';
+  h.session.moveSelection(-1);
+  assert.equal(h.session.namesShown(), false);
+});
+
+test('the reference line sounds at stage 1 and is quiet at stage 2', () => {
+  const struck = (stage) => {
+    const h = fakeHost();
+    armScale(h);
+    if (stage === 2) h.session.moveSelection(1);
+    h.session.recordButton();
+    h.run(6000);
+    return h.log.filter((e) => e[0] === 'strike' && e[2] === 70).length;
+  };
+  assert.ok(struck(1) > 0, 'the line you are reading, heard');
+  assert.equal(struck(2), 0, 'reading alone');
+});
+
+test('at stage 2 a stuck note is named only once it has waited two beats', () => {
+  const h = fakeHost();
+  armScale(h);
+  h.session.moveSelection(1);
+  h.session.recordButton();
+  for (let i = 0; i < 200 && !h.session.blocked; i++) h.run(50);
+  assert.ok(h.session.blocked);
+  assert.equal(h.session.stuckNamed(), false, 'a hesitation is not a cue');
+  h.run(2000);                                  /* two beats and more at 80 bpm */
+  assert.equal(h.session.stuckNamed(), true, 'stuck: now it is named');
+});
+
+test('settings saved before v8 move on: reference on is stage 1, off stays off, a beat of grace a quarter', () => {
+  const load = (stored) => {
+    const h = fakeHost({ settings: { ...QUIET, ...stored } });
+    h.session.init();
+    return h.session.settings;
+  };
+  assert.equal(load({ version: 7, reference: true }).reference, 'stage1');
+  assert.equal(load({ version: 7, reference: false }).reference, 'off');
+  assert.equal(load({ version: 7, graceBeats: 1 }).graceBeats, 1 / 4);
+  assert.equal(load({ version: 7, graceBeats: 2 }).graceBeats, 2, 'chosen on purpose, kept');
+  assert.equal(load({ version: 8, graceBeats: 1 }).graceBeats, 1, 'a choice made since, kept');
+});

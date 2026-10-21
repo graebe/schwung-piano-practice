@@ -194,7 +194,7 @@ export function createSession(fx, opts = {}) {
    * A saved settings.json always wins over a default, so changing one silently
    * does nothing for anybody who has already used the module.
    */
-  const SETTINGS_VERSION = 7;
+  const SETTINGS_VERSION = 8;
 
   const settings = {
     version: SETTINGS_VERSION,
@@ -210,10 +210,11 @@ export function createSession(fx, opts = {}) {
     autoInfo: true,    /* show a practice's Info page the first time it is opened */
     chordSet: 'triads',
     click: true,
-    reference: true,   /* hear the line you are meant to be playing */
+    reference: 'stage1', /* hear the line you are meant to be playing — at stage 1 */
+    names: 'stage1',   /* note names under the notes — at stage 1 */
     midiOut: OUT_INTERNAL, /* our own piano: always works, needs no setup */
     waitForNote: true, /* stop at a note until it is played */
-    graceBeats: 1,     /* beats you may be late before the scroll waits for you */
+    graceBeats: 1 / 4, /* beats you may be late and still be in time */
     refVel: 70,
     midiCh: 0,         /* 0 = every channel, so a track mismatch cannot silence us */
     countIn: 4,
@@ -279,6 +280,15 @@ export function createSession(fx, opts = {}) {
     /* v7: Guide pads became each exercise's stage — stage 1 lights the pads,
      * stage 2 does not — so the stored setting is simply no longer read, and
      * writing the file drops it. */
+    /* v8: the reference line and the names fade with the stage, so a stored
+     * "on" becomes "stage 1" — the default — and "off" stays off. Grace only
+     * judges now, and the old default of a whole beat counted a note 750ms
+     * late as in time; it moves to a quarter. A grace chosen deliberately stays. */
+    if (storedVersion < 8) {
+      if (obj.reference === false) settings.reference = 'off';
+      if (settings.graceBeats === 1) settings.graceBeats = 1 / 4;
+      migrated = true;
+    }
     if (storedVersion !== SETTINGS_VERSION) {
       settings.version = SETTINGS_VERSION;
       migrated = true;
@@ -718,6 +728,25 @@ export function createSession(fx, opts = {}) {
     if (!quiz) return '';
     if (quiz.read === GUESS.READ_NAME && quiz.entry) return GUESS.entryName(quiz, quiz.entry);
     return quiz.label || NOTATION.chordLabel(quiz.prompt, keyFifths());
+  }
+
+  /*
+   * The help that fades with the stage: the reference line and the names
+   * under the notes, on at stage 1 and off at stage 2 unless chosen otherwise.
+   */
+  const fades = (value, onWord) => value === onWord || (value === 'stage1' && stage === 1);
+  function referenceOn() {
+    return fades(settings.reference, 'on');
+  }
+  function namesShown() {
+    return fades(settings.names, 'always');
+  }
+
+  /* Without names, the note the scroll waits on is named once it has waited
+   * this long: a hint for the stuck, not the answer for the hesitant. */
+  const STUCK_NAME_BEATS = 2;
+  function stuckNamed() {
+    return namesShown() || (blocked && scoreBeats - songBeats >= STUCK_NAME_BEATS);
   }
 
   /* The Key and Scale settings' key, to spell in: C minor's Eb, not D#. */
@@ -1222,7 +1251,7 @@ export function createSession(fx, opts = {}) {
    */
   function serviceReference() {
     if (songBeats < 0) return;  /* nothing to sound during the count-in */
-    const vel = CTRL.referenceVelocity(listening, settings.reference, settings.refVel);
+    const vel = CTRL.referenceVelocity(listening, referenceOn(), settings.refVel);
     const silent = vel <= 0;
     while (listenIndex < chart.events.length && chart.events[listenIndex].beat <= songBeats) {
       const e = chart.events[listenIndex++];
@@ -2054,6 +2083,8 @@ export function createSession(fx, opts = {}) {
     progressDetail,
     keyFifths,
     quizGlide,
+    namesShown,
+    stuckNamed,
     collectTarget,
     collectStuck,
     collectSounding,

@@ -119,7 +119,7 @@ export function drawReadingView(ctx, state) {
     R.drawEntry(ctx, {
       x: v.x,
       notes,
-      label: chordLabel(v.event.pitches, fifths),
+      label: state.names === false ? '' : chordLabel(v.event.pitches, fifths),
       labelLimitPx: labelLimitPx(visible, i, pxPerBeat),
     });
   }
@@ -148,7 +148,7 @@ export function drawReadingView(ctx, state) {
   const countIn = countInRemaining(songBeats);
   if (countIn > 0) {
     drawCentreCallout(ctx, String(Math.min(9, countIn)), 4);
-  } else if (state.blocked && run) {
+  } else if (state.blocked && run && state.stuckNamed !== false) {
     const stuck = chart.events[blockingEntryIndex(run)];
     drawStuckLabel(ctx, blockingNotes(run).map((n) => n.pitch),
       keyAt(chart, stuck ? stuck.beat : songBeats), stuck && stuck.symbol);

@@ -27,7 +27,7 @@ import * as GUESS from './guess.mjs';
 import * as GEN from './generator.mjs';
 import * as NOTATION from './notation.mjs';
 import * as AP from './answer_pads.mjs';
-import { chartTotalBeats, beatsPerBar, barBeatOf } from './chart.mjs';
+import { chartTotalBeats, beatsPerBar, barBeatOf, keyAt } from './chart.mjs';
 import {
   MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
 } from './session.mjs';
@@ -279,6 +279,15 @@ function progressOf(S, plotW, plotH) {
   };
 }
 
+/* The note or chord the scroll waits on, named in its key. */
+function stuckNameOf(S) {
+  const at = SCORE.blockingEntryIndex(S.run);
+  const event = S.chart.events[at];
+  const pitches = SCORE.blockingNotes(S.run).map((n) => n.pitch);
+  if (!event || !pitches.length) return null;
+  return event.symbol || NOTATION.chordLabel(pitches, keyAt(S.chart, event.beat));
+}
+
 /* ---- The whole picture -------------------------------------------------------- */
 
 export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
@@ -292,6 +301,10 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     key: keyOf(settings, S.keyFifths()),
     nav: view === MENU ? navOf(S) : null,
     armed: S.armedId ? { id: S.armedId, stage: S.stage } : null,
+    /* The names under the notes, as the stage and the Names setting have them;
+     * a stuck note's name once it has waited long enough. */
+    names: inSong ? S.namesShown() : true,
+    stuckName: inSong && S.blocked && S.run && S.stuckNamed() ? stuckNameOf(S) : null,
     chart: inSong ? chartOf(S.chart) : null,
     run: inSong ? runOf(S.run, S.blocked) : null,
     clock: clockOf(S, t),

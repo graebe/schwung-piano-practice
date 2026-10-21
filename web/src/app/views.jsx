@@ -115,6 +115,7 @@ export function PracticeView(props) {
         <GrandStaff events={events()} judgements={judgements()} markers={markers()}
                     fifths={vm().chart ? vm().chart.keySig : 0} keyChanges={vm().chart ? vm().chart.keyChanges : []}
                     spelling={vm().chart ? vm().chart.spelling : null}
+                    showNames={vm().names !== false}
                     timeSig={vm().chart ? vm().chart.timeSig : null}
                     blockingIndex={vm().run && vm().run.blockIndex >= 0 ? vm().run.blockIndex : null}
                     beats={moving() ? () => { const c = props.store.clock(); return c ? c.beats : 0; } : beats()}
@@ -128,7 +129,12 @@ export function PracticeView(props) {
           <div class="staff-badge t-label">Paused</div>
         </Show>
         <Show when={vm().clock.blocked}>
-          <div class="staff-badge t-label">Waiting for the lit note</div>
+          {/* Stage 1 lights it; stage 2 names it only once it has waited. */}
+          <div class="staff-badge t-label">
+            {vm().armed && vm().armed.stage === 2
+              ? (vm().stuckName ? `Waiting for ${vm().stuckName}` : 'Waiting')
+              : 'Waiting for the lit note'}
+          </div>
         </Show>
       </div>
 

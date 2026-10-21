@@ -274,13 +274,16 @@ test('every settings row is reachable, not just the four on knobs', () => {
 });
 
 test('the reference line is decided in controls.mjs, and skips the count-in', () => {
-  assert.match(code, /CTRL\.referenceVelocity\(listening, settings\.reference, settings\.refVel\)/);
+  assert.match(code, /CTRL\.referenceVelocity\(listening, referenceOn\(\), settings\.refVel\)/);
   const ref = fnBody(code, 'serviceReference');
   assert.match(ref, /songBeats < 0/, 'the count-in has no notes to sound');
   /* The cursor must advance even when silent, or enabling it mid-run dumps
    * every skipped note at once. */
   assert.match(ref, /listenIndex\+\+[\s\S]{0,240}if \(silent\) continue;/);
-  assert.match(code, /reference: true/, 'on by default');
+  /* On at stage 1, where you are learning the line; off at stage 2, where
+   * hearing it would do the reading for you. */
+  assert.match(code, /reference: 'stage1'/, 'on at stage 1 by default');
+  assert.match(fnBody(code, 'referenceOn'), /fades\(settings\.reference, 'on'\)/);
 });
 
 test("Move's Menu button opens the exercise list", () => {
@@ -352,14 +355,15 @@ function settingsVersion() {
   return Number(m[1]);
 }
 
-test('wait is on by default, and the grace is long enough to find the key', () => {
+test('wait is on by default; grace only judges, and a quarter of a beat is in time', () => {
   assert.match(code, /waitForNote: true/);
-  /* A third of a beat is 250ms at 80bpm, and the scroll halted while the hand
-   * was still travelling. Sight-reading is mostly spent finding the pad. */
-  assert.match(code, /graceBeats: 1,/);
+  /* The scroll stops on the note whatever Grace says; Grace decides how late
+   * still counts, and a whole beat late is not in time. */
+  assert.match(code, /graceBeats: 1 \/ 4,/);
   /* And the change has to reach someone who has already used the module: a
-   * saved settings.json always beats a changed default. */
-  assert.match(code, /storedVersion < 5[\s\S]{0,160}settings\.graceBeats = 1/);
+   * saved settings.json always beats a changed default. Only the old default
+   * moves; a grace chosen on purpose stays. */
+  assert.match(code, /storedVersion < 8\)[\s\S]{0,200}settings\.graceBeats === 1\) settings\.graceBeats = 1 \/ 4/);
 });
 
 /* ---- Closing cleanly ----------------------------------------------------- */

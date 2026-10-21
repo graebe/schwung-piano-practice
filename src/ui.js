@@ -598,6 +598,7 @@ function draw() {
       run: S.run,
       songBeats,
       pxPerBeat: settings.pxPerBeat,
+      names: S.namesShown(),
       /*
        * The header's right slot holds one thing. At the top that is where the
        * notes are going — a silent channel mismatch is otherwise
@@ -621,6 +622,8 @@ function draw() {
       beatFlash: now() - S.beatFlash < 90,
       blocked: S.blocked,
       paused: S.paused,
+      names: S.namesShown(),
+      stuckNamed: S.stuckNamed(),
     });
   }
 }
