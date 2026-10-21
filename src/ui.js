@@ -520,6 +520,20 @@ function draw() {
       scroll: infoScroll,
       footer: infoLines.length > L.INFO_ROWS ? 'JOG scroll BACK close' : 'BACK close',
     });
+  } else if (view === GUESS_VIEW && S.quizPick && quiz.exercise && quiz.exercise.read) {
+    const option = quiz.choices[quiz.choiceIndex];
+    VIEW.drawReadPick(ctx, {
+      title: 'READ ' + quiz.exercise.short.toUpperCase(),
+      score: quiz.roundSize > 0
+        ? quiz.correct + '/' + quiz.roundSize
+        : String(GUESS.quizStats(quiz).correct),
+      staff: quiz.entry ? quiz.entry.staff : [],
+      option: option ? GUESS.optionLabel(quiz, option) : '',
+      struck: GUESS.isEliminated(quiz, quiz.choiceIndex),
+      solved: quiz.solved,
+      label: quiz.label,
+      footer: GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok',
+    });
   } else if (view === GUESS_VIEW && S.quizPick) {
     const ear = quiz.kind === GUESS.EAR;
     let ask = 'which pad is lit?';

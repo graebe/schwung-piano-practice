@@ -27,6 +27,7 @@ import { availableLevels } from './levels.mjs';
 import { item, isFinished } from './progress.mjs';
 import { EXERCISES, exerciseByKey, isNaming } from './ear.mjs';
 import { COURSES } from './ear_course.mjs';
+import { READ_COURSES } from './read_course.mjs';
 
 const SCALES = 'basics/scales/';
 const CHORDS = 'basics/chords/';
@@ -182,7 +183,8 @@ const HEARING = earUnits(EXERCISES);
 
 /* The three listening courses, a track each, after Hearing: a course is a path
  * through one skill, which is what a track is. */
-const COURSE_TRACKS = COURSES.map((c) => ({ key: c.key, name: c.track, units: earUnits(c.exercises) }));
+const COURSE_TRACKS = COURSES.concat(READ_COURSES)
+  .map((c) => ({ key: c.key, name: c.track, units: earUnits(c.exercises) }));
 
 /* What the songs track calls a rung, short enough to follow a song's name. */
 const RUNG = { '1r': 'L1 RH', '1l': 'L1 LH', '2r': 'L2', '3': 'L3' };

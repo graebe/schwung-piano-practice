@@ -199,6 +199,19 @@ function navOf(S) {
   };
 }
 
+function sheetOf(columns) {
+  return columns.map((c, i) => ({
+    beat: i + c.part,
+    durBeats: 0,
+    index: i,
+    /* All on the treble, as on the Move: a 3rd split across middle C would be
+     * read as two staves, not one interval. */
+    hand: 'r',
+    pitches: c.notes.map((n) => n.pitch),
+    spelled: c.notes.map((n) => ({ step: n.diatonic, alteration: n.alter, letter: ((n.diatonic % 7) + 7) % 7 })),
+  }));
+}
+
 /*
  * The open quiz. While the prompt is withheld — a hearing drill not yet
  * answered — neither the notes nor their name are sent.
@@ -220,6 +233,9 @@ export function quizOf(S) {
      * a prompt keeps its place as the row moves on. A staff drill withholds the
      * name — reading it is the drill — until Help gives it. */
     read: quiz.read || null,
+    /* A reading course draws its prompt: one event per column, spelled as the
+     * course wrote it, a beat apart and a beat more between two intervals. */
+    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? sheetOf(quiz.entry.staff) : null,
     queue: quiz.read ? quiz.queue.map((e, i) => ({
       index: quiz.asked - 1 + i,
       pitches: e.pitches.slice(),

@@ -76,9 +76,10 @@ Basics            Scales        one folder per Move scale: Up & down, Up, Down, 
                   Chords        thirteen families, one lesson per chord quality
                   Progressions  ten progressions in the Key setting's key
                   Random        random notes, and random chords from the whole vocabulary
-Quiz              Hear    name what you hear, or play it back
+Quiz              Hear    name what you hear, or play it back; three listening courses
                   Play    notes by alphabet or staff, chords by name or staff, in a moving row
                   Name    name the pad that is lit
+                  Read    the three courses again, on the staff
 Classics          folk tunes and the classics, easy first
 Electronic        the chord loops of famous tracks, and five electronic style pieces
 Techno            fourteen progression studies, simple to complex
@@ -149,7 +150,7 @@ bar is passage practice and is not, and neither is Listen.
 
 ## The Learning Program
 
-The lesson list holds everything; the **Learning Program** is a path through it. Seven tracks run
+The lesson list holds everything; the **Learning Program** is a path through it. Ten tracks run
 side by side, because reading, harmony, repertoire and ear are different skills and a session that
 mixes them beats one that grinds a single list:
 
@@ -162,6 +163,7 @@ mixes them beats one that grinds a single list:
 | **Intervals** | the Identify intervals course: 2nds up to two octaves |
 | **Compare** | the Compare intervals course: which of two intervals is bigger |
 | **Scales** | the Identify scales course: major and minor, then the modes |
+| **Read intervals**, **Read compare**, **Read scales** | the same three courses on the staff (Quiz › Read) |
 
 Each track is in units, and each unit is a few steps. A step is simply a row of the lesson list, so
 **it counts however you get there**: play Ode to Joy from Classics and its step in the program is
@@ -443,6 +445,7 @@ The **Quiz** folder asks in three ways, one folder each:
 | **Hear** | a sound | naming it, or playing it back — the Hearing exercises below |
 | **Play** | a row of notes or chords, by name or on the staff | playing each on the pads |
 | **Name** | a lit pad | choosing its name with the jog |
+| **Read** | an interval, two intervals or a scale on the staff | naming it — the listening courses, read |
 
 **Play** holds four drills, two ways of reading for notes and for chords:
 
@@ -669,6 +672,30 @@ type. The root changes every time, so you are naming the pattern of steps, not t
 To tell scales apart, listen for where the semitones fall, and for the 3rd, 6th and 7th. Melodic
 minor is played the same way down as up: the jazz form, not the classical one that comes down as
 natural minor.
+
+### Reading the same courses
+
+**Quiz › Read** has the three courses again, unit for unit and level for level, but you see them
+instead of hearing them: **Read intervals**, **Compare by eye** and **Read scales**. The interval, the
+two intervals or the scale is drawn on the staff, and you name it from the same answers. A unit
+read and the same unit heard train one skill from both sides.
+
+- **Up**, **down** and **tog** are how the notes are drawn: one after the other rising, falling, or
+  stacked. In **Compare by eye** a bar line separates the two intervals, and **fix** levels start
+  both on the same written note.
+- **Count the letters.** An interval's size is the number of letters it spans, both ends counted:
+  C to E is C D E, a 3rd. The accidentals then tell major from minor. Every interval is spelled
+  this way, so C–E♭ is a minor 3rd and you will never see C–D♯ asked as one.
+- **A scale has one letter a degree.** Pentatonics, whole tone and the diminished scales are
+  written as players write them: the diminished scale on C reads C D E♭ F G♭ A♭ A B.
+- **One sharp or flat at most.** The Move draws single accidentals only, so a root that would need
+  a double sharp or double flat (altered ♭♭7 on C needs B𝄫) is never asked. The scale comes on
+  another root instead.
+
+On the Move the staff fills the screen, and the answer under the jog is in the line below it. Turn
+the jog to walk the answers and click to choose, or press an answer pad. **Play** sounds what is
+on the staff. That would give the answer away, so the first listen counts as help, like **Record**.
+A right answer then plays what you read. On the page, the staff sits above the answer buttons.
 
 ### What to listen for
 

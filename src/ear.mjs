@@ -36,6 +36,7 @@ import {
   SIMPLE_INTERVALS, intervalAnswers, intervalPrompts,
 } from './ear_core.mjs';
 import { COURSES } from './ear_course.mjs';
+import { READ_COURSES } from './read_course.mjs';
 
 export { NOTE_GAP, INTERVALS, promptLength, slowed } from './ear_core.mjs';
 
@@ -357,7 +358,7 @@ export const EXERCISES = [
 
 /* The hearing exercises, then every unit of every course: one namespace of
  * keys, so an id like ear:cmp-6ths:fix-up resolves wherever it was filed. */
-const ALL = EXERCISES.concat(...COURSES.map((c) => c.exercises));
+const ALL = EXERCISES.concat(...COURSES.concat(READ_COURSES).map((c) => c.exercises));
 
 export function exerciseByKey(key) {
   return ALL.find((e) => e.key === key) || null;
@@ -365,7 +366,7 @@ export function exerciseByKey(key) {
 
 /* 1-based, from its list's order, so the numbering cannot drift from it. */
 export function exerciseNumber(exercise) {
-  const course = COURSES.find((c) => c.exercises.indexOf(exercise) >= 0);
+  const course = COURSES.concat(READ_COURSES).find((c) => c.exercises.indexOf(exercise) >= 0);
   return (course ? course.exercises : EXERCISES).indexOf(exercise) + 1;
 }
 
@@ -409,6 +410,8 @@ function pitchesOf(events) {
  * grid, and hearing it needs no pad.
  */
 export function levelRange(level, transpose = DEFAULT_TRANSPOSE) {
+  /* A reading level is drawn, not played back: the whole staff, always. */
+  if (level.staffOnly) return { lo: MIN_PITCH, hi: MAX_PITCH };
   const pads = earRange(transpose);
   if (!level.span || pads.hi - pads.lo >= level.span + 2) return pads;
   return { lo: MIN_PITCH, hi: MAX_PITCH };
@@ -425,7 +428,9 @@ export function buildEarPool(exercise, levelKey, transpose = DEFAULT_TRANSPOSE) 
   for (let i = 0; i < raw.length; i++) {
     const pitches = pitchesOf(raw[i].events);
     if (pitches.some((p) => p < range.lo || p > range.hi)) continue;
-    pool.push({ answer: raw[i].answer, events: raw[i].events, pitches, label: raw[i].label });
+    const entry = { answer: raw[i].answer, events: raw[i].events, pitches, label: raw[i].label };
+    if (raw[i].staff) entry.staff = raw[i].staff;
+    pool.push(entry);
   }
   return pool;
 }

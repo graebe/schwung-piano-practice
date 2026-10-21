@@ -201,6 +201,21 @@ for (const [course, unit, level, title, answers] of [
   });
 }
 
+for (const [course, unit, level, answers, notes] of [
+  ['Read intervals', '9 Up to the octave', 'RdInt to octave tog', 12, 2],
+  ['Compare by eye', '9 6ths', 'RdCmp 6ths fix up', 3, 4],
+  ['Read scales', '6 Seven modes', 'RdSc 7 modes up', 7, 8],
+]) {
+  test(`${course}: the prompt is on the staff, the answers below it`, async ({ page }) => {
+    await openPath(page, ['Quiz', 'Read', course, unit, level]);
+    await expect(page.locator('.quiz-row svg')).toBeVisible();
+    expect(await page.locator('.quiz-row .staff-note').count()).toBeGreaterThanOrEqual(notes);
+    await expect(page.locator('.option')).toHaveCount(answers);
+    await answerRight(page);
+    await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /);
+  });
+}
+
 test('Info explains what is in front of you, and Escape closes it', async ({ page }) => {
   await page.keyboard.press('KeyI');
   await expect(page.locator('.info-screen')).toBeVisible();

@@ -926,7 +926,7 @@ test('the Quiz folder is Hear, Play and Name, and each opens its drills', () => 
   globalThis.init();
   jog(2);
   const quiz = screen.frame(click);
-  assert.match(quiz, /QUIZ \| 1\/3 \| Hear .*\| Play .*\| Name /, quiz);
+  assert.match(quiz, /QUIZ \| 1\/4 \| Hear .*\| Play .*\| Name .*\| Read /, quiz);
   const hear = screen.frame(click);
   assert.match(hear, /HEAR/);
   assert.match(hear, /Higher or lower/, 'Hear holds the hearing exercises: ' + hear);

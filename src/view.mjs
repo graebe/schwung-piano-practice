@@ -11,7 +11,7 @@
 
 import * as L from './layout.mjs';
 import * as R from './staff_render.mjs';
-import { spell, pitchToY, chordLabel, inStaffRange } from './notation.mjs';
+import { spell, pitchToY, diatonicToY, chordLabel, inStaffRange } from './notation.mjs';
 import { nameChord } from './chords.mjs';
 import {
   visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, fifthsAt,
@@ -866,6 +866,83 @@ function drawAnswerMap(ctx, state, options) {
   }
   const name = truncate(ctx, options[state.index] || '', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(name)) >> 1, MAP_NAME_Y, name, 1);
+}
+
+/*
+ * A reading course: the prompt on the staff, the answer under the jog in the
+ * name lane. The staff needs the screen, so the answers are one line — the
+ * jog walks them, the answer pads light them, the one under the jog pulses.
+ *
+ * Notes come spelled ({ diatonic, alter }): a read interval is counted by its
+ * letters, so they are placed by letter, never re-spelled by a key.
+ *
+ * state = { title, score, staff: [{ part, notes }], option, solved, label, footer }
+ */
+const READ_LEFT_X = 26;
+const READ_RIGHT_X = 122;
+const READ_STEP_MAX = 26;
+
+export function readColumnsX(columns) {
+  const parts = columns.length ? columns[columns.length - 1].part + 1 : 1;
+  const slots = columns.length + (parts - 1);
+  const step = Math.min(READ_STEP_MAX, (READ_RIGHT_X - READ_LEFT_X) / Math.max(1, slots - 1));
+  const width = step * (slots - 1);
+  const left = READ_LEFT_X + ((READ_RIGHT_X - READ_LEFT_X - width) / 2);
+  return columns.map((c, i) => Math.round(left + (i + c.part) * step));
+}
+
+/* One column: a single note, or a stack whose seconds sit side by side and
+ * whose accidentals step left when they would touch. */
+function drawReadColumn(ctx, x, notes) {
+  const sorted = notes.slice().sort((a, b) => a.diatonic - b.diatonic);
+  let accX = x + L.ACCIDENTAL_DX;
+  let lastAccY = null;
+  for (let i = 0; i < sorted.length; i++) {
+    const n = sorted[i];
+    const y = diatonicToY(n.diatonic);
+    const shifted = i > 0 && n.diatonic - sorted[i - 1].diatonic === 1;
+    const hx = shifted ? x + L.HEAD_W : x;
+    R.drawLedgers(ctx, hx, y);
+    R.drawNote(ctx, hx, y, 'pending', 0);
+    if (n.alter) {
+      const clash = lastAccY !== null && Math.abs(lastAccY - y) < L.ACCIDENTAL_H + 1;
+      if (clash) accX -= L.ACCIDENTAL_W + 2;
+      R.drawAccidental(ctx, accX, y, n.alter);
+      lastAccY = y;
+    }
+  }
+}
+
+export function drawReadPick(ctx, state) {
+  ctx.clear();
+  R.drawStaff(ctx);
+  const columns = state.staff || [];
+  const xs = readColumnsX(columns);
+  for (let i = 0; i < columns.length; i++) {
+    /* A bar line between the two intervals of a comparison. */
+    if (i > 0 && columns[i].part !== columns[i - 1].part) R.drawBarLine(ctx, (xs[i - 1] + xs[i]) >> 1);
+    drawReadColumn(ctx, xs[i], columns[i].notes);
+  }
+  ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
+  R.drawClef(ctx);
+  R.drawChrome(ctx, { left: state.title || 'READ', right: state.score || '', lane: true });
+
+  if (state.solved) {
+    /* Right: what it was, knocked out, as a solved prompt is everywhere. */
+    const text = truncate(ctx, state.label || '', L.TEXT_MAX_PX - 4);
+    const w = ctx.textWidth(text);
+    const x = (L.SCREEN_W - w) >> 1;
+    ctx.fillRect(x - 2, L.NAME_LANE_Y - 1, w + 4, L.TEXT_H + 1, 1);
+    ctx.text(x, L.NAME_LANE_Y, text, 0);
+  } else {
+    const text = truncate(ctx, state.option || '', L.TEXT_MAX_PX - 16);
+    ctx.text(1, L.NAME_LANE_Y, '<', 1);
+    ctx.text(L.SCREEN_W - 1 - ctx.textWidth('>'), L.NAME_LANE_Y, '>', 1);
+    ctx.text((L.SCREEN_W - ctx.textWidth(text)) >> 1, L.NAME_LANE_Y, text, 1);
+    if (state.struck) ctx.fillRect(8, L.NAME_LANE_Y + 3, L.SCREEN_W - 16, 1, 1);
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
 }
 
 /*

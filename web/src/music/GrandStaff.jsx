@@ -38,9 +38,11 @@
  * all: the chart is drawn once, still, for a screenshot.
  *
  * Props:
- *   events        [{ beat, durBeats, pitches, hand?, symbol?, index? }], beat
- *                 order, as in an exercise file; `index` (default: position)
- *                 is what judgements and blockingIndex refer to
+ *   events        [{ beat, durBeats, pitches, hand?, symbol?, index?, spelled? }],
+ *                 beat order, as in an exercise file; `index` (default:
+ *                 position) is what judgements and blockingIndex refer to;
+ *                 `spelled` [{ step, alteration, letter }] by pitch places
+ *                 notes by letter instead of by the key (C-Eb, not C-D#)
  *   judgements    by index: a state for every note of the event, or an array
  *                 of states parallel to its pitches; 'pending' | 'hit' |
  *                 'good' | 'late' | 'missed' (absent: pending)
@@ -123,7 +125,7 @@ export function GrandStaff(props) {
       const fifths = fifthsAt(chart(), ev.beat);
       const x = ev.beat * p;
       const notes = ev.pitches.map((pitch, j) => {
-        const w = S.written(pitch, fifths);
+        const w = ev.spelled?.[j] ?? S.written(pitch, fifths);
         const staff = S.staffOf(w.step, ev.hand);
         const acc = S.accidentalFor(w.alteration, w.letter, fifths);
         return { pitch, j, ...w, staff, y: L.y(w.step, staff), acc, state: judgement(index, j) };

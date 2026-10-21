@@ -144,6 +144,9 @@ date and tempo; *The numbers* opens them as a table.
   three courses after them: **Identify intervals** (2nds to two octaves),
   **Compare intervals** (which of two is bigger, from a fixed or a random root)
   and **Identify scales** (major and minor, then the modes).
+- **Read** — the same three courses on the staff: read an interval, compare two,
+  read a scale, and choose the answer. **Hear** plays what is written, and the
+  first listen counts as help.
 
 ![A hearing drill](media/web-hear.png)
 

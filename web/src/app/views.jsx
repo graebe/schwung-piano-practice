@@ -246,6 +246,15 @@ export function QuizView(props) {
               </Show>
             </div>
           </Show>
+          <Show when={q().sheet}>
+            <div class="quiz-staff quiz-row">
+              {/* Half a beat back, so no note sits on the hit line and lights as "now". */}
+              <GrandStaff events={q().sheet} fifths={0} timeSig={null} beats={-0.5} hitX={0.06}
+                          pxPerBeat={Math.min(60, 520 / Math.max(1, q().sheet.length))}
+                          hitLine={false} showNames={false} barLines={false}
+                          label={`The ${q().title || 'prompt'} to read`} />
+            </div>
+          </Show>
           <Show when={q().read === 'staff'}>
             <div class="quiz-staff quiz-row">
               <GrandStaff events={rowEvents()} judgements={rowJudgements()} fifths={q().fifths} timeSig={null}

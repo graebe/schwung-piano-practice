@@ -49,6 +49,7 @@ import * as STATS from './stats.mjs';
 import * as PROG from './progress.mjs';
 import * as PLAN from './program.mjs';
 import { COURSES } from './ear_course.mjs';
+import { READ_COURSES } from './read_course.mjs';
 import * as AP from './answer_pads.mjs';
 import * as INFO from './info.mjs';
 import * as CUES from './cues.mjs';
@@ -497,13 +498,23 @@ export function createSession(fx, opts = {}) {
    * The rows are the track's own steps, so a level played here is the same item
    * as in the Learning Program — and playing back notes and chords is two of
    * its units, so they are not listed a second time. */
+  /* A track's units as folders of their steps, by the track's key. */
+  function unitFolders(key) {
+    const track = tracks.find((t) => t.key === key);
+    return (track ? track.units : []).map((u) => CAT.folder(u.name, u.steps.map(PLAN.stepRow), u.exercise));
+  }
+
+  const courseFolder = (c) => CAT.folder(c.name, unitFolders(c.key), c.key);
+
   function hearFolder() {
-    const unitFolders = (track) => (track ? track.units : []).map((u) =>
-      CAT.folder(u.name, u.steps.map(PLAN.stepRow), u.exercise));
     /* The three courses close the list, each a folder of its units: the
      * Hearing exercises stay where they were. */
-    const courses = COURSES.map((c) => CAT.folder(c.name, unitFolders(tracks.find((t) => t.key === c.key)), c.key));
-    return CAT.folder('Hear', unitFolders(tracks.find((t) => t.key === 'hearing')).concat(courses), 'hear');
+    return CAT.folder('Hear', unitFolders('hearing').concat(COURSES.map(courseFolder)), 'hear');
+  }
+
+  /* Quiz › Read: the three courses again, on the staff. */
+  function readFolder() {
+    return CAT.folder('Read', READ_COURSES.map(courseFolder), 'read');
   }
 
   function quizRows(rows) {
@@ -518,6 +529,7 @@ export function createSession(fx, opts = {}) {
       hearFolder(),
       CAT.folder('Play', quizRows(QUIZ_PLAY), 'play'),
       CAT.folder('Name', quizRows(QUIZ_NAME), 'name'),
+      readFolder(),
     ];
     catalog = CAT.buildCatalog({
       songs: fileSongs,
@@ -663,7 +675,10 @@ export function createSession(fx, opts = {}) {
     view = GUESS_VIEW;
     dirty = true;
     ledDirty = true;
-    if (quiz.kind === GUESS.EAR) {
+    if (readingCourse()) {
+      /* Reading: the staff is the question, so nothing sounds until you ask. */
+      announce(quiz.exercise.name + '. Read it, then jog to the answer and click.');
+    } else if (quiz.kind === GUESS.EAR) {
       hearPrompt();
       announce(quiz.exercise.name + '. Listen, then jog to the answer and click.');
     } else if (quizPick) {
@@ -700,6 +715,11 @@ export function createSession(fx, opts = {}) {
     if (!quiz || !quiz.read || !quizSolvedAt) return 0;
     const f = Math.min(1, Math.max(0, (now() - quizSolvedAt) / GUESS_ADVANCE_MS));
     return 1 - Math.pow(1 - f, 3);
+  }
+
+  /* A reading course: the prompt is drawn, not played. */
+  function readingCourse() {
+    return Boolean(quiz && quiz.exercise && quiz.exercise.read);
   }
 
   /* What the prompt is called: its chord symbol if it has one, else its notes. */
@@ -1427,7 +1447,7 @@ export function createSession(fx, opts = {}) {
       const away = now() - infoOpenedAt;
       if (quiz.startedAt !== null && quiz.finishedAt === null) quiz.startedAt += away;
       if (quizSolvedAt) quizSolvedAt += away;
-      if ((quizHear || quiz.kind === GUESS.EAR) && !quiz.solved) hearPrompt();
+      if ((quizHear || quiz.kind === GUESS.EAR) && !readingCourse() && !quiz.solved) hearPrompt();
     }
     info = null;
     dirty = true;
@@ -1693,8 +1713,10 @@ export function createSession(fx, opts = {}) {
     playCue(res);
     if (res === GUESS.CORRECT) {
       quizSolvedAt = now();
-      /* Heard, named, now shown: where it sits on the grid. */
+      /* Heard, named, now shown: where it sits on the grid. Read and named:
+       * now heard, so the picture gets its sound. */
       if (quiz.kind === GUESS.EAR) fx.reveal(quiz.prompt, EAR_ADVANCE_MS);
+      if (readingCourse()) hearPrompt();
     }
     dirty = true;
     ledDirty = true;
@@ -1757,7 +1779,10 @@ export function createSession(fx, opts = {}) {
       return;
     }
     if (view === GUESS_VIEW) {
-      hearPrompt();
+      /* Hearing what you are reading answers it, so the first listen is a
+       * hint and is counted as one; once taken, PLAY repeats it freely. */
+      if (readingCourse() && !quiz.solved && quiz.hint === 0) takeHint();
+      else hearPrompt();
       return;
     }
     if (view === RUNNING && listening) togglePause();

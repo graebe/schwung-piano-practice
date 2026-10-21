@@ -32,9 +32,9 @@ const tracks = buildProgram({ songs });
 const root = buildCatalog({ songs, categories, lead: [programFolder(tracks)] });
 const index = leafIndex(root);
 
-test('seven tracks, each with something in it: the four, then the three listening courses', () => {
-  assert.deepEqual(tracks.map((t) => t.key),
-    ['reading', 'chords', 'songs', 'hearing', 'intervals', 'compare', 'scales']);
+test('ten tracks, each with something in it: the four, the listening courses, then the reading ones', () => {
+  assert.deepEqual(tracks.map((t) => t.key), ['reading', 'chords', 'songs', 'hearing',
+    'intervals', 'compare', 'scales', 'read-intervals', 'read-compare', 'read-scales']);
   for (const t of tracks) assert.ok(trackSteps(t).length > 5, t.key);
 });
 
@@ -210,7 +210,8 @@ test('the program folder: Continue, Skip, the tracks, then Repetition', () => {
   let asked = 0;
   const node = programFolder(tracks, () => { asked++; return [{ label: 'r', repId: 'x' }]; });
   assert.deepEqual(node.children.map((c) => c.label),
-    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Intervals', 'Compare', 'Scales', 'Repetition']);
+    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Intervals', 'Compare', 'Scales',
+      'Read intervals', 'Read compare', 'Read scales', 'Repetition']);
   assert.equal(asked, 0, 'repetition is worked out only when looked at');
   const rep = node.children.at(-1);
   assert.ok(isFolder(rep) && rep.untracked);

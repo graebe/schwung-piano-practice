@@ -26,7 +26,8 @@ import { MODES, MODE_LABELS } from './generator.mjs';
 import { qualityById } from './chords.mjs';
 import { CHORD_FAMILIES, PROGRESSIONS, LESSON_NAMES } from './chord_lessons.mjs';
 import { exerciseByKey, levelByKey, answersFor } from './ear.mjs';
-import { COURSES, courseOf } from './ear_course.mjs';
+import { COURSES } from './ear_course.mjs';
+import { READ_COURSES } from './read_course.mjs';
 import { LEVELS } from './levels.mjs';
 
 /* ---- Glossary ------------------------------------------------------------- */
@@ -292,7 +293,19 @@ const COURSE_TEXT = {
   scales: ['A scale from a random note, up or down. Which scale is it?',
     'Listen for where the semitones fall, and for the 3rd, 6th and 7th: they tell the scales apart. The root changes every time, so name the pattern, not the notes.',
     ['scale', 'mode', 'tone', 'semitone']],
+  'read-intervals': ['One interval on the staff. Name it from the answers below.',
+    'Count the letters from the lower note to the upper, both included: C to E is C D E, a 3rd. Then the accidentals tell major from minor. PLAY sounds it, and counts as help.',
+    ['interval', 'majmin', 'perfect', 'compound']],
+  'read-compare': ['Two intervals on the staff, a bar line between them. Is the first bigger, the second, or are they the same?',
+    'Count each by letters, then by accidentals. Fixed (fix) levels start both on the same note. PLAY sounds them, and counts as help.',
+    ['interval', 'majmin', 'compound']],
+  'read-scales': ['A scale on the staff, up or down. Which scale is it?',
+    'Find the semitones: two notes a letter apart with no step between them, like E-F or C#-D. Where they fall names the scale. PLAY sounds it, and counts as help.',
+    ['scale', 'mode', 'tone', 'semitone']],
 };
+
+const ALL_COURSES = COURSES.concat(READ_COURSES);
+const courseOf = (ex) => ALL_COURSES.find((c) => c.exercises.indexOf(ex) >= 0) || null;
 
 function coursePage(course, ex, levelKey) {
   const text = COURSE_TEXT[course.key];
@@ -307,7 +320,7 @@ function coursePage(course, ex, levelKey) {
 }
 
 function earPage(exKey, levelKey) {
-  const course = COURSES.find((c) => c.key === exKey);
+  const course = ALL_COURSES.find((c) => c.key === exKey);
   if (course) return coursePage(course, null);
   const ex = exerciseByKey(exKey);
   if (ex && courseOf(ex)) return coursePage(courseOf(ex), ex, levelKey);
@@ -371,10 +384,11 @@ const FOLDERS = {
   'basics/chords': ['Chords', 'Thirteen families, one lesson per chord quality, each on all twelve roots.', ['chord', 'quality', 'formula']],
   'basics/progressions': ['Progressions', 'Ten common chord progressions in the Key setting\'s key.', ['progression', 'numerals']],
   'basics/random': ['Random', 'Random notes and chords, a new set every time.', ['key', 'chord']],
-  quiz: ['Quiz', 'Short timed rounds. Hear: name a sound. Play: play the notes shown, by name or by staff. Name: name a lit pad.', ['hint']],
+  quiz: ['Quiz', 'Short timed rounds. Hear: name a sound. Play: play the notes shown, by name or by staff. Name: name a lit pad. Read: name what is on the staff.', ['hint']],
   'quiz/hear': ['Hear', 'Ear training, easiest first: high and low, steps, intervals, chords, keys.', ['interval', 'chord']],
   'quiz/play': ['Play', 'Notes or chords in a row, read by name or off the staff; play each and the row moves on.', ['octave']],
   'quiz/name': ['Name', 'A pad lights; name it with the jog.', ['sharp']],
+  'quiz/read': ['Read', 'The listening courses again, on the staff: read intervals, compare them, read scales.', ['interval', 'scale']],
   classics: ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
   electronic: ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
   techno: ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
@@ -388,6 +402,9 @@ const FOLDERS = {
   'program/intervals': ['Intervals', 'Identify intervals, unit by unit: 2nds up to two octaves.', ['interval', 'compound']],
   'program/compare': ['Compare', 'Compare two intervals: which is bigger? From 2nds to the 12th.', ['interval']],
   'program/scales': ['Scales', 'Identify scales: major and minor first, then the modes.', ['scale', 'mode']],
+  'program/read-intervals': ['Read intervals', 'Name intervals on the staff, unit by unit: 2nds up to two octaves.', ['interval', 'compound']],
+  'program/read-compare': ['Read compare', 'Two intervals on the staff: which is bigger?', ['interval']],
+  'program/read-scales': ['Read scales', 'Name scales on the staff: major and minor first, then the modes.', ['scale', 'mode']],
   'program/repetition': ['Repetition', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score.', ['score']],
 };
 
@@ -424,7 +441,7 @@ export function infoFor(target, env = {}) {
   if (parts[0] === 'basics' && parts[1] === 'chords' && parts[2]) return chordPage(parts[2], parts[3], parts[4], label);
   if (parts[0] === 'basics' && parts[1] === 'progressions' && parts[2]) return progressionPage(parts[2], parts[3], label);
   if (parts[0] === 'basics' && parts[1] === 'random' && parts[2]) return randomPage(parts[2], parts[3], label);
-  if (parts[0] === 'quiz' && parts[1] === 'hear' && parts[2]) return earPage(parts[3] || parts[2]);
+  if (parts[0] === 'quiz' && (parts[1] === 'hear' || parts[1] === 'read') && parts[2]) return earPage(parts[3] || parts[2]);
   if (parts[0] === 'program' && parts.length > 2) return infoFor({ id: parts.slice(0, 2).join('/') }, env);
 
   const folder = FOLDERS[id];
