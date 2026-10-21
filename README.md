@@ -123,11 +123,14 @@ has two:
 
 | | |
 | --- | --- |
-| **Stage 1** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. You learn the shape |
-| **Stage 2** | nothing lights. You read it off the staff |
+| **Stage 1** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. The names are printed under the notes and the line sounds as it passes (the Reference). You learn the shape |
+| **Stage 2** | nothing lights, no names, no reference sound. You read it off the staff. When the scroll has waited two beats on a note, its name appears: a hint for the stuck, not the answer for the hesitant |
 
-**Passing a stage takes 90% or better**, at any tempo — slow a song down with knob 8 while it is
-new, it still counts. Passing stage 1 earns a **◐**, passing stage 2 a **✓**. Passing stage 2 also
+The help fades because it should: a name under every note is read as letters, not as a staff,
+and a line you can hear is played by ear. **Names** and **Reference** in settings keep either one on
+(or off) at both stages if you want.
+
+**Passing a stage takes 90% or better**, at any tempo. Passing stage 1 earns a **◐**, passing stage 2 a **✓**. Passing stage 2 also
 counts as stage 1: if you can read it unaided, you can read it with help.
 
 An exercise opens on the **first stage you have not yet passed**, and the ready screen says which:
@@ -361,9 +364,14 @@ stops on a chord, it names the chord — `C13`, `D/F#` — whatever the right ha
 
 ### Progressions
 
-I–IV–V–I, I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, vi–ii–V–I, i–iv–v–i, i–VI–III–VII, ii–V–i in minor,
-and the 12-bar blues, voiced the same way, in the key the **Key** setting names. The list names the
-shape; the header names it in your key.
+I–IV–V–I, I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, vi–ii–V–I, i–iv–V–i, i–iv–v–i modal,
+i–VI–III–VII, ii–V–i in minor, and the 12-bar blues, voiced the same way, in the key the **Key**
+setting names. The list names the shape; the header names it in your key.
+
+The minor cadence is **i–iv–V–i**: its V is major, borrowed from harmonic minor, so its third is the
+leading tone that pulls home (G♯ in A minor, E♯ in F♯ minor), as in every common-practice cadence.
+The **modal** one keeps the natural minor v (E G B in A minor). It's a colour of modal and pop
+music, learned after the cadence.
 
 ### Random
 
@@ -376,6 +384,11 @@ shape; the header names it in your key.
 
 The chord sets open the usual ladder. Each opening draws a new set, and a restart replays the one
 you just played.
+
+Generated drills follow the pads, so a low **Octave** setting puts them below the treble staff the
+Move draws. Then they are drawn an octave (or two, or three) higher, and the clef is marked with
+`8`, `15` or `22` below it, as a treble-8vb clef is written. Every note you are scored on is a note
+you can see.
 
 ## Electronic
 
@@ -635,7 +648,10 @@ to five, and has three levels: **up**, **down** and **tog** (together).
 | 15 | Octave to 12th | P8 … P12 |
 | 16–18 | 13ths, 14ths, two octaves | M13 M14 P15 · m13 m14 P15 · m13 … P15 |
 
-Intervals wider than an octave are *compound*: a 10th is an octave and a 3rd. Hear the octave
+Each unit's Info page (**Menu**) names a tune for each of its intervals, rising and falling: a
+minor 3rd is the start of *Greensleeves* going up and *Hey Jude* coming down, a perfect 4th *Here
+Comes the Bride*. Hear the tune in your head, then compare. Intervals wider than an octave are
+*compound*: a 10th is an octave and a 3rd. Hear the octave
 first, then what is left over. When an interval is wider than the pads reach at your Octave
 setting, it is played over the whole staff instead. You can still hear and name it, but notes off
 the grid don't light up when it is revealed.
@@ -752,7 +768,10 @@ A whole run ends on its result:
                 REC again  CLICK next
 ```
 
-The headline is the share you got right. Under it is **every recent attempt at this exercise**, on a
+The headline is the share you got right. Then **how the notes you hit sat on the beat**: `in time
+78%`, and `rushing` or `dragging` when the run leaned ahead of or behind the beat by more than 40 ms
+on average. That is the first thing a teacher tells you after the notes. The page gives the whole split
+(in time, early, late) and the average in ms. Under it is **every recent attempt at this exercise**, on a
 fixed 0–100% scale so a chart looks the same each time you come back to it: **hollow points are
 stage 1, solid ones stage 2**, and the dotted line is the 90% you need to pass.
 
@@ -798,6 +817,11 @@ for every round you ever play, apart from the last-200-rounds history behind the
 On the page the result shows the same three things on one screen: both headline numbers, the speed
 and success charts, and a bar per answer. **Progress** shows a quiz drill's success chart and answer
 bars too, so you can look them up between rounds.
+
+**A quiz practises what you get wrong.** An answer you have missed before comes round more often.
+Its weight is 1 + 3 × its error rate over every round of the drill, so one you always miss comes
+about four times as often as one you never miss, and every answer still comes. And a prompt you get
+wrong is asked again three to five prompts later, while it is still fresh.
 
 Rates only ever compare **within a drill**: hearing seventh chords is not the same task as naming a
 white note, so every round is recorded against a drill id (`guess:notes:half`, `hear:chords:types`)
@@ -971,9 +995,10 @@ shortcuts to the first four.
 | Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
 | Scale | **Major** | all 22 of Move's own scales, taken from the device's firmware so the pads light the way Move would |
 | Click | on | MIDI metronome (see the caveat above) |
-| Reference | **on** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along. Off for unaided reading |
+| Reference | **stage 1** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — at stage 1. `on` keeps it at stage 2, `off` never plays it. Listen plays the piece first whatever this says |
+| Names | **stage 1** | the note names under the notes, at stage 1. `always` keeps them at stage 2, `off` hides them at both |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
-| Grace | **1** | how late you may play a note and still be scored in time, in beats, so the tolerance scales with tempo. A beat is 750 ms at 80bpm — long enough to find the key. Raise it to 2 or 4 while a piece is new; drop it to 1/4 once the rhythm is the point. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself, so you can see what is being asked for. Play later than Grace and the scroll still releases — it just scores a miss |
+| Grace | **1/4** | how late you may play a note and still be scored a hit, in beats, so the tolerance scales with tempo. A quarter beat is 190 ms at 80bpm — in time. Raise it to 1, 2 or 4 while a piece is new and finding the pad is the work. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself (Wait). Play later than Grace and the scroll still releases — it just scores a miss |
 | Count in | 4 | beats before the first note |
 | MIDI ch | 1 | which channel the Move track listens on |
 
@@ -1018,8 +1043,12 @@ An event may carry `"symbol": "C/E"`. That is the chord's name, shown when the s
 it, for the chords that cannot be named from their notes: a slash chord, or a voicing without its
 root. Otherwise the name is worked out from the pitches, lowest note as the root.
 
-`keySig` is the signature in fifths (`-1` = F major, `2` = D major). It sets how black notes are
-**spelled** — sharp keys read `A#`, flat keys read `Bb`. No key signature is drawn on the staff:
+`keySig` is the signature in fifths (`-1` = F major, `2` = D major). It sets how notes are
+**spelled** — sharp keys read `A#`, flat keys read `Bb`, and six or seven sharps or flats give the
+white keys their accidentals (`E#` in F♯ major, `Cb` in G♭ major). Generated drills are written in
+their scale: one letter a degree, so C minor reads `C D E♭ F G A♭ B♭` and C harmonic minor raises
+its 7th to `B`, never `C♭`, and the signature is the scale's own (D Dorian none, C minor three
+flats). No key signature is drawn on the staff:
 there is no room at 128×64, and for a reading trainer an accidental on the note itself is more use
 than one you have to remember. Beats must run forwards; pitches are MIDI note numbers. A piece that
 changes key part-way can say so with `"keyChanges": [{ "beat": 16, "keySig": -2 }]`: the spelling

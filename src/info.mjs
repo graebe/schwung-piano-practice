@@ -384,7 +384,7 @@ function quizPage(drill, label) {
       sec('', 'A name has no octave, so any octave counts' + (chords ? ', and any inversion' : '') +
         '. Play it right and the row moves on to the next. Asks ' + what + '.')];
   }
-  sections.push(sec('', 'A round is 20 right answers; the score is answers a minute. Half tones and Chords in settings change what is asked.'));
+  sections.push(sec('', 'A round is a set number of right answers (Round, in settings); the score is answers a minute, and how many were right. Half tones and Chords in settings change what is asked.'));
   const key = mode === 'pick' ? 'quiz:name' : mode === 'staff' ? 'quiz:staff' : 'quiz:play';
   return page(key, label || (mode === 'pick' ? 'Name' : 'Play'), sections,
     chords ? ['chord', 'triad', 'quality', 'hint'] : ['sharp', 'octave', 'hint']);
@@ -396,7 +396,7 @@ function songPage(songId, level, env, label) {
   if (chart) {
     const ks = chart.keySig || 0;
     const sig = ks === 0 ? 'no sharps or flats' : Math.abs(ks) + (ks > 0 ? ' sharp' : ' flat') + (Math.abs(ks) > 1 ? 's' : '');
-    sections.push(sec(chart.name, 'Key signature: ' + sig + '. Tempo ' + chart.bpm + '; knob 8 slows it while it is new.'));
+    sections.push(sec(chart.name, 'Key signature: ' + sig + '. Tempo ' + chart.bpm + '. Listen first; then play it with the pads lit, then reading alone.'));
   }
   const lv = levelLine(level);
   if (lv) sections.push(lv);
@@ -424,7 +424,7 @@ const FOLDERS = {
   techno: ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
   styles: ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
   other: ['Other', 'Exercises you added yourself.', []],
-  program: ['Learning Program', 'A path through everything, in four tracks. Continue opens the next step of the track you left longest. Nothing is locked.', ['stage', 'score']],
+  program: ['Learning Program', 'A path through everything, in six tracks. Continue opens the next step of the track you left longest. Nothing is locked.', ['stage', 'score']],
   'program/reading': ['Reading', 'Scales, intervals and random lines, then the first tunes.', ['scale', 'interval']],
   'program/chords': ['Chords', 'Triads to altered chords, and the progressions they make.', ['chord', 'progression']],
   'program/songs': ['Songs', 'Every bundled piece, rung by rung: L1 RH, L1 LH, L2, L3.', ['level']],
