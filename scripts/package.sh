@@ -53,6 +53,20 @@ cp "$ROOT/LICENSE" "$STAGE/LICENSE"
 # along "in the vendored source", but libm is a cargo dependency, not vendored.
 cp "$ROOT/THIRD_PARTY_LICENSES.md" "$STAGE/THIRD_PARTY_LICENSES.md"
 
+# The recorded piano and claves, which dsp.so reads in create, with their
+# licence texts. They are Git LFS objects: a checkout without the objects
+# holds ~130-byte pointer files instead, and a module packaged from one would
+# quietly play the synth. So a file that does not start like a pack stops the
+# build here.
+mkdir -p "$STAGE/samples/LICENSES"
+for pack in piano click; do
+  f="$ROOT/samples/$pack.nisp"
+  [ "$(head -c 4 "$f" 2>/dev/null)" = NISP ] \
+    || { echo "samples/$pack.nisp is not a pack (an LFS pointer? run: git lfs pull)" >&2; exit 1; }
+  cp "$f" "$STAGE/samples/"
+done
+cp "$ROOT/samples/LICENSES/"*.txt "$STAGE/samples/LICENSES/"
+
 # The page Schwung's web manager shows in its Tool tab (docs/schwung-web.md):
 # web_ui.html beside module.json, everything it loads under assets/. Not the
 # gallery, which is a review page. The fonts are OFL-1.1, whose texts travel
@@ -63,7 +77,9 @@ cp "$WEB/web_ui.html" "$STAGE/web_ui.html"
 mkdir -p "$STAGE/assets"
 for f in "$WEB/assets/"*; do
   case "$(basename "$f")" in
-    gallery-*) ;;
+    # The gallery is a review page; the packs are the browser build's own
+    # copies, and the Move's page is a remote that plays nothing itself.
+    gallery-*|*.nisp) ;;
     *) cp "$f" "$STAGE/assets/" ;;
   esac
 done

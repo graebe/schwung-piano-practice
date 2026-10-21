@@ -3,17 +3,23 @@
 /*
  * piano — the built-in piano for Piano Practice, as a Schwung v2 DSP plugin.
  *
- * An adapter, and only that. The synthesis is piano-engine, shared with the
- * browser build; this crate maps the plugin API onto it — set_param's `n`,
- * `panic` and `gain`, the panic CCs, `ping` and `voices` — and scales the
- * engine's f32 into the host's i16. It also keeps the mailbox between ui.js
- * and a browser page on Schwung's web manager (remote.rs), which is why the
- * tool's DSP answers `module_id`, `state` and `rui_poll`. The FFI boundary lives entirely in
- * schwung-plugin, so this crate has no unchecked code of its own.
+ * An adapter, and only that. The piano is piano-engine, shared with the
+ * browser build; this crate maps the plugin API onto it — set_param's `n`
+ * (notes and metronome ticks), `panic` and `gain`, the panic CCs, `ping`, `voices` and `source` —
+ * and scales the engine's f32 into the host's i16. In `create` it reads the
+ * module's recorded piano and claves (samples/piano.nisp, click.nisp) into
+ * memory; a missing or broken pack leaves the synthesized one playing.
  *
- * EVERYTHING HERE RUNS ON THE SPI CALLBACK. No allocation after `create`, no
- * locks, no I/O, and — see the denies below — no reachable Rust panic: a fault
- * on that thread takes MoveOriginal down with it.
+ * It also keeps the mailbox between ui.js and a browser page on Schwung's web
+ * manager (remote.rs), which is why the tool's DSP answers `module_id`,
+ * `state` and `rui_poll`. The FFI boundary lives entirely in schwung-plugin,
+ * so this crate has no unchecked code of its own.
+ *
+ * EVERYTHING HERE BUT `create` RUNS ON THE SPI CALLBACK. No allocation after
+ * `create`, no locks, no I/O, and — see the denies below — no reachable Rust
+ * panic: a fault on that thread takes MoveOriginal down with it. `create`
+ * runs on Schwung's worker thread, because this is an overtake tool (see
+ * schwung-plugin), and is where the packs are read.
  */
 #![cfg_attr(feature = "rt", no_std)]
 #![deny(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -22,8 +28,10 @@ extern crate alloc;
 
 mod remote;
 
-use piano_engine::{parse, Engine};
+use alloc::vec::Vec;
+use piano_engine::{parse, Engine, Source};
 use remote::Remote;
+use schwung_plugin::fs::read_file;
 use schwung_plugin::{schwung_plugin, SchwungPlugin, MOVE_SAMPLE_RATE};
 
 /// Answered by get_param("ping"), so the UI can tell the engine loaded.
@@ -34,8 +42,12 @@ const FULL_SCALE: f32 = 26000.0;
 /// The id Schwung's web manager asks for to offer the Tool tab's page.
 const MODULE_ID: &[u8] = b"piano-practice";
 
+/// The packs, relative to the module directory.
+const PIANO_PACK: &[u8] = b"samples/piano.nisp";
+const CLICK_PACK: &[u8] = b"samples/click.nisp";
+
 pub struct Piano {
-    engine: Engine,
+    engine: Engine<Vec<u8>>,
     /// The browser page's mailbox; see remote.rs.
     remote: Remote,
 }
@@ -46,11 +58,20 @@ fn to_i16_range(sample: f32) -> i32 {
 }
 
 impl SchwungPlugin for Piano {
-    fn create(_module_dir: Option<&[u8]>, _json_defaults: Option<&[u8]>) -> Option<Self> {
-        Some(Piano {
-            engine: Engine::new(MOVE_SAMPLE_RATE as f32),
-            remote: Remote::new(),
-        })
+    fn create(module_dir: Option<&[u8]>, _json_defaults: Option<&[u8]>) -> Option<Self> {
+        let mut engine = Engine::with_storage(MOVE_SAMPLE_RATE as f32);
+        if let Some(dir) = module_dir {
+            /* Either may fail on its own — no file, or one that does not
+             * validate — and each failure only keeps the synthesized sound.
+             * get_param("source") / ("click") tell the UI which it got. */
+            if let Some(bytes) = read_file(dir, PIANO_PACK) {
+                let _ = engine.load_piano(bytes);
+            }
+            if let Some(bytes) = read_file(dir, CLICK_PACK) {
+                let _ = engine.load_click(bytes);
+            }
+        }
+        Some(Piano { engine, remote: Remote::new() })
     }
 
     /*
@@ -119,6 +140,8 @@ impl SchwungPlugin for Piano {
             b"rui_poll" => self.remote.poll(out),
             b"inbox" => self.remote.drain_inbox(out),
             b"voices" => write_u32(out, self.engine.active_voices() as u32),
+            b"source" => write_bytes(out, if self.engine.source() == Source::Sampled { b"sampled" } else { b"synth" }),
+            b"click" => write_bytes(out, if self.engine.has_click() { b"sampled" } else { b"synth" }),
             _ => 0,
         }
     }
@@ -133,7 +156,7 @@ impl SchwungPlugin for Piano {
              * generator is mixed into the deferred buffer, so assigning would
              * silence whatever else is in it. */
             for sample in frame.iter_mut() {
-                *sample = (*sample as i32 + s) as i16;
+                *sample = (*sample as i32 + s).clamp(-32768, 32767) as i16;
             }
         }
     }
@@ -340,6 +363,55 @@ mod tests {
         blocks(&mut a, 20, &mut x);
         blocks(&mut b, 20, &mut y);
         assert_eq!(x, y);
+    }
+
+    /// The module as installed: this repository's root holds samples/.
+    fn installed() -> Piano {
+        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
+        Piano::create(Some(root.as_bytes()), Some(b"{}")).expect("create")
+    }
+
+    fn answer(p: &mut Piano, key: &[u8]) -> Vec<u8> {
+        let mut out = [0u8; 32];
+        let n = p.get_param(key, &mut out);
+        out[..n].to_vec()
+    }
+
+    #[test]
+    fn an_installed_module_plays_the_recordings() {
+        let mut p = installed();
+        assert_eq!(answer(&mut p, b"source"), b"sampled");
+        assert_eq!(answer(&mut p, b"click"), b"sampled");
+        let mut out = Vec::new();
+        p.set_param(b"n", Some(b"60:100,c:1"));
+        blocks(&mut p, 20, &mut out);
+        assert!(out.iter().any(|s| *s != 0));
+        assert_eq!(answer(&mut p, b"voices"), b"1", "the click is not a piano voice");
+    }
+
+    #[test]
+    fn without_packs_it_is_the_synth_and_says_so() {
+        let mut p = piano();
+        assert_eq!(answer(&mut p, b"source"), b"synth");
+        assert_eq!(answer(&mut p, b"click"), b"synth");
+        let mut q = Piano::create(None, None).expect("create without a directory");
+        assert_eq!(answer(&mut q, b"source"), b"synth");
+        p.set_param(b"n", Some(b"c:0"));
+        p.render(&mut [0i16; FRAMES * 2]);
+        assert_eq!(answer(&mut p, b"voices"), b"1", "the beat's piano note");
+    }
+
+    #[test]
+    fn a_full_buffer_saturates_rather_than_wraps() {
+        let mut p = installed();
+        assert!(p.engine.set_gain(1.0));
+        p.set_param(b"n", Some(b"36:127,48:127,60:127,72:127"));
+        let mut buf = [32000i16; FRAMES * 2];
+        for _ in 0..20 {
+            buf.fill(32000);
+            p.render(&mut buf);
+            assert!(buf.iter().all(|s| *s > 0), "a sum past i16::MAX wrapped negative");
+        }
     }
 
     #[test]

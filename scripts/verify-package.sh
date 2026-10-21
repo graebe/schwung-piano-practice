@@ -19,7 +19,11 @@ for entry in \
   piano-practice/web_ui.html \
   piano-practice/assets/THIRD_PARTY_LICENSES.txt \
   piano-practice/assets/OFL.txt \
-  piano-practice/assets/Bravura-OFL.txt
+  piano-practice/assets/Bravura-OFL.txt \
+  piano-practice/samples/piano.nisp \
+  piano-practice/samples/click.nisp \
+  piano-practice/samples/LICENSES/CC-BY-3.0.txt \
+  piano-practice/samples/LICENSES/CC0-1.0.txt
 do
   echo "$LIST" | grep -qx "$entry" || { echo "missing from package: $entry" >&2; exit 1; }
 done
@@ -52,7 +56,19 @@ for f in "$MODDIR/ui.js" "$MODDIR"/*.mjs; do
     esac
   done
 done
+# The packs are packs, not the LFS pointers a checkout without its objects
+# holds, and the web build's copies stay out (the page on the Move plays
+# nothing; dsp.so reads samples/).
+for pack in piano click; do
+  if [ "$(head -c 4 "$MODDIR/samples/$pack.nisp")" != NISP ]; then
+    echo "samples/$pack.nisp in the package is not a pack" >&2
+    rm -rf "$TMPD"; exit 1
+  fi
+done
 rm -rf "$TMPD"
+if echo "$LIST" | grep -q '/assets/.*\.nisp$'; then
+  echo "the web build's packs are in the package" >&2; exit 1
+fi
 
 # Every file the page loads must be in the archive, relative to the page —
 # except the manager's own bridge, which the manager serves.

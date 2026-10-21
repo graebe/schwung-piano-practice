@@ -20,6 +20,11 @@ export function strikeEntry(pitch, vel) {
   return pitch + ':' + Math.min(127, Math.max(1, v));
 }
 
+/** A metronome tick: `c:1` the downbeat, `c:0` any other beat. */
+export function clickEntry(downbeat) {
+  return downbeat ? 'c:1' : 'c:0';
+}
+
 export function releaseEntry(pitch) {
   if (!Number.isInteger(pitch) || pitch < 0 || pitch > 127) return null;
   return pitch + ':0';
@@ -41,6 +46,7 @@ export function createNoteBatch(onPending) {
   return {
     strike: (pitch, vel) => add(strikeEntry(pitch, vel)),
     release: (pitch) => add(releaseEntry(pitch)),
+    click: (downbeat) => add(clickEntry(downbeat)),
     /** Drop everything pending — a panic does not play the notes before it. */
     clear() {
       entries.length = 0;

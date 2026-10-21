@@ -11,7 +11,7 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createNoteBatch, strikeEntry, releaseEntry } from '../src/audio/note-batch.js';
+import { createNoteBatch, strikeEntry, releaseEntry, clickEntry } from '../src/audio/note-batch.js';
 import { createPianoEngine, PROCESSOR_NAME } from '../src/audio/engine.js';
 
 test('entries use the device\'s pitch:velocity syntax', () => {
@@ -70,6 +70,16 @@ test('clear drops what is pending, and the next note schedules afresh', () => {
   assert.equal(b.take(), '62:100');
 });
 
+test('a metronome tick rides in the list with the notes of its moment', () => {
+  assert.equal(clickEntry(true), 'c:1');
+  assert.equal(clickEntry(false), 'c:0');
+  const b = createNoteBatch(() => {});
+  b.strike(60, 90);
+  b.click(true);
+  b.release(60);
+  assert.equal(b.take(), '60:90,c:1,60:0');
+});
+
 /* ---- engine.js against a stand-in for Web Audio ------------------------- */
 
 function fakeAudio() {
@@ -113,12 +123,38 @@ function fakeAudio() {
     isSecureContext: true,
     AudioContext,
     AudioWorkletNode,
-    fetch: async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }),
+    fetch: async (url) => {
+      env.fetched = (env.fetched || []).concat(url);
+      if (String(url).includes('missing')) return { ok: false, status: 404 };
+      return { ok: true, arrayBuffer: async () => new ArrayBuffer(8) };
+    },
   });
   return env;
 }
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
+
+test('the recorded sounds follow the engine, and a missing one leaves the synth', async () => {
+  const env = fakeAudio();
+  const piano = createPianoEngine({
+    wasmUrl: '/piano.wasm', workletUrl: '/w.js',
+    packUrls: { piano: '/piano.nisp', click: '/missing.nisp' },
+  });
+  assert.deepEqual(piano.recorded, { piano: false, click: false });
+  piano.click(false);
+  assert.equal(await piano.resume(), 'running');
+  for (let i = 0; i < 5; i++) await tick();
+  assert.deepEqual(env.fetched, ['/piano.wasm', '/piano.nisp', '/missing.nisp'], 'packs only after the engine runs');
+  const packs = env.sent.filter((m) => m.type === 'pack');
+  assert.equal(packs.length, 1, 'the missing click is not sent');
+  assert.equal(packs[0].kind, 0);
+  assert.ok(packs[0].bytes instanceof ArrayBuffer);
+  assert.deepEqual(env.sent.find((m) => m.type === 'notes'), { type: 'notes', list: 'c:0' });
+  env.nodes[0].port.onmessage({ data: { type: 'pack', kind: 0, ok: true } });
+  env.nodes[0].port.onmessage({ data: { type: 'pack', kind: 9, ok: true } });
+  assert.deepEqual(piano.recorded, { piano: true, click: false });
+  await piano.close();
+});
 
 test('without a secure context the engine is an inert shell', async () => {
   globalThis.isSecureContext = false;
@@ -127,8 +163,10 @@ test('without a secure context the engine is an inert shell', async () => {
   assert.equal(await piano.resume(), 'unavailable');
   piano.strike(60, 100);
   piano.release(60);
+  piano.click(true);
   piano.silence();
   piano.setGain(0.5);
+  assert.deepEqual(piano.recorded, { piano: false, click: false });
   await piano.close();
   assert.equal(piano.state, 'unavailable');
 });

@@ -1198,6 +1198,10 @@ export function createSession(fx, opts = {}) {
     if (!settings.click) return;
     const perBar = beatsPerBar(chart);
     const downbeat = ((beat % perBar) + perBar) % perBar === 0;
+    /* A host with a metronome of its own — the piano's recorded claves —
+     * plays it and says so; one that cannot (MIDI out to an instrument
+     * elsewhere) gets the click as notes, below. */
+    if (fx.click && fx.click(downbeat)) return;
     /* Short, high, and out of the way of anything the exercise plays.
      * Goes through noteOn, not a raw midiOut: allNotesOff can only silence what
      * pitchRefcount knows about, and a click sent behind its back was left

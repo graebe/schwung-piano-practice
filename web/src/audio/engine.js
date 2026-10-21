@@ -1,16 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Torben Gräber
 /*
- * engine.js — the browser's piano, behind five calls.
+ * engine.js — the browser's piano, behind a handful of calls.
  *
- *   const piano = createPianoEngine({ wasmUrl, workletUrl });
+ *   const piano = createPianoEngine({ wasmUrl, workletUrl, packUrls });
  *   button.onclick = () => piano.resume();   // from a user gesture
- *   piano.strike(60, 100); piano.release(60);
+ *   piano.strike(60, 100); piano.release(60); piano.click(true);
  *
  * Underneath: an AudioContext, an AudioWorkletNode running piano-worklet.js,
  * and in it the Move's own piano engine compiled to wasm. Strikes and releases
  * made in one task go to the worklet as ONE `n` list, as the device's UI sends
  * one parameter write per tick, so a chord starts in a single quantum.
+ *
+ * packUrls ({ piano, click }, either optional) are the recorded piano and
+ * claves. They are fetched once the engine runs and handed to the worklet;
+ * until they arrive, or if one cannot be fetched, the synthesized piano
+ * plays, so a slow download never holds up the first note.
  *
  * Browsers only start audio from a user gesture, so nothing is created until
  * resume() is called from one. Where the page cannot have an AudioWorklet at
@@ -30,7 +35,10 @@ function supported(g) {
     && typeof g.AudioWorkletNode === 'function';
 }
 
-export function createPianoEngine({ wasmUrl, workletUrl }) {
+/* The worklet's pack kinds. */
+const PACK_KIND = { piano: 0, click: 1 };
+
+export function createPianoEngine({ wasmUrl, workletUrl, packUrls = {} }) {
   const g = globalThis;
   if (!supported(g)) return unavailableEngine();
 
@@ -41,6 +49,8 @@ export function createPianoEngine({ wasmUrl, workletUrl }) {
   let failed = false;
   let closed = false;
   let gain = null;
+  /* Which recorded sounds the engine took: the page can say which it hears. */
+  const loaded = { piano: false, click: false };
 
   const batch = createNoteBatch(() => queueMicrotask(flush));
 
@@ -70,8 +80,13 @@ export function createPianoEngine({ wasmUrl, workletUrl }) {
     });
     const ready = new Promise((resolve, reject) => {
       n.port.onmessage = (e) => {
-        if (e.data && e.data.type === 'ready') resolve();
-        else if (e.data && e.data.type === 'error') reject(new Error(e.data.message));
+        const d = e.data;
+        if (d && d.type === 'ready') resolve();
+        else if (d && d.type === 'error') reject(new Error(d.message));
+        else if (d && d.type === 'pack') {
+          const name = Object.keys(PACK_KIND).find((k) => PACK_KIND[k] === d.kind);
+          if (name) loaded[name] = d.ok === true;
+        }
       };
     });
     n.connect(ctx.destination);
@@ -80,6 +95,23 @@ export function createPianoEngine({ wasmUrl, workletUrl }) {
     flush();
     await ready;
     live = true;
+    loadPacks();
+  }
+
+  /* Each pack on its own: one failing leaves the other, and the synth. */
+  function loadPacks() {
+    for (const [name, url] of Object.entries(packUrls)) {
+      if (!url || !(name in PACK_KIND)) continue;
+      fetch(url)
+        .then((r) => {
+          if (!r.ok) throw new Error(`${url}: HTTP ${r.status}`);
+          return r.arrayBuffer();
+        })
+        .then((bytes) => {
+          if (node && !closed) node.port.postMessage({ type: 'pack', kind: PACK_KIND[name], bytes }, [bytes]);
+        })
+        .catch((err) => console.warn('piano engine: no recorded', name, '-', err.message));
+    }
   }
 
   return {
@@ -106,6 +138,16 @@ export function createPianoEngine({ wasmUrl, workletUrl }) {
 
     release(pitch) {
       if (!closed && !failed) batch.release(pitch);
+    },
+
+    /** One metronome tick, in the same list as the notes of its moment. */
+    click(downbeat) {
+      if (!closed && !failed) batch.click(downbeat);
+    },
+
+    /** Which recorded sounds are playing: { piano, click }, false = synth. */
+    get recorded() {
+      return { ...loaded };
     },
 
     /** Cut every voice now, and drop strikes not yet sent. */
@@ -151,6 +193,8 @@ function unavailableEngine() {
     resume: () => Promise.resolve('unavailable'),
     strike: nothing,
     release: nothing,
+    click: nothing,
+    recorded: { piano: false, click: false },
     silence: nothing,
     releaseAll: nothing,
     setGain: nothing,

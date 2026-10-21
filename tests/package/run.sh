@@ -53,9 +53,17 @@ if grep -rq 'unsafe' dsp/piano/src/; then
 fi
 # The engine is the same on both hosts only while it depends on nothing but
 # libm, and the browser build stays small only while it has no bindgen.
-ENGINE_DEPS=$(sed -n '/^\[dependencies\]/,/^\[/s/^\([a-z][a-z0-9_-]*\) *=.*/\1/p' dsp/piano-engine/Cargo.toml)
-[ "$ENGINE_DEPS" = libm ] \
-  || { echo "piano-engine must depend on libm alone, has: $ENGINE_DEPS" >&2; exit 1; }
+# The runtime crates stay small: the engine takes libm and the project's own
+# sampler, and the sampler libm alone, with no unsafe of its own.
+deps_of() { sed -n '/^\[dependencies\]/,/^\[/s/^\([a-z][a-z0-9_-]*\) *=.*/\1/p' "$1" | tr '\n' ' '; }
+ENGINE_DEPS=$(deps_of dsp/piano-engine/Cargo.toml)
+[ "$ENGINE_DEPS" = "libm ni-sampler " ] \
+  || { echo "piano-engine must depend on libm and ni-sampler alone, has: $ENGINE_DEPS" >&2; exit 1; }
+SAMPLER_DEPS=$(deps_of dsp/ni-sampler/Cargo.toml)
+[ "$SAMPLER_DEPS" = "libm " ] \
+  || { echo "ni-sampler must depend on libm alone, has: $SAMPLER_DEPS" >&2; exit 1; }
+grep -q '^#!\[forbid(unsafe_code)\]' dsp/ni-sampler/src/lib.rs \
+  || { echo "ni-sampler must #![forbid(unsafe_code)]" >&2; exit 1; }
 if grep -q 'wasm-bindgen' dsp/Cargo.lock; then
   echo "piano-wasm uses raw exports; wasm-bindgen must not come back" >&2
   exit 1
