@@ -119,6 +119,12 @@ test -f tests/ui_smoke.test.mjs   # ui.js must be executed by the suite, not onl
 for mod in src/*.mjs tools/*.mjs; do node --check "$mod"; done
 sh -n scripts/package.sh scripts/install.sh scripts/verify-package.sh scripts/build.sh scripts/build-dsp.sh scripts/build-wasm.sh
 
+# The upload goes beside the module on /data: the Move's /tmp sits on a small
+# root partition that the 36 MB tarball does not fit.
+if grep -q '^REMOTE_ARCHIVE="/tmp' scripts/install.sh; then
+  echo "install.sh uploads to /tmp, which is too small on the Move" >&2; exit 1
+fi
+
 # The shipped binary must be for the Move, not the machine that built it —
 # and must not out-run the device's glibc or balloon in size. Each of these is
 # a guard whose absence is invisible until a device refuses to load the module.

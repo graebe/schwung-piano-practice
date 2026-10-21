@@ -14,7 +14,11 @@ REMOTE="$REMOTE_BASE/piano-practice"
 TOKEN=$$
 REMOTE_STAGE="$REMOTE_BASE/.piano-practice.install.$TOKEN"
 REMOTE_OLD="$REMOTE_BASE/.piano-practice.old.$TOKEN"
-REMOTE_ARCHIVE="/tmp/piano-practice-$TOKEN.tar.gz"
+# Beside the module, not in /tmp: the Move's /tmp is on its ~460 MB root
+# partition, often with under 30 MB free, and the tarball with its recorded
+# piano is 36 MB, so the upload failed before anything changed. The rollback
+# trap removes it either way.
+REMOTE_ARCHIVE="$REMOTE_BASE/.piano-practice.archive.$TOKEN.tar.gz"
 
 test -f "$ROOT/dist/dsp.so"
 test -f "$ROOT/dist/piano-practice-module.tar.gz" || "$ROOT/scripts/package.sh"
