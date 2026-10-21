@@ -20,6 +20,7 @@
  */
 
 import * as L from './layout.mjs';
+import { MIN_PITCH, MAX_PITCH } from './notation.mjs';
 
 export function beatToX(beat, songBeats, pxPerBeat, hitX = L.HIT_X) {
   return hitX + (beat - songBeats) * pxPerBeat;
@@ -65,6 +66,28 @@ export function fifthsAt(chart, beat) {
 export function keyAt(chart, beat) {
   const fifths = fifthsAt(chart, beat);
   return chart.spelling ? { fifths, map: chart.spelling } : fifths;
+}
+
+/*
+ * Octaves to draw a chart up (or down) so it lands on the treble staff, which
+ * reaches A3 to C6. A drill made for pads set low — Octave 0 puts them on
+ * A2 to G4 — would otherwise be scored on notes never drawn. Written an
+ * octave above where it sounds, it reads as music for a treble-8vb clef does.
+ * Zero for anything already on the staff: every bundled song.
+ */
+export function displayShift(chart) {
+  if (chart._shift !== undefined) return chart._shift;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const e of chart.events) for (const p of e.pitches) { if (p < lo) lo = p; if (p > hi) hi = p; }
+  let k = 0;
+  if (lo < MIN_PITCH) k = Math.ceil((MIN_PITCH - lo) / 12);
+  else if (hi > MAX_PITCH) k = -Math.ceil((hi - MAX_PITCH) / 12);
+  /* Wider than the staff either way: shift as far as the far end allows. */
+  while (k > 0 && hi + 12 * k > MAX_PITCH) k--;
+  while (k < 0 && lo + 12 * k < MIN_PITCH) k++;
+  Object.defineProperty(chart, '_shift', { value: k, enumerable: false });
+  return k;
 }
 
 /* Beats of the last event, plus its duration — how long the run lasts. */

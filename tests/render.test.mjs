@@ -16,7 +16,7 @@ import { createScreen, countOn, isOn, toAscii, W, H } from '../tools/screen_buff
 import * as R from '../src/staff_render.mjs';
 import * as V from '../src/view.mjs';
 import * as L from '../src/layout.mjs';
-import { pitchToY, spell } from '../src/notation.mjs';
+import { pitchToY, spell, inStaffRange } from '../src/notation.mjs';
 import {
   createRun, judgeNoteOn, expireMissed, addMarker,
 } from '../src/scoring.mjs';
@@ -1655,4 +1655,26 @@ test('by name: a chord symbol is its root, big, and its quality beside it', () =
   V.drawQuizRow(c, { queue: row(['F#maj7#11', 'C', 'Am'], []), read: 'name', glide: 0 });
   const w = V.nameWidth(c, 'F#maj7#11');
   assert.ok(V.QUIZ_NAME_X + w + 2 < W, 'the widest symbol fits the screen: ' + w);
+});
+
+/* ---- Nothing scored unseen ---------------------------------------------------- */
+
+test('a drill below the staff is drawn an octave up, with an 8 under the clef', async () => {
+  const { scaleRun } = await import('../src/generator.mjs');
+  const { displayShift } = await import('../src/chart.mjs');
+  const low = scaleRun({ rootPc: 0, transpose: 0, direction: 'up' });
+  assert.equal(displayShift(low), 1);
+  const c = createScreen();
+  V.drawReadingView(c, { chart: low, run: null, songBeats: 0, pxPerBeat: L.PX_PER_BEAT_DEFAULT });
+  /* The first note, C3, is drawn where C4 sits. */
+  const y = pitchToY(60, 0);
+  assert.ok(countOn(c, L.HIT_X - 3, y - 2, 7, 5) > 0, 'drawn on the staff');
+  assert.ok(countOn(c, L.CLEF_X + 9, L.CLEF_Y + 29, 3, 5) > 0, 'the 8 below the clef');
+  const home = scaleRun({ rootPc: 0, direction: 'up' });
+  assert.equal(displayShift(home), 0, 'on the staff already: no 8');
+  for (const t of [-24, -12, 0, 12, 24]) {
+    const ch = scaleRun({ rootPc: 0, transpose: t });
+    const k = displayShift(ch);
+    for (const e of ch.events) for (const p of e.pitches) assert.ok(inStaffRange(p + 12 * k), `Octave ${t}: ${p}`);
+  }
 });

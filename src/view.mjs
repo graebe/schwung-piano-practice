@@ -14,7 +14,7 @@ import * as R from './staff_render.mjs';
 import { spell, pitchToY, diatonicToY, chordLabel, inStaffRange } from './notation.mjs';
 import { nameChord } from './chords.mjs';
 import {
-  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, keyAt,
+  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, keyAt, displayShift,
 } from './chart.mjs';
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
@@ -65,6 +65,16 @@ function twoCell(ctx, y, left, right, x0, x1) {
  * The reading view.
  * state = { chart, run, songBeats, pxPerBeat, running, beatFlash }
  */
+/*
+ * Where the clef's ottava number goes — 8, 15 or 22 for one, two or three
+ * octaves: right of the clef's tail below the staff, and over the staff's
+ * left end above it. Both clear of the clef, and of the notes, which vanish
+ * at DESPAWN_X.
+ */
+const OTTAVA_BELOW = { x: L.CLEF_X + 9, y: L.CLEF_Y + 29 };
+const OTTAVA_ABOVE = { x: L.STAFF_LEFT_X, y: L.STAFF_AREA_TOP_Y + 1 };
+export const OTTAVA_MARK = { 1: '8', 2: '15', 3: '22' };
+
 export function drawReadingView(ctx, state) {
   const { chart, run, songBeats, pxPerBeat } = state;
 
@@ -100,13 +110,16 @@ export function drawReadingView(ctx, state) {
     }
   }
 
+  /* Drawn an octave off where it sounds when that is what puts it on the
+   * staff (an 8 by the clef says so): nothing is scored that is not shown. */
+  const shift = 12 * displayShift(chart);
   for (let i = 0; i < visible.length; i++) {
     const v = visible[i];
     const entry = run ? run.entries[v.index] : null;
     const fifths = keyAt(chart, v.event.beat);
     const notes = [];
     for (let n = 0; n < v.event.pitches.length; n++) {
-      const pitch = v.event.pitches[n];
+      const pitch = v.event.pitches[n] + shift;
       if (!inStaffRange(pitch)) continue;
       const s = spell(pitch, fifths);
       notes.push({
@@ -130,16 +143,23 @@ export function drawReadingView(ctx, state) {
   if (run && run.markers) {
     for (let i = 0; i < run.markers.length; i++) {
       const m = run.markers[i];
-      if (!inStaffRange(m.pitch)) continue;
+      if (!inStaffRange(m.pitch + shift)) continue;
       const mx = beatToX(m.beat, songBeats, pxPerBeat);
       if (mx < L.DESPAWN_X || mx >= L.SCREEN_W) continue;
-      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch, keyAt(chart, m.beat)));
+      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch + shift, keyAt(chart, m.beat)));
     }
   }
 
   /* The clef sits on top: notes scroll behind it and vanish there. */
   ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
   R.drawClef(ctx);
+  /* The ottava: an 8 under the clef sounds an octave below what is written,
+   * one above it an octave higher. */
+  const ottava = OTTAVA_MARK[Math.abs(shift / 12)];
+  if (ottava) {
+    const at = shift > 0 ? OTTAVA_BELOW : OTTAVA_ABOVE;
+    R.drawBigText(ctx, at.x, at.y, ottava, 1);
+  }
   R.drawHitLine(ctx, Boolean(state.beatFlash));
 
   /* Count-in: the beats before the first note used to pass with nothing on
