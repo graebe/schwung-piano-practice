@@ -130,7 +130,7 @@ const CHORD_TRACK = [
     prog('I-IV-V-I', '3', 'I-IV-V-I both hands'),
     prog('I-V-vi-IV', '3', 'I-V-vi-IV'),
     prog('vi-IV-I-V', '3', 'vi-IV-I-V'),
-    prog('i-iv-v-i', '3', 'i-iv-v-i'),
+    prog('i-iv-V-i', '3', 'i-iv-V-i'),
     random('triads/2r', 'Random triads'),
   ] },
   { name: 'Sevenths', steps: [

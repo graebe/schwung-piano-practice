@@ -13,6 +13,8 @@ import { qualityById, ALL_QUALITIES } from '../src/chords.mjs';
 import { pitchRange, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
 import { availableLevels, projectLevel, LEVELS } from '../src/levels.mjs';
 import { validateExercise } from '../src/exercise_io.mjs';
+import { spell } from '../src/notation.mjs';
+import { keyAt } from '../src/chart.mjs';
 
 const PADS = pitchRange(DEFAULT_TRANSPOSE);
 const pc = (p) => ((p % 12) + 12) % 12;
@@ -243,4 +245,24 @@ test('random chords draw from the whole vocabulary, and never repeat back to bac
   }
   assert.ok(seen.size >= 30, `only ${seen.size} qualities came up in sixty sets`);
   assert.deepEqual(randomChordSong({ seed: 9 }).events, randomChordSong({ seed: 9 }).events);
+});
+
+test('the minor cadence is i-iv-V-i: its V is major, the leading tone on its own letter', () => {
+  const cadence = PROGRESSIONS.find((p) => p.id === 'i-iv-V-i');
+  const modal = PROGRESSIONS.find((p) => p.id === 'i-iv-v-i modal');
+  assert.ok(cadence && modal, 'both, the cadence first');
+  assert.ok(PROGRESSIONS.indexOf(cadence) < PROGRESSIONS.indexOf(modal));
+  for (const tonic of [9, 6, 0, 4]) {
+    const song = progressionLesson(cadence, tonic);
+    const v = song.events.filter((e) => e.hand === 'r')[2];
+    const pcs = v.pitches.map((p) => p % 12);
+    assert.ok(pcs.includes((tonic + 11) % 12), `the leading tone in ${song.name}`);
+  }
+  const fs = progressionLesson(cadence, 6);
+  const v = fs.events.filter((e) => e.hand === 'r')[2];
+  const names = v.pitches.map((p) => spell(p, keyAt(fs, v.beat)).label);
+  assert.ok(names.includes('E#'), 'F# minor V: C# E# G#, ' + names.join(' '));
+  /* The modal one keeps the natural minor v. */
+  const m = progressionLesson(modal, 9).events.filter((e) => e.hand === 'r')[2];
+  assert.ok(!m.pitches.map((p) => p % 12).includes(8), 'A minor v is E G B, no G#');
 });
