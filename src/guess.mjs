@@ -100,7 +100,9 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
         if (roots[r] + qualitySpan(quality) > hi) continue;
         const pitches = buildChord(roots[r], quality);
         if (!playable(pitches, transpose)) continue;
-        pool.push({ pitches, label: chordSymbol(roots[r], quality, fifths) });
+        /* The quality is what the tally files it under: a few dozen kinds read
+         * better than hundreds of chords. */
+        pool.push({ pitches, label: chordSymbol(roots[r], quality, fifths), quality: quality.suffix || 'maj' });
       }
     }
     return pool;
@@ -189,6 +191,12 @@ export function createQuiz({
     bestStreak: 0,
     solved: false,
     penalised: false,
+    missed: false,      /* any wrong attempt on this prompt, for the tally */
+    /* Per answer, this round: { key: [asked, right] }, and the order to show
+     * them in. Filled as each prompt is solved. */
+    tally: {},
+    tallyOrder: [],
+    tallyLabels: {},
     roundSize,
     /*
      * Null until the first press. A round is timed from when you start
@@ -239,6 +247,7 @@ export function nextPrompt(quiz) {
   quiz.held = [];
   quiz.solved = false;
   quiz.penalised = false;
+  quiz.missed = false;
   quiz.hint = 0;
   quiz.eliminated = [];
   quiz.asked++;
@@ -322,27 +331,90 @@ export function pressPitch(quiz, pitch, nowMs = 0) {
   if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
 
   const result = evaluate(quiz);
-  if (result === CORRECT) {
-    quiz.solved = true;
-    quiz.correct++;
-    quiz.streak++;
-    if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
-    if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
-      quiz.finishedAt = nowMs || quiz.startedAt || 0;
-    }
-  } else if (result === WRONG && !quiz.penalised) {
-    /* Once per prompt: holding a wrong note down should not keep scoring. */
-    quiz.penalised = true;
-    quiz.wrong++;
-    quiz.streak = 0;
-  }
+  if (result === CORRECT) solve(quiz, nowMs);
+  else if (result === WRONG) miss(quiz);
   return result;
+}
+
+/* A prompt answered: the round's count, the streak, and the answer's tally. */
+function solve(quiz, nowMs) {
+  quiz.solved = true;
+  quiz.correct++;
+  quiz.streak++;
+  if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
+  if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
+    quiz.finishedAt = nowMs || quiz.startedAt || 0;
+  }
+  if (quiz.entry) {
+    const { key, label } = answerKey(quiz, quiz.entry);
+    if (!quiz.tally[key]) {
+      quiz.tally[key] = [0, 0];
+      quiz.tallyOrder.push(key);
+      quiz.tallyLabels[key] = label;
+    }
+    quiz.tally[key][0]++;
+    if (!quiz.missed) quiz.tally[key][1]++;
+  }
+}
+
+/* A wrong attempt. Counted once per prompt: holding a wrong note down should
+ * not keep scoring — but the prompt stays missed for its answer's tally. */
+function miss(quiz) {
+  quiz.missed = true;
+  if (quiz.penalised) return;
+  quiz.penalised = true;
+  quiz.wrong++;
+  quiz.streak = 0;
 }
 
 export function releasePitch(quiz, pitch) {
   const at = quiz.held.indexOf(pitch);
   if (at >= 0) quiz.held.splice(at, 1);
   if (!quiz.solved && quiz.held.length === 0) quiz.penalised = false;
+}
+
+/* ---- Success per answer -------------------------------------------------------- */
+/*
+ * What an answer is, for the tally: the thing you would name.
+ *
+ *   hearing and reading    the exercise's answer ("Major 6th")
+ *   notes                  the note's name without its octave ("C#")
+ *   triads of the key      the chord ("Em") — seven of them
+ *   chord types            the quality ("m7") — hundreds of chords, a few
+ *                          dozen kinds, and the kind is what is being learned
+ */
+export function answerKey(quiz, entry) {
+  if (quiz.kind === EAR) {
+    const a = (quiz.answers || []).find((x) => x.key === entry.answer);
+    return { key: entry.answer, label: a ? a.label : entry.answer };
+  }
+  if (entry.pitches.length === 1) {
+    const name = spell(entry.pitches[0], quiz.fifths).label;
+    return { key: name, label: name };
+  }
+  if (entry.quality) return { key: entry.quality, label: entry.quality };
+  const name = labelFor(quiz, entry.pitches);
+  return { key: name, label: name };
+}
+
+const NOTE_ORDER = (name) => {
+  const LET = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  return (LET[name[0]] ?? 99) + (name[1] === '#' ? 0.5 : name[1] === 'b' ? -0.5 : 0);
+};
+
+/*
+ * The round's tally as rows, in the order to show them: a hearing or reading
+ * exercise's own answer order, notes from C up, anything else as first asked.
+ */
+export function tallyRows(quiz) {
+  let keys = quiz.tallyOrder.slice();
+  if (quiz.kind === EAR && quiz.answers) {
+    const order = quiz.answers.map((a) => a.key);
+    keys.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  } else if (quiz.kind === NOTES) {
+    keys.sort((a, b) => NOTE_ORDER(a) - NOTE_ORDER(b));
+  }
+  return keys.map((k) => ({ key: k, label: quiz.tallyLabels[k], asked: quiz.tally[k][0], right: quiz.tally[k][1] }));
 }
 
 export function quizStats(quiz) {
@@ -443,20 +515,10 @@ export function pickChoice(quiz, nowMs = 0) {
   if (!chosen) return WRONG;
 
   if (isRight(quiz, chosen)) {
-    quiz.solved = true;
-    quiz.correct++;
-    quiz.streak++;
-    if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
-    if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
-      quiz.finishedAt = nowMs || quiz.startedAt || 0;
-    }
+    solve(quiz, nowMs);
     return CORRECT;
   }
-  if (!quiz.penalised) {
-    quiz.penalised = true;
-    quiz.wrong++;
-    quiz.streak = 0;
-  }
+  miss(quiz);
   return WRONG;
 }
 

@@ -509,7 +509,7 @@ function draw() {
     });
   } else if (view === RESULT_VIEW) {
     if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, lastResult);
-    else VIEW.drawRoundResult(ctx, lastResult);
+    else VIEW.drawResultPage(ctx, lastResult);
   } else if (view === PROGRESS_DETAIL) {
     drawProgressDetail();
   } else if (view === INFO_VIEW) {

@@ -134,6 +134,20 @@ const SCREENS = {
     rate: 144, ms: 480000, n: 30, wrong: 12, bestStreak: 100, hints: 22,
     best: 144, isBest: false, records: records(12), passed: 1, footer: 'CLICK S2  SHIFT next',
   }),
+  'quiz result, right %': (c) => V.drawResultPage(c, {
+    page: 1, rate: 30, ms: 60000, n: 30, wrong: 2, bestStreak: 9, hints: 0, best: 30, success: 100,
+    records: records(12), answers: [],
+  }),
+  'quiz result, answers': (c) => V.drawResultPage(c, {
+    page: 2, rate: 30, ms: 60000, n: 30, wrong: 2, bestStreak: 9, hints: 0, best: 30, success: 94,
+    records: records(3),
+    answers: [
+      { key: 'd12', label: 'Diminished 12th', asked: 12, right: 12, allAsked: 999, allRight: 998 },
+      { key: 'harmonicMinor', label: 'Harmonic minor', asked: 10, right: 0, allAsked: 10, allRight: 0 },
+      { key: 'first', label: 'Second bigger', asked: 1, right: 1, allAsked: 1, allRight: 1 },
+      { key: 'C#', label: 'C#', asked: 99, right: 98, allAsked: 99, allRight: 50 },
+    ],
+  }),
   'progress list, decorated': (c) => V.drawList(c, 'PROGRESS 100%', [
     { label: 'Overall' }, { label: 'Reading track' },
     { label: 'Scarborough Fair L3 Both hands' }, { label: 'Name chords advanced' },

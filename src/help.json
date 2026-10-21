@@ -462,9 +462,14 @@
         "a typo.",
         "",
         "The result is correct",
-        "answers per minute, your",
-        "error rate, and a chart",
-        "of recent rounds.",
+        "answers per minute and",
+        "% right. Turn the jog:",
+        "RIGHT % plots success",
+        "over every round; then",
+        "ANSWERS shows each one -",
+        "a bar over all rounds, a",
+        "tick for this round, and",
+        "its right/asked.",
         "",
         "endless records nothing."
       ]

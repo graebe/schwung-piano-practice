@@ -18,7 +18,7 @@ import {
 } from './chart.mjs';
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
-import { drillLabel, sparkline, summarise, errorFraction } from './stats.mjs';
+import { drillLabel, sparkline, summarise, errorFraction, successSeries } from './stats.mjs';
 import { accuracySeries } from './progress.mjs';
 import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
@@ -596,18 +596,95 @@ export function drawRoundResult(ctx, state) {
 
   /* Right-aligned beside the headline: the wrong answers on the row above
    * "per min", the hints on its row, fitted to what is left of it. */
-  const pct = Math.round(errorFraction(state.n, state.wrong) * 100);
-  rightText(ctx, L.RESULT_SIDE_A_Y, 'wrong ' + state.wrong + '  ' + pct + '%', L.RESULT_LEFT_X + w + 4);
-  if (state.hints) {
-    rightText(ctx, L.RESULT_SIDE_B_Y, 'hints ' + state.hints, unitX + ctx.textWidth('per min') + 4);
-  }
+  /* Success first — what the round is scored by, and what the next pages
+   * plot — then the wrong answers under it. A round that took hints shows how
+   * many in the streak's place: they qualify the share right, the streak
+   * does not. */
+  const pct = Math.round((1 - errorFraction(state.n, state.wrong)) * 100);
+  rightText(ctx, L.RESULT_SIDE_A_Y, 'right ' + pct + '%', L.RESULT_LEFT_X + w + 4);
+  rightText(ctx, L.RESULT_SIDE_B_Y, 'wrong ' + state.wrong, unitX + ctx.textWidth('per min') + 4);
   twoCell(ctx, L.RESULT_ROW_A_Y,
     state.n + ' in ' + Math.round(state.ms / 1000) + 's',
-    'streak ' + state.bestStreak, L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
+    state.hints ? 'hints ' + state.hints : 'streak ' + state.bestStreak, L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
 
   drawPlot(ctx, L.RESULT_PLOT, state.records || []);
   drawFooterHint(ctx, state.footer || 'PLAY again  CLICK next');
   return ctx;
+}
+
+/*
+ * A round's result is pages, turned with the jog:
+ *
+ *   0  the round      answers a minute, and how the rate has gone
+ *   1  RIGHT %        right of all attempts, this round and every round before
+ *   2+ ANSWERS        each answer's success, four to a page
+ *
+ * state = drawRoundResult's, plus { page, success, answers: [{ label, asked,
+ * right, allAsked, allRight }] }
+ */
+export function drawResultPage(ctx, state) {
+  const page = state.page || 0;
+  if (page === 0) return drawRoundResult(ctx, state);
+  const count = L.resultPageCount(state.answers);
+  ctx.clear();
+  R.drawChrome(ctx, { left: page === 1 ? 'RIGHT %' : 'ANSWERS', right: (page + 1) + '/' + count });
+  if (page === 1) drawSuccessPage(ctx, state);
+  else drawAnswersPage(ctx, state, page - 2);
+  drawFooterHint(ctx, 'JOG page  CLICK next');
+  return ctx;
+}
+
+/* This round's share right, big, over every round of the drill on 0-100%
+ * with the pass mark: hollow where a round took a hint. */
+function drawSuccessPage(ctx, state) {
+  const big = String(Math.round(state.success));
+  const w = R.bigTextWidth(big, L.RESULT_BIG_SCALE);
+  R.drawBigText(ctx, L.RESULT_LEFT_X, L.RESULT_BIG_Y, big, L.RESULT_BIG_SCALE);
+  ctx.text(L.RESULT_LEFT_X + w + 3, L.RESULT_BIG_Y + R.bigDigitHeight(L.RESULT_BIG_SCALE) - L.TEXT_H, '%', 1);
+  const minX = L.RESULT_LEFT_X + w + 3 + ctx.textWidth('%') + 4;
+  rightText(ctx, L.RESULT_SIDE_A_Y, 'right, of all', minX);
+  rightText(ctx, L.RESULT_SIDE_B_Y, 'attempts', minX);
+  drawAccuracyPlot(ctx, L.EXERCISE_PLOT, successSeries(state.records || []));
+}
+
+/*
+ * Four answers a page. Each row: its short name, a bar of its success over
+ * every round (filled from the left, the box is 100%), a tick at this round's
+ * success, and this round's right/asked at the end.
+ */
+export const ANSWER_ROW_TOP_Y = 11;
+export const ANSWER_ROW_STEP = 11;
+const ANSWER_NAME_W = 54;
+const ANSWER_BAR_X = ANSWER_NAME_W + 2;
+const ANSWER_BAR_W = 38;
+
+export function answerBarFill(right, asked, width = ANSWER_BAR_W - 2) {
+  return asked > 0 ? Math.round((right / asked) * width) : 0;
+}
+
+function drawAnswersPage(ctx, state, sub) {
+  const rows = (state.answers || []).slice(sub * L.ANSWER_ROWS, (sub + 1) * L.ANSWER_ROWS);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const y = ANSWER_ROW_TOP_Y + i * ANSWER_ROW_STEP;
+    ctx.text(1, y, rowName(ctx, r), 1);
+    ctx.drawRect(ANSWER_BAR_X, y, ANSWER_BAR_W, L.TEXT_H, 1);
+    const fill = answerBarFill(r.allRight, r.allAsked);
+    if (fill) ctx.fillRect(ANSWER_BAR_X + 1, y + 1, fill, L.TEXT_H - 2, 1);
+    /* This round, as a tick through the bar: knocked out where it is filled. */
+    const tick = ANSWER_BAR_X + 1 + answerBarFill(r.right, r.asked);
+    ctx.fillRect(Math.min(tick, ANSWER_BAR_X + ANSWER_BAR_W - 2), y - 1, 1, L.TEXT_H + 2, tick <= ANSWER_BAR_X + fill ? 0 : 1);
+    const score = r.right + '/' + r.asked;
+    ctx.text(L.SCREEN_W - 1 - ctx.textWidth(score), y, score, 1);
+  }
+}
+
+/* The answer's name if it fits; else its key when that is a short name of its
+ * own (d12, P15), else the name cut to fit. */
+function rowName(ctx, r) {
+  if (ctx.textWidth(r.label) <= ANSWER_NAME_W) return r.label;
+  if (r.key && String(r.key).length <= 4) return String(r.key);
+  return truncate(ctx, r.label, ANSWER_NAME_W);
 }
 
 /* Right-aligned to the result's right edge, never reaching left of `minX`. */

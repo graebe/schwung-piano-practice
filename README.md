@@ -756,12 +756,32 @@ moment of orientation is not part of the score. Because a prompt waits until you
 round is always exactly N correct answers — a wrong answer costs you *time* rather than needing a
 penalty of its own, the same way a typing test treats a typo.
 
-The result is **correct answers per minute**, with your best for that drill beside it, the round's
-**error rate**, and a chart of the drill's recent rounds so the number has something to be measured
-against. The round also counts toward the drill's progress, scored as right answers over attempts.
+The result has two measures: **correct answers per minute** (speed) and **% right** (success).
+Success is right answers over *attempts*, `correct / (correct + wrong)`, not over prompts. That way a
+10-prompt round and a 30-prompt one sit on the same chart, and it is the same number the drill's
+progress is scored by. Hints don't count against it, but the round notes them.
 
-Error rate is wrong answers over *attempts* (`wrong / (correct + wrong)`), not over prompts, so a
-10-prompt round and a 30-prompt one sit on the same chart.
+On the Move the result is pages, and the **jog** turns them:
+
+1. **The round:** answers a minute, your best for the drill, right % and wrong count, and a chart
+   of the drill's rounds (speed as a line, errors as bars).
+2. **RIGHT %:** this round's success, large, over every round of the drill on a 0–100% scale. The
+   90% a pass needs is dotted across it, and a round that took hints is drawn hollow.
+3. **ANSWERS:** every answer the round asked, four to a page: each interval, scale, note or chord.
+   The bar is its success over **every round** of the drill: of the times it was the answer, how
+   often you got it right first time. The tick through the bar is **this round**, and the numbers at
+   the end are this round's right/asked. The answers you mix up stand out at once: `Minor 6th`
+   full, `Major 6th` half.
+
+What counts as an answer: in the Hear and Read courses and exercises it is the exercise's own
+answer (Major 6th, Dorian). For notes it is the note name without its octave (C♯). For the triads
+of the key it is the chord (Em). For chord types it is the quality (m7), because hundreds of chords
+fall into a few dozen kinds, and the kind is what you are learning. The per-answer totals are kept
+for every round you ever play, apart from the last-200-rounds history behind the charts.
+
+On the page the result shows the same three things on one screen: both headline numbers, the speed
+and success charts, and a bar per answer. **Progress** shows a quiz drill's success chart and answer
+bars too, so you can look them up between rounds.
 
 Rates only ever compare **within a drill**: hearing seventh chords is not the same task as naming a
 white note, so every round is recorded against a drill id (`guess:notes:half`, `hear:chords:types`)

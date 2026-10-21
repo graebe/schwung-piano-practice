@@ -12,7 +12,7 @@ import { NameRow } from '../music/NameRow.jsx';
 import { createGlide } from '../music/glide.js';
 import { Keyboard } from '../music/Keyboard.jsx';
 import { PadGrid } from '../music/PadGrid.jsx';
-import { AttemptsChart, RoundsChart, TimelineChart } from './charts.jsx';
+import { AnswersChart, AttemptsChart, RoundsChart, TimelineChart } from './charts.jsx';
 import { staffEvents, staffJudgements, staffMarkers } from './chart-view.js';
 import { keyboardRange } from './feedback.js';
 import { MODES } from '../../../src/generator.mjs';
@@ -325,6 +325,7 @@ export function ResultView(props) {
             </header>
             <div class="hero">
               <span class="hero-number">{Math.round(r().rate)}<small>/min</small></span>
+              <span class="hero-number">{r().success}<small>% right</small></span>
               <span class="t-value">
                 {r().n} in {Math.round(r().ms / 1000)}s · {r().wrong} wrong
                 {r().hints ? ` · ${r().hints} hint${r().hints > 1 ? 's' : ''}` : ''}
@@ -332,6 +333,9 @@ export function ResultView(props) {
               </span>
             </div>
             <RoundsChart records={r().records} />
+            <Show when={r().answers && r().answers.length}>
+              <AnswersChart answers={r().answers} />
+            </Show>
           </Match>
         </Switch>
         <div class="transport">
@@ -382,6 +386,9 @@ export function ProgressView(props) {
                 </Match>
                 <Match when={d().kind === 'drill'}>
                   <RoundsChart records={d().records} />
+                  <Show when={d().answers && d().answers.length}>
+                    <AnswersChart answers={d().answers} />
+                  </Show>
                 </Match>
                 <Match when={d().kind === 'item'}>
                   <h2 class="t-label">{d().title} · {d().percent}%</h2>

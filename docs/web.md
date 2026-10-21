@@ -158,7 +158,10 @@ ladder of hints — the round still counts, but it records how many you took.
 
 A round is ten, twenty or thirty answers (Settings › Round). Its result is how
 many you got right a minute, beside your best, and how many of your attempts
-were wrong — two charts, so speed and accuracy can each be read on their own.
+were right — two charts, so speed and success can each be read on their own.
+Under them, **Each answer** has a bar per interval, scale, note or chord: how
+often it was right first time over every round, with a mark where this round
+put it. Progress shows the same bars for a drill between rounds.
 
 ## The Learning Program and Progress
 

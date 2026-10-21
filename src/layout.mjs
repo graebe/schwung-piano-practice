@@ -123,6 +123,14 @@ export const RESULT_ROW_A_Y = 26;
 export const RESULT_PLOT = { x: 3, y: 35, w: SCREEN_W - 6, h: 19 };
 export const EXERCISE_PLOT = { x: 3, y: 27, w: SCREEN_W - 6, h: 27 };
 
+/* A quiz round's result is pages: the round, right %, then its answers this
+ * many to a page. */
+export const ANSWER_ROWS = 4;
+
+export function resultPageCount(answers) {
+  return 2 + Math.ceil((answers ? answers.length : 0) / ANSWER_ROWS);
+}
+
 /* ---- Progress ----------------------------------------------------------- */
 export const PROGRESS_TITLE_Y = 9;
 export const PROGRESS_PLOT = { x: 3, y: 17, w: SCREEN_W - 6, h: 30 };

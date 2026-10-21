@@ -101,8 +101,14 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
     await page.waitForTimeout(520);
   }
   await expect(page.locator('.result-screen')).toBeVisible();
-  await expect(page.locator('.hero-number')).toContainText('/min');
-  await expect(page.locator('.result-screen svg[role="img"]')).toHaveCount(2);
+  await expect(page.locator('.hero-number').first()).toContainText('/min');
+  await expect(page.locator('.hero-number').nth(1)).toContainText('% right');
+  await expect(page.locator('.result-screen figcaption', { hasText: 'Right, of all attempts' })).toBeVisible();
+  /* Each note asked gets a bar: every right answer is some note's. */
+  const answers = page.locator('.result-screen figure', { hasText: 'Each answer' });
+  await expect(answers).toBeVisible();
+  expect(await answers.locator('rect.chart-bar').count()).toBeGreaterThan(1);
+  await expect(page.locator('.result-screen svg[role="img"]')).toHaveCount(3);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
   await page.locator('.row', { hasText: 'Progress' }).click();
   await page.locator('.progress-screen .row', { hasText: 'Overall' }).click();

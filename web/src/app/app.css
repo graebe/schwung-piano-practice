@@ -299,6 +299,8 @@ button.status-pill { cursor: pointer; }
 .mark-hollow { fill: var(--bg-000); stroke: var(--uv-deep); stroke-width: 2; }
 .chart-hit { fill: transparent; cursor: default; }
 .chart-bar { fill: var(--uv-deep); }
+.chart-track { fill: var(--bg-300); }
+.chart-name { fill: var(--ink-muted); font: 400 11px var(--font-mono); dominant-baseline: middle; }
 .chart-legend { display: flex; flex-wrap: wrap; gap: var(--space-4); color: var(--ink-muted); }
 .chart-legend span { display: inline-flex; align-items: center; gap: var(--space-1); }
 .chart-tip {

@@ -604,10 +604,20 @@ export function createSession(fx, opts = {}) {
       best,
     };
     STATS.addRecord(stats, rec);
+    STATS.addTally(stats, drill, quiz.tally);
     /* After the append, so the chart's last point is the round you just played.
      * `best` above is deliberately taken before it — that is the number you were
      * trying to beat, not the one you have just set. */
     lastResult.records = STATS.forDrill(stats, drill);
+    lastResult.success = STATS.successPercent(quiz.correct, quiz.wrong);
+    /* Each answer: this round, and every round of this drill so far. */
+    const all = STATS.tallyFor(stats, drill);
+    lastResult.answers = GUESS.tallyRows(quiz).map((r) => ({
+      key: r.key, label: r.label, asked: r.asked, right: r.right,
+      allAsked: all[r.key] ? all[r.key][0] : r.asked,
+      allRight: all[r.key] ? all[r.key][1] : r.right,
+    }));
+    lastResult.page = 0;
     saveStats();
 
     const res = PROG.recordAttempt(progress, quizId(quizSpec), {
@@ -1515,6 +1525,7 @@ export function createSession(fx, opts = {}) {
     if (drill && STATS.forDrill(stats, drill).length) {
       return {
         kind: 'drill', drill, records: STATS.forDrill(stats, drill), drillIndex: index, drillCount: total,
+        answers: STATS.answerRows(stats, drill),
       };
     }
     const it = PROG.item(progress, row.itemId);
@@ -1652,6 +1663,13 @@ export function createSession(fx, opts = {}) {
   /* The jog, or the arrow keys: what "next" means depends on the screen. An Info
    * page scrolls in its renderer, so it is not handled here. */
   function moveSelection(delta) {
+    /* A round's result: the jog turns its pages — the round, right %, answers. */
+    if (view === RESULT_VIEW && lastResult && lastResult.kind === 'quiz') {
+      const pages = L.resultPageCount(lastResult.answers);
+      lastResult.page = ((lastResult.page + (delta > 0 ? 1 : -1)) % pages + pages) % pages;
+      dirty = true;
+      return;
+    }
     /* The one view where the jog is the answer rather than navigation. */
     if (view === GUESS_VIEW && quizPick && quiz && !quiz.solved) {
       GUESS.moveChoice(quiz, delta, now());
