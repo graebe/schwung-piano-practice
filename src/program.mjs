@@ -25,9 +25,10 @@
 import { drillId, drillLabel } from './stats.mjs';
 import { availableLevels } from './levels.mjs';
 import { item, isFinished } from './progress.mjs';
-import { EXERCISES, exerciseByKey, isNaming } from './ear.mjs';
+import { EXERCISES, TOPICS, exerciseByKey, isNaming, resolveLegacy } from './ear.mjs';
 import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
+import { folder } from './catalog.mjs';
 
 const SCALES = 'basics/scales/';
 const CHORDS = 'basics/chords/';
@@ -165,26 +166,57 @@ const CHORD_TRACK = [
 ];
 
 /*
- * Hearing: the exercises of ear.mjs in their order, easiest first, one unit
- * each and one step per level. The two play-back exercises are the Hear
- * drills of the Quiz folder; the rest name what they heard.
+ * A level of a hearing or reading exercise, as a step. Inside its unit's
+ * folder the path already says which drill it is, so the row is the level
+ * alone — "up", "fix down" — or, where heard and read sit side by side, the
+ * medium and the level: "Hear up", "Read up". The full drill label is its
+ * title, for Continue, Skip and Progress, where it stands on its own.
  */
-function earUnits(exercises) {
-  return exercises.map((ex, i) => ({
-    name: (i + 1) + ' ' + ex.name,
-    exercise: ex.key,
-    steps: ex.levels.map((lv) => quiz(isNaming(ex)
-      ? { kind: EAR, exercise: ex.key, level: lv.key }
-      : lv.quiz)),
-  }));
+function levelStep(ex, lv, medium) {
+  const step = quiz(isNaming(ex) ? { kind: EAR, exercise: ex.key, level: lv.key } : lv.quiz);
+  return { ...step, title: step.label, label: medium ? medium + ' ' + lv.name : lv.name };
 }
 
-const HEARING = earUnits(EXERCISES);
+const levelSteps = (ex, medium) => ex.levels.map((lv) => levelStep(ex, lv, medium));
 
-/* The three listening courses, a track each, after Hearing: a course is a path
- * through one skill, which is what a track is. */
-const COURSE_TRACKS = COURSES.concat(READ_COURSES)
-  .map((c) => ({ key: c.key, name: c.track, units: earUnits(c.exercises) }));
+/* Hearing: the exercises of ear.mjs in their order, easiest first, one unit
+ * each and one step per level. */
+const HEARING = EXERCISES.map((ex, i) => ({ name: (i + 1) + ' ' + ex.name, exercise: ex.key, steps: levelSteps(ex) }));
+
+/*
+ * The courses, heard and read: one unit per course unit, its heard levels and
+ * then the same levels read, so one skill is trained from both sides in one
+ * place. A unit read is its Hear twin with "rd-" in front.
+ */
+const twinOf = (ex) => exerciseByKey('rd-' + ex.key);
+const pairedSteps = (ex) => levelSteps(ex, 'Hear').concat(levelSteps(twinOf(ex), 'Read'));
+const courseUnit = (key) => COURSES.flatMap((c) => c.exercises).find((e) => e.key === key);
+
+/*
+ * Intervals: identifying and comparing, interleaved by size — a pair of
+ * intervals is named, then compared, before the next ones come in; the
+ * compound intervals are compared once both of a pair have been named.
+ */
+const INTERVAL_ORDER = [
+  'id-2nds', 'cmp-2nds', 'id-3rds', 'cmp-3rds', 'id-2-3', 'cmp-M2-m3',
+  'id-4-5-8', 'cmp-4-5', 'cmp-4-TT', 'cmp-5-TT', 'cmp-4-TT-5', 'id-to-5', 'cmp-to-5',
+  'id-6ths', 'cmp-6ths', 'id-7ths', 'cmp-7ths', 'cmp-M6-m7', 'id-6-7-8', 'cmp-6-7',
+  'id-to-8', 'cmp-to-8',
+  'id-8-M9-M10', 'id-8-m9-M10-11-12', 'cmp-9ths', 'id-8-m9-m10', 'cmp-10ths', 'cmp-M9-m10',
+  'id-8-m9-m10-11-12', 'cmp-11-12', 'id-11-d12-12', 'id-8-12',
+  'id-M13-M14-15', 'id-m13-m14-15', 'id-13-15',
+];
+
+export { INTERVAL_ORDER };
+
+const INTERVALS_TRACK = INTERVAL_ORDER.map((key, i) => {
+  const ex = courseUnit(key);
+  const name = key.indexOf('cmp-') === 0 ? 'Compare ' + ex.short : ex.name;
+  return { name: (i + 1) + ' ' + name, exercise: ex.key, steps: pairedSteps(ex) };
+});
+
+const SCALES_TRACK = COURSES.find((c) => c.key === 'scales').exercises
+  .map((ex, i) => ({ name: (i + 1) + ' ' + ex.name, exercise: ex.key, steps: pairedSteps(ex) }));
 
 /* What the songs track calls a rung, short enough to follow a song's name. */
 const RUNG = { '1r': 'L1 RH', '1l': 'L1 LH', '2r': 'L2', '3': 'L3' };
@@ -224,7 +256,8 @@ export function buildProgram({ songs = [], categoryOrder = SONG_ORDER } = {}) {
     { key: 'chords', name: 'Chords', units: CHORD_TRACK },
     { key: 'songs', name: 'Songs', units: songUnits(songs, categoryOrder) },
     { key: 'hearing', name: 'Hearing', units: HEARING },
-    ...COURSE_TRACKS,
+    { key: 'intervals', name: 'Intervals', units: INTERVALS_TRACK },
+    { key: 'scales', name: 'Scales', units: SCALES_TRACK },
   ];
 }
 
@@ -312,9 +345,11 @@ export function quizFromId(id) {
   if (parts.length !== 3) return null;
   const [mode, kind, set] = parts;
   if (mode === EAR) {
-    const ex = exerciseByKey(kind);
-    if (!isNaming(ex) || !ex.levels.some((l) => l.key === set)) return null;
-    return { kind: EAR, exercise: kind, level: set, hear: true, pick: true };
+    /* An exercise the courses replaced opens its course twin. */
+    const [exKey, level] = resolveLegacy(kind, set);
+    const ex = exerciseByKey(exKey);
+    if (!isNaming(ex) || !ex.levels.some((l) => l.key === level)) return null;
+    return { kind: EAR, exercise: exKey, level, hear: true, pick: true };
   }
   if (kind !== N && kind !== C) return null;
   return {
@@ -342,6 +377,37 @@ export function stepRow(step) {
   return { label: step.label, value: '', key: step.id, absolute: true, step };
 }
 
+/* ---- Quiz › Hear and Quiz › Read ----------------------------------------- */
+
+/* An exercise in a list: a folder of its levels, or — with one level — the
+ * level itself, named as the exercise. */
+function exerciseRow(ex, name = ex.name) {
+  const steps = levelSteps(ex);
+  if (steps.length === 1) return stepRow({ ...steps[0], label: name });
+  return folder(name, steps.map(stepRow), ex.key);
+}
+
+/* A course: its units, numbered, since a course is a sequence. */
+function courseFolder(course) {
+  return folder(course.name, course.exercises.map((ex, i) => exerciseRow(ex, (i + 1) + ' ' + ex.name)), course.key);
+}
+
+/*
+ * Quiz › Hear, by topic — pitch and melody, intervals, chords, scales and
+ * keys — each with its courses first and then its exercises, easiest first.
+ */
+export function hearMenu() {
+  return folder('Hear', TOPICS.map((t) => folder(t.name,
+    COURSES.filter((c) => c.topic === t.key).map(courseFolder)
+      .concat(EXERCISES.filter((e) => e.topic === t.key).map((e) => exerciseRow(e))),
+    t.key)), 'hear');
+}
+
+/* Quiz › Read: the courses again, on the staff, under the same names. */
+export function readMenu() {
+  return folder('Read', READ_COURSES.map(courseFolder), 'read');
+}
+
 export function programFolder(tracks, repetitionRows = () => []) {
   return {
     label: 'Learning Program',
@@ -355,9 +421,11 @@ export function programFolder(tracks, repetitionRows = () => []) {
         value: '>',
         key: t.key,
         track: t,
-        children: t.units.map((u) => ({
-          label: u.name, value: '>', children: u.steps.map(stepRow),
-        })),
+        /* A unit of one step is that step, named as the unit: a folder of
+         * one row is a click that shows nothing new. */
+        children: t.units.map((u) => (u.steps.length === 1
+          ? stepRow({ ...u.steps[0], label: u.name })
+          : { label: u.name, value: '>', children: u.steps.map(stepRow) })),
       })),
       {
         label: 'Repetition',

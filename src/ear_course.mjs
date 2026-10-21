@@ -168,20 +168,20 @@ const COMPARE = [
   compare('2nds', '2nds', '2nds', ['m2', 'M2'], UDT),
   compare('3rds', '3rds', '3rds', ['m3', 'M3'], UDT),
   compare('M2-m3', 'M2 and m3', 'M2 m3', ['M2', 'm3'], ['melodic']),
-  compare('4-5', '5th and 4th', '4 5', ['P4', 'P5'], UDT),
-  compare('4-TT', '4th and tritone', '4 TT', ['P4', 'TT'], ['melodic']),
-  compare('5-TT', '5th and tritone', '5 TT', ['P5', 'TT'], ['melodic']),
-  compare('4-TT-5', '4th TT 5th', '4 TT 5', ['P4', 'TT', 'P5'], ['any']),
+  compare('4-5', '5th and 4th', '4th 5th', ['P4', 'P5'], UDT),
+  compare('4-TT', '4th and tritone', '4th TT', ['P4', 'TT'], ['melodic']),
+  compare('5-TT', '5th and tritone', '5th TT', ['P5', 'TT'], ['melodic']),
+  compare('4-TT-5', '4th TT 5th', '4th TT 5th', ['P4', 'TT', 'P5'], ['any']),
   compare('to-5', 'Up to the 5th', 'to 5th', TO_5TH, UDT),
   compare('6ths', '6ths', '6ths', ['m6', 'M6'], UDT, 'both'),
   compare('7ths', '7ths', '7ths', ['m7', 'M7'], UDT, 'both'),
   compare('M6-m7', 'M6 and m7', 'M6 m7', ['M6', 'm7'], ['melodic'], 'both'),
-  compare('6-7', '6ths and 7ths', '6 7', ['m6', 'M6', 'm7', 'M7'], UDT, 'both'),
+  compare('6-7', '6ths and 7ths', '6/7ths', ['m6', 'M6', 'm7', 'M7'], UDT, 'both'),
   compare('to-8', 'Up to the octave', 'to 8ve', TO_8VE, UDT, 'both'),
   compare('9ths', '9ths', '9ths', ['m9', 'M9'], UDT, 'both'),
   compare('10ths', '10ths', '10ths', ['m10', 'M10'], UDT, 'both'),
   compare('M9-m10', 'M9 and m10', 'M9 m10', ['M9', 'm10'], ['melodic'], 'both'),
-  compare('11-12', '11th and 12th', '11 12', ['P11', 'P12'], UDT, 'both'),
+  compare('11-12', '11th and 12th', '11/12', ['P11', 'P12'], UDT, 'both'),
 ];
 
 /* ---- Identify scales ------------------------------------------------------ */
@@ -282,9 +282,9 @@ const SCALE_COURSE = [
 /* ---- The courses ---------------------------------------------------------- */
 
 export const COURSES = [
-  { key: 'intervals', name: 'Identify intervals', track: 'Intervals', exercises: IDENTIFY },
-  { key: 'compare', name: 'Compare intervals', track: 'Compare', exercises: COMPARE },
-  { key: 'scales', name: 'Identify scales', track: 'Scales', exercises: SCALE_COURSE },
+  { key: 'intervals', name: 'Identify intervals', topic: 'intervals', exercises: IDENTIFY },
+  { key: 'compare', name: 'Compare intervals', topic: 'intervals', exercises: COMPARE },
+  { key: 'scales', name: 'Identify scales', topic: 'keys', exercises: SCALE_COURSE },
 ];
 
 export function courseOf(exercise) {

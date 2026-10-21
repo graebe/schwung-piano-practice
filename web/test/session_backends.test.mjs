@@ -147,7 +147,7 @@ test('a storage that refuses (private mode) does not stop practice', () => {
 test('a heard answer is revealed on the keyboard for a while, then not', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']) select(l, label);
+  for (const label of ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']) select(l, label);
   l.advance(1500);
   const q = l.backend.session.quiz;
   for (let i = 0; i < q.choices.length && !q.solved; i++) l.backend.dispatch({ type: 'answer', index: i });

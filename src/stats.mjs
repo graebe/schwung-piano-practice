@@ -13,7 +13,7 @@
  * drill id and nothing ever compares across them.
  */
 
-import { exerciseByKey, levelByKey, answersFor } from './ear.mjs';
+import { exerciseByKey, levelByKey, answersFor, resolveLegacy } from './ear.mjs';
 
 export const STATS_VERSION = 1;
 export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound */
@@ -55,8 +55,10 @@ export function drillLabel(id) {
   const parts = String(id).split(':');
   if (parts.length !== 3) return String(id);
   if (parts[0] === 'ear') {
-    const ex = exerciseByKey(parts[1]);
-    return ex ? (ex.tag || 'Hear') + ' ' + ex.short + ' ' + levelByKey(ex, parts[2]).name : String(id);
+    /* An exercise the courses replaced is named as the course twin it opens. */
+    const [exKey, levelKey] = resolveLegacy(parts[1], parts[2]);
+    const ex = exerciseByKey(exKey);
+    return ex ? (ex.tag || 'Hear') + ' ' + ex.short + ' ' + levelByKey(ex, levelKey).name : String(id);
   }
   return [DRILL_WORDS[parts[0]], DRILL_WORDS[parts[1]], DRILL_WORDS[parts[2]]]
     .filter(Boolean)

@@ -295,7 +295,8 @@ test('the error series is sliced with the line, never separately', () => {
 test('a hearing drill is filed under its exercise and level', () => {
   assert.equal(drillId({ kind: 'ear', exercise: 'thirds', level: 'up', hear: true, pick: true }),
     'ear:thirds:up');
-  assert.equal(drillLabel('ear:thirds:up'), 'Hear 3rds up');
+  assert.equal(drillLabel('ear:id-3rds:up'), 'Int 3rds up');
+  assert.equal(drillLabel('ear:thirds:up'), 'Int 3rds up', 'an old id is named as the course twin');
   assert.equal(drillLabel('ear:planets:up'), 'ear:planets:up', 'unknown stays readable');
 });
 

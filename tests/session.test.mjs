@@ -337,7 +337,7 @@ test('a Name quiz answers by option, and a round runs to its result', () => {
 test('a Hear drill plays its prompt and reveals the answer once named', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']);
+  openPath(h.session, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
   h.run(1500);
   assert.ok(h.log.some((e) => e[0] === 'strike'), 'the prompt is played');
   const q = h.session.quiz;

@@ -33,7 +33,6 @@ import { qualityById, buildChord, chordSymbol } from './chords.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
 import {
   NOTE_LEN, ev, melodic, together, broken, pcOf, rootName, noteNames,
-  SIMPLE_INTERVALS, intervalAnswers, intervalPrompts,
 } from './ear_core.mjs';
 import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
@@ -41,20 +40,6 @@ import { READ_COURSES } from './read_course.mjs';
 export { NOTE_GAP, INTERVALS, promptLength, slowed } from './ear_core.mjs';
 
 const CADENCE_STEP = 750;
-
-const SECONDS_THIRDS = ['m2', 'M2', 'm3', 'M3'];
-const GROUP_1 = ['m2', 'M2', 'm3', 'M3', 'P4', 'P5', 'P8'];
-const GROUP_2 = ['m2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'M6', 'P8'];
-const GROUP_3 = SIMPLE_INTERVALS.map((i) => i.key);
-
-/* The three staged levels the full interval exercises share. */
-function groupLevels(way) {
-  return [
-    { key: 'g1', name: '2-5,8', answers: intervalAnswers(GROUP_1), prompts: intervalPrompts(GROUP_1, way) },
-    { key: 'g2', name: '+6ths', answers: intervalAnswers(GROUP_2), prompts: intervalPrompts(GROUP_2, way) },
-    { key: 'g3', name: 'all', answers: intervalAnswers(GROUP_3), prompts: intervalPrompts(GROUP_3, way) },
-  ];
-}
 
 /* ---- Chords ----------------------------------------------------------------- */
 
@@ -170,7 +155,7 @@ function functionPrompts(keys) {
  */
 export const EXERCISES = [
   {
-    key: 'direction', name: 'Higher or lower', short: 'High/low', question: 'second note is...',
+    key: 'direction', topic: 'pitch', name: 'Higher or lower', short: 'High/low', question: 'second note is...',
     answers: [{ key: 'higher', label: 'Higher' }, { key: 'same', label: 'Same' }, { key: 'lower', label: 'Lower' }],
     levels: [{ key: 'wide', name: 'wide', gaps: [5, 7, 9, 12] }, { key: 'narrow', name: 'close', gaps: [1, 2, 3, 4] }],
     prompts: ({ lo, hi }, level) => {
@@ -187,14 +172,14 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'playback-notes', name: 'Play it back', short: 'Play back',
+    key: 'playback-notes', topic: 'pitch', name: 'Play it back', short: 'Play back',
     levels: [
       { key: 'key', name: 'in key', quiz: { kind: 'notes', hear: true, halfTones: false } },
       { key: 'half', name: 'chromatic', quiz: { kind: 'notes', hear: true, halfTones: true } },
     ],
   },
   {
-    key: 'steps', name: 'Step or leap', short: 'Step/leap', question: 'step or leap?',
+    key: 'steps', topic: 'pitch', name: 'Step or leap', short: 'Step/leap', question: 'step or leap?',
     answers: [{ key: 'step', label: 'Step' }, { key: 'leap', label: 'Leap' }],
     levels: [{ key: 'key', name: 'in key' }],
     prompts: ({ lo, hi }) => {
@@ -215,7 +200,7 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'contour', name: 'Melody shape', short: 'Shape', question: 'which way?',
+    key: 'contour', topic: 'pitch', name: 'Melody shape', short: 'Shape', question: 'which way?',
     answers: [
       { key: 'uu', label: 'Up, up' }, { key: 'ud', label: 'Up, down' },
       { key: 'du', label: 'Down, up' }, { key: 'dd', label: 'Down, down' },
@@ -243,16 +228,7 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'thirds', name: 'Major or minor 3rd', short: '3rds', question: 'major or minor?',
-    answers: intervalAnswers(['M3', 'm3']),
-    levels: [
-      { key: 'up', name: 'up', prompts: intervalPrompts(['M3', 'm3'], 'up') },
-      { key: 'down', name: 'down', prompts: intervalPrompts(['M3', 'm3'], 'down') },
-      { key: 'together', name: 'together', prompts: intervalPrompts(['M3', 'm3'], 'together') },
-    ],
-  },
-  {
-    key: 'triads', name: 'Major/minor chord', short: 'Maj/min', question: 'major or minor?',
+    key: 'triads', topic: 'chords', name: 'Major/minor chord', short: 'Maj/min', question: 'major or minor?',
     answers: chordAnswers(['maj', 'min']),
     levels: [
       { key: 'broken', name: 'broken', prompts: chordPrompts(['maj', 'min'], 'broken') },
@@ -261,26 +237,7 @@ export const EXERCISES = [
     ],
   },
   {
-    key: 'perfect', name: 'Perfect intervals', short: '4/5/8', question: 'which interval?',
-    answers: intervalAnswers(['P4', 'P5', 'P8']),
-    levels: [
-      { key: 'up', name: 'up', prompts: intervalPrompts(['P4', 'P5', 'P8'], 'up') },
-      { key: 'together', name: 'together', prompts: intervalPrompts(['P4', 'P5', 'P8'], 'together') },
-    ],
-  },
-  {
-    key: 'seconds-thirds', name: '2nds and 3rds', short: '2nds/3rds', question: 'which interval?',
-    answers: intervalAnswers(SECONDS_THIRDS),
-    levels: [
-      { key: 'up', name: 'up', prompts: intervalPrompts(SECONDS_THIRDS, 'up') },
-      { key: 'down', name: 'down', prompts: intervalPrompts(SECONDS_THIRDS, 'down') },
-    ],
-  },
-  { key: 'intervals-up', name: 'Intervals up', short: 'Int up', question: 'which interval?', levels: groupLevels('up') },
-  { key: 'intervals-down', name: 'Intervals down', short: 'Int down', question: 'which interval?', levels: groupLevels('down') },
-  { key: 'intervals-together', name: 'Intervals together', short: 'Int tog', question: 'which interval?', levels: groupLevels('together') },
-  {
-    key: 'four-triads', name: 'Four triads', short: '4 triads', question: 'which chord?',
+    key: 'four-triads', topic: 'chords', name: 'Four triads', short: '4 triads', question: 'which chord?',
     answers: chordAnswers(['maj', 'min', 'dim', 'aug']),
     levels: [
       { key: 'broken', name: 'broken', prompts: chordPrompts(['maj', 'min', 'dim', 'aug'], 'broken') },
@@ -288,12 +245,10 @@ export const EXERCISES = [
     ],
   },
   {
-    key: 'key-quality', name: 'Major or minor key', short: 'Key', question: 'major or minor?',
+    key: 'key-quality', topic: 'keys', name: 'Major or minor key', short: 'Key', question: 'major or minor?',
     answers: [{ key: 'major', label: 'Major key' }, { key: 'minor', label: 'Minor key' }],
-    levels: [
-      { key: 'scale', name: 'scale', lines: [[0, 1, 2, 3, 4, 5, 6, 7]] },
-      { key: 'melody', name: 'melody', lines: MELODIES },
-    ],
+    /* Its scale level is Identify scales › 1 Minor and major now (LEGACY). */
+    levels: [{ key: 'melody', name: 'melody', lines: MELODIES }],
     prompts: ({ lo, hi }, level) => {
       const out = [];
       for (let t = lo; t <= hi; t++) {
@@ -307,7 +262,7 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'home', name: 'Home or away', short: 'Home/away', question: 'did it end at home?',
+    key: 'home', topic: 'keys', name: 'Home or away', short: 'Home/away', question: 'did it end at home?',
     answers: [{ key: 'home', label: 'Finished' }, { key: 'away', label: 'Unfinished' }],
     levels: [{ key: 'major', name: 'major' }],
     prompts: ({ lo, hi }) => {
@@ -326,28 +281,28 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'degrees', name: 'Scale degrees', short: 'Degrees', question: 'which degree?',
+    key: 'degrees', topic: 'keys', name: 'Scale degrees', short: 'Degrees', question: 'which degree?',
     levels: [
       { key: '135', name: '1 3 5', answers: degreeAnswers([0, 2, 4]), prompts: degreePrompts([0, 2, 4]) },
       { key: 'all', name: 'all', answers: degreeAnswers([0, 1, 2, 3, 4, 5, 6]), prompts: degreePrompts([0, 1, 2, 3, 4, 5, 6]) },
     ],
   },
   {
-    key: 'sevenths', name: 'Seventh chords', short: '7ths', question: 'which chord?',
+    key: 'sevenths', topic: 'chords', name: 'Seventh chords', short: '7ths', question: 'which chord?',
     levels: [
       { key: 'three', name: '3 types', answers: chordAnswers(['maj7', '7', 'm7']), prompts: chordPrompts(['maj7', '7', 'm7'], 'broken') },
       { key: 'four', name: '4 types', answers: chordAnswers(['maj7', '7', 'm7', 'm7b5']), prompts: chordPrompts(['maj7', '7', 'm7', 'm7b5'], 'broken') },
     ],
   },
   {
-    key: 'functions', name: 'Chords in a key', short: 'Chords', question: 'after I comes...',
+    key: 'functions', topic: 'keys', name: 'Chords in a key', short: 'Chords', question: 'after I comes...',
     levels: [
       { key: 'iv-v', name: 'IV V', answers: [{ key: 'IV', label: 'IV' }, { key: 'V', label: 'V' }], prompts: functionPrompts(['IV', 'V']) },
       { key: 'iv-v-vi', name: 'IV V vi', answers: [{ key: 'IV', label: 'IV' }, { key: 'V', label: 'V' }, { key: 'vi', label: 'vi' }], prompts: functionPrompts(['IV', 'V', 'vi']) },
     ],
   },
   {
-    key: 'playback-chords', name: 'Play the chord', short: 'Play chord',
+    key: 'playback-chords', topic: 'chords', name: 'Play the chord', short: 'Play chord',
     levels: [
       { key: 'triads', name: 'triads', quiz: { kind: 'chords', hear: true, chordSet: 'triads' } },
       { key: 'types', name: 'types', quiz: { kind: 'chords', hear: true, chordSet: 'types' } },
@@ -362,6 +317,42 @@ const ALL = EXERCISES.concat(...COURSES.concat(READ_COURSES).map((c) => c.exerci
 
 export function exerciseByKey(key) {
   return ALL.find((e) => e.key === key) || null;
+}
+
+/*
+ * The topics Quiz › Hear is grouped by, in order. Every exercise and course
+ * names one; within a topic the courses come first, then the exercises.
+ */
+export const TOPICS = [
+  { key: 'pitch', name: 'Pitch & melody' },
+  { key: 'intervals', name: 'Intervals' },
+  { key: 'chords', name: 'Chords' },
+  { key: 'keys', name: 'Scales & keys' },
+];
+
+/*
+ * Exercises the courses replaced, and where their ids lead now, so a
+ * repetition or a Next filed under an old id still opens the same drill.
+ * The interval groups map onto the course's spans: 2nds to the 5th, and to
+ * the octave.
+ */
+const GROUP = { g1: 'id-to-5', g2: 'id-to-8', g3: 'id-to-8' };
+/* A level the old exercise never had stays as it was, and so stays unknown. */
+const groups = (way) => (lv) => (GROUP[lv] ? [GROUP[lv], way] : ['id-to-8', lv]);
+const LEGACY = {
+  thirds: (lv) => ['id-3rds', lv],
+  perfect: (lv) => ['id-4-5-8', lv],
+  'seconds-thirds': (lv) => ['id-2-3', lv],
+  'intervals-up': groups('up'),
+  'intervals-down': groups('down'),
+  'intervals-together': groups('together'),
+  'key-quality': (lv) => (lv === 'scale' ? ['sc-maj-min', 'up'] : ['key-quality', lv]),
+};
+
+/* [exercise key, level key] for an id's parts, followed through LEGACY. */
+export function resolveLegacy(exKey, levelKey) {
+  const move = LEGACY[exKey];
+  return move ? move(levelKey) : [exKey, levelKey];
 }
 
 /* 1-based, from its list's order, so the numbering cannot drift from it. */

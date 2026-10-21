@@ -174,7 +174,7 @@ test('settings are remembered across a reload', async ({ page }) => {
 });
 
 test('a hearing drill answers by colour, then shows where the answer sits', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']);
+  await openPath(page, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
   await expect(page.locator('#quiz-title')).toHaveText(/higher or lower/i);
   await expect(page.locator('.option .chip')).toHaveCount(3);
   for (const option of await page.locator('.option').all()) {
@@ -194,12 +194,12 @@ async function answerRight(page) {
 }
 
 for (const [course, unit, level, title, answers] of [
-  ['Identify intervals', '1 2nds', 'Int 2nds up', /2nds/i, 2],
-  ['Compare intervals', '9 6ths', 'Cmp 6ths fix up', /6ths/i, 3],
-  ['Identify scales', '6 Seven modes', 'Scale 7 modes up', /seven modes/i, 7],
+  [['Intervals', 'Identify intervals'], '1 2nds', 'up', /2nds/i, 2],
+  [['Intervals', 'Compare intervals'], '9 6ths', 'fix up', /6ths/i, 3],
+  [['Scales & keys', 'Identify scales'], '6 Seven modes', 'up', /seven modes/i, 7],
 ]) {
-  test(`${course}: a unit's level asks its own answers, and a right one counts`, async ({ page }) => {
-    await openPath(page, ['Quiz', 'Hear', course, unit, level]);
+  test(`${course[1]}: a unit's level asks its own answers, and a right one counts`, async ({ page }) => {
+    await openPath(page, ['Quiz', 'Hear', ...course, unit, level]);
     await expect(page.locator('#quiz-title')).toHaveText(title);
     await expect(page.locator('.option')).toHaveCount(answers);
     await answerRight(page);
@@ -208,11 +208,11 @@ for (const [course, unit, level, title, answers] of [
 }
 
 for (const [course, unit, level, answers, notes] of [
-  ['Read intervals', '9 Up to the octave', 'RdInt to octave tog', 12, 2],
-  ['Compare by eye', '9 6ths', 'RdCmp 6ths fix up', 3, 4],
-  ['Read scales', '6 Seven modes', 'RdSc 7 modes up', 7, 8],
+  ['Identify intervals', '9 Up to the octave', 'tog', 12, 2],
+  ['Compare intervals', '9 6ths', 'fix up', 3, 4],
+  ['Identify scales', '6 Seven modes', 'up', 7, 8],
 ]) {
-  test(`${course}: the prompt is on the staff, the answers below it`, async ({ page }) => {
+  test(`Read ${course}: the prompt is on the staff, the answers below it`, async ({ page }) => {
     await openPath(page, ['Quiz', 'Read', course, unit, level]);
     await expect(page.locator('.quiz-row svg')).toBeVisible();
     expect(await page.locator('.quiz-row .staff-note').count()).toBeGreaterThanOrEqual(notes);

@@ -265,15 +265,9 @@ const EAR_TEXT = {
   'playback-notes': ['A note plays. Find it on the pads and play it back.', 'Hum it, then search: one pad right is a semitone higher, one row up a 4th. In key uses the Key setting; chromatic any note.', ['semitone', 'key']],
   steps: ['Two notes from a major scale. Neighbours, or further apart?', 'Afterwards A-B means A, then B.', ['step', 'leap', 'scale']],
   contour: ['Three notes. Which way did each move: up then up, up then down...?', 'Follow the melody with your hand as it plays.', ['contour']],
-  thirds: ['Two notes a 3rd apart: major or minor?', 'Major is 4 semitones, bright: the start of When the Saints. Minor is 3, darker: Greensleeves.', ['interval', 'majmin']],
   triads: ['A triad: major or minor?', 'Major sounds bright and settled, minor darker. Broken plays the notes one by one, block together, inverted with another note at the bottom.', ['triad', 'majmin', 'broken', 'inversion']],
-  perfect: ['A 4th, a 5th or an octave?', 'Octave: the same note, higher (Over the Rainbow). 5th: open and hollow (Twinkle). 4th: Here Comes the Bride.', ['perfect', 'octave', 'interval']],
-  'seconds-thirds': ['Minor 2nd, major 2nd, minor 3rd or major 3rd?', 'The small intervals melodies are made of. m2 is Jaws, M2 Happy Birthday.', ['interval', 'majmin', 'step']],
-  'intervals-up': ['Two notes, rising. Name the interval.', 'Levels add intervals: 2nds to 5ths and the octave, then 6ths, then all twelve. Tie each to a tune you know.', ['interval', 'majmin', 'perfect', 'tritone']],
-  'intervals-down': ['Two notes, falling. Name the interval.', 'Falling intervals sound different from rising ones: learn them separately.', ['interval', 'majmin', 'perfect', 'tritone']],
-  'intervals-together': ['Two notes at once. Name the interval.', 'Small intervals rub, 3rds and 6ths are sweet, 4ths, 5ths and octaves hollow.', ['interval', 'majmin', 'perfect', 'tritone']],
   'four-triads': ['Major, minor, diminished or augmented?', 'Diminished is small and tense, augmented stretched and eerie.', ['triad', 'quality', 'broken']],
-  'key-quality': ['A scale or a short tune: major key or minor key?', 'Listen to the 3rd note of the scale and to where the tune comes to rest.', ['key', 'majmin', 'tonic']],
+  'key-quality': ['A short tune: major key or minor key?', 'Listen to its 3rd note and to where the tune comes to rest. Major or minor as a scale is Identify scales › 1.', ['key', 'majmin', 'tonic']],
   home: ['A chord sets the key, then a short tune. Did it end at home?', 'Ending on the tonic sounds finished; anywhere else leaves it hanging.', ['tonic', 'key']],
   degrees: ['A cadence sets the key, then one note. Which degree is it?', 'Sing down from the note to home and count the steps.', ['degree', 'tonic', 'key']],
   sevenths: ['A seventh chord: which kind?', 'maj7 dreamy, 7 bluesy and restless, m7 soft and mellow, m7b5 dark.', ['seventh', 'quality', 'broken']],
@@ -286,7 +280,7 @@ const EAR_TEXT = {
 const COURSE_TEXT = {
   intervals: ['One interval. Name it from the answers below.',
     'Units add intervals a few at a time, a contrasting pair first. Up, down and together (tog) are learned apart: they sound different. Past the octave, hear the octave first and then what is left.',
-    ['interval', 'majmin', 'perfect', 'compound']],
+    ['interval', 'majmin', 'perfect', 'tritone', 'compound']],
   compare: ['Two intervals, one after the other. Is the first bigger, the second, or are they the same?',
     'Fixed (fix) levels start both on the same note: listen to where the second note lands. Random levels start each on its own note, so only the sizes tell.',
     ['interval', 'majmin', 'compound']],
@@ -385,10 +379,14 @@ const FOLDERS = {
   'basics/progressions': ['Progressions', 'Ten common chord progressions in the Key setting\'s key.', ['progression', 'numerals']],
   'basics/random': ['Random', 'Random notes and chords, a new set every time.', ['key', 'chord']],
   quiz: ['Quiz', 'Short timed rounds. Hear: name a sound. Play: play the notes shown, by name or by staff. Name: name a lit pad. Read: name what is on the staff.', ['hint']],
-  'quiz/hear': ['Hear', 'Ear training, easiest first: high and low, steps, intervals, chords, keys.', ['interval', 'chord']],
+  'quiz/hear': ['Hear', 'Ear training by topic: pitch and melody, intervals, chords, scales and keys. Each topic has its courses first, then its exercises.', ['interval', 'chord']],
+  'quiz/hear/pitch': ['Pitch & melody', 'Higher or lower, step or leap, the shape of a line, and finding a note you heard on the pads.', ['step', 'contour']],
+  'quiz/hear/intervals': ['Intervals', 'Two courses: name an interval, from 2nds to two octaves; and compare two, from a fixed or a random root.', ['interval', 'compound']],
+  'quiz/hear/chords': ['Chords', 'Major or minor, the four triads, seventh chords, and finding a chord you heard on the pads.', ['triad', 'seventh']],
+  'quiz/hear/keys': ['Scales & keys', 'Name a scale by its sound, tell major from minor in a tune, hear when a line comes home, name a degree, and the chords of a key.', ['scale', 'mode', 'key']],
   'quiz/play': ['Play', 'Notes or chords in a row, read by name or off the staff; play each and the row moves on.', ['octave']],
   'quiz/name': ['Name', 'A pad lights; name it with the jog.', ['sharp']],
-  'quiz/read': ['Read', 'The listening courses again, on the staff: read intervals, compare them, read scales.', ['interval', 'scale']],
+  'quiz/read': ['Read', 'The listening courses again, on the staff: name an interval, compare two, name a scale.', ['interval', 'scale']],
   classics: ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
   electronic: ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
   techno: ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
@@ -399,12 +397,8 @@ const FOLDERS = {
   'program/chords': ['Chords', 'Triads to altered chords, and the progressions they make.', ['chord', 'progression']],
   'program/songs': ['Songs', 'Every bundled piece, rung by rung: L1 RH, L1 LH, L2, L3.', ['level']],
   'program/hearing': ['Hearing', 'The hearing exercises in order, easiest first.', ['interval']],
-  'program/intervals': ['Intervals', 'Identify intervals, unit by unit: 2nds up to two octaves.', ['interval', 'compound']],
-  'program/compare': ['Compare', 'Compare two intervals: which is bigger? From 2nds to the 12th.', ['interval']],
-  'program/scales': ['Scales', 'Identify scales: major and minor first, then the modes.', ['scale', 'mode']],
-  'program/read-intervals': ['Read intervals', 'Name intervals on the staff, unit by unit: 2nds up to two octaves.', ['interval', 'compound']],
-  'program/read-compare': ['Read compare', 'Two intervals on the staff: which is bigger?', ['interval']],
-  'program/read-scales': ['Read scales', 'Name scales on the staff: major and minor first, then the modes.', ['scale', 'mode']],
+  'program/intervals': ['Intervals', 'Name intervals and compare them, 2nds up to two octaves, each unit heard and then read.', ['interval', 'compound']],
+  'program/scales': ['Scales', 'Name scales by sound and on the staff: major and minor first, then the modes.', ['scale', 'mode']],
   'program/repetition': ['Repetition', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score.', ['score']],
 };
 
@@ -441,7 +435,13 @@ export function infoFor(target, env = {}) {
   if (parts[0] === 'basics' && parts[1] === 'chords' && parts[2]) return chordPage(parts[2], parts[3], parts[4], label);
   if (parts[0] === 'basics' && parts[1] === 'progressions' && parts[2]) return progressionPage(parts[2], parts[3], label);
   if (parts[0] === 'basics' && parts[1] === 'random' && parts[2]) return randomPage(parts[2], parts[3], label);
-  if (parts[0] === 'quiz' && (parts[1] === 'hear' || parts[1] === 'read') && parts[2]) return earPage(parts[3] || parts[2]);
+  if (parts[0] === 'quiz' && (parts[1] === 'hear' || parts[1] === 'read') && parts[2]) {
+    /* The deepest exercise or course on the path: quiz/hear/intervals/compare/cmp-6ths. */
+    for (let i = parts.length - 1; i >= 2; i--) {
+      const found = earPage(parts[i]);
+      if (found) return found;
+    }
+  }
   if (parts[0] === 'program' && parts.length > 2) return infoFor({ id: parts.slice(0, 2).join('/') }, env);
 
   const folder = FOLDERS[id];

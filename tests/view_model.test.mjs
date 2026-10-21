@@ -88,7 +88,7 @@ test('listening: the cue names what is sounding', () => {
 test('a hidden prompt is never sent — not its notes, not its name', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']);
+  openPath(h.session, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
   let vm = viewModel(h.session);
   assert.equal(vm.screen, GUESS_VIEW);
   assert.equal(vm.quiz.mode, 'ear');

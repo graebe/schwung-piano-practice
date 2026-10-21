@@ -139,11 +139,11 @@ date and tempo; *The numbers* opens them as a table.
   show only the notation, and only the written notes count. **Help** names the
   first one, then lights its keys.
 - **Name** — a key is lit; choose its name.
-- **Hear** — something is played; say what it was. Eighteen exercises, from
-  *higher or lower* to seventh chords and scale degrees, easiest first, and
-  three courses after them: **Identify intervals** (2nds to two octaves),
-  **Compare intervals** (which of two is bigger, from a fixed or a random root)
-  and **Identify scales** (major and minor, then the modes).
+- **Hear** — something is played; say what it was. Grouped by topic: Pitch &
+  melody, Intervals, Chords, Scales & keys. The three courses sit in their
+  topic: **Identify intervals** (2nds to two octaves) and **Compare intervals**
+  (which of two is bigger, from a fixed or a random root) under Intervals,
+  **Identify scales** (major and minor, then the modes) under Scales & keys.
 - **Read** — the same three courses on the staff: read an interval, compare two,
   read a scale, and choose the answer. **Hear** plays what is written, and the
   first listen counts as help.
@@ -165,9 +165,10 @@ put it. Progress shows the same bars for a drill between rounds.
 
 ## The Learning Program and Progress
 
-**Learning Program › Continue** always opens the next step: four tracks —
-Reading, Chords, Songs and Hearing — each going from easy to hard, with
-nothing locked. **Repetition** brings back finished lessons when they are due.
+**Learning Program › Continue** always opens the next step: six tracks —
+Reading, Chords, Songs, Hearing, Intervals and Scales — each going from easy to
+hard, with nothing locked. In Intervals and Scales each unit is heard and then
+read. **Repetition** brings back finished lessons when they are due.
 
 **Progress** shows how far you have got: overall, per track, and every lesson
 you have played, each with its chart.

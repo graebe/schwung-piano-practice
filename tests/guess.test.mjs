@@ -643,14 +643,14 @@ test('the multiple-choice drill offers chord names, not note spellings', () => {
 
 /* ---- Hearing: hear it, name it ---------------------------------------------- */
 
-const earQuiz = (o = {}) => createQuiz({ kind: EAR, exercise: 'thirds', level: 'up', seed: 3, ...o });
+const earQuiz = (o = {}) => createQuiz({ kind: EAR, exercise: 'id-3rds', level: 'up', seed: 3, ...o });
 
 test('a hearing quiz offers the exercise answers, in a fixed order, cursor on top', () => {
   const q = earQuiz();
   assert.equal(q.kind, EAR);
   assert.equal(q.pick, true);
   for (let i = 0; i < 20; i++) {
-    assert.deepEqual(q.choices.map((c) => c.key), ['M3', 'm3']);
+    assert.deepEqual(q.choices.map((c) => c.key), ['m3', 'M3']);
     assert.equal(q.choiceIndex, 0);
     assert.ok(['M3', 'm3'].includes(q.entry.answer));
     assert.ok(q.label, 'the answer has something to reveal');
@@ -659,7 +659,7 @@ test('a hearing quiz offers the exercise answers, in a fixed order, cursor on to
 });
 
 test('a level can bring its own answers', () => {
-  const q = earQuiz({ exercise: 'intervals-up', level: 'g3' });
+  const q = earQuiz({ exercise: 'id-to-8', level: 'up' });
   assert.equal(q.choices.length, 12);
   assert.equal(earQuiz({ exercise: 'degrees', level: '135' }).choices.length, 3);
 });
@@ -753,7 +753,7 @@ test('a Play drill queues the prompt and the ones after it', () => {
 test('every other drill only ever has the one', () => {
   assert.equal(notesQuiz().queue.length, 1);
   assert.equal(notesQuiz({ pick: true }).queue.length, 1);
-  assert.equal(createQuiz({ kind: EAR, exercise: 'thirds', level: 'up' }).queue.length, 0);
+  assert.equal(createQuiz({ kind: EAR, exercise: 'id-3rds', level: 'up' }).queue.length, 0);
 });
 
 test('the row moves on by one: the next prompt is the one that was waiting', () => {

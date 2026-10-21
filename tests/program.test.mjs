@@ -5,10 +5,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
-  buildProgram, trackSteps, stepTitle, nextStep, trackActivity, continueStep, trackOf, findStep,
+  buildProgram, trackSteps, stepTitle, INTERVAL_ORDER, nextStep, trackActivity, continueStep, trackOf, findStep,
   quizFromId, programFolder, SONG_ORDER,
 } from '../src/program.mjs';
 import { buildCatalog, leafIndex, findById, isFolder } from '../src/catalog.mjs';
+import { COURSES } from '../src/ear_course.mjs';
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
 import { emptyProgress, recordAttempt, skipItem, moveOn } from '../src/progress.mjs';
 import { drillId } from '../src/stats.mjs';
@@ -32,9 +33,8 @@ const tracks = buildProgram({ songs });
 const root = buildCatalog({ songs, categories, lead: [programFolder(tracks)] });
 const index = leafIndex(root);
 
-test('ten tracks, each with something in it: the four, the listening courses, then the reading ones', () => {
-  assert.deepEqual(tracks.map((t) => t.key), ['reading', 'chords', 'songs', 'hearing',
-    'intervals', 'compare', 'scales', 'read-intervals', 'read-compare', 'read-scales']);
+test('six tracks, each with something in it: the four, then intervals and scales', () => {
+  assert.deepEqual(tracks.map((t) => t.key), ['reading', 'chords', 'songs', 'hearing', 'intervals', 'scales']);
   for (const t of tracks) assert.ok(trackSteps(t).length > 5, t.key);
 });
 
@@ -106,9 +106,15 @@ test('Hearing is the ear exercises in order, easiest first, a step per level', (
     assert.equal(u.steps.length, EXERCISES[i].levels.length);
   });
   const ids = trackSteps(hearing).map((s) => s.id);
-  assert.ok(ids.indexOf('quiz:ear:thirds:up') < ids.indexOf('quiz:ear:triads:broken'));
+  assert.ok(ids.indexOf('quiz:ear:direction:wide') < ids.indexOf('quiz:ear:triads:broken'));
+  /* An exercise the course replaced opens its course twin. */
   assert.deepEqual(quizFromId('quiz:ear:thirds:together'),
-    { kind: 'ear', exercise: 'thirds', level: 'together', hear: true, pick: true });
+    { kind: 'ear', exercise: 'id-3rds', level: 'together', hear: true, pick: true });
+  assert.equal(quizFromId('quiz:ear:intervals-down:g2').exercise, 'id-to-8');
+  /* Inside the unit the row is the level; the title is the whole drill. */
+  const wide = trackSteps(hearing).find((s) => s.id === 'quiz:ear:direction:wide');
+  assert.equal(wide.label, 'wide');
+  assert.equal(stepTitle(wide), 'Hear High/low wide');
   /* The play-back exercises are the hear drills, under the ids they always had. */
   assert.ok(ids.includes('quiz:hear:notes:key') && ids.includes('quiz:hear:chords:advanced'));
   /* Nothing in Hearing is read off the staff or the lit pads. */
@@ -210,8 +216,7 @@ test('the program folder: Continue, Skip, the tracks, then Repetition', () => {
   let asked = 0;
   const node = programFolder(tracks, () => { asked++; return [{ label: 'r', repId: 'x' }]; });
   assert.deepEqual(node.children.map((c) => c.label),
-    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Intervals', 'Compare', 'Scales',
-      'Read intervals', 'Read compare', 'Read scales', 'Repetition']);
+    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Intervals', 'Scales', 'Repetition']);
   assert.equal(asked, 0, 'repetition is worked out only when looked at');
   const rep = node.children.at(-1);
   assert.ok(isFolder(rep) && rep.untracked);
@@ -255,4 +260,32 @@ test('hearing major or minor sits in the Chords track, as the Hearing item it is
   assert.equal(step.label, 'Hear major or minor');
   assert.deepEqual(quizFromId(step.id), step.quiz);
   assert.equal(chords.units[0].steps.indexOf(step), 2, 'right after the minor triad');
+});
+
+test('Intervals names and compares by size, each unit heard and then read', () => {
+  const t = tracks.find((x) => x.key === 'intervals');
+  const keys = t.units.map((u) => u.exercise);
+  assert.deepEqual(keys, INTERVAL_ORDER);
+  /* Every unit of both courses, once. */
+  const all = COURSES.filter((c) => c.topic === 'intervals').flatMap((c) => c.exercises.map((e) => e.key));
+  assert.deepEqual(keys.slice().sort(), all.sort());
+  /* A pair is named before it is compared. */
+  assert.ok(keys.indexOf('id-6ths') < keys.indexOf('cmp-6ths'));
+  assert.ok(keys.indexOf('id-8-m9-M10-11-12') < keys.indexOf('cmp-9ths'), 'm9 comes in before 9ths are compared');
+  for (const u of t.units) {
+    const media = u.steps.map((s) => s.label.split(' ')[0]);
+    const half = media.length / 2;
+    assert.ok(media.slice(0, half).every((m) => m === 'Hear') && media.slice(half).every((m) => m === 'Read'), u.name);
+    assert.ok(u.name.length <= 21, u.name);
+    for (const s of u.steps) assert.ok(stepTitle(s).length <= 21 && stepTitle(s) !== s.label, s.id);
+  }
+  assert.equal(t.units[1].name, '2 Compare 2nds');
+});
+
+test('Scales pairs each scale unit heard and read', () => {
+  const t = tracks.find((x) => x.key === 'scales');
+  assert.equal(t.units.length, 10);
+  assert.deepEqual(t.units[0].steps.map((s) => s.label), ['Hear up', 'Hear down', 'Read up', 'Read down']);
+  assert.deepEqual(t.units[0].steps.map((s) => s.id),
+    ['quiz:ear:sc-maj-min:up', 'quiz:ear:sc-maj-min:down', 'quiz:ear:rd-sc-maj-min:up', 'quiz:ear:rd-sc-maj-min:down']);
 });

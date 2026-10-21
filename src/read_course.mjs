@@ -218,8 +218,6 @@ function scalePrompts(keys, way) {
 /* ---- The courses -------------------------------------------------------------------- */
 
 const TAG = { intervals: 'RdInt', compare: 'RdCmp', scales: 'RdSc' };
-const NAME = { intervals: 'Read intervals', compare: 'Compare by eye', scales: 'Read scales' };
-const TRACK = { intervals: 'Read intervals', compare: 'Read compare', scales: 'Read scales' };
 
 function readUnit(course, unit) {
   const keys = unit.answers.map((a) => a.key);
@@ -238,9 +236,11 @@ function readUnit(course, unit) {
   };
 }
 
+/* The same names as the Hear courses: the folder they sit in says Read. */
 export const READ_COURSES = COURSES.map((c) => ({
   key: 'read-' + c.key,
-  name: NAME[c.key],
-  track: TRACK[c.key],
+  name: c.name,
+  topic: c.topic,
+  twin: c.key,
   exercises: c.exercises.map((u) => readUnit(c, u)),
 }));

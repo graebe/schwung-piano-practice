@@ -48,8 +48,6 @@ import * as GUESS from './guess.mjs';
 import * as STATS from './stats.mjs';
 import * as PROG from './progress.mjs';
 import * as PLAN from './program.mjs';
-import { COURSES } from './ear_course.mjs';
-import { READ_COURSES } from './read_course.mjs';
 import * as AP from './answer_pads.mjs';
 import * as INFO from './info.mjs';
 import * as CUES from './cues.mjs';
@@ -494,28 +492,11 @@ export function createSession(fx, opts = {}) {
     return 'quiz:' + STATS.drillId(spec);
   }
 
-  /* Quiz › Hear: the Hearing track's exercises, each a folder of its levels.
-   * The rows are the track's own steps, so a level played here is the same item
-   * as in the Learning Program — and playing back notes and chords is two of
-   * its units, so they are not listed a second time. */
-  /* A track's units as folders of their steps, by the track's key. */
-  function unitFolders(key) {
-    const track = tracks.find((t) => t.key === key);
-    return (track ? track.units : []).map((u) => CAT.folder(u.name, u.steps.map(PLAN.stepRow), u.exercise));
-  }
-
-  const courseFolder = (c) => CAT.folder(c.name, unitFolders(c.key), c.key);
-
-  function hearFolder() {
-    /* The three courses close the list, each a folder of its units: the
-     * Hearing exercises stay where they were. */
-    return CAT.folder('Hear', unitFolders('hearing').concat(COURSES.map(courseFolder)), 'hear');
-  }
-
-  /* Quiz › Read: the three courses again, on the staff. */
-  function readFolder() {
-    return CAT.folder('Read', READ_COURSES.map(courseFolder), 'read');
-  }
+  /* Rows here and in the Learning Program are the same steps by id, so a
+   * level played in either is the same item in Progress. */
+  /* Quiz › Hear and Quiz › Read, as the program lays them out. */
+  const hearFolder = () => PLAN.hearMenu();
+  const readFolder = () => PLAN.readMenu();
 
   function quizRows(rows) {
     return rows.map((r) => ({ ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true }));

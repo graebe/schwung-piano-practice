@@ -57,8 +57,9 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   read from the staff alone. You can go straight to the second whenever you like.
 - **Remembers how far you got.** Every exercise keeps its own score, a ◐ for stage 1 and a ✓ for
   stage 2, and a chart of every attempt. Folders add up what is inside them.
-- **Tells you what to do next.** The Learning Program runs four tracks — reading, chords, songs and
-  ear — and Continue always knows the next step. Nothing is locked: follow it, or don't.
+- **Tells you what to do next.** The Learning Program runs six tracks — reading, chords, songs,
+  hearing, intervals and scales — and Continue always knows the next step. Nothing is locked: follow
+  it, or don't.
 
 ## The lesson list
 
@@ -70,16 +71,18 @@ Learning Program  Continue      the next step, one click away
                   Reading       scales, lines and first tunes
                   Chords        triads to altered dominants, and progressions
                   Songs         every bundled piece, rung by rung
-                  Ear           the quiz drills
+                  Hearing       ear training, easiest first
+                  Intervals     name and compare intervals, heard and read
+                  Scales        name scales, heard and read
                   Repetition    finished exercises that are due again
 Basics            Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
                   Chords        thirteen families, one lesson per chord quality
                   Progressions  ten progressions in the Key setting's key
                   Random        random notes, and random chords from the whole vocabulary
-Quiz              Hear    name what you hear, or play it back; three listening courses
+Quiz              Hear    by topic: pitch & melody, intervals, chords, scales & keys
                   Play    notes by alphabet or staff, chords by name or staff, in a moving row
                   Name    name the pad that is lit
-                  Read    the three courses again, on the staff
+                  Read    the interval and scale courses again, on the staff
 Classics          folk tunes and the classics, easy first
 Electronic        the chord loops of famous tracks, and five electronic style pieces
 Techno            fourteen progression studies, simple to complex
@@ -150,7 +153,7 @@ bar is passage practice and is not, and neither is Listen.
 
 ## The Learning Program
 
-The lesson list holds everything; the **Learning Program** is a path through it. Ten tracks run
+The lesson list holds everything; the **Learning Program** is a path through it. Six tracks run
 side by side, because reading, harmony, repertoire and ear are different skills and a session that
 mixes them beats one that grinds a single list:
 
@@ -159,11 +162,13 @@ mixes them beats one that grinds a single list:
 | **Reading** | major scales up, down, in thirds and fifths; random lines in key; the first tunes' melodies; minor and the modes; pentatonics and blues; then every note |
 | **Chords** | major and minor triads, alone then over their roots; diminished and augmented; inversions and sus chords; four progressions; sevenths and ii–V–I; sixths, add9 and ninths; the 12-bar blues; then the advanced chords |
 | **Songs** | every bundled piece in turn — classics, then styles, electronic and techno — each rung by rung: L1 RH, L1 LH, L2, L3 |
-| **Ear** | the quiz: notes in key, then every note, triads, chord types and advanced chords — each guessed, picked and heard |
-| **Intervals** | the Identify intervals course: 2nds up to two octaves |
-| **Compare** | the Compare intervals course: which of two intervals is bigger |
-| **Scales** | the Identify scales course: major and minor, then the modes |
-| **Read intervals**, **Read compare**, **Read scales** | the same three courses on the staff (Quiz › Read) |
+| **Hearing** | the ear-training exercises, easiest first: higher or lower, steps and leaps, the shape of a line, chords, keys, degrees |
+| **Intervals** | naming intervals and comparing them, 2nds up to two octaves, interleaved so a pair is named before it is compared |
+| **Scales** | naming scales: major and minor, then the modes, the pentatonics, whole tone and diminished |
+
+In **Intervals** and **Scales** every unit has both sides of one skill: its levels **heard**
+(`Hear up`, `Hear down`, `Hear tog`), then the same levels **read** off the staff (`Read up` …). A
+unit with a single step, such as *Step or leap*, is a row of its own rather than a folder of one.
 
 Each track is in units, and each unit is a few steps. A step is simply a row of the lesson list, so
 **it counts however you get there**: play Ode to Joy from Classics and its step in the program is
@@ -542,8 +547,19 @@ answer. The only pad feedback here is what you press — green when right, red w
 
 The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
 what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
-Find them in **Quiz › Hear**, or work through them in order as the **Hearing** track of the
-Learning Program.
+Find them in **Quiz › Hear**, grouped by topic, or work through them in order as the **Hearing** track
+of the Learning Program:
+
+```
+Hear  Pitch & melody   Higher or lower · Play it back · Step or leap · Melody shape
+      Intervals        Identify intervals (course) · Compare intervals (course)
+      Chords           Major/minor chord · Four triads · Seventh chords · Play the chord
+      Scales & keys    Identify scales (course) · Major or minor key · Home or away
+                       · Scale degrees · Chords in a key
+```
+
+Inside an exercise the rows are its levels: *wide*, *close*; *broken*, *block*. Inside a course unit
+they are *up*, *down*, *tog*, and *fix up* … for a fixed root.
 
 ### How a question works
 
@@ -580,29 +596,27 @@ upward before downward, and broken chords before block chords.
 | 2 | Play it back | one note | play it on the pads | in key, chromatic |
 | 3 | Step or leap | two notes of a major scale | Step / Leap | — |
 | 4 | Melody shape | three notes | Up, up / Up, down / Down, up / Down, down | — |
-| 5 | Major or minor 3rd | two notes | Major 3rd / Minor 3rd | up, down, together |
-| 6 | Major/minor chord | a triad | Major / Minor | broken, block, inverted |
-| 7 | Perfect intervals | two notes | Perfect 4th / Perfect 5th / Octave | up, together |
-| 8 | 2nds and 3rds | two notes | Minor 2nd … Major 3rd | up, down |
-| 9 | Intervals up | two notes, rising | every interval to the octave | in three groups |
-| 10 | Intervals down | two notes, falling | the same | in three groups |
-| 11 | Intervals together | two notes at once | the same | in three groups |
-| 12 | Four triads | a triad | Major / Minor / Diminished / Augmented | broken, block |
-| 13 | Major or minor key | a scale or a short tune | Major key / Minor key | scale, melody |
-| 14 | Home or away | the tonic chord, then a phrase | Finished / Unfinished | — |
-| 15 | Scale degrees | I–IV–V–I, then one note | 1 do … 7 ti | 1 3 5, all |
-| 16 | Seventh chords | a four-note chord | Major 7th / Dominant 7th / Minor 7th / Half-dim 7th | 3 types, 4 types |
-| 17 | Chords in a key | the I chord, then another | IV / V / vi | IV V, IV V vi |
-| 18 | Play the chord | a chord | play it on the pads | triads, types |
+| 5 | Major/minor chord | a triad | Major / Minor | broken, block, inverted |
+| 6 | Four triads | a triad | Major / Minor / Diminished / Augmented | broken, block |
+| 7 | Major or minor key | a short tune | Major key / Minor key | — |
+| 8 | Home or away | the tonic chord, then a phrase | Finished / Unfinished | — |
+| 9 | Scale degrees | I–IV–V–I, then one note | 1 do … 7 ti | 1 3 5, all |
+| 10 | Seventh chords | a four-note chord | Major 7th / Dominant 7th / Minor 7th / Half-dim 7th | 3 types, 4 types |
+| 11 | Chords in a key | the I chord, then another | IV / V / vi | IV V, IV V vi |
+| 12 | Play the chord | a chord | play it on the pads | triads, types |
 
-The interval groups add answers a few at a time: first 2nds, 3rds, 4th, 5th and octave, then the
-6ths, then the tritone and 7ths.
+Intervals are the **Identify intervals** course below. It took over the earlier interval exercises
+(major or minor 3rd, perfect intervals, 2nds and 3rds, intervals up, down and together), and their
+ids still open the matching course level, so nothing recorded under them is lost. Major or minor
+*as a scale* is **Identify scales › 1 Minor and major**.
 
 ### The listening courses
 
-At the end of **Quiz › Hear** are three courses, each a numbered list of units that adds a little at
-a time. They are also the **Intervals**, **Compare** and **Scales** tracks of the Learning Program.
-Answering works as in every Hear exercise: the answer pads, or the jog and a click.
+Three courses sit in their topics in **Quiz › Hear**: **Identify intervals** and **Compare intervals**
+under Intervals, **Identify scales** under Scales & keys. Each is a numbered list of units that adds
+a little at a time. In the Learning Program they are the **Intervals** track (identify and compare,
+interleaved) and the **Scales** track, each unit heard and then read. Answering works as in every
+Hear exercise: the answer pads, or the jog and a click.
 
 **Identify intervals.** One interval; name it. Each unit offers only its own intervals, usually two
 to five, and has three levels: **up**, **down** and **tog** (together).
@@ -675,13 +689,14 @@ natural minor.
 
 ### Reading the same courses
 
-**Quiz › Read** has the three courses again, unit for unit and level for level, but you see them
-instead of hearing them: **Read intervals**, **Compare by eye** and **Read scales**. The interval, the
+**Quiz › Read** has the three courses again, unit for unit and level for level and under the same
+names, but you see them instead of hearing them: **Identify intervals**, **Compare intervals** and
+**Identify scales**. The interval, the
 two intervals or the scale is drawn on the staff, and you name it from the same answers. A unit
 read and the same unit heard train one skill from both sides.
 
 - **Up**, **down** and **tog** are how the notes are drawn: one after the other rising, falling, or
-  stacked. In **Compare by eye** a bar line separates the two intervals, and **fix** levels start
+  stacked. In **Read › Compare intervals** a bar line separates the two intervals, and **fix** levels start
   both on the same written note.
 - **Count the letters.** An interval's size is the number of letters it spans, both ends counted:
   C to E is C D E, a 3rd. The accidentals then tell major from minor. Every interval is spelled
@@ -699,25 +714,26 @@ A right answer then plays what you read. On the page, the staff sits above the a
 
 ### What to listen for
 
-- **Major or minor third (5).** A major third is bright and open: the first two notes of *Oh When
-  the Saints*. A minor third is darker and softer: the first two notes of *Greensleeves*.
-- **Major or minor chord (6).** The same difference, now stacked. Major sounds settled and
+- **Major or minor third** (Identify intervals › 2 3rds). A major third is bright and open: the
+  first two notes of *Oh When the Saints*. A minor third is darker and softer: the first two notes
+  of *Greensleeves*.
+- **Major or minor chord (5).** The same difference, now stacked. Major sounds settled and
   bright, minor sounds sad and inward. The broken level plays the chord a note at a time before
   it sounds whole, so you can hear the third arrive.
-- **Perfect intervals (7).** A 4th is the start of *Here Comes the Bride*, a 5th the leap after
+- **4th, 5th and octave** (Identify intervals › 4). A 4th is the start of *Here Comes the Bride*, a 5th the leap after
   the first two notes of *Twinkle Twinkle*, and an octave the first leap of *Somewhere Over the
   Rainbow*. They sound open and hollow, with nothing sweet or sour in them.
-- **Four triads (12).** Diminished is tense and shrinking: a minor chord with its top squeezed
+- **Four triads (6).** Diminished is tense and shrinking: a minor chord with its top squeezed
   down. Augmented is unsettled, stretching, almost dreamlike: a major chord with its top pushed up.
-- **Home or away (14).** A finished phrase lands on *do* and you could stop there. An unfinished
+- **Home or away (8).** A finished phrase lands on *do* and you could stop there. An unfinished
   one leaves you waiting for the next note.
-- **Scale degrees (15).** The cadence sets up the key. Sing down from the note you hear to *do*,
+- **Scale degrees (9).** The cadence sets up the key. Sing down from the note you hear to *do*,
   and count the steps on the way.
-- **Chords in a key (17).** IV feels like a step away, warm and open. V leans back towards home.
+- **Chords in a key (11).** IV feels like a step away, warm and open. V leans back towards home.
   vi is the minor turn, where the music drops into shadow.
 
-Every level is a drill of its own for progress and records, with an id like `ear:thirds:up` or
-`ear:intervals-down:g2`.
+Every level is a drill of its own for progress and records, with an id like `ear:triads:block`,
+`ear:id-3rds:up` (a course unit) or `ear:rd-id-3rds:up` (the same unit, read).
 
 ## Results and progress
 

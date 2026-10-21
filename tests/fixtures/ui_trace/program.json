@@ -1,7 +1,7 @@
 [["announce","Piano Practice. Pick an exercise."],
 ["tick",0,"58556dae62db","b87a1db22f63"],
 ["announce","Learning Program."],
-["tick",1,"4de0446ea902","5e88855ed025"],
+["tick",1,"215e9bb6c7a4","5e88855ed025"],
 ["announce","C Major. Stage 1. Press play to start."],
 ["tick",8,"05d7d4d9a9fd","43853d57b728"],
 ["announce","Listening."],
@@ -1118,6 +1118,6 @@
 ["usb",11,176,120,0],
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
-["tick",1670,"c757a9ffd325","5e88855ed025"],
+["tick",1670,"af7d50f7f698","5e88855ed025"],
 ["tick",1672,"58556dae62db","5e88855ed025"],
 ["tick",1675,"-","5e88855ed025"]]
