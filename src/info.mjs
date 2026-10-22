@@ -71,7 +71,7 @@ export const TERMS = {
   slash: ['Slash chord', 'A chord over a bass note that is not its root: D/F# is D major over F#.'],
   hands: ['RH, LH', 'Right hand plays the melody and chords, left hand the bass.'],
   level: ['Level', 'How much of a song you play: L1 one hand\'s line, L2 the chords, L3 both hands.'],
-  stage: ['Stage', 'One of the five stages of the Path, a few weeks of work each, ending with its checkpoint.'],
+  stage: ['Stage', 'One of the five stages of the Learning Path, a few weeks of work each, ending with its checkpoint.'],
   guided: ['Guided, Solo', 'Every exercise is played twice. Guided lights the pad you need as its note comes; Solo lights nothing, and you read it from the staff.'],
   score: ['Score', 'Notes hit, over the notes in the piece plus wrong presses. 90% passes Guided or Solo.'],
   hint: ['Hint', 'REC helps, two presses deep. A hinted answer still counts, and is noted.'],
@@ -433,7 +433,7 @@ const FOLDERS = {
   'basics/songs/styles': ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
   'basics/songs/other': ['Other', 'Exercises you added yourself.', []],
   'program/repetition': ['Review', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score. Continue offers them too, one review and then one new step.', ['score']],
-  settings: ['Settings', 'Grouped: Path, Practice, Sound, Pads, MIDI and Help. Open a group to change its rows.', []],
+  settings: ['Settings', 'Grouped: Learning Path, Practice, Sound, Pads, MIDI and Help. Open a group to change its rows.', []],
 };
 
 const KIND_PAGES = {
@@ -471,7 +471,7 @@ const unitLine = (u) => u.num + ' ' + u.name + ': ' + u.purpose.replace(/\.$/, '
 
 function programPage(parts, env) {
   if (parts.length === 1) {
-    return page('folder:program', 'Path',
+    return page('folder:program', 'Learning Path',
       [sec('', PATH_TEXT.intro), sec('', PATH_TEXT.order), sec('', PATH_TEXT.free),
         sec('Continue', PATH_TEXT.continue), sec('Guided and Solo', PATH_TEXT.stages)],
       ['stage', 'guided', 'score']);

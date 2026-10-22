@@ -245,7 +245,7 @@ test('the reference volume is reachable — it was in the file but on no row', (
 /* ---- Groups ------------------------------------------------------------------ */
 
 test('every setting sits in exactly one group, and the groups are the shared ones', () => {
-  assert.deepEqual(GROUPS.map((g) => g.label), ['Path', 'Practice', 'Sound', 'Pads', 'MIDI', 'Help']);
+  assert.deepEqual(GROUPS.map((g) => g.label), ['Learning Path', 'Practice', 'Sound', 'Pads', 'MIDI', 'Help']);
   const seen = GROUPS.flatMap((g) => g.settings || []);
   assert.deepEqual([...seen].sort(), SETTINGS_DEF.map((d) => d.key).sort());
   assert.equal(new Set(seen).size, seen.length, 'none twice');

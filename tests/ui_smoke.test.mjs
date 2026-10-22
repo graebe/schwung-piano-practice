@@ -923,7 +923,7 @@ test('home lights the five circles\' pads only; a pad opens its circle without a
   hostCalls.notes.length = 0;
   globalThis.onMidiMessageInternal([0x90, PAD, 100]);   /* off the five: nothing */
   globalThis.onMidiMessageInternal([0x80, PAD, 0]);
-  assert.match(screen.frame(), /^PIANO \| Path/);
+  assert.match(screen.frame(), /^PIANO \| Learning Path/);
   globalThis.onMidiMessageInternal([0x90, 71, 100]);
   globalThis.onMidiMessageInternal([0x80, 71, 0]);
   assert.match(screen.frame(), /^QUIZ /, 'pad 71 opens Quiz');
@@ -1191,7 +1191,7 @@ test('Menu opens Info for the highlighted row, and closes back to it', () => {
   jog(TOP.practice);
   const page = screen.frame(MENU_PRESS);
   assert.match(page, /PRACTICE \| INFO/, page);
-  assert.match(page, /Home: the Path/, 'help opens with the screen it was opened on: ' + page);
+  assert.match(page, /Home: the Learning \| Path/, 'help opens with the screen it was opened on: ' + page);
   assert.match(screen.frame(MENU_PRESS), /^PIANO \| Practice/, 'Menu again closes it');
   screen.frame(MENU_PRESS);
   assert.match(screen.frame(BACK_PRESS), /^PIANO \| Practice/, 'so does Back, on the same circle');

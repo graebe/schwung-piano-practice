@@ -26,9 +26,9 @@ four short pages greet you. Turn the **jog** to page through them, or
    | **SHIFT+CLICK** | options |
 
 4. **New to piano?** Turn the jog to your answer and click:
-   - **From the start**: the **Path** opens, as its map, your avatar on
+   - **From the start**: the **Learning Path** opens, as its map, your avatar on
      the first stage. **PLAY** opens your very first step.
-   - **I already play**: the **Path** opens, with a tip: *Know a stage
+   - **I already play**: the **Learning Path** opens, with a tip: *Know a stage
      already? SHIFT+CLICK a stage, then Test out: checkpoint. Pass it and
      the path moves on.* See [The options of a row](#the-options-of-a-row).
 
@@ -41,12 +41,12 @@ welcome is skipped.
 
 ```
 PIANO
-   (o)  (o)  (O)  (o)  (o)       Path  Practice  Quiz  Progress  Settings
+   (o)  (o)  (O)  (o)  (o)       Learning Path, Practice, Quiz, Progress, Settings
              Quiz
 JOG choose  CLICK open
 ```
 
-Home is five circles, each with its picture: an island for the **Path**,
+Home is five circles, each with its picture: an island for the **Learning Path**,
 keys for **Practice**, a question mark for **Quiz**, bars for **Progress**
 and a cog for **Settings**. The chosen one is filled and grown, its name
 underneath.
@@ -69,14 +69,14 @@ Behind each circle, **click** opens a row: a folder (`>`) shows what is
 inside, anything else opens straight away. **Back** goes up one folder,
 and from the top of a section to home.
 
-- **Path** is the course, in five stages, drawn as [a map](#the-map). Each
+- **Learning Path** is the course, in five stages, drawn as [a map](#the-map). Each
   stage lists its units in the order a lesson runs (find your way, hear it,
   learn the pattern, use it, show it in a piece) and ends with its
   **Checkpoint**, the stage's exam. Every exercise on the path is in
   [the curriculum](curriculum.md).
-- **Continue** opens your next step: **PLAY** on the Path's map, from
+- **Continue** opens your next step: **PLAY** on the Learning Path's map, from
   wherever you stand. Shown as a list (**Show as list** in the options), the
-  Path starts with a **Continue** row that names the step: a name too long
+  Learning Path starts with a **Continue** row that names the step: a name too long
   for the row shows as its unit's number (`1.1`), and with the cursor on it
   the title bar spells it out, `NOTES BY ALPHABET`. When a review is due,
   the row reads **Review** and names the piece that is due. Reviews and new
@@ -90,18 +90,18 @@ and from the top of a section to home.
   chord on the pads, or name the pad that lights.
 - **Progress** charts how far you have got, overall, per stage, and for
   everything you have played.
-- **Settings** is a folder of groups: **Path** (where Continue starts),
+- **Settings** is a folder of groups: **Learning Path** (where Continue starts),
   **Practice**, **Sound**, **Pads**, **MIDI**, **Help**. Open a group to
   change its rows: click a row, turn the jog, click again.
 
-The Path has five **stages**, a few weeks each. Every exercise is played
+The Learning Path has five **stages**, a few weeks each. Every exercise is played
 two ways: **Guided**, the pad you need lights up, and **Solo**, nothing
 lights up and you read it from the staff. The ready screen shows which one
 is armed; the jog changes it.
 
 ## The map
 
-**Path** opens as a map: the world, an island for each of the five
+**Learning Path** opens as a map: the world, an island for each of the five
 stages. Open a stage and you are on its island: a place for each unit, in
 the order the lessons run, and at the end a **fort**, the stage's
 checkpoint. Your avatar stands where Continue would take you.
@@ -129,7 +129,7 @@ is going, dim yellow started, blue skipped, dim the rest, and the brightest
 pad the one you stand on.
 
 **Show as list** (in the options) turns the map back into the list for
-this session: Review, the folder of what is due, lives in the Path's list.
+this session: Review, the folder of what is due, lives in the Learning Path's list.
 **Show as map**, or Back, returns to the map.
 
 ## Levels, on the ready screen
@@ -155,7 +155,7 @@ two ways together: 1 Guided, 1 Solo, 2 Guided, 2 Solo, and so on, stopping
 at both ends. A new level starts from bar 1. The bottom line names it, and
 takes turns with the keys.
 
-A step of the Path, Continue and Review open the level they are about.
+A step of the Learning Path, Continue and Review open the level they are about.
 
 ## The hint line
 
@@ -181,7 +181,7 @@ Press **MENU** on any screen for its help page:
 1. first, **what the screen is**;
 2. then its **keys**, the same words as the hint line, Shift included;
 3. then, under **More help**, what the page knows about the row or piece
-   in front of you: on a Path unit its purpose, on a step what you do and
+   in front of you: on a Learning Path unit its purpose, on a step what you do and
    why it is there, on a chord lesson its formula; and the words it uses.
 
 The jog scrolls, **Back** or **MENU** closes it, and you are back where
@@ -210,7 +210,7 @@ options without doing anything.
 
 ### Example: you already play
 
-1. Open **Path**. The cursor is on **1 Grid and staff**.
+1. Open **Learning Path**. The cursor is on **1 Grid and staff**.
 2. **SHIFT + CLICK**, turn to **Test out: checkpoint**, click.
 3. The first checkpoint step opens Solo. Play it through; each pass
    opens the next one.

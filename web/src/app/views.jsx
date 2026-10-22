@@ -119,11 +119,11 @@ export function MapView(props) {
   return (
     <section class="screen map-screen" aria-labelledby="map-title">
       <header class="screen-head">
-        <h1 id="map-title" class="t-title">{m().world ? 'Path' : props.vm().nav ? props.vm().nav.title : ''}</h1>
+        <h1 id="map-title" class="t-title">{m().world ? 'Learning Path' : props.vm().nav ? props.vm().nav.title : ''}</h1>
         <p class="t-hint">
           {here() ? `${here().label} · ${here().percent}%${here().due ? ` · ${here().due} due` : ''}` : ''}
         </p>
-        <Button icon="play" info="Continue — your next step on the Path (Play on the Move)"
+        <Button icon="play" info="Continue — your next step on the Learning Path (Play on the Move)"
                 onClick={() => props.dispatch({ type: 'listen' })}>Continue</Button>
       </header>
       <svg class="map" viewBox={`${MAP_X} ${MAP_Y} ${MAP_W} ${MAP_H}`} shape-rendering="crispEdges"

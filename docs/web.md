@@ -1,7 +1,7 @@
 # Piano Practice in your browser
 
 Piano Practice runs on the Ableton Move, and the same practice runs in a web
-browser: the same lessons, the same Path, the same scoring, and the
+browser: the same lessons, the same Learning Path, the same scoring, and the
 same piano. This page walks through it from the first click.
 
 ![Home](media/web-home.png)
@@ -52,7 +52,7 @@ The window has four parts:
 | **The keys** | a piano keyboard, or the Move's pads (the switch at their top right) |
 | **The hint bar** | what the keys do on this screen, what the thing under the pointer does, and what just happened |
 
-The page opens on **home**, as the Move does: five circles, **Path**,
+The page opens on **home**, as the Move does: five circles, **Learning Path**,
 **Practice**, **Quiz**, **Progress** and **Settings**, drawn from the Move's
 own pictures. Click a circle, or its row below, to open it; the arrow keys
 choose (the chosen circle grows) and Enter opens. Behind each circle the list
@@ -149,7 +149,7 @@ date and tempo; *The numbers* opens them as a table.
 | --- | --- |
 | **Again** | the same stage again |
 | **Listen** | hear it |
-| **Next** | Solo if you have just passed Guided, otherwise the next step of the Path |
+| **Next** | Solo if you have just passed Guided, otherwise the next step of the Learning Path |
 | **Move on** | count Guided as enough (or skip), and go on |
 
 ## Quizzes
@@ -185,9 +185,9 @@ Under them, **Each answer** has a bar per interval, scale, note or chord: how
 often it was right first time over every round, with a mark where this round
 put it. Progress shows the same bars for a drill between rounds.
 
-## The Path and Progress
+## The Learning Path and Progress
 
-**Path** is a map, as on the Move: an island for each stage, and on an
+**Learning Path** is a map, as on the Move: an island for each stage, and on an
 island a place for each unit and a fort for the checkpoint, drawn from the
 same pixels. Click a place and your avatar walks there along the dotted
 route; click it again to go in. The arrow keys walk, Enter goes in, Escape
@@ -202,7 +202,7 @@ state and percent, and clicking one does the same. **Options** offers
 the staff to extended harmony, with nothing locked. When a review is due it
 opens the **Review** instead, and reviews and new steps take turns. Each stage ends with its **Checkpoint**; **Options** on a stage offers
 **Test out: checkpoint** and **Start the path here**. Every exercise is
-described in [the curriculum](curriculum.md). **Path › Review** lists the
+described in [the curriculum](curriculum.md). **Learning Path › Review** lists the
 finished lessons that are due again.
 
 **Progress** shows how far you have got: overall, per stage, and every lesson
@@ -210,7 +210,7 @@ you have played, each with its chart.
 
 ## Settings
 
-**Settings** opens the Move's folder of groups: Path, Practice, Sound, Pads,
+**Settings** opens the Move's folder of groups: Learning Path, Practice, Sound, Pads,
 MIDI and Help. Open one; **−** and **+** change a row. In the browser **MIDI**
 holds what this browser plays from, since the Move's two MIDI routes do not
 apply here. **Help** has **Show tips again** and **Welcome again**. The most

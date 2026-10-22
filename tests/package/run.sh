@@ -25,7 +25,7 @@ node -e '
   if (!release.download_url.includes("/v" + manifest.version + "/")) throw new Error("release URL version mismatch");
 
   const text = help.children.flatMap(s => s.lines).join(" ");
-  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Guided", "The Path is five stages", "Review brings back", "MENU is help", "I know it all: skip", "Quiz sounds", "Any octave", "index.json", "LEVEL box", "L3 Both hands", "Home is where the module opens", "Show as list"]) {
+  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Guided", "The Learning Path is five stages", "Review brings back", "MENU is help", "I know it all: skip", "Quiz sounds", "Any octave", "index.json", "LEVEL box", "L3 Both hands", "Home is where the module opens", "Show as list"]) {
     if (!text.includes(phrase)) throw new Error("help missing: " + phrase);
   }
 '

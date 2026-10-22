@@ -318,7 +318,7 @@ export function programFolder(phases, repetitionRows = () => []) {
     get children() { return repetitionRows(); },
   };
   return {
-    label: 'Path',
+    label: 'Learning Path',
     value: '>',
     key: 'program',
     /* Shown as the world map: an island per stage. Review is in its list. */

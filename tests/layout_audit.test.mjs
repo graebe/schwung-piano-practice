@@ -54,7 +54,7 @@ function mapScreen(c, n, kind, at, opts = {}) {
 }
 
 /* Home with this module's five circles, at rest or mid-grow. */
-const HOME_ITEMS = [['program', 'Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['quiz', 'Quiz', 'quiz'],
+const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['quiz', 'Quiz', 'quiz'],
   ['progress', 'Progress', 'progress'], ['settings', 'Settings', 'settings']]
   .map(([key, label, icon]) => ({ key, label, icon }));
 function homeScreen(c, selected, opts = {}) {
@@ -261,7 +261,7 @@ const SCREENS = {
     footer: hintFor('sheet')[1], centreFooter: true,
   }),
   'top list, Continue naming a long step': (c) => V.drawList(c, 'EXERCISE', [
-    { label: 'Continue' }, { label: 'Path' }, { label: 'Practice' }, { label: 'Quiz' },
+    { label: 'Continue' }, { label: 'Learning Path' }, { label: 'Practice' }, { label: 'Quiz' },
   ], 0, {
     footer: hintFor('menu', { top: true })[0], centreFooter: true,
     decorate: (r) => (r.label === 'Continue'

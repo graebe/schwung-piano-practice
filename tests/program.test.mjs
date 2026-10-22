@@ -335,7 +335,7 @@ test('the Path folder: five stages, then Review while anything is due', () => {
   let due = [];
   let asked = 0;
   const node = programFolder(phases, () => { asked++; return due; });
-  assert.equal(node.label, 'Path');
+  assert.equal(node.label, 'Learning Path');
   assert.deepEqual(node.children.map((r) => r.label), ['Continue', '1 Grid and staff', '2 Four chords',
     '3 Shapes and time', '4 Sevenths', '5 Colour']);
   due = [{ label: 'x', repId: 'x', done: true }];

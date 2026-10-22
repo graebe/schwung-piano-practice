@@ -86,7 +86,7 @@ test('options: the sheet, its picks, and the welcome answered from a page', () =
   for (let i = 0; i < 3; i++) applyAction(w.session, { type: 'move', delta: 1 });
   applyAction(w.session, { type: 'cardPick', index: 0 });
   assert.equal(w.session.view, MENU);
-  assert.equal(w.session.nav.at(-1).node.label, 'Path', 'From the start: the Path map');
+  assert.equal(w.session.nav.at(-1).node.label, 'Learning Path', 'From the start: the Path map');
   assert.ok(w.session.onMap());
 });
 

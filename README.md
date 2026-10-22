@@ -57,7 +57,7 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   read from the staff alone. You can go straight to the second whenever you like.
 - **Remembers how far you got.** Every exercise keeps its own score, a ◐ for Guided and a ✓ for
   Solo, and a chart of every attempt. Folders add up what is inside them.
-- **Tells you what to do next.** The Path is five stages, written for adults who are new to the
+- **Tells you what to do next.** The Learning Path is five stages, written for adults who are new to the
   piano and to the Move, and Continue (Play on its map) opens the next step. A checkpoint
   lets you test out of a stage you already know, and nothing is locked: follow it, or don't.
 - **Always says what to press.** The bottom line of every screen names its keys, Shift shows what
@@ -66,7 +66,7 @@ Piano Practice is an independent module for Schwung. It is not made or supported
 
 ## Home and the lesson list
 
-The module opens on **home**: five circles, **Path**, **Practice**, **Quiz**, **Progress** and
+The module opens on **home**: five circles, **Learning Path**, **Practice**, **Quiz**, **Progress** and
 **Settings**, each with its picture. The jog chooses (the chosen circle is filled and grows), a
 click opens it, and so does its pad: the five lit pads of the bottom row, left to right, which make
 no sound here. Back from a section comes home with its circle chosen; Back at home leaves.
@@ -77,7 +77,7 @@ Behind each circle the list is a tree. **Click** opens a folder, **Back** goes u
 [Finding your way](docs/finding-your-way.md).
 
 ```
-Path              Continue           the next step, named; or Review, when one is due (Play on the map)
+Learning Path     Continue           the next step, named; or Review, when one is due (Play on the map)
                   1 Grid and staff   the grid, note names, reading, first melodies
                   2 Four chords      I-IV-V, the four-chord loop, tracks, both hands
                   3 Shapes and time  inversions, 3/4 and 6/8, intervals to the 5th, modes
@@ -93,7 +93,7 @@ Quiz              Ear      by topic: pitch & melody, intervals, chords, scales &
                   Reading  the interval and scale courses on the staff, notes and chords by staff
                   Keys     notes by alphabet, chords by name, name notes, name chords
 Progress          how far you have got, and how you got there
-Settings          Path, Practice, Sound, Pads, MIDI, Help
+Settings          Learning Path, Practice, Sound, Pads, MIDI, Help
 ```
 
 Everything with a left and a right hand — every song, every chord lesson — is one row: it opens
@@ -115,7 +115,7 @@ the ready screen's **LEVEL** box, on the right of its controls, shows the level 
 **G** or **S** beside it for Guided or Solo, arrows where the jog can go on, and a ✓ once that
 level is learned. Turn the **jog** and you walk the levels and their two ways together: 1 Guided,
 1 Solo, 2 Guided, 2 Solo... The bottom line names it — `L2 RH chords  Solo` — and takes turns with
-the keys. A new level starts again from bar 1. A step of the Path, Continue and Review arm the
+the keys. A new level starts again from bar 1. A step of the Learning Path, Continue and Review arm the
 level they name.
 
 | | | |
@@ -171,9 +171,9 @@ bar is passage practice and is not, and neither is Listen.
 5. Press **Back** after a result to try the same thing again from the top. Back once more for the
    list, where the row now reads `97% ✓`.
 
-## The Path
+## The Learning Path
 
-The lesson list holds everything; the **Path** is a course through it, in five stages. Each stage
+The lesson list holds everything; the **Learning Path** is a course through it, in five stages. Each stage
 takes a few weeks and promises one thing you will be able to do at its end:
 
 | Stage | Its promise |
@@ -196,7 +196,7 @@ just before the stage's **Checkpoint**. A unit can come after others: *Both hand
 play Ode to Joy from Practice › Songs › Classics and its step on the path is done too. The path is
 built in C, whatever the Key setting says; Practice follows the settings.
 
-**Continue** — Play on the Path's map, the first row of the Path as a list — opens the next step of the ready
+**Continue** — Play on the Learning Path's map, the first row of its list — opens the next step of the ready
 unit whose strand you practised longest ago, in your stage, Guided or Solo as it needs, and the row names it. Your stage is the
 earliest you have neither finished nor passed the checkpoint of; units left over from an earlier
 stage stay in the mix, so a slow ear never holds your hands back. When a review is due the row reads
@@ -214,7 +214,7 @@ stay open, marked **◌**.
 | **I know this: skip** | a step, or Continue | passes it by. It is marked `»` and stays where it was — open it any time and the skip is forgotten. After Guided it moves on instead: Guided is enough for now, and the step counts as finished at ◐ |
 | **I know it all: skip** | a stage, a unit, an exercise of several steps | skips everything inside |
 | **Undo skip** | a skipped step, or a folder holding one | takes the skips back |
-| **Start the path here** | a stage | Continue starts there; the stages before it count as assumed until you play them. Also **Settings › Path › Start at** |
+| **Start the path here** | a stage | Continue starts there; the stages before it count as assumed until you play them. Also **Settings › Learning Path › Start at** |
 | **Test out: checkpoint** | a stage with a checkpoint | plays the checkpoint, as above |
 | **Show as list** / **Show as map** | home, a map | the same rows as a list for the session, and back |
 | **Settings...** | any row | the settings |
@@ -229,7 +229,7 @@ or better with hints, Solo one without any**.
 
 ### Review
 
-What you have finished comes back. **Path › Review**, there while anything is due, lists today's
+What you have finished comes back. **Learning Path › Review**, there while anything is due, lists today's
 session, at most five exercises:
 
 1. first, any finished exercise whose last run **slipped under 90%**;
@@ -249,7 +249,7 @@ knows about the thing in front of you, and what each word it uses means. The jog
 
 | Pressed on | More help explains |
 | --- | --- |
-| a row of the list | that folder or exercise — read before you choose. On the Path, a unit's purpose and a step's why |
+| a row of the list | that folder or exercise — read before you choose. On the Learning Path, a unit's purpose and a step's why |
 | the ready screen | the armed exercise: what it drills, its levels and its two steps |
 | a quiz or hearing round | the drill and what to listen for. **The round's clock stops** while you read |
 | a running exercise | the same — the music pauses first |
@@ -302,7 +302,7 @@ shows under Piano Practice › Terms:
 | **Slash chord** | A chord over a bass note that is not its root: D/F# is D major over F#. |
 | **RH, LH** | Right hand plays the melody and chords, left hand the bass. |
 | **Level** | How much of a song you play: L1 one hand's line, L2 the chords, L3 both hands. |
-| **Stage** | One of the five stages of the Path, a few weeks of work each, ending with its checkpoint. |
+| **Stage** | One of the five stages of the Learning Path, a few weeks of work each, ending with its checkpoint. |
 | **Guided, Solo** | Every exercise is played twice. Guided lights the pad you need as its note comes; Solo lights nothing, and you read it from the staff. |
 | **Score** | Notes hit, over the notes in the piece plus wrong presses. 90% passes Guided or Solo. |
 | **Hint** | REC helps, two presses deep. A hinted answer still counts, and is noted. |
@@ -600,7 +600,7 @@ answer. The only pad feedback here is what you press — green when right, red w
 
 The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
 what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
-Find them in **Quiz › Ear**, grouped by topic; the Path takes them in the **Ear** units of its
+Find them in **Quiz › Ear**, grouped by topic; the Learning Path takes them in the **Ear** units of its
 stages:
 
 ```
@@ -667,7 +667,7 @@ ids still open the matching course level, so nothing recorded under them is lost
 
 Three courses sit in their topics in **Quiz › Ear**: **Identify intervals** and **Compare intervals**
 under Intervals, **Identify scales** under Scales & keys. Each is a numbered list of units that adds
-a little at a time. On the Path they are the **Intervals** units and the scale quizzes of
+a little at a time. On the Learning Path they are the **Intervals** units and the scale quizzes of
 the Scales units: an Identify unit heard up, down and together and then read once, a Compare unit
 heard once easy and once in full. Every other level stays in the Quiz menus. Answering works as in
 every Ear exercise: the answer pads, or the jog and a click.
@@ -891,7 +891,7 @@ rather than stopping the module from opening.
 
 ## In your browser
 
-The same practice runs in a web browser — the same lessons, scoring, Path and piano —
+The same practice runs in a web browser — the same lessons, scoring, Learning Path and piano —
 from a computer keyboard, the keys on screen, a MIDI keyboard, or your Move on its USB cable:
 
 ```sh
@@ -1031,7 +1031,7 @@ A3–G5 under your hands — untransposed it sits almost entirely below the treb
 
 ### Settings
 
-**Settings**, the last circle of home, is a folder of groups: **Path** (Start at: the stage
+**Settings**, the last circle of home, is a folder of groups: **Learning Path** (Start at: the stage
 Continue starts from), **Practice**, **Sound**, **Pads** (the octave), **MIDI**, and **Help** (Auto
 info, Show tips again, Welcome again). Open a group, click a row to edit it, turn the jog to change
 the value, click again when done — knobs 1–4 are shortcuts to the four rows on screen. Shift + click

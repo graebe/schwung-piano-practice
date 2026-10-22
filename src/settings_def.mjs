@@ -142,7 +142,7 @@ export function formatSetting(settings, index) {
  * progress, not here), and Help two actions.
  */
 export const GROUPS = [
-  { key: 'path', label: 'Path', rows: [{ edit: 'start', label: 'Start at' }] },
+  { key: 'path', label: 'Learning Path', rows: [{ edit: 'start', label: 'Start at' }] },
   {
     key: 'practice', label: 'Practice',
     settings: ['bpm', 'pxPerBeat', 'rootPc', 'mode', 'anyOctave', 'waitForNote', 'graceBeats', 'countIn',

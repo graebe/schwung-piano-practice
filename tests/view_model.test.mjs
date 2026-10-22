@@ -309,7 +309,7 @@ test('the sheet, a card and the settings page are data too', () => {
   assert.equal(vm.screen, 'card', 'the sheet\'s first-visit tip');
   h.session.back();
   vm = viewModel(h.session);
-  assert.deepEqual(vm.sheet, { title: 'Path', cursor: 0, items: ['Show as list', 'Settings...'] });
+  assert.deepEqual(vm.sheet, { title: 'Learning Path', cursor: 0, items: ['Show as list', 'Settings...'] });
   assert.equal(vm.card, null);
   h.session.pickSheet(1);
   openPath(h.session, ['Help']);
@@ -326,7 +326,7 @@ test('the map is data: its places and where the avatar is bound', () => {
   const h = fakeHost();
   h.session.init();
   assert.equal(viewModel(h.session).map, null, 'the top list is no map');
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   let vm = viewModel(h.session);
   assert.equal(vm.map.world, true);
   assert.equal(vm.map.at, 0);

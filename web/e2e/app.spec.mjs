@@ -26,7 +26,7 @@ test.beforeEach(async ({ page }) => {
 test('home is five circles: a click opens one, Back finds it selected', async ({ page }) => {
   await expect(page.locator('.home-screen')).toBeVisible();
   await expect(page.locator('.home .home-item')).toHaveCount(5);
-  await expect(page.locator('.home-rows .row-label')).toHaveText(['Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
+  await expect(page.locator('.home-rows .row-label')).toHaveText(['Learning Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
   await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'program');
   await expect(page.getByRole('button', { name: 'Back' })).toBeDisabled();
   await expect(page.locator('.move-hint')).toContainText('JOG choose');
@@ -67,8 +67,8 @@ test('the lesson list opens folders and steps back out', async ({ page }) => {
   await expect(page.locator('.row .row-label')).toHaveText(['Ear', 'Reading', 'Keys']);
 });
 
-test('the Path is five stages, each ending on its Checkpoint; Continue opens the next step', async ({ page }) => {
-  await page.locator('.row', { hasText: /^Path/ }).click();
+test('the Learning Path is five stages, each ending on its Checkpoint; Continue opens the next step', async ({ page }) => {
+  await page.locator('.row', { hasText: /^Learning Path/ }).click();
   await closeInfo(page);
   for (const name of ['1 Grid and staff', '2 Four chords', '3 Shapes and time', '4 Sevenths', '5 Colour']) {
     await expect(page.locator('.row', { hasText: name })).toHaveCount(1);
@@ -86,8 +86,8 @@ test('the Path is five stages, each ending on its Checkpoint; Continue opens the
   await expect(page.locator('#quiz-title')).toBeVisible();
 });
 
-test('the Path is a map: click an island to walk there, again to go in, Back to come out', async ({ page }) => {
-  await openPath(page, ['Path']);
+test('the Learning Path is a map: click an island to walk there, again to go in, Back to come out', async ({ page }) => {
+  await openPath(page, ['Learning Path']);
   await expect(page.locator('.map-screen')).toBeVisible();
   await expect(page.locator('.map-screen .screen-head .t-hint')).toHaveText(/^1 Grid and staff · 0%/);
   await expect(page.locator('.move-hint')).toContainText('PAD go  CLICK enter');
@@ -104,14 +104,14 @@ test('the Path is a map: click an island to walk there, again to go in, Back to 
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('island.png', { fullPage: true });
   await page.keyboard.press('Escape');
-  await expect(page.locator('#map-title')).toHaveText('Path');
+  await expect(page.locator('#map-title')).toHaveText('Learning Path');
   await expect(page.locator('.map-places .row.on')).toHaveText(/3 Shapes and time/, { message: 'on the island it left' });
   await page.keyboard.press('ArrowRight');
   await expect(page.locator('.map-places .row.on')).toHaveText(/4 Sevenths/, { message: 'the arrows walk' });
 });
 
 test('the options of a row: Test out: checkpoint plays the exam Solo', async ({ page }) => {
-  await openPath(page, ['Path']);
+  await openPath(page, ['Learning Path']);
   await expect(page.locator('.row.on')).toHaveText(/1 Grid and staff/);
   await page.keyboard.press('Shift+Enter');
   await expect(page.locator('.sheet-screen')).toBeVisible();
@@ -124,8 +124,8 @@ test('the options of a row: Test out: checkpoint plays the exam Solo', async ({ 
   await expect(page.getByRole('button', { name: 'Solo', exact: true })).toHaveClass(/on/);
 });
 
-test('the Path as a list starts with Continue; its options skip the step it names', async ({ page }) => {
-  await openPath(page, ['Path']);
+test('the Learning Path as a list starts with Continue; its options skip the step it names', async ({ page }) => {
+  await openPath(page, ['Learning Path']);
   await page.getByRole('button', { name: 'Options' }).click();
   await page.locator('.sheet-screen .row', { hasText: 'Show as list' }).click();
   await expect(page.locator('.row').first()).toHaveText(/Continue.*Notes by alphabet/);
@@ -375,7 +375,7 @@ test('Info explains what is in front of you, with its keys, and Escape closes it
 test.describe('a first visit', () => {
   test.use({ welcomed: false });
 
-  test('the welcome, then "I already play" opens the Path with a tip', async ({ page }) => {
+  test('the welcome, then "I already play" opens the Learning Path with a tip', async ({ page }) => {
     await expect(page.locator('#card-title')).toHaveText('Welcome');
     await expect(page.locator('.card-text p').first()).toHaveText(/Piano Practice takes you from your first note to pro/);
     await page.getByRole('button', { name: 'Next' }).click();
@@ -387,21 +387,21 @@ test.describe('a first visit', () => {
     await page.locator('.card-choices .row', { hasText: 'I already play' }).click();
     await expect(page.locator('.card-text p').first()).toHaveText(/^Know a stage already\?/);
     await page.getByRole('button', { name: 'Go on' }).click();
-    /* The Path is a map, and its own tip comes the first time it is seen. */
+    /* The Learning Path is a map, and its own tip comes the first time it is seen. */
     await expect(page.locator('.card-text p').first()).toHaveText(/^Lit pads are places/);
     await page.getByRole('button', { name: 'Go on' }).click();
-    await expect(page.locator('#map-title')).toHaveText('Path');
+    await expect(page.locator('#map-title')).toHaveText('Learning Path');
     await page.reload();
     await page.waitForSelector('.screen');
     await expect(page.locator('.card-screen')).toHaveCount(0, { message: 'welcomed once' });
   });
 
-  test('"From the start" lands on the Path map; a first piece shows its tip once', async ({ page }) => {
+  test('"From the start" lands on the Learning Path map; a first piece shows its tip once', async ({ page }) => {
     for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
     await page.locator('.card-choices .row', { hasText: 'From the start' }).click();
     await expect(page.locator('.card-text p').first()).toHaveText(/^Lit pads are places/);
     await page.getByRole('button', { name: 'Go on' }).click();
-    await expect(page.locator('#map-title')).toHaveText('Path');
+    await expect(page.locator('#map-title')).toHaveText('Learning Path');
     await page.keyboard.press('Escape');
     await openPath(page, SCALE);
     await expect(page.locator('.card-text p').first()).toHaveText(/^REC plays and scores it/);

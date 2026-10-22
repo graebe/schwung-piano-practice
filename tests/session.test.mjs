@@ -27,7 +27,7 @@ test('init opens the lesson list, from the files and the settings it is given', 
   h.session.init();
   assert.equal(h.session.view, MENU);
   const rows = h.session.nav[0].node.children.map((r) => r.label);
-  assert.deepEqual(rows, ['Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
+  assert.deepEqual(rows, ['Learning Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
   assert.ok(h.session.onHome(), 'drawn as the home screen');
   const songs = h.session.nav[0].node.children[1].children.find((r) => r.label === 'Songs');
   assert.ok(songs.children.some((r) => r.label === 'Classics'), 'the bundled songs are read through fx');
@@ -206,7 +206,7 @@ test('Settings is a folder of groups, each the page limited to its rows', () => 
   h.session.init();
   openPath(h.session, ['Settings']);
   assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => r.label),
-    ['Path', 'Practice', 'Sound', 'Pads', 'MIDI', 'Help']);
+    ['Learning Path', 'Practice', 'Sound', 'Pads', 'MIDI', 'Help']);
   openPath(h.session, ['MIDI']);
   assert.deepEqual(h.session.settingsRows().map((r) => r.label), ['MIDI out', 'MIDI ch']);
   /* The jog edits the open group's row, by its place on the page. */
@@ -218,7 +218,7 @@ test('Settings is a folder of groups, each the page limited to its rows', () => 
   assert.equal(h.session.settingsEditing, false);
   h.session.back();
   /* Path: where Continue starts, kept with the progress. */
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   assert.deepEqual(h.session.settingsRows()[0], { label: 'Start at', value: 'stage 1', edit: 'start' });
   h.session.activate(false);
   h.session.moveSelection(1);
@@ -578,7 +578,7 @@ test('Test out: checkpoint plays the checkpoint at stage 2, and passing it moves
   for (const id of ['basics/random/in-key', 'song:ode-to-joy/1r', 'quiz:staff:notes:key']) {
     PROG.recordAttempt(p, id, { stage: 2, score: 1, at: WALL0 });
   }
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   sheet(h, 1, 'Test out: checkpoint');
   assert.equal(h.session.view, READY);
   assert.equal(h.session.armedId, 'basics/scales/major/up-down', 'the one check step not yet passed');
@@ -592,7 +592,7 @@ test('Test out: checkpoint plays the checkpoint at stage 2, and passing it moves
 test('the Checkpoint is the last row of a stage, and its rows are the exam at S2', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path', '1 Grid and staff']);
+  openPath(h.session, ['Learning Path', '1 Grid and staff']);
   const rows = h.session.nav.at(-1).node.children;
   assert.equal(rows.at(-1).label, 'Checkpoint');
   assert.ok(!rows.some((r) => /Check: skip|Start here|Skip/.test(r.label)), 'no control rows among the lessons');
@@ -619,7 +619,7 @@ test('the same steps passed in practice move the stage on without skipping its r
     PROG.recordAttempt(p, id, { stage: 2, score: 1, at: WALL0 });
   }
   PROG.recordAttempt(p, 'basics/scales/major/up-down', { stage: 1, score: 1, at: WALL0 });
-  openPath(h.session, ['Path', '1 Grid and staff', '1.3 Major scale', 'Major up & down']);
+  openPath(h.session, ['Learning Path', '1 Grid and staff', '1.3 Major scale', 'Major up & down']);
   assert.equal(h.session.stage, 2);
   playThrough(h);
   assert.ok(PROG.stagePassed(PROG.item(p, 'basics/scales/major/up-down'), 2));
@@ -630,7 +630,7 @@ test('the same steps passed in practice move the stage on without skipping its r
 test('Start the path here moves where Continue begins', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   sheet(h, 3, 'Start the path here');
   assert.equal(h.session.view, MENU, 'the sheet closes');
   assert.equal(PROG.programStart(h.session.progress), 2);
@@ -652,7 +652,7 @@ test('the sheet offers only what applies, in its order, Settings... last', () =>
   assert.deepEqual(labels(), ['Show as list', 'Settings...'], 'Practice, on home: its list is an option');
   h.session.back();
   assert.equal(h.session.view, MENU, 'BACK closes it');
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   sheet(h, 1, 'Show as list');
   h.session.selectRow(0);
   h.session.activate(true);
@@ -683,7 +683,7 @@ test('the sheet offers only what applies, in its order, Settings... last', () =>
 test('I know it all skips a whole unit, and Undo skip takes it back', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path', '1 Grid and staff']);
+  openPath(h.session, ['Learning Path', '1 Grid and staff']);
   const unit = h.session.nav.at(-1).node.children[0].unit;
   sheet(h, 0, 'I know it all: skip');
   const steps = unit.exercises.flatMap((e) => e.steps);
@@ -697,7 +697,7 @@ test('I know it all skips a whole unit, and Undo skip takes it back', () => {
 test('I know this on Continue skips the step Continue would open', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   sheet(h, 1, 'Show as list');
   const cont = () => h.session.nav.at(-1).node.children[0];
   assert.ok(cont().continueRow, 'Continue is the first row of the Path\'s list');
@@ -711,14 +711,14 @@ test('I know this on Continue skips the step Continue would open', () => {
 test('program steps are built in C, whatever the Key and Scale settings say', () => {
   const h = fakeHost({ settings: { ...QUIET, rootPc: 6, mode: 'dorian' } });
   h.session.init();
-  openPath(h.session, ['Path', '1 Grid and staff', '1.3 Major scale', 'Major up & down']);
+  openPath(h.session, ['Learning Path', '1 Grid and staff', '1.3 Major scale', 'Major up & down']);
   assert.equal(h.session.armedId, 'basics/scales/major/up-down');
   assert.equal(h.session.chart.keySig, 0, 'C major on the path: ' + h.session.chart.name);
   for (let i = 0; i < 4; i++) h.session.back();
   openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   assert.notEqual(h.session.chart.keySig, 0, 'Practice follows the settings');
   for (let i = 0; i < 5; i++) h.session.back();
-  openPath(h.session, ['Path', '1 Grid and staff', '1.1 Find the notes', 'Notes by alphabet']);
+  openPath(h.session, ['Learning Path', '1 Grid and staff', '1.1 Find the notes', 'Notes by alphabet']);
   assert.equal(h.session.view, GUESS_VIEW);
   assert.equal(h.session.keyFifths().fifths, 0, 'a quiz step asks in C too');
 });
@@ -728,13 +728,13 @@ test('Continue names its step; when a review is due it alternates, review first'
   h.session.init();
   const path = h.session.nav[0].node.children[0];
   const cont = () => h.session.decorateRow(path.children[0]);
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   sheet(h, 1, 'Show as list');
   assert.deepEqual(cont(), { label: 'Continue', value: 'Notes by alphabet', short: '1.1', title: 'Notes by alphabet' });
   h.session.selectRow(0);
   assert.equal(h.session.listTitle(), 'Notes by alphabet', 'the title spells out what Continue opens');
   h.session.selectRow(1);
-  assert.equal(h.session.listTitle(), 'Path', 'elsewhere it is the folder');
+  assert.equal(h.session.listTitle(), 'Learning Path', 'elsewhere it is the folder');
   h.session.selectRow(0);
   assert.deepEqual(path.children.map((r) => r.label).slice(-1), ['5 Colour'],
     'no Review folder while nothing is due');
@@ -777,7 +777,7 @@ test('the welcome runs on a first launch: From the start lands on the Path map',
   h.session.activate(false);                     /* From the start */
   assert.equal(h.session.view, MENU);
   assert.equal(h.session.nav.length, 2);
-  assert.equal(h.session.nav[1].node.label, 'Path');
+  assert.equal(h.session.nav[1].node.label, 'Learning Path');
   assert.ok(h.session.onMap(), 'on the Path map: PLAY opens the first step');
   assert.ok(PROG.tipSeen(h.session.progress, 'welcome'));
   /* Once: the next launch goes straight to the list. */
@@ -798,7 +798,7 @@ test('I already play opens the Path with a tip on testing out', () => {
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^Know a stage already\? SHIFT\+CLICK a stage/);
   h.session.back();
   assert.equal(h.session.view, MENU);
-  assert.equal(h.session.nav.at(-1).node.label, 'Path');
+  assert.equal(h.session.nav.at(-1).node.label, 'Learning Path');
 });
 
 test('BACK dismisses the welcome; an existing learner is never shown it', () => {
@@ -889,7 +889,7 @@ const padOf = (n, i) => padOfCell(layoutPlaces(n).cells[i]);
 test('the Path is a world map, a stage an island; the cursor stays a child index', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   assert.ok(h.session.onMap());
   assert.equal(h.session.screenNow(), 'map');
   const m = h.session.mapModel();
@@ -913,10 +913,10 @@ test('a pad walks there and a second press goes in; water and lists are not the 
   const h = fakeHost();
   h.session.init();
   assert.equal(h.session.mapPad(68), false, 'the top list is no map: the pad is a note');
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   assert.equal(h.session.mapPad(padOf(5, 3)), true);
   assert.equal(h.session.mapModel().at, 3);
-  assert.equal(h.session.nav.at(-1).node.label, 'Path', 'walking, not in yet');
+  assert.equal(h.session.nav.at(-1).node.label, 'Learning Path', 'walking, not in yet');
   h.session.mapPad(padOf(5, 3));
   assert.equal(h.session.nav.at(-1).node.label, '4 Sevenths');
   const taken = new Set(layoutPlaces(h.session.mapModel().places.length).cells.map(padOfCell));
@@ -931,7 +931,7 @@ test('a pad walks there and a second press goes in; water and lists are not the 
 test('on the map Play is Continue, and its options show it as a list for the session', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   h.session.activate(true);
   assert.deepEqual(h.session.sheet.items.map((i) => i.label).slice(-2), ['Show as list', 'Settings...']);
   h.session.pickSheet(h.session.sheet.items.length - 2);
@@ -948,7 +948,7 @@ test('on the map Play is Continue, and its options show it as a list for the ses
 test('MENU on the map: what the map is, then the place under the avatar', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path', '1 Grid and staff']);
+  openPath(h.session, ['Learning Path', '1 Grid and staff']);
   h.session.menuButton();
   const text = h.session.info.paragraphs.map((p) => p.text);
   assert.match(text[0], /^The map: a lit pad is a place/);
@@ -960,7 +960,7 @@ test('MENU on the map: what the map is, then the place under the avatar', () => 
 test('the map and island tips show once each', () => {
   const h = fakeHost({ progress: { tips: ['welcome'] } });
   h.session.init();
-  openPath(h.session, ['Path']);
+  openPath(h.session, ['Learning Path']);
   h.run(20);
   assert.equal(h.session.view, CARD_VIEW);
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^Lit pads are places/);
@@ -1023,7 +1023,7 @@ test('a level changed after a scrub starts from bar 1', () => {
 test('a Path step and a review arm their own level', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Path', '2 Four chords', '2.7 First tracks']);
+  openPath(h.session, ['Learning Path', '2 Four chords', '2.7 First tracks']);
   const folder = h.session.nav.at(-1).node.children[0];
   openPath(h.session, [folder.label, 'L3 Both hands']);
   assert.equal(h.session.view, READY);
@@ -1061,7 +1061,7 @@ test('home is five circles, no Continue among them; the jog grows the next one',
   assert.ok(h.session.onHome());
   assert.equal(h.session.screenNow(), 'home');
   const m = h.session.homeModel();
-  assert.deepEqual(m.items.map((it) => [it.key, it.label]), [['program', 'Path'], ['basics', 'Practice'],
+  assert.deepEqual(m.items.map((it) => [it.key, it.label]), [['program', 'Learning Path'], ['basics', 'Practice'],
     ['quiz', 'Quiz'], ['progress', 'Progress'], ['settings', 'Settings']]);
   assert.deepEqual(m.items.map((it) => it.icon), ['path', PRACTICE_PIANO, 'quiz', 'progress', 'settings']);
   assert.equal(m.selected, 0);
@@ -1085,7 +1085,7 @@ test('home is five circles, no Continue among them; the jog grows the next one',
 test('a click or a circle\'s pad opens it, silently; Back finds its circle selected', () => {
   const h = fakeHost();
   h.session.init();
-  const want = ['Path', 'Practice', 'Quiz', null, 'Settings'];
+  const want = ['Learning Path', 'Practice', 'Quiz', null, 'Settings'];
   for (let i = 0; i < HOME_PADS.length; i++) {
     assert.equal(h.session.homePad(HOME_PADS[i]), true, 'home takes the pad');
     if (want[i]) assert.equal(h.session.nav.at(-1).node.label, want[i]);
@@ -1111,7 +1111,7 @@ test('Shift + Click on home shows the five as a list for the session; Back is th
   h.session.pickSheet(at);
   assert.equal(h.session.onHome(), false);
   assert.equal(h.session.homeModel(), null);
-  assert.deepEqual(h.session.nav[0].node.children.map((r) => r.label), ['Path', 'Practice', 'Quiz', 'Progress',
+  assert.deepEqual(h.session.nav[0].node.children.map((r) => r.label), ['Learning Path', 'Practice', 'Quiz', 'Progress',
     'Settings']);
   assert.equal(h.session.canGoBack(), true, 'Back from the list is home, not quit');
   openPath(h.session, ['Practice']);

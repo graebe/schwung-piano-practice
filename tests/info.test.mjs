@@ -188,7 +188,7 @@ test('the Path\'s pages say stage, and number units as the session does', () => 
   const p1 = infoFor({ id: 'program/p1' }, env);
   assert.match(p1.title, /^Stage 1: /);
   assert.ok(p1.sections.some((sec) => sec.head === 'Checkpoint'));
-  assert.equal(infoFor({ id: 'program' }, env).title, 'Path');
+  assert.equal(infoFor({ id: 'program' }, env).title, 'Learning Path');
   const unit = infoFor({ id: 'program/p5/techno' }, env);
   assert.match(unit.title, /^5\.5 Techno harmony$/);
   for (const id of ['program', 'program/p1', 'program/p3/inversions']) {

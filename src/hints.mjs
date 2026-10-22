@@ -110,10 +110,10 @@ function about(screen, s) {
   switch (screen) {
     case MENU:
       return s.top
-        ? 'Home, as a list: the Path, the free library to practise, the quiz, your progress and the settings. BACK shows the circles again.'
+        ? 'Home, as a list: the Learning Path, the free library to practise, the quiz, your progress and the settings. BACK shows the circles again.'
         : 'A folder of the list. A row with > opens another folder; any other row opens what it holds.';
     case HOME:
-      return 'Home: the Path, the free library to practise, the quiz, your progress and the settings, as five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad. PLAY continues on the Path\'s map.';
+      return 'Home: the Learning Path, the free library to practise, the quiz, your progress and the settings, as five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad.';
     case MAP:
       return 'The map: a lit pad is a place. Press one to walk there, again to go in; the jog walks too, CLICK goes in, PLAY continues. SHIFT+CLICK shows it as a list.';
     case SHEET:

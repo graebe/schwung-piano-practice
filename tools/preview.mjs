@@ -203,7 +203,7 @@ function drawMapScreen(c, places, layout, walk, now) {
  * shows Drums Practice's practice icon.
  */
 const HOME_ITEMS = [
-  { key: 'path', label: 'Path', icon: 'path' },
+  { key: 'path', label: 'Learning Path', icon: 'path' },
   { key: 'practice', label: 'Practice', icon: arg('practice', 'piano') === 'drums' ? PRACTICE_DRUMS : PRACTICE_PIANO },
   { key: 'quiz', label: 'Quiz', icon: 'quiz' },
   { key: 'progress', label: 'Progress', icon: 'progress' },

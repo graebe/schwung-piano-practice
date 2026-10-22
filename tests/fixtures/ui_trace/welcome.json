@@ -13,7 +13,7 @@
 ["announce","I already play."],
 ["tick",32,"197e9700c0a1","-"],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{},\"program\":{\"start\":0},\"tips\":[\"welcome\"]}"],
-["announce","Path."],
+["announce","Learning Path."],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"placement\"]}"],
 ["announce","Tip. Know a stage already? SHIFT+CLICK a stage, then Test out: checkpoint. Pass it and the path moves on."],
 ["tick",33,"bfceedbf9bca","5e88855ed025"],
@@ -40,4 +40,4 @@
 ["tick",350,"-","5e88855ed025"],
 ["tick",375,"-","5e88855ed025"],
 ["tick",381,"82e128eb4b82","1b3791718c7b"],
-["tick",383,"2098f5f03c8f","e05a4619f8b7"]]
+["tick",383,"d67d2d6a7d62","e05a4619f8b7"]]

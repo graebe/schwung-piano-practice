@@ -2211,14 +2211,14 @@ export function createSession(fx, opts = {}) {
     if (choice === TIPS.ALREADY_PLAY) {
       saveProgress();
       goTop('program', true);
-      announce('Path.');
+      announce('Learning Path.');
       showTip(TIPS.PLACEMENT);
       return;
     }
     PROG.setProgramStart(progress, 0);
     saveProgress();
     goTop('program', true);
-    announce('Path. PLAY opens your first step.');
+    announce('Learning Path. PLAY opens your first step.');
   }
 
   /* At start-up: the welcome for somebody new; an existing learner is
