@@ -78,80 +78,104 @@ function blit(ctx, rects, x, y, v) {
 
 /* ---- Place glyphs -------------------------------------------------------- */
 /*
- * A place is 11x10, drawn at (cell.x + 3, cell.y): a 3-row sky band for the
- * markers, over a 7-row body.
+ * A place is 14x11, the full height of its cell, drawn at (cell.x + 1, cell.y).
+ * Its main body sits on the left (columns 0..8, top at row 4-5); on the right
+ * a lower spit of ground (top at row 7) is where the avatar stands, so the
+ * figure lives in the sky above it and never covers the place:
+ *
+ *   flag (done)   pole in column 1 down to the body, pennant 3x2 to its right
+ *   due dot       2x2 at columns 6..7, rows 1..2
+ *   avatar        5x7 at columns 9..13, rows 0..6, feet on the spit
+ *   current       a down-arrow in the avatar's spot when it is elsewhere
  *
  * Body legend: '#' coast or wall, always drawn; 'o' ground that fills from the
- * bottom with the place's percentage; '.' never drawn (water, a gate, a door).
- *
- * Sky band, top-centre to top-right:
- *   flag    the place is done
- *   ▼       the current place (blinks with `pulse`)
- *   ■       reviews are due (2x2, top-right)
+ * bottom with the place's percentage; 'x' a lock, drawn as the inverse of the
+ * ground behind it, so it shows on an empty chest and a full one alike; '.'
+ * never drawn (water, a gate, a door).
  */
-export const GLYPH_W = 11;
-export const GLYPH_H = 10;
-export const SKY_H = 3;
-export const GLYPH_DX = 3;
+export const GLYPH_W = 14;
+export const GLYPH_H = 11;
+export const GLYPH_DX = 1;
 
 export const BODIES = {
-  /* An island of the world map: a coast with a bay in its south. */
+  /* An island of the world map: a hill, and a beach to stand on. */
   island: [
-    '...####....',
-    '.##oooo##..',
-    '#oooooooo#.',
-    '#ooooooooo#',
-    '.#oooooooo#',
-    '.#ooooo###.',
-    '..#####....',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '...###........',
+    '..#ooo#.......',
+    '.#ooooo##.....',
+    '#oooooooo#####',
+    '#oooooooooooo#',
+    '.##ooooooooo#.',
+    '...#########..',
   ],
-  /* A place on an island: a round clearing. */
+  /* A place on an island: a square clearing with a ledge. */
   place: [
-    '..#######..',
-    '.#ooooooo#.',
-    '#ooooooooo#',
-    '#ooooooooo#',
-    '#ooooooooo#',
-    '.#ooooooo#.',
-    '..#######..',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '.#######......',
+    '#ooooooo#.....',
+    '#ooooooo######',
+    '#oooooooooooo#',
+    '#oooooooooooo#',
+    '.############.',
   ],
-  /* The checkpoint: battlements over a wall with a gate. */
+  /* The checkpoint: battlements, a gate, and a rampart. */
   fort: [
-    '#.#.#.#.#.#',
-    '#ooooooooo#',
-    '#ooooooooo#',
-    '#ooooooooo#',
-    '#ooooooooo#',
-    '#oooo.oooo#',
-    '#####.#####',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '#.#.#.#.#.....',
+    '#ooooooo#.....',
+    '#ooooooo######',
+    '#oooooooooooo#',
+    '#ooo.ooooooo#.',
+    '####.########.',
   ],
-  /* The lessons: a hut, gable and door. */
+  /* The lessons: a hut, gable and door, with a yard. */
   hut: [
-    '.....#.....',
-    '...##o##...',
-    '.##ooooo##.',
-    '#ooooooooo#',
-    '#ooooooooo#',
-    '#oooo.oooo#',
-    '#####.#####',
+    '..............',
+    '..............',
+    '..............',
+    '....#.........',
+    '...#o#........',
+    '..#ooo#.......',
+    '.#ooooo#......',
+    '##############',
+    '.#ooooo#ooooo#',
+    '.#oo.oo#ooooo#',
+    '.###.#########',
   ],
-  /* The electives: a cove, land round a bay that opens east. */
+  /* The electives (kind 'cove'): a treasure chest -- domed lid, band, lock --
+   * beside a patch of sand. */
   cove: [
-    '..#######..',
-    '.#ooooooo#.',
-    '#oooooo##..',
-    '#ooooo#....',
-    '#oooooo##..',
-    '.#ooooooo#.',
-    '..#######..',
+    '..............',
+    '..............',
+    '..............',
+    '..............',
+    '..#####.......',
+    '.#ooooo#......',
+    '#ooooooo#.....',
+    '###xxx########',
+    '#oooxooo#oooo#',
+    '#ooooooo#ooo#.',
+    '#############.',
   ],
 };
 
-const SKY = {
-  flag: ['.....###...', '.....##....', '.....#.....'],
-  here: ['....###....', '.....#.....', '...........'],
-  due: ['.........##', '.........##', '...........'],
-};
+/* Marker pixels, [x, y] in glyph coordinates. */
+const POLE_X = 1;
+const PENNANT = [[2, 0], [3, 0], [4, 0], [2, 1], [3, 1], [4, 1]];
+const DUE = [[6, 1], [7, 1], [6, 2], [7, 2]];
+const HERE = [[10, 2], [11, 2], [12, 2], [11, 3]];
 
 /*
  * How a state is drawn:
@@ -161,73 +185,73 @@ const SKY = {
  */
 const LOOK = { done: 'solid', current: 'solid', started: 'solid', fresh: 'solid', skipped: 'dotted', ahead: 'sparse' };
 
-/* The rows of the ground, bottom first: 'o' rows a fill level lights. */
+/* The rows of the ground, bottom first: the rows a fill level lights. */
 function groundRows(body) {
   const ys = [];
-  for (let y = body.length - 1; y >= 0; y--) if (body[y].includes('o')) ys.push(y);
+  for (let y = body.length - 1; y >= 0; y--) if (/[ox]/.test(body[y])) ys.push(y);
   return ys;
 }
 const GROUND_LEVELS = {};
 for (const k in BODIES) GROUND_LEVELS[k] = groundRows(BODIES[k]).length;
 
+/* The flag pole runs down column 1 to the body: 5-6 px on every kind. */
+const poleEnd = (body) => {
+  let y = 0;
+  while (y < body.length && body[y][POLE_X] === '.') y++;
+  return y;
+};
+
 /* ---- Avatar -------------------------------------------------------------- */
 /*
- * 5x5. Walking, it is drawn lit on a cleared 7x7 tile, so the route and the
- * coasts it crosses never run into it, and its legs swap every half cell.
- * Standing, it is drawn inverted against whatever is under it -- XORed into
- * the place's glyph when that is compiled -- so it reads on empty ground, on
- * full ground and across the fill line alike. Both sit on the cell centre, so
- * arriving does not jump.
+ * 5x7: head, arms, body, legs. It always stands with its feet on the ground
+ * line at its anchor (layout.mjs's cellCentre): on a place that is the spit,
+ * so standing it is part of the place's compiled glyph and costs nothing. Walking,
+ * it is drawn lit on a cleared tile, so the route and the coasts it crosses
+ * never run into it, and its legs swap once per cell.
  */
 export const AVATAR_W = 5;
-export const AVATAR_TILE = 7;
-const STANDING = ['..#..', '.###.', '#.#.#', '..#..', '.#.#.'];
-/* Walking alternates the standing pose with a stride. */
+export const AVATAR_H = 7;
+const STANDING = ['.###.', '.###.', '..#..', '#####', '..#..', '.#.#.', '.#.#.'];
 export const AVATAR_ROWS = {
   stand: STANDING,
   walkA: STANDING,
-  walkB: ['..#..', '#####', '..#..', '.#.#.', '#...#'],
+  walkB: ['.###.', '.###.', '..#..', '#####', '..#..', '..#..', '..#..'],
 };
-/* Where the standing figure sits in a glyph: on the body's centre. */
-const STAND_X = (GLYPH_W - AVATAR_W) >> 1;
-const STAND_Y = SKY_H + 1;
+/* Where the standing figure sits in a glyph: on the spit. */
+export const STAND_X = 9;
 const AVATAR = {};
 for (const k in AVATAR_ROWS) AVATAR[k] = compile(AVATAR_ROWS[k]);
 
+/* The walking figure, feet on (x, y): the anchor of posAt. */
 export function drawWalker(ctx, x, y, stride = 0) {
-  const tx = x - (AVATAR_TILE >> 1);
-  const ty = y - (AVATAR_TILE >> 1);
-  ctx.fillRect(tx, ty, AVATAR_TILE, AVATAR_TILE, 0);
-  blit(ctx, stride % 2 ? AVATAR.walkB : AVATAR.walkA, tx + 1, ty + 1, 1);
+  const tx = x - (AVATAR_W >> 1);
+  const ty = y - AVATAR_H;
+  ctx.fillRect(tx - 1, ty, AVATAR_W + 2, AVATAR_H, 0);
+  blit(ctx, stride % 2 ? AVATAR.walkB : AVATAR.walkA, tx, ty, 1);
 }
 
 /* One look of one place as ASCII rows (exported for the preview and tests). */
 export function glyphRows(kind, look, level, { due = false, here = false, flag = false, avatar = false } = {}) {
   const body = BODIES[kind] || BODIES.place;
-  const ground = groundRows(body);
-  const lit = new Set(ground.slice(0, level));
-  const rows = [];
-  for (let y = 0; y < GLYPH_H; y++) {
-    const by = y - SKY_H;
-    let row = '';
-    for (let x = 0; x < GLYPH_W; x++) {
-      let on;
-      if (by < 0) {
-        on = (flag && SKY.flag[y][x] === '#') || (here && SKY.here[y][x] === '#') || (due && SKY.due[y][x] === '#');
-      } else {
-        const ch = body[by][x];
-        if (ch === '#') on = look === 'solid' || (x + y) % 2 === 0;
-        else if (ch === 'o') on = look === 'solid' ? lit.has(by) : look === 'dotted' && by % 2 === 0;
-        else on = false;
-      }
-      const ax = x - STAND_X;
-      const ay = y - STAND_Y;
-      if (avatar && ax >= 0 && ax < AVATAR_W && ay >= 0 && ay < AVATAR_W && AVATAR_ROWS.stand[ay][ax] === '#') on = !on;
-      row += on ? '#' : '.';
-    }
-    rows.push(row);
+  const lit = new Set(groundRows(body).slice(0, level));
+  const grid = body.map((row, y) => [...row].map((ch, x) => {
+    if (ch === '#') return look === 'solid' || (x + y) % 2 === 0;
+    if (ch === 'x') return look === 'solid' && !lit.has(y);
+    if (ch === 'o') return look === 'solid' ? lit.has(y) : look === 'dotted' && y % 2 === 0;
+    return false;
+  }));
+  const mark = (pts) => { for (const [x, y] of pts) grid[y][x] = true; };
+  if (flag) {
+    for (let y = 0; y < poleEnd(body); y++) grid[y][POLE_X] = true;
+    mark(PENNANT);
   }
-  return rows;
+  if (due) mark(DUE);
+  if (avatar) {
+    AVATAR_ROWS.stand.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') grid[y][STAND_X + x] = true; }));
+  } else if (here) {
+    mark(HERE);
+  }
+  return grid.map((r) => r.map((v) => (v ? '#' : '.')).join(''));
 }
 
 const glyphCache = new Map();
@@ -254,9 +278,34 @@ export function placeGlyph(place, { here = false, avatar = false } = {}) {
 const WAVE = compile(['.##..', '#..##']);
 
 /*
+ * Where the route stays out of a place: a pixel round anything any kind of
+ * body or the flag and due markers can light, so the route reaches a place's
+ * coast but never touches it. The avatar's spot is left open, so a route
+ * arriving from above comes down onto the spit; the spot is cleared when the
+ * avatar or the current marker is in it. Indexed from (-1, -1).
+ */
+const KEEP_CLEAR = (() => {
+  const w = GLYPH_W + 2;
+  const mask = new Uint8Array(w * (GLYPH_H + 2));
+  const lit = (x, y) => {
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) mask[(y + dy + 1) * w + x + dx + 1] = 1;
+    }
+  };
+  for (const k in BODIES) {
+    BODIES[k].forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') lit(x, y); }));
+  }
+  for (const [x, y] of [...PENNANT, ...DUE]) lit(x, y);
+  for (let y = 0; y < GLYPH_H; y++) lit(POLE_X, y);
+  return mask;
+})();
+/* The avatar's spot, cleared under the figure or the marker. */
+const SLOT = [STAND_X, 0, AVATAR_W, AVATAR_H];
+
+/*
  * Per layout, computed once: the route as dots (1px every 2, on the even
- * diagonal so corners stay in step) that stop a pixel short of every place,
- * and the open-water cells that get a ripple.
+ * diagonal so corners stay in step) kept clear of every place, and the
+ * open-water cells that get a ripple.
  */
 const sceneCache = new WeakMap();
 
@@ -267,7 +316,9 @@ function scene(layout) {
   const inPlace = (x, y) => {
     for (const c of layout.cells) {
       const r = cellRect(c);
-      if (x >= r.x + GLYPH_DX - 1 && x <= r.x + GLYPH_DX + GLYPH_W && y >= r.y - 1 && y <= r.y + GLYPH_H) return true;
+      const gx = x - r.x - GLYPH_DX;
+      const gy = y - r.y;
+      if (gx >= -1 && gx <= GLYPH_W && gy >= -1 && gy <= GLYPH_H && KEEP_CLEAR[(gy + 1) * (GLYPH_W + 2) + gx + 1]) return true;
     }
     return false;
   };
@@ -327,8 +378,10 @@ export function drawMap(ctx, { places, layout, walk = null, now = 0, pulse = tru
   for (let i = 0; i < n; i++) {
     const p = places[i];
     const r = cellRect(layout.cells[i]);
-    const look = placeGlyph(p, { here: pulse && p.state === 'current', avatar: i === standing });
-    blit(ctx, look, r.x + GLYPH_DX, r.y, 1);
+    const here = pulse && p.state === 'current';
+    const avatar = i === standing;
+    if (here || avatar) ctx.fillRect(r.x + GLYPH_DX + SLOT[0], r.y + SLOT[1], SLOT[2], SLOT[3], 0);
+    blit(ctx, placeGlyph(p, { here, avatar }), r.x + GLYPH_DX, r.y, 1);
   }
   if (pos && pos.moving) drawWalker(ctx, pos.x, pos.y, Math.floor(pos.s * 2));
 }

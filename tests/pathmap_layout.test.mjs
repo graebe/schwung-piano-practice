@@ -139,7 +139,8 @@ test('cells tile the map area, y 10..53, exactly', () => {
   assert.equal(last.x + last.w, 128);
   assert.equal(last.y + last.h - 1, 53);
   assert.equal(MAP_Y + MAP_H - 1, 53);
-  assert.deepEqual(cellCentre({ col: 1, row: 2 }), { x: 16 + 8, y: MAP_Y + 2 * CELL_H + 6 });
+  /* The anchor: where the avatar's feet stand, on the spit right of a place. */
+  assert.deepEqual(cellCentre({ col: 1, row: 2 }), { x: 16 + 12, y: MAP_Y + 2 * CELL_H + 7 });
 });
 
 test('a mis-drawn map picture is refused, and says where', () => {

@@ -33,12 +33,12 @@ export const PAD_FIRST = 68;
 export const MAX_PLACES = COLS * ROWS;
 
 /*
- * The centre of a cell, where the route runs and the avatar stands: the middle
- * of a glyph's body (render.mjs draws the body at rows 3..9 of the cell, under
- * a 3-row band for the flag and the dots).
+ * A cell's anchor, where the route runs and the avatar's feet stand: on the
+ * ground line of a place's spit (render.mjs draws a place's main body on the
+ * left of the cell and a lower spit on the right, with the avatar above it).
  */
-export const CENTRE_DX = 8;
-export const CENTRE_DY = 6;
+export const CENTRE_DX = 12;
+export const CENTRE_DY = 7;
 
 /*
  * Hand-drawn maps, one per place count. Read them as the screen: four rows of
@@ -232,7 +232,7 @@ export function cellRect({ col, row }) {
   return { x: MAP_X + col * CELL_W, y: MAP_Y + row * CELL_H, w: CELL_W, h: CELL_H };
 }
 
-/* Where the route crosses a cell and where the avatar stands on it. */
+/* Where the route crosses a cell and the avatar's feet stand on it. */
 export function cellCentre({ col, row }) {
   return { x: MAP_X + col * CELL_W + CENTRE_DX, y: MAP_Y + row * CELL_H + CENTRE_DY };
 }

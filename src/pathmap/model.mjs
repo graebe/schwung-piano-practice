@@ -56,14 +56,15 @@ export function makePlace(p = {}) {
 }
 
 /*
- * How many of `levels` rows of ground a percentage fills. Any progress shows
- * at least one row and only 100% shows them all, so "begun" and "finished"
- * never round away.
+ * How many of `levels` rows of ground a percentage fills. Rounded up, so any
+ * progress shows at least one row and 20, 40 and 60% each show one more on a
+ * body of 4 or 5 rows; only 100% shows them all, so "begun" and "finished" never
+ * round away.
  */
 export function fillLevel(percent, levels = FILL_LEVELS) {
   if (!(percent > 0)) return 0;
   if (percent >= 100) return levels;
-  return Math.min(levels - 1, Math.max(1, Math.round((percent / 100) * levels)));
+  return Math.min(levels - 1, Math.max(1, Math.ceil((percent / 100) * levels - 1e-9)));
 }
 
 /* The places that still ask for a visit: reviews due, summed over the map. */
