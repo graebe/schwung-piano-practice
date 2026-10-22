@@ -24,6 +24,7 @@
  *   npm run preview -- --path 0,1,4,0,3 --film 0,2              read the lesson there
  *   npm run preview -- --view map --places 5|7|8                the Path map: piano's
  *                                    world (5), drums' world (7), a piano island (8)
+ *   npm run preview -- --view home --selected 2 --t 60          the home screen, mid-grow
  *   npm run preview -- --view map --map drums                   a drums island (7)
  *   npm run preview -- --view map --map done                    fill levels, avatar on a flag
  *   npm run preview -- --view map --places 7 --to 6 --film 0,90,400   walk there
@@ -48,6 +49,8 @@ import { layoutPlaces } from '../src/pathmap/layout.mjs';
 import { createWalk, walkTo, posAt } from '../src/pathmap/walk.mjs';
 import { makePlace } from '../src/pathmap/model.mjs';
 import { drawMap } from '../src/pathmap/render.mjs';
+import { drawHome, createGrow, startGrow, GROW_MS } from '../src/home/render.mjs';
+import { PRACTICE_PIANO, PRACTICE_DRUMS } from '../src/home/icons.mjs';
 
 function arg(name, fallback) {
   const i = process.argv.indexOf('--' + name);
@@ -189,7 +192,39 @@ function drawMapScreen(c, places, layout, walk, now) {
   V.drawFooterHint(c, 'PAD go  CLICK enter');
 }
 
-if (view === 'map') {
+/*
+ * The home screen. --selected N is the circle chosen; --t ms is the moment of
+ * a grow that started when the jog came from the circle before it (from the
+ * one after, for the first). --film t,t,... films that grow. --practice drums
+ * shows Drums Practice's practice icon.
+ */
+const HOME_ITEMS = [
+  { key: 'path', label: 'Path', icon: 'path' },
+  { key: 'practice', label: 'Practice', icon: arg('practice', 'piano') === 'drums' ? PRACTICE_DRUMS : PRACTICE_PIANO },
+  { key: 'quiz', label: 'Quiz', icon: 'quiz' },
+  { key: 'progress', label: 'Progress', icon: 'progress' },
+  { key: 'settings', label: 'Settings', icon: 'settings' },
+];
+
+if (view === 'home') {
+  const sel = Number(arg('selected', 0));
+  const t = arg('t', null);
+  const film = arg('film', null);
+  const times = film ? film.split(',').map(Number) : t === null ? [null] : [Number(t)];
+  for (const now of times) {
+    const grow = createGrow(sel);
+    if (now !== null) {
+      grow.to = sel === 0 ? 1 : sel - 1;
+      startGrow(grow, sel, 0);
+    }
+    const c = createScreen();
+    c.clear();
+    R.drawChrome(c, { left: 'PIANO' });
+    drawHome(c, { items: HOME_ITEMS, selected: sel, grow, now: now ?? GROW_MS });
+    V.drawFooterHint(c, 'JOG choose CLICK open');
+    show(`home, ${HOME_ITEMS[sel].label}${now === null ? '' : ` growing @ ${now}ms`} (${c.calls} draw calls)`, c);
+  }
+} else if (view === 'map') {
   const which = arg('map', arg('places', '5'));
   const rows = SAMPLE_MAPS[which];
   if (!rows) throw new Error('--view map takes --places 5|7|8 or --map drums|done');
