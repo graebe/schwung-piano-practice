@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 
 import { layoutPlaces, cellCentre } from '../src/pathmap/layout.mjs';
 import {
-  MS_PER_CELL, MS_EASE_CELL, createWalk, walkTo, walkStep, posAt, arrived, walkDuration,
+  MS_PER_CELL, MS_EASE_CELL, STORY_MS_PER_CELL, createWalk, walkTo, walkStep, posAt, arrived, walkDuration,
 } from '../src/pathmap/walk.mjs';
 
 const L7 = layoutPlaces(7);
@@ -138,4 +138,31 @@ test('one place: standing still is all a walk can do', () => {
   const p = posAt(w, 0);
   assert.deepEqual([p.moving, p.at], [false, 0]);
   assert.deepEqual([p.x, p.y], [cellCentre(L.cells[0]).x, cellCentre(L.cells[0]).y]);
+});
+
+test('a story walk goes slower, and only that walk', () => {
+  assert.equal(STORY_MS_PER_CELL, 140);
+  assert.equal(walkDuration(4, STORY_MS_PER_CELL), 3 * 140 + 2 * 140);
+  assert.equal(walkDuration(4), walkDuration(4, MS_PER_CELL), 'the pace of every other walk is unchanged');
+  const w = createWalk(L7, 0);
+  walkTo(w, 3, 0, { msPerCell: STORY_MS_PER_CELL });
+  const d = L7.stops[3];
+  assert.ok(!arrived(w, walkDuration(d) + 10), 'slower than a jog walk');
+  assert.ok(arrived(w, walkDuration(d, STORY_MS_PER_CELL)));
+  const p = posAt(w, STORY_MS_PER_CELL);
+  assert.ok(Math.abs(p.s - 1) < 1e-9, 'one cell per 140 ms');
+  /* The next walk is back at the walk's own pace. */
+  walkTo(w, 0, 10000);
+  assert.ok(arrived(w, 10000 + walkDuration(d)));
+  /* A walk can be slow from the start. */
+  const slow = createWalk(L7, 0, { msPerCell: 200 });
+  walkTo(slow, 1, 0);
+  assert.ok(Math.abs(posAt(slow, 200).s - 1) < 1e-9);
+  /* Island layouts walk on their own grid. */
+  const isle = layoutPlaces(7, { kind: 'island' });
+  const iw = createWalk(isle, 0);
+  walkTo(iw, 2, 0, { msPerCell: STORY_MS_PER_CELL });
+  const end = posAt(iw, 1e6);
+  const c = cellCentre(isle.cells[2], 'island');
+  assert.deepEqual([end.x, end.y, end.at], [c.x, c.y, 2]);
 });

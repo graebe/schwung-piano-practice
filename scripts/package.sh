@@ -18,7 +18,7 @@ cp "$ROOT/src/ui.js" "$STAGE/ui.js"
 # byte. It ships as a folder of its own, stamped like the rest: its files
 # import each other, and one shares a name with a module beside ui.js
 # (layout), so it cannot be flattened into one folder.
-PATHMAP="model layout walk render leds"
+PATHMAP="model layout walk places render leds anim"
 # The home screen engine, src/home/, vendored the same way and shipped the
 # same way: its own folder, stamped (its render and leds share names with the
 # map's). Not HOME: that is the shell's own.

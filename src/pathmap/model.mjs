@@ -19,13 +19,17 @@
  *   ahead     its `after` places are not done yet; drawn dimmer, still
  *             enterable (there are no locks)
  *
- * kind: island | place | fort (checkpoint) | hut (lessons) | cove (electives)
+ * kind, on the world map: island
+ * kind, on an island (places.mjs): sign (lessons; 'hut' is its old name),
+ *   bell, clock, workshop, stage, library, temple, stairs, market, cove (the
+ *   electives' chest), fort (the checkpoint), or plain place
  *
  * Pure: no imports. Vendored byte for byte into Drums Practice.
  */
 
 export const STATES = Object.freeze(['done', 'current', 'started', 'fresh', 'skipped', 'ahead']);
-export const KINDS = Object.freeze(['island', 'place', 'fort', 'hut', 'cove']);
+export const KINDS = Object.freeze(['island', 'place', 'fort', 'hut', 'cove',
+  'sign', 'bell', 'clock', 'workshop', 'stage', 'library', 'temple', 'stairs', 'market']);
 
 /* The rows of ground an island body can fill (render.mjs's island glyph). */
 export const FILL_LEVELS = 4;
