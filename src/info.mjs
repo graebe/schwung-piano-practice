@@ -3,10 +3,12 @@
 /*
  * info.mjs — what every practice is, and the words it uses. Pure.
  *
- * Menu opens an Info page for whatever you are looking at: the highlighted row
- * of the list, the armed exercise, the drill under way. The page says what the
- * practice asks, how to go about it, and defines each term it uses — from one
- * glossary, so a word is explained the same way everywhere and only once.
+ * Menu opens a help page for whatever you are looking at: the highlighted row
+ * of the list, the armed exercise, the drill under way, the screen itself.
+ * The page says what the practice asks, how to go about it, and defines each
+ * term it uses — from one glossary, so a word is explained the same way
+ * everywhere and only once. The session puts the screen's own help first
+ * (withScreen).
  *
  * Where the facts already live in the code they are derived, not retyped: a
  * scale's step pattern comes from its intervals, a chord's formula and notes
@@ -14,9 +16,11 @@
  * is for what code cannot know — how a minor chord sounds, what to listen for.
  *
  * infoFor(target, env) -> { key, title, sections: [{ head, text }], terms } | null
- *   target   { id, label, kind }   kind marks rows with no id: 'continue',
- *            'skip', 'progress', 'result'
- *   env      { songs: id -> chart }   for a song's key and tempo
+ *   target   { id, label, kind }   kind marks what has no id: 'continue',
+ *            'checkpoint', 'progress', 'result', 'sheet', 'welcome', 'tip',
+ *            'settings' (with `group`)
+ *   env      { songs: id -> chart, phases }   a song's key and tempo; the
+ *            path as the session numbered it
  *
  * `key` names the page for "seen it already": one per kind of practice, not
  * per row, so the first scale drill explains scale drills once.
@@ -30,6 +34,7 @@ import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
 import { LEVELS } from './levels.mjs';
 import { buildProgram } from './program.mjs';
+import { GROUPS } from './settings_def.mjs';
 import { PATH_TEXT, STRANDS, STRAND_TEXT } from './curriculum.mjs';
 
 /* ---- Glossary ------------------------------------------------------------- */
@@ -66,7 +71,7 @@ export const TERMS = {
   slash: ['Slash chord', 'A chord over a bass note that is not its root: D/F# is D major over F#.'],
   hands: ['RH, LH', 'Right hand plays the melody and chords, left hand the bass.'],
   level: ['Level', 'How much of a song you play: L1 one hand\'s line, L2 the chords, L3 both hands.'],
-  stage: ['Stage', 'Stage 1 lights each pad as its note comes. Stage 2 lights nothing: you read.'],
+  stage: ['Stage', 'Two meanings. An exercise has two stages: S1 lights each pad as its note comes, S2 lights nothing and you read. The Path has five stages, each a few weeks of work.'],
   score: ['Score', 'Notes hit, over the notes in the piece plus wrong presses. 90% passes a stage.'],
   hint: ['Hint', 'REC helps, two presses deep. A hinted answer still counts, and is noted.'],
 };
@@ -363,7 +368,7 @@ function earPage(exKey, levelKey) {
   return page('ear:' + exKey, ex.name, sections, text[2].concat(['hint']));
 }
 
-/* The quiz rows: Play and Name, notes or chords; hearing play-back. */
+/* The quiz rows: Keys and Reading, notes or chords; hearing play-back. */
 function quizPage(drill, label) {
   const [mode, kind, set] = drill.split(':');
   if (mode === 'ear') return earPage(kind, set);
@@ -388,7 +393,7 @@ function quizPage(drill, label) {
   }
   sections.push(sec('', 'A round is a set number of right answers (Round, in settings); the score is answers a minute, and how many were right. Half tones and Chords in settings change what is asked.'));
   const key = mode === 'pick' ? 'quiz:name' : mode === 'staff' ? 'quiz:staff' : 'quiz:play';
-  return page(key, label || (mode === 'pick' ? 'Name' : 'Play'), sections,
+  return page(key, label || (mode === 'pick' ? 'Name it' : 'Play it'), sections,
     chords ? ['chord', 'triad', 'quality', 'hint'] : ['sharp', 'octave', 'hint']);
 }
 
@@ -407,69 +412,82 @@ function songPage(songId, level, env, label) {
 }
 
 const FOLDERS = {
-  basics: ['Basics', 'Scales, chords, progressions and random drills, all made from your settings: the Key, Scale and Tempo.', ['key', 'scale']],
+  basics: ['Practice', 'The free library: scales, chords, progressions and random drills, all made from your settings (Key, Scale, Tempo), and the songs. Nothing here is in an order; play what you like.', ['key', 'scale']],
   'basics/scales': ['Scales', 'One folder per scale, each with five drills: up and down, up, down, in 3rds and in 5ths.', ['scale', 'tone', 'semitone']],
   'basics/chords': ['Chords', 'Thirteen families, one lesson per chord quality, each on all twelve roots.', ['chord', 'quality', 'formula']],
   'basics/progressions': ['Progressions', 'Ten common chord progressions in the Key setting\'s key.', ['progression', 'numerals']],
   'basics/random': ['Random', 'Random notes and chords, a new set every time.', ['key', 'chord']],
-  quiz: ['Quiz', 'Short timed rounds. Hear: name a sound. Play: play the notes shown, by name or by staff. Name: name a lit pad. Read: name what is on the staff.', ['hint']],
-  'quiz/hear': ['Hear', 'Ear training by topic: pitch and melody, intervals, chords, scales and keys. Each topic has its courses first, then its exercises.', ['interval', 'chord']],
+  'basics/songs': ['Songs', 'Pieces by style: Classics, Electronic, Techno, Styles, and Other for files you added.', ['level']],
+  quiz: ['Quiz', 'Short timed rounds, by skill. Ear: name what you hear. Reading: name or play what is on the staff. Keys: find a named note or chord on the pads, or name a lit pad.', ['hint']],
+  'quiz/hear': ['Ear', 'Ear training by topic: pitch and melody, intervals, chords, scales and keys. Each topic has its courses first, then its exercises.', ['interval', 'chord']],
   'quiz/hear/pitch': ['Pitch & melody', 'Higher or lower, step or leap, the shape of a line, and finding a note you heard on the pads.', ['step', 'contour']],
   'quiz/hear/intervals': ['Intervals', 'Two courses: name an interval, from 2nds to two octaves; and compare two, from a fixed or a random root.', ['interval', 'compound']],
   'quiz/hear/chords': ['Chords', 'Major or minor, the four triads, seventh chords, and finding a chord you heard on the pads.', ['triad', 'seventh']],
   'quiz/hear/keys': ['Scales & keys', 'Name a scale by its sound, tell major from minor in a tune, hear when a line comes home, name a degree, and the chords of a key.', ['scale', 'mode', 'key']],
-  'quiz/play': ['Play', 'Notes or chords in a row, read by name or off the staff; play each and the row moves on.', ['octave']],
-  'quiz/name': ['Name', 'A pad lights; name it with the jog.', ['sharp']],
-  'quiz/read': ['Read', 'The listening courses again, on the staff: name an interval, compare two, name a scale.', ['interval', 'scale']],
-  classics: ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
-  electronic: ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
-  techno: ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
-  styles: ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
-  other: ['Other', 'Exercises you added yourself.', []],
-  'program/repetition': ['Repetition', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score.', ['score']],
+  'quiz/read': ['Reading', 'The listening courses again, on the staff: name an interval, compare two, name a scale. Then notes and chords by staff: play what is written.', ['interval', 'scale']],
+  'quiz/keys': ['Keys', 'Where the names are on the pads: play a note or chord by its name, any octave; or name the pad that lights.', ['octave', 'sharp']],
+  'basics/songs/classics': ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
+  'basics/songs/electronic': ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
+  'basics/songs/techno': ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
+  'basics/songs/styles': ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
+  'basics/songs/other': ['Other', 'Exercises you added yourself.', []],
+  'program/repetition': ['Review', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score. Continue offers them too, one review and then one new step.', ['score']],
+  settings: ['Settings', 'Grouped: Path, Practice, Sound, Pads, MIDI and Help. Open a group to change its rows.', []],
 };
 
 const KIND_PAGES = {
-  continue: ['Continue', 'Opens the next step of the ready unit whose skill you practised longest ago, in your phase, on the stage it needs. Every fourth Continue is a review, when one is due.', ['stage']],
-  check: ['Check: skip phase', 'Plays the phase\'s check steps one after another at stage 2; steps already passed there count. Pass them all and Continue starts at the next phase. The steps you skipped stay open, marked as assumed.', ['stage']],
-  start: ['Start here', 'Continue starts at this phase. The phases before it count as assumed until you play them; nothing is locked either way.', []],
-  skip: ['Skip', 'Passes the next step by; it is marked and you can come back any time. After stage 1 it moves on instead: stage 1 is enough for now.', ['stage']],
-  progress: ['Progress', 'Overall and per phase: stages passed over time. Then everything you have played, with a chart of each attempt.', ['stage', 'score']],
-  result: ['Result', 'Your score, and every recent attempt on a fixed 0-100% scale. Hollow points are stage 1, solid ones stage 2; the dotted line is 90%. REC again, BACK to the start, CLICK for next.', ['score', 'stage']],
+  continue: ['Continue', 'Names and opens your next step: the next step of the ready unit whose skill you practised longest ago, in your stage. When a review is due it reads Review, and Continue alternates: one review, then one new step.', ['stage']],
+  checkpoint: ['Checkpoint', 'The stage\'s exam: its check steps, played at S2; steps already passed there count. Pass them all and Continue starts at the next stage. The steps you skipped stay open, marked as assumed.', ['stage']],
+  progress: ['Progress', 'Overall and per stage: steps passed over time. Then everything you have played, with a chart of each attempt.', ['stage', 'score']],
+  result: ['Result', 'Your score, and every recent attempt on a fixed 0-100% scale. Hollow points are S1, solid ones S2; the dotted line is 90%. REC again, BACK to the start, CLICK for next.', ['score', 'stage']],
+  sheet: ['Options', 'What you can do with this row besides opening it: skip what you know, undo a skip, start the path at a stage, test out of a stage at its checkpoint, or go to the settings. Only what applies to the row is offered.', []],
+  welcome: ['Welcome', 'The first pages of Piano Practice. BACK skips them; Settings > Help > Welcome again shows them again.', []],
+  tip: ['Tip', 'A tip shown the first time this kind of screen appears. Settings > Help > Show tips again shows them all again.', []],
+};
+
+/* What each settings group holds, for its help page. */
+const GROUP_TEXT = {
+  path: 'Start at: the stage Continue starts from. The stages before it count as assumed; nothing is locked.',
+  practice: 'Tempo, read-ahead, the key and scale the free library is made in, how the scroll waits and judges, the names under the notes, and the quizzes\' half tones, chords and round length.',
+  sound: 'The click, the reference line that plays what you are reading, its volume, and the quiz sounds.',
+  pads: 'Octave: which octave the pads start from.',
+  midi: 'Where the notes go: the module\'s own piano, a Move track, USB, or both, and the channel.',
+  help: 'Auto info shows a practice\'s help the first time you open it. Show tips again brings the first-visit tips back; Welcome again shows the welcome.',
 };
 
 function slugOf(label) {
   return String(label).toLowerCase().replace(/[^a-z0-9#]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
-/* ---- The Learning Program -------------------------------------------------- */
+/* ---- The Path ---------------------------------------------------------------- */
 
-/* The path's texts do not depend on which songs are installed, except the
- * whole-category units, whose own summary already says what they hold. */
+/* The path the session built, with its unit numbers (env.phases); without
+ * one, the path as it is with no songs installed. */
 let PATH = null;
-const path = () => PATH || (PATH = buildProgram());
+const path = (env) => (env && env.phases) || PATH || (PATH = buildProgram());
 
 const unitLine = (u) => u.num + ' ' + u.name + ': ' + u.purpose.replace(/\.$/, '') + '.';
 
-function programPage(parts) {
+function programPage(parts, env) {
   if (parts.length === 1) {
-    return page('folder:program', 'Learning Program',
-      [sec('', PATH_TEXT.intro), sec('', PATH_TEXT.free), sec('Continue', PATH_TEXT.continue), sec('Stages', PATH_TEXT.stages)],
+    return page('folder:program', 'Path',
+      [sec('', PATH_TEXT.intro), sec('', PATH_TEXT.order), sec('', PATH_TEXT.free),
+        sec('Continue', PATH_TEXT.continue), sec('S1 and S2', PATH_TEXT.stages)],
       ['stage', 'score']);
   }
-  const phase = path().find((p) => p.key === parts[1]);
+  const phase = path(env).find((p) => p.key === parts[1]);
   if (!phase) return null;
   if (parts.length === 2) {
     const sections = [sec('', phase.promise), sec('The idea', phase.idea),
       sec('Units', phase.units.map(unitLine).join(' '))];
-    if (phase.check.length) sections.push(sec('Check', PATH_TEXT.check));
-    return page('program:' + phase.key, 'Phase ' + phase.n + ': ' + phase.title, sections, []);
+    if (phase.check.length) sections.push(sec('Checkpoint', PATH_TEXT.check));
+    return page('program:' + phase.key, 'Stage ' + phase.n + ': ' + phase.title, sections, []);
   }
   const unit = phase.units.find((u) => u.key === parts[2]);
   if (!unit) return null;
   const exPage = parts.length > 3 ? unit.exercises.find((e) => e.steps.length > 1 && slugOf(e.label) === parts[3]) : null;
   if (exPage) return page('program:' + unit.key + ':' + parts[3], exPage.label, exerciseSections(exPage.about, exPage.why), []);
-  const after = unit.after.map((k) => path().flatMap((p) => p.units).find((u) => u.key === k))
+  const after = unit.after.map((k) => path(env).flatMap((p) => p.units).find((u) => u.key === k))
     .filter(Boolean).map((u) => u.num + ' ' + u.name);
   const sections = [sec('', unit.purpose), sec('Strand', STRANDS[unit.strand] + ': ' + STRAND_TEXT[unit.strand] + '.')];
   if (after.length) sections.push(sec('Comes after', after.join(', ') + '.'));
@@ -484,6 +502,11 @@ const exerciseSections = (about, why) => [about ? sec('What you do', about) : nu
 export function infoFor(target, env = {}) {
   if (!target) return null;
   const label = target.label || '';
+  if (target.kind === 'settings' && target.group) {
+    const g = GROUPS.find((x) => x.key === target.group);
+    return g ? page('settings:' + g.key, g.label, [sec('', GROUP_TEXT[g.key] || '')], []) : null;
+  }
+  if (target.kind === 'settings') return infoFor({ id: 'settings' }, env);
   if (target.kind && KIND_PAGES[target.kind]) {
     const [title, text, terms] = KIND_PAGES[target.kind];
     return page(target.kind, title, [sec('', text)], terms);
@@ -516,11 +539,30 @@ export function infoFor(target, env = {}) {
       if (found) return found;
     }
   }
-  if (parts[0] === 'program' && parts[1] !== 'repetition') return programPage(parts);
+  if (parts[0] === 'program' && parts[1] !== 'repetition') return programPage(parts, env);
 
   const folder = FOLDERS[id];
   if (folder) return page('folder:' + id, folder[0], [sec('', folder[1])], folder[2]);
   return null;
+}
+
+/* A page for a screen with none of its own: its keys say what it does. */
+export function screenPage(title) {
+  return page(null, title || 'Help', [], []);
+}
+
+/*
+ * A help page as MENU opens it: first what the screen is and its keys, one to
+ * a line, the Shift layer among them; then, under "More help", what the page
+ * has to say about the row or piece in front of you, and its terms.
+ */
+export function withScreen(info, { about = '', keys = [] } = {}) {
+  const head = [];
+  if (about) head.push(sec('', about));
+  if (keys.length) head.push({ head: 'Keys', lines: keys });
+  const more = info.sections.some((x) => x.text || (x.lines && x.lines.length)) || info.terms.some((t) => TERMS[t]);
+  if (!more) return { ...info, sections: head };
+  return { ...info, sections: head.concat([{ head: 'More help', divider: true }], info.sections) };
 }
 
 /*
@@ -533,10 +575,11 @@ export function infoParagraphs(info) {
   const add = (text, head = false) => out.push({ text, head });
   for (let i = 0; i < info.sections.length; i++) {
     const s = info.sections[i];
-    if (!s.text) continue;
+    if (!s.text && !(s.lines && s.lines.length) && !s.divider) continue;
     if (out.length) add('');
     if (s.head) add(s.head, true);
-    add(s.text);
+    if (s.lines) s.lines.forEach((l) => add(l));
+    else if (s.text) add(s.text);
   }
   const terms = info.terms.filter((k) => TERMS[k]);
   if (terms.length) {

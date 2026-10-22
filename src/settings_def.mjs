@@ -135,12 +135,51 @@ export function formatSetting(settings, index) {
   return String(v);
 }
 
-/* Every row, ready for view.drawList. */
-export function settingsRows(settings) {
-  return SETTINGS_DEF.map((def, i) => ({
-    label: def.label,
-    value: formatSetting(settings, i),
-  }));
+/*
+ * The settings as the list shows them: a folder of groups, the same as Drums
+ * Practice's, each opening the page with its own rows. A group names its
+ * settings by key; Path holds where the path starts (a choice kept with the
+ * progress, not here), and Help two actions.
+ */
+export const GROUPS = [
+  { key: 'path', label: 'Path', rows: [{ edit: 'start', label: 'Start at' }] },
+  {
+    key: 'practice', label: 'Practice',
+    settings: ['bpm', 'pxPerBeat', 'rootPc', 'mode', 'anyOctave', 'waitForNote', 'graceBeats', 'countIn',
+      'names', 'halfTones', 'chordSet', 'roundSize'],
+  },
+  { key: 'sound', label: 'Sound', settings: ['click', 'reference', 'refVel', 'quizSounds'] },
+  { key: 'pads', label: 'Pads', settings: ['transpose'] },
+  { key: 'midi', label: 'MIDI', settings: ['midiOut', 'midiCh'] },
+  {
+    key: 'help', label: 'Help', settings: ['autoInfo'],
+    rows: [{ act: 'tips', label: 'Show tips again' }, { act: 'welcome', label: 'Welcome again' }],
+  },
+];
+
+export function groupByKey(key) {
+  return GROUPS.find((g) => g.key === key) || null;
+}
+
+/*
+ * The rows of a group, or of every setting when `group` is null:
+ *   { label, value, index }   a setting, by its index here
+ *   { label, value, edit }    something else the jog changes ('start')
+ *   { label, value: '', act } an action a click runs
+ * `extra.start` is the stage the path starts at, numbered from 1.
+ */
+export function groupRows(group, settings, extra = {}) {
+  const g = groupByKey(group);
+  if (!g) return SETTINGS_DEF.map((def, i) => ({ label: def.label, value: formatSetting(settings, i), index: i }));
+  const rows = (g.settings || []).map((key) => {
+    const i = settingIndex(key);
+    return { label: SETTINGS_DEF[i].label, value: formatSetting(settings, i), index: i };
+  });
+  for (const r of g.rows || []) {
+    if (r.edit === 'start') rows.unshift({ label: r.label, value: 'stage ' + (extra.start || 1), edit: r.edit });
+    else rows.push({ label: r.label, value: '', act: r.act });
+  }
+  return rows;
 }
 
 /*

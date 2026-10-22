@@ -40,8 +40,9 @@ export function emptyProgress() {
   /* `rev` is not saved: it moves on every change, so a cache can tell whether
    * what it holds is still true without comparing the whole store. `seen`
    * is which Info pages have been shown, by page key. `program` is what the
-   * learner chose on the Learning Program: the phase Continue starts from. */
-  return { version: PROGRESS_VERSION, items: {}, seen: {}, program: { start: 0 }, rev: 0 };
+   * learner chose on the Path: the stage Continue starts from. `tips` is the
+   * first-visit tips already shown, by key (tips.mjs), the welcome among them. */
+  return { version: PROGRESS_VERSION, items: {}, seen: {}, program: { start: 0 }, tips: [], rev: 0 };
 }
 
 function emptyStage() {
@@ -97,6 +98,9 @@ export function parseProgress(text) {
   if (obj && typeof obj === 'object' && obj.program && typeof obj.program === 'object') {
     out.program.start = Math.max(0, Math.floor(num(obj.program.start)));
   }
+  if (obj && typeof obj === 'object' && Array.isArray(obj.tips)) {
+    out.tips = obj.tips.filter((k, i, all) => typeof k === 'string' && all.indexOf(k) === i);
+  }
   if (!obj || typeof obj !== 'object' || !obj.items || typeof obj.items !== 'object') return out;
   for (const id in obj.items) {
     const src = obj.items[id];
@@ -121,12 +125,15 @@ export function parseProgress(text) {
 }
 
 export function serialiseProgress(progress) {
-  return JSON.stringify({ version: PROGRESS_VERSION, items: progress.items, seen: progress.seen, program: progress.program });
+  return JSON.stringify({
+    version: PROGRESS_VERSION, items: progress.items, seen: progress.seen, program: progress.program,
+    tips: progress.tips || [],
+  });
 }
 
-/* ---- The Learning Program's one stored choice ------------------------------ */
+/* ---- The Path's one stored choice ------------------------------------------ */
 
-/* The phase index Continue starts from: 0 unless the learner moved it. */
+/* The stage index Continue starts from: 0 unless the learner moved it. */
 export function programStart(progress) {
   return (progress && progress.program && progress.program.start) || 0;
 }
@@ -146,6 +153,28 @@ export function infoSeen(progress, key) {
 export function markInfoSeen(progress, key, at = 0) {
   if (!progress.seen) progress.seen = {};
   progress.seen[key] = Math.round(at / 1000) || 1;
+}
+
+/* ---- First-visit tips ------------------------------------------------------- */
+
+export function tipSeen(progress, key) {
+  return Boolean(progress.tips && progress.tips.indexOf(key) >= 0);
+}
+
+export function markTipSeen(progress, key) {
+  if (!progress.tips) progress.tips = [];
+  if (progress.tips.indexOf(key) < 0) progress.tips.push(key);
+}
+
+/* Settings › Help › Show tips again. */
+export function clearTips(progress) {
+  progress.tips = [];
+}
+
+/* Anything played or recorded: a learner who is not new, whatever the tips say. */
+export function hasHistory(progress) {
+  for (const id in progress.items) return true;
+  return false;
 }
 
 /* ---- Scoring an attempt --------------------------------------------------- */
@@ -271,6 +300,21 @@ export function skipItem(progress, id, at = 0) {
   const it = ensure(progress, id);
   it.skip = Math.round(at / 1000) || 1;
   progress.rev++;
+}
+
+/* A skip taken back: neither skipped nor moved on from. False when there was
+ * nothing to undo. */
+export function unskipItem(progress, id) {
+  const it = item(progress, id);
+  if (!it || (!it.skip && !it.movedOn)) return false;
+  it.skip = 0;
+  it.movedOn = 0;
+  progress.rev++;
+  return true;
+}
+
+export function isSkipped(it) {
+  return Boolean(it && (it.skip || it.movedOn));
 }
 
 /* Stop after stage 1. Only means something once stage 1 is passed. */

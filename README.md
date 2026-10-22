@@ -270,7 +270,7 @@ shows under Piano Practice › Terms:
 | **Slash chord** | A chord over a bass note that is not its root: D/F# is D major over F#. |
 | **RH, LH** | Right hand plays the melody and chords, left hand the bass. |
 | **Level** | How much of a song you play: L1 one hand's line, L2 the chords, L3 both hands. |
-| **Stage** | Stage 1 lights each pad as its note comes. Stage 2 lights nothing: you read. |
+| **Stage** | Two meanings. An exercise has two stages: S1 lights each pad as its note comes, S2 lights nothing and you read. The Path has five stages, each a few weeks of work. |
 | **Score** | Notes hit, over the notes in the piece plus wrong presses. 90% passes a stage. |
 | **Hint** | REC helps, two presses deep. A hinted answer still counts, and is noted. |
 <!-- glossary:end -->
