@@ -2,21 +2,22 @@
 // Copyright (C) 2026 Torben Gräber
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 
 import {
-  buildProgram, trackSteps, stepTitle, INTERVAL_ORDER, nextStep, trackActivity, continueStep, trackOf, findStep,
-  quizFromId, programFolder, SONG_ORDER,
+  buildProgram, programFolder, allSteps, phaseSteps, unitSteps, stepTitle, unitOf, findStep, exerciseOf,
+  continueStep, currentPhase, checkPassed, unitReady, isAssumed, nextInUnit, nextCheckStep, startIndex,
+  quizFromId, PROGRAM_GEN,
 } from '../src/program.mjs';
-import { buildCatalog, leafIndex, findById, isFolder } from '../src/catalog.mjs';
-import { COURSES } from '../src/ear_course.mjs';
+import { OFF_PATH, STRANDS, courseSteps } from '../src/curriculum.mjs';
+import { buildCatalog, leafIndex, findById, isFolder, basics, stampChildren } from '../src/catalog.mjs';
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
-import { emptyProgress, recordAttempt, skipItem, moveOn } from '../src/progress.mjs';
+import { emptyProgress, recordAttempt, skipItem, setProgramStart, parseProgress, serialiseProgress } from '../src/progress.mjs';
 import { drillId } from '../src/stats.mjs';
-import { EXERCISES } from '../src/ear.mjs';
 
 const T0 = Date.UTC(2026, 9, 1, 12);
 const play = (p, id, stage, score, at = T0) => recordAttempt(p, id, { stage, score, at });
+const finish = (p, id, at = T0) => { play(p, id, 1, 1, at); play(p, id, 2, 1, at); };
 
 function bundled() {
   const dir = new URL('../src/exercises/', import.meta.url);
@@ -29,207 +30,293 @@ function bundled() {
 }
 
 const { songs, categories } = bundled();
-const tracks = buildProgram({ songs });
-const root = buildCatalog({ songs, categories, lead: [programFolder(tracks)] });
+const phases = buildProgram({ songs });
+const root = buildCatalog({ songs, categories, lead: [programFolder(phases)] });
 const index = leafIndex(root);
+const unit = (key) => phases.flatMap((p) => p.units).find((u) => u.key === key);
 
-test('six tracks, each with something in it: the four, then intervals and scales', () => {
-  assert.deepEqual(tracks.map((t) => t.key), ['reading', 'chords', 'songs', 'hearing', 'intervals', 'scales']);
-  for (const t of tracks) assert.ok(trackSteps(t).length > 5, t.key);
+/* ---- The shape of the path ------------------------------------------------- */
+
+test('five phases of numbered units, each unit of one strand', () => {
+  assert.deepEqual(phases.map((p) => p.n), [1, 2, 3, 4, 5]);
+  for (const p of phases) {
+    assert.ok(p.title && p.promise && p.idea, p.key);
+    p.units.forEach((u, i) => {
+      assert.equal(u.num, p.n + '.' + (i + 1));
+      assert.ok(STRANDS[u.strand], u.key + ' has a strand');
+      assert.ok(u.purpose, u.key + ' says what it is for');
+      assert.ok(u.exercises.length > 0, u.key);
+    });
+  }
 });
 
 /*
  * The program is pointers into the tree. A step that points at nothing would
- * be a Continue that does nothing, and the only way to find one is to resolve
- * them all — which this does against the tree exactly as the Move builds it.
+ * be a Continue that does nothing, so every one is resolved against the tree
+ * exactly as the Move builds it.
  */
-test('every step of the program opens a real exercise', () => {
-  for (const t of tracks) {
-    for (const step of trackSteps(t)) {
-      if (step.quiz) continue;
-      const hit = index.get(step.id);
-      assert.ok(hit && hit.node.build, `${t.key}: ${step.id} resolves to nothing`);
+test('every step of the path opens a real exercise', () => {
+  for (const step of allSteps(phases)) {
+    if (step.quiz) {
+      assert.equal(step.id, 'quiz:' + drillId(step.quiz));
+      assert.equal(drillId(quizFromId(step.id)), drillId(step.quiz), step.id);
+      continue;
+    }
+    const hit = index.get(step.id);
+    assert.ok(hit && hit.node.build, `${step.id} resolves to nothing`);
+  }
+});
+
+test('no step sits in two units, and every unit comes after earlier ones only', () => {
+  const seen = new Map();
+  const before = new Set();
+  for (const p of phases) {
+    for (const u of p.units) {
+      for (const a of u.after) assert.ok(before.has(a), `${u.key} comes after ${a}, which is not earlier`);
+      before.add(u.key);
+      for (const s of unitSteps(u)) {
+        assert.ok(!seen.has(s.id), `${s.id} is in ${u.key} and ${seen.get(s.id)}`);
+        seen.set(s.id, u.key);
+      }
     }
   }
 });
 
-test('every step is also found the cheap way, without opening every folder', () => {
-  for (const t of tracks.slice(0, 2)) {
-    for (const step of trackSteps(t)) {
-      if (step.quiz) continue;
-      const hit = findById(root, step.id);
-      assert.ok(hit && hit.node.build, step.id);
+test('every check step is a step of its own phase, and the last phase has no check', () => {
+  for (const p of phases.slice(0, 4)) {
+    assert.ok(p.check.length >= 3 && p.check.length <= 5, p.key);
+    const ids = new Set(phaseSteps(p).map((s) => s.id));
+    for (const id of p.check) assert.ok(ids.has(id), `${p.key} checks ${id}, which it does not teach`);
+  }
+  assert.deepEqual(phases[4].check, []);
+});
+
+test('the nursery songs stay off the path', () => {
+  const ids = allSteps(phases).map((s) => s.id);
+  for (const song of OFF_PATH) assert.ok(!ids.some((id) => id.indexOf('song:' + song + '/') === 0), song);
+});
+
+test('every exercise says what you do and why, except the units that describe themselves', () => {
+  for (const p of phases) {
+    for (const u of p.units) {
+      for (const e of u.exercises) {
+        if (u.summary) continue;
+        assert.ok(e.about && e.why, `${u.key}: ${e.label}`);
+      }
     }
   }
-  assert.equal(findById(root, 'nothing/here'), null);
-  assert.equal(findById(root, ''), null);
 });
 
-test('the steps of the first units build valid charts', () => {
-  for (const t of tracks.slice(0, 3)) {
-    for (const step of t.units[0].steps) {
-      if (step.quiz) continue;
-      const { ok, errors } = validateExercise(index.get(step.id).node.build());
-      assert.ok(ok, step.id + ': ' + errors.join('; '));
+test('labels fit a row of the Move\'s list', () => {
+  for (const p of phases) {
+    assert.ok((p.n + ' ' + p.name).length <= 19, p.name);
+    for (const u of p.units) {
+      assert.ok((u.num + ' ' + u.name).length <= 19, u.name);
+      for (const e of u.exercises) assert.ok(e.label.length <= 19, e.label);
     }
   }
 });
 
-test('quiz steps carry their options, and the id says the same thing', () => {
-  const quizSteps = tracks.flatMap((t) => trackSteps(t)).filter((s) => s.quiz);
-  assert.ok(quizSteps.length > 40);
-  for (const step of quizSteps) {
-    assert.equal(step.id, 'quiz:' + drillId(step.quiz));
-    const back = quizFromId(step.id);
-    assert.equal(drillId(back), drillId(step.quiz), step.id);
-  }
-  for (const step of trackSteps(tracks[3])) assert.ok(step.quiz, step.id);
-  /* A staff drill, from a repetition or a Next, opens as a staff drill. */
-  for (const id of ['quiz:staff:notes:half', 'quiz:staff:chords:advanced']) {
-    const back = quizFromId(id);
-    assert.equal(back.read, 'staff', id);
-    assert.equal('quiz:' + drillId(back), id);
-  }
-  assert.equal(quizFromId('quiz:guess:notes:key').read, null, 'the name drill, as before');
-  assert.equal(quizFromId('quiz:nonsense'), null);
-  assert.equal(quizFromId('quiz:guess:planets:x'), null);
-  assert.equal(quizFromId('quiz:ear:planets:up'), null);
-  assert.equal(quizFromId('quiz:ear:thirds:sideways'), null);
-  assert.equal(quizFromId('quiz:ear:playback-notes:key'), null, 'play-back is a hear drill, not an ear id');
+test('the ear courses are trimmed to the levels that teach', () => {
+  assert.deepEqual(courseSteps('id-2nds').map((s) => s.label), ['Hear up', 'Hear down', 'Hear tog', 'Read up']);
+  assert.deepEqual(courseSteps('cmp-6ths').map((s) => s.id), ['quiz:ear:cmp-6ths:fix-up', 'quiz:ear:cmp-6ths:together']);
+  assert.deepEqual(courseSteps('cmp-M2-m3').map((s) => s.id), ['quiz:ear:cmp-M2-m3:melodic']);
+  assert.deepEqual(courseSteps('sc-maj-min').map((s) => s.id),
+    ['quiz:ear:sc-maj-min:up', 'quiz:ear:sc-maj-min:down', 'quiz:ear:rd-sc-maj-min:up']);
+  const total = allSteps(phases).length;
+  const ear = phases.flatMap((p) => p.units).filter((u) => u.strand === 'ear').flatMap(unitSteps).length;
+  assert.ok(ear / total < 0.5, `the ear is ${ear} of ${total} steps`);
 });
 
-test('Hearing is the ear exercises in order, easiest first, a step per level', () => {
-  const hearing = tracks[3];
-  assert.equal(hearing.units.length, EXERCISES.length);
-  hearing.units.forEach((u, i) => {
-    assert.equal(u.name, (i + 1) + ' ' + EXERCISES[i].name);
-    assert.equal(u.steps.length, EXERCISES[i].levels.length);
-  });
-  const ids = trackSteps(hearing).map((s) => s.id);
-  assert.ok(ids.indexOf('quiz:ear:direction:wide') < ids.indexOf('quiz:ear:triads:broken'));
-  /* An exercise the course replaced opens its course twin. */
-  assert.deepEqual(quizFromId('quiz:ear:thirds:together'),
-    { kind: 'ear', exercise: 'id-3rds', level: 'together', hear: true, pick: true });
-  assert.equal(quizFromId('quiz:ear:intervals-down:g2').exercise, 'id-to-8');
-  /* Inside the unit the row is the level; the title is the whole drill. */
-  const wide = trackSteps(hearing).find((s) => s.id === 'quiz:ear:direction:wide');
-  assert.equal(wide.label, 'wide');
-  assert.equal(stepTitle(wide), 'Hear High/low wide');
-  /* The play-back exercises are the hear drills, under the ids they always had. */
-  assert.ok(ids.includes('quiz:hear:notes:key') && ids.includes('quiz:hear:chords:advanced'));
-  /* Nothing in Hearing is read off the staff or the lit pads. */
-  for (const s of trackSteps(hearing)) assert.ok(s.quiz.hear, s.id);
+/* ---- What the steps are built with ----------------------------------------- */
+
+function pinnedTree() {
+  const pinned = basics({ ...PROGRAM_GEN });
+  stampChildren([pinned], '');
+  return { children: [pinned] };
+}
+
+test('generated steps are built in C major, whatever the settings say', () => {
+  const settingsBasics = basics({ rootPc: 6, mode: 'dorian' });
+  stampChildren([settingsBasics], '');
+  const id = 'basics/random/in-key';
+  assert.equal(findById(pinnedTree(), id).node.build().keySig, 0);
+  assert.notEqual(findById({ children: [settingsBasics] }, id).node.build().keySig, 0, 'the settings tree follows the settings');
 });
 
-test('the guess and pick drills moved to Reading and Chords, none lost', () => {
-  const where = (id) => tracks.find((t) => trackSteps(t).some((s) => s.id === id)).key;
-  for (const set of ['key', 'half']) {
-    assert.equal(where('quiz:guess:notes:' + set), 'reading');
-    assert.equal(where('quiz:pick:notes:' + set), 'reading');
-  }
-  for (const set of ['triads', 'types', 'advanced']) {
-    assert.equal(where('quiz:guess:chords:' + set), 'chords');
-    assert.equal(where('quiz:pick:chords:' + set), 'chords');
-    assert.equal(where('quiz:hear:chords:' + set), 'hearing');
+test('Phase 1 reads in C: no black key before Black keys', () => {
+  const tree = pinnedTree();
+  const BLACK = new Set([1, 3, 6, 8, 10]);
+  for (const u of phases[0].units) {
+    if (u.key === 'black-keys') break;
+    for (const s of unitSteps(u)) {
+      if (s.quiz) continue;
+      const hit = s.id.indexOf('basics/') === 0 ? findById(tree, s.id) : index.get(s.id);
+      const chart = hit.node.build();
+      const black = chart.events.flatMap((e) => e.pitches).filter((p) => BLACK.has(p % 12));
+      assert.equal(black.length, 0, s.id);
+      assert.equal(chart.keySig || 0, 0, s.id);
+    }
   }
 });
 
-test('the songs track follows the manifest, easy categories first, every rung', () => {
-  const units = tracks[2].units;
-  assert.equal(units.length, songs.filter((s) => SONG_ORDER.includes(s.category)).length);
-  assert.equal(units[0].name, songs[0].chart.name);
-  assert.deepEqual(units[0].steps.map((s) => s.id.split('/')[1]), ['1r', '1l', '2r', '3']);
-  assert.match(stepTitle(units[0].steps[0]), / L1 RH$/, 'a step names its song outside its folder');
-  const firstStyles = units.findIndex((u) => songs.find((s) => s.chart.name === u.name).category === 'styles');
-  const firstTechno = units.findIndex((u) => songs.find((s) => s.chart.name === u.name).category === 'techno');
-  assert.ok(firstStyles < firstTechno);
+test('the first units build valid charts', () => {
+  for (const p of phases) {
+    for (const s of unitSteps(p.units[0])) {
+      if (s.quiz) continue;
+      const { ok, errors } = validateExercise(index.get(s.id).node.build());
+      assert.ok(ok, s.id + ': ' + errors.join('; '));
+    }
+  }
 });
 
-test('a one-rung song is one step', () => {
-  const t = buildProgram({
-    songs: [{ category: 'classics', chart: { id: 'one', name: 'One', events: [{ beat: 0, durBeats: 1, hand: 'r', pitches: [60] }] } }],
-  });
-  assert.deepEqual(trackSteps(t[2]), [{ id: 'song:one', label: 'One' }]);
-});
+/* ---- Following it ------------------------------------------------------------ */
 
-/* ---- Following it --------------------------------------------------------- */
-
-test('the next step is the first neither finished nor skipped', () => {
+test('a fresh start opens 1.1, and the first session walks the strands', () => {
   const p = emptyProgress();
-  const reading = tracks[0];
-  const steps = trackSteps(reading);
-  assert.equal(nextStep(p, reading), steps[0]);
-  play(p, steps[0].id, 1, 0.95);
-  assert.equal(nextStep(p, reading), steps[0], 'stage 1 alone is not finished — stage 2 is next');
-  moveOn(p, steps[0].id, T0);
-  assert.equal(nextStep(p, reading), steps[1], 'unless you chose to move on');
-  skipItem(p, steps[1].id, T0);
-  assert.equal(nextStep(p, reading), steps[2]);
-  play(p, steps[3].id, 2, 1);
-  play(p, steps[2].id, 2, 1);
-  assert.equal(nextStep(p, reading), steps[4], 'a step done out of order is done');
+  const first = continueStep(p, phases);
+  assert.equal(first.unit.key, 'major-scale');
+  assert.equal(first.step.id, 'basics/scales/major/up-down');
+  /* Each finished step makes its strand the most recent, so the next
+   * Continue turns to another: the three ready from the start first, then
+   * every strand of the phase as its units open. */
+  const strands = [];
+  for (let i = 0; i < 24; i++) {
+    const next = continueStep(p, phases);
+    strands.push(next.unit.strand);
+    finish(p, next.step.id, T0 + i * 1000);
+  }
+  assert.deepEqual(strands.slice(0, 3).sort(), ['ear', 'grid', 'scales']);
+  assert.deepEqual([...new Set(strands)].sort(), ['chords', 'ear', 'grid', 'pieces', 'read', 'scales'], strands.join(' '));
 });
 
-test('a finished track has no next step', () => {
+test('a beginner stays in Phase 1 until its check steps are passed', () => {
   const p = emptyProgress();
-  const ear = tracks[3];
-  for (const step of trackSteps(ear)) play(p, step.id, 2, 1);
-  assert.equal(nextStep(p, ear), null);
+  let i = 0;
+  while (!checkPassed(p, phases[0])) {
+    const next = continueStep(p, phases);
+    assert.equal(next.phase.n, 1, `step ${i}: ${next.step.id}`);
+    finish(p, next.step.id, T0 + i * 1000);
+    i++;
+  }
+  assert.ok(i >= 12, 'the check steps sit across the phase, not at its start: ' + i);
+  assert.equal(currentPhase(p, phases).n, 2);
 });
 
-test('Continue starts with Reading, then rotates to the track left longest', () => {
+test('a unit is ready once what it comes after is finished, or assumed', () => {
   const p = emptyProgress();
-  assert.equal(continueStep(p, tracks).track.key, 'reading');
-  play(p, trackSteps(tracks[0])[0].id, 1, 0.5, T0);
-  assert.equal(continueStep(p, tracks).track.key, 'chords', 'untouched tracks come first');
-  play(p, trackSteps(tracks[1])[0].id, 1, 0.5, T0 + 1000);
-  /* Its left hand: the right hand is in Reading too, and playing it there
-   * would count as practising Reading — which is the point of sharing ids. */
-  play(p, trackSteps(tracks[2])[1].id, 1, 0.5, T0 + 2000);
-  play(p, trackSteps(tracks[3])[0].id, 1, 0.5, T0 + 3000);
-  assert.equal(continueStep(p, tracks).track.key, 'intervals', 'the courses are still untouched');
-  for (let t = 4; t < tracks.length; t++) play(p, trackSteps(tracks[t])[0].id, 1, 0.5, T0 + 1000 * t);
-  assert.equal(continueStep(p, tracks).track.key, 'reading', 'the one played longest ago');
-  assert.equal(trackActivity(p, tracks[3]), Math.round((T0 + 3000) / 1000));
+  const chords = unit('first-chords');
+  assert.equal(unitReady(p, phases, chords), false);
+  for (const s of unitSteps(unit('black-keys'))) finish(p, s.id);
+  assert.equal(unitReady(p, phases, chords), true);
+  const fresh = emptyProgress();
+  setProgramStart(fresh, 1);
+  assert.equal(unitReady(fresh, phases, unit('i-iv-v')), true, 'First chords sits in an assumed phase');
 });
 
-test('Continue skips a finished track, and is null when everything is done', () => {
+test('a skipped step settles the unit as well as a finished one', () => {
   const p = emptyProgress();
-  for (const step of trackSteps(tracks[0])) play(p, step.id, 2, 1, T0 - 1000);
-  assert.notEqual(continueStep(p, tracks).track.key, 'reading');
-  const all = emptyProgress();
-  for (const t of tracks) for (const step of trackSteps(t)) play(all, step.id, 2, 1);
-  assert.equal(continueStep(all, tracks), null);
+  const u = unit('major-scale');
+  skipItem(p, unitSteps(u)[0].id, T0);
+  assert.equal(nextInUnit(p, u).id, unitSteps(u)[1].id);
 });
 
-test('a step is found, and its track, by id', () => {
-  const tune = 'song:ode-to-joy/1r';
-  assert.equal(trackOf(tracks, tune).key, 'reading', 'the first track it is in');
-  assert.equal(findStep(tracks, tune).label, 'Ode to Joy melody');
-  assert.equal(trackOf(tracks, 'nope'), null);
-  assert.equal(findStep(tracks, 'nope'), null);
+test('a check counts only at stage 2', () => {
+  const p = emptyProgress();
+  for (const id of phases[0].check) play(p, id, 1, 1);
+  assert.equal(checkPassed(p, phases[0]), false);
+  for (const id of phases[0].check) play(p, id, 2, 1);
+  assert.equal(checkPassed(p, phases[0]), true);
+});
+
+test('the next check step is the first not passed at stage 2', () => {
+  const p = emptyProgress();
+  play(p, phases[1].check[0], 2, 1);
+  assert.equal(nextCheckStep(p, phases, phases[1]).id, phases[1].check[1]);
+  for (const id of phases[1].check) play(p, id, 2, 1);
+  assert.equal(nextCheckStep(p, phases, phases[1]), null);
+});
+
+test('passing a check in practice moves the phase on, and keeps its leftovers in the mix', () => {
+  const p = emptyProgress();
+  for (const id of phases[0].check) finish(p, id);
+  assert.equal(currentPhase(p, phases).n, 2);
+  assert.equal(isAssumed(p, phases, phases[0]), false, 'practice does not skip the rest');
+  /* Phase 1 still has units left; they stay among Continue's choices. */
+  const picks = new Set();
+  for (let i = 0; i < 30; i++) {
+    const next = continueStep(p, phases);
+    picks.add(next.phase.n);
+    finish(p, next.step.id, T0 + (i + 1) * 1000);
+  }
+  assert.ok(picks.has(1) && picks.has(2), [...picks].join(','));
+});
+
+test('Start here skips earlier phases: they count as assumed', () => {
+  const p = emptyProgress();
+  setProgramStart(p, 2);
+  assert.equal(startIndex(p, phases), 2);
+  assert.ok(isAssumed(p, phases, phases[0]) && isAssumed(p, phases, phases[1]));
+  assert.equal(currentPhase(p, phases).n, 3);
+  assert.equal(continueStep(p, phases).phase.n, 3);
+  setProgramStart(p, 99);
+  assert.equal(startIndex(p, phases), 4, 'clamped to the last phase');
+});
+
+test('Continue is null only when every phase is through', () => {
+  const p = emptyProgress();
+  for (const s of allSteps(phases)) finish(p, s.id);
+  assert.equal(continueStep(p, phases), null);
+  assert.equal(currentPhase(p, phases), null);
+});
+
+test('existing progress counts: a step finished before the path existed is finished on it', () => {
+  const p = emptyProgress();
+  finish(p, 'song:ode-to-joy/1r');
+  assert.equal(nextInUnit(p, unit('first-melodies')).id, 'song:when-the-saints/1r');
+});
+
+test('the start round-trips through the file, and old files load at phase 1', () => {
+  const p = emptyProgress();
+  setProgramStart(p, 3);
+  assert.equal(startIndex(parseProgress(serialiseProgress(p)), phases), 3);
+  assert.equal(startIndex(parseProgress(JSON.stringify({ version: 1, items: {} })), phases), 0);
+  assert.equal(startIndex(parseProgress(JSON.stringify({ program: { start: -4 } })), phases), 0);
+});
+
+test('a step is found by id, with its unit and its exercise', () => {
+  assert.equal(unitOf(phases, 'song:greensleeves/3').key, 'three-six');
+  assert.equal(findStep(phases, 'song:greensleeves/3').label, 'L3 Both hands');
+  assert.equal(exerciseOf(phases, 'song:greensleeves/3').label, 'Greensleeves');
+  assert.equal(stepTitle(findStep(phases, 'song:greensleeves/3')), 'Greensleeves L3');
+  assert.equal(unitOf(phases, 'song:twinkle/1r'), null);
 });
 
 /* ---- As rows ---------------------------------------------------------------- */
 
-test('the program folder: Continue, Skip, the tracks, then Repetition', () => {
+test('the program folder: Continue, Skip, five phases, then Repetition', () => {
   let asked = 0;
-  const node = programFolder(tracks, () => { asked++; return [{ label: 'r', repId: 'x' }]; });
-  assert.deepEqual(node.children.map((c) => c.label),
-    ['Continue', 'Skip next', 'Reading', 'Chords', 'Songs', 'Hearing', 'Intervals', 'Scales', 'Repetition']);
+  const node = programFolder(phases, () => { asked++; return [{ label: 'x', repId: 'x' }]; });
+  assert.deepEqual(node.children.map((r) => r.label), ['Continue', 'Skip next', '1 Grid and staff', '2 Four chords',
+    '3 Shapes and time', '4 Sevenths', '5 Colour', 'Repetition']);
+  const p1 = node.children[2];
+  assert.deepEqual(p1.children.slice(0, 3).map((r) => r.label), ['Check: skip phase', 'Start here', '1.1 Major scale']);
+  assert.ok(p1.children[0].checkRow && p1.children[1].startRow);
+  assert.equal(node.children[6].children[0].label, 'Start here', 'the last phase has no check');
   assert.equal(asked, 0, 'repetition is worked out only when looked at');
-  const rep = node.children.at(-1);
-  assert.ok(isFolder(rep) && rep.untracked);
-  assert.equal(rep.children[0].repId, 'x');
-  assert.equal(asked, 1);
+  assert.equal(node.children.at(-1).children[0].repId, 'x');
 });
 
 test('steps in the tree carry the id of the row they point at', () => {
   const program = root.children[0];
   assert.equal(program.id, 'program');
-  const firstStep = program.children[2].children[0].children[0];
-  assert.equal(firstStep.id, trackSteps(tracks[0])[0].id);
+  const firstStep = program.children[2].children[2].children[0];
+  assert.equal(firstStep.id, 'basics/scales/major/up-down');
   assert.ok(firstStep.step);
+  /* An exercise of several steps is a folder of them. */
+  const tracks = program.children[3].children.find((r) => r.unit && r.unit.key === 'first-tracks');
+  assert.ok(isFolder(tracks.children[0]));
+  assert.deepEqual(tracks.children[0].children.map((r) => r.label), ['L2 RH chords', 'L3 Both hands']);
 });
 
 test('ids are unique across the whole tree', () => {
@@ -253,39 +340,31 @@ test('ids do not move when the key changes', () => {
   assert.deepEqual([...leafIndex(inC).keys()], [...leafIndex(inFs).keys()]);
 });
 
-test('hearing major or minor sits in the Chords track, as the Hearing item it is', () => {
-  const chords = tracks.find((t) => t.key === 'chords');
-  const step = trackSteps(chords).find((st) => st.id === 'quiz:ear:triads:block');
-  assert.ok(step, 'in the Chords track');
-  assert.equal(step.label, 'Hear major or minor');
-  assert.deepEqual(quizFromId(step.id), step.quiz);
-  assert.equal(chords.units[0].steps.indexOf(step), 2, 'right after the minor triad');
+/*
+ * Progress is filed under these ids on every learner's device. A rename that
+ * drops one orphans everything filed under it, so the list is kept as a
+ * fixture: an id may be added, but one that disappears fails here until it is
+ * given an alias or removed on purpose (UPDATE_IDS=1).
+ */
+test('every id a learner may have progress under still exists', () => {
+  const file = new URL('./fixtures/leaf_ids.json', import.meta.url);
+  const now = [...index.keys()].sort();
+  if (process.env.UPDATE_IDS) writeFileSync(file, JSON.stringify(now, null, 1) + '\n');
+  const known = JSON.parse(readFileSync(file, 'utf8'));
+  const have = new Set(now);
+  assert.deepEqual(known.filter((id) => !have.has(id)), []);
 });
 
-test('Intervals names and compares by size, each unit heard and then read', () => {
-  const t = tracks.find((x) => x.key === 'intervals');
-  const keys = t.units.map((u) => u.exercise);
-  assert.deepEqual(keys, INTERVAL_ORDER);
-  /* Every unit of both courses, once. */
-  const all = COURSES.filter((c) => c.topic === 'intervals').flatMap((c) => c.exercises.map((e) => e.key));
-  assert.deepEqual(keys.slice().sort(), all.sort());
-  /* A pair is named before it is compared. */
-  assert.ok(keys.indexOf('id-6ths') < keys.indexOf('cmp-6ths'));
-  assert.ok(keys.indexOf('id-8-m9-M10-11-12') < keys.indexOf('cmp-9ths'), 'm9 comes in before 9ths are compared');
-  for (const u of t.units) {
-    const media = u.steps.map((s) => s.label.split(' ')[0]);
-    const half = media.length / 2;
-    assert.ok(media.slice(0, half).every((m) => m === 'Hear') && media.slice(half).every((m) => m === 'Read'), u.name);
-    assert.ok(u.name.length <= 21, u.name);
-    for (const s of u.steps) assert.ok(stepTitle(s).length <= 21 && stepTitle(s) !== s.label, s.id);
+test('quiz ids open as the drill they name', () => {
+  for (const id of ['quiz:staff:notes:half', 'quiz:staff:chords:advanced']) {
+    const back = quizFromId(id);
+    assert.equal(back.read, 'staff', id);
+    assert.equal('quiz:' + drillId(back), id);
   }
-  assert.equal(t.units[1].name, '2 Compare 2nds');
-});
-
-test('Scales pairs each scale unit heard and read', () => {
-  const t = tracks.find((x) => x.key === 'scales');
-  assert.equal(t.units.length, 10);
-  assert.deepEqual(t.units[0].steps.map((s) => s.label), ['Hear up', 'Hear down', 'Read up', 'Read down']);
-  assert.deepEqual(t.units[0].steps.map((s) => s.id),
-    ['quiz:ear:sc-maj-min:up', 'quiz:ear:sc-maj-min:down', 'quiz:ear:rd-sc-maj-min:up', 'quiz:ear:rd-sc-maj-min:down']);
+  assert.equal(quizFromId('quiz:guess:notes:key').read, null, 'the name drill, as before');
+  assert.equal(quizFromId('quiz:nonsense'), null);
+  assert.equal(quizFromId('quiz:guess:planets:x'), null);
+  assert.equal(quizFromId('quiz:ear:planets:up'), null);
+  assert.equal(quizFromId('quiz:ear:thirds:sideways'), null);
+  assert.equal(quizFromId('quiz:ear:playback-notes:key'), null, 'play-back is a hear drill, not an ear id');
 });

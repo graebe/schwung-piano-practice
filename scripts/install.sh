@@ -59,6 +59,12 @@ fi
 if [ -f "$remote/progress.json" ]; then
   cp "$remote/progress.json" "$stage/progress.json"
 fi
+# With their last good copies, and any file set aside as damaged, so a broken
+# record can still be recovered after an update.
+for f in "$remote/"*.bak.json "$remote/"*.corrupt.json; do
+  [ -e "$f" ] || continue
+  cp "$f" "$stage/$(basename "$f")"
+done
 # Keep any exercises they added by hand.
 if [ -d "$remote/exercises" ]; then
   for f in "$remote/exercises/"*.json; do

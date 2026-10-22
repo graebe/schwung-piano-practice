@@ -32,6 +32,22 @@ test('the lesson list opens folders and steps back out', async ({ page }) => {
   await expect(page.locator('#list-title')).toHaveText(/quiz/i);
 });
 
+test('the Learning Program is five phases, and a fresh start continues in Phase 1', async ({ page }) => {
+  await page.locator('.row', { hasText: 'Learning Program' }).click();
+  await closeInfo(page);
+  for (const name of ['1 Grid and staff', '2 Four chords', '3 Shapes and time', '4 Sevenths', '5 Colour']) {
+    await expect(page.locator('.row', { hasText: name })).toHaveCount(1);
+  }
+  await page.locator('.row', { hasText: '3 Shapes and time' }).click();
+  await closeInfo(page);
+  await expect(page.locator('.row').first()).toHaveText(/Check: skip phase/);
+  await expect(page.locator('.row', { hasText: 'Start here' })).toHaveCount(1);
+  await page.keyboard.press('Escape');
+  await page.locator('.row', { hasText: /Next: Major up/ }).click();
+  await closeInfo(page);
+  await expect(page.locator('#piece-title')).toHaveText(/C Major/i);
+});
+
 test('arming a drill: the staff, its stage, and Listen lighting the keys', async ({ page }) => {
   await openPath(page, SCALE);
   await expect(page.locator('#piece-title')).toHaveText(/C Major/i);

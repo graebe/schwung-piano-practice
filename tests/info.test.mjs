@@ -8,7 +8,7 @@ import {
   TERMS, infoFor, infoParagraphs, wrapLines, chordFormula, chordInC, stepPattern,
 } from '../src/info.mjs';
 import { buildCatalog, isFolder } from '../src/catalog.mjs';
-import { buildProgram, programFolder, trackSteps } from '../src/program.mjs';
+import { buildProgram, programFolder, allSteps } from '../src/program.mjs';
 import { parseManifest, parseCategories, parseExercise } from '../src/exercise_io.mjs';
 import { qualityById, ALL_QUALITIES } from '../src/chords.mjs';
 import { MODES } from '../src/generator.mjs';
@@ -23,9 +23,9 @@ const songs = parseManifest(manifest).map((row) => ({
   chart: parseExercise(readFileSync(new URL(row.file, dir), 'utf8'), row.id).chart,
   category: row.category,
 }));
-const tracks = buildProgram({ songs });
+const phases = buildProgram({ songs });
 const root = buildCatalog({
-  songs, categories: parseCategories(manifest), lead: [programFolder(tracks)],
+  songs, categories: parseCategories(manifest), lead: [programFolder(phases)],
 });
 const env = { songs: Object.fromEntries(songs.map((s) => [s.chart.id, s.chart])) };
 
@@ -53,7 +53,7 @@ for (const ex of EXERCISES) QUIZ_IDS.push('quiz/hear/' + ex.topic + '/' + ex.key
 test('every row of the lesson tree has an Info page', () => {
   const missing = [];
   for (const node of everyNode(root)) {
-    if (node.continueRow || node.skipRow) continue;
+    if (node.continueRow || node.skipRow || node.checkRow || node.startRow) continue;
     if (!infoFor({ id: node.id, label: node.label }, env)) missing.push(node.id);
   }
   assert.deepEqual(missing, []);
@@ -61,13 +61,13 @@ test('every row of the lesson tree has an Info page', () => {
 
 test('every step of the program and every quiz drill has one too', () => {
   const ids = QUIZ_IDS.slice();
-  for (const t of tracks) for (const step of trackSteps(t)) ids.push(step.id);
+  for (const step of allSteps(phases)) ids.push(step.id);
   const missing = ids.filter((id) => !infoFor({ id }, env));
   assert.deepEqual(missing, []);
 });
 
 test('the rows with no id, and the result screen, have pages of their own', () => {
-  for (const kind of ['continue', 'skip', 'progress', 'result']) {
+  for (const kind of ['continue', 'skip', 'check', 'start', 'progress', 'result']) {
     assert.ok(infoFor({ kind }), kind);
   }
   assert.equal(infoFor(null), null);

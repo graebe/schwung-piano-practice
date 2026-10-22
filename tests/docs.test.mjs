@@ -15,6 +15,13 @@ test('the help pages and the README carry the glossary as info.mjs has it', () =
     'README.md is out of date: run npm run docs');
 });
 
+test('docs/curriculum.md is the path curriculum.mjs describes', () => {
+  const { curriculum } = expected();
+  assert.equal(readFileSync(new URL('../docs/curriculum.md', import.meta.url), 'utf8'), curriculum,
+    'docs/curriculum.md is out of date: run npm run docs');
+  for (const n of [1, 2, 3, 4, 5]) assert.match(curriculum, new RegExp('## Phase ' + n + ': '));
+});
+
 test('the Terms page defines every term, within the help width', () => {
   const page = termsPage();
   for (const k of Object.keys(TERMS)) assert.ok(page.lines.includes(TERMS[k][0]), k);

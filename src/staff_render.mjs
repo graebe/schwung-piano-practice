@@ -273,6 +273,7 @@ const MARK_ROWS = {
   half: ['.###.', '##..#', '##..#', '##..#', '.###.'],
   skip: ['#.#..', '.#.#.', '..#.#', '.#.#.', '#.#..'],
   next: ['#....', '##...', '###..', '##...', '#....'],
+  assumed: ['.#.#.', '#...#', '.....', '#...#', '.#.#.'],
 };
 const MARK_RUNS = {};
 for (const k in MARK_ROWS) MARK_RUNS[k] = rowsToRuns(MARK_ROWS[k]);

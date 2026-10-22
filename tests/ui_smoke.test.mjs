@@ -826,14 +826,14 @@ test('Continue opens the next step, and Skip passes it by', () => {
   const screen = capture();
   globalThis.init();
   const program = screen.frame(click);                  /* into the Learning Program */
-  assert.match(program, /Next: Major up/, 'a fresh start begins with Reading: ' + program);
+  assert.match(program, /Next: Major up/, 'a fresh start begins with 1.1 Major scale: ' + program);
   assert.match(program, /Skip: Major up/);
 
   jog(1);
   click();                                              /* Skip */
-  /* A skip is not practice, so Reading keeps its turn: the step after. */
+  /* A skip is not practice, so the strand keeps its turn: the step after. */
   const skipped = screen.frame();
-  assert.match(skipped, /Next: Major up \| S1/, 'the step after the skipped one: ' + skipped);
+  assert.match(skipped, /Next: Major down \| S1/, 'the step after the skipped one: ' + skipped);
 
   globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
   const ready = screen.frame(click);                    /* Continue */
@@ -841,15 +841,18 @@ test('Continue opens the next step, and Skip passes it by', () => {
   screen.restore();
 });
 
-test('a track lists its units, and its next step is marked', () => {
+test('a phase lists its check, Start here and its units', () => {
   const screen = capture();
   globalThis.init();
   click();                                              /* Learning Program */
   jog(2);
-  const tracks = screen.frame(click);                   /* Reading */
-  assert.match(tracks, /READING/);
-  assert.match(tracks, /First notes/);
-  const steps = screen.frame(click);                    /* First notes */
+  const phase = screen.frame(click);                    /* 1 Grid and staff */
+  assert.match(phase, /GRID AND STAFF/i);
+  assert.match(phase, /Check: skip phase/);
+  assert.match(phase, /Start here/);
+  assert.match(phase, /1\.1 Major scale/);
+  jog(2);
+  const steps = screen.frame(click);                    /* 1.1 Major scale */
   assert.match(steps, /Major up & down/);
   const ready = screen.frame(click);
   assert.match(ready, /S1 pads lit/);
@@ -885,7 +888,7 @@ test('the progress list opens charts, and the jog walks them', () => {
   jog(60);
   const list = screen.frame(click);
   assert.match(list, /PROGRESS 0%/);
-  for (const row of ['Overall', 'Reading track', 'Chords track']) assert.match(list, new RegExp(row));
+  for (const row of ['Overall', 'Phase 1', 'Phase 2']) assert.match(list, new RegExp(row));
   const overall = screen.frame(click);
   assert.match(overall, /OVERALL/);
   assert.match(overall, /nothing passed yet/);

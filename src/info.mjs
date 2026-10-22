@@ -29,6 +29,8 @@ import { exerciseByKey, levelByKey, answersFor } from './ear.mjs';
 import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
 import { LEVELS } from './levels.mjs';
+import { buildProgram } from './program.mjs';
+import { PATH_TEXT, STRANDS, STRAND_TEXT } from './curriculum.mjs';
 
 /* ---- Glossary ------------------------------------------------------------- */
 
@@ -424,26 +426,58 @@ const FOLDERS = {
   techno: ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
   styles: ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
   other: ['Other', 'Exercises you added yourself.', []],
-  program: ['Learning Program', 'A path through everything, in six tracks. Continue opens the next step of the track you left longest. Nothing is locked.', ['stage', 'score']],
-  'program/reading': ['Reading', 'Scales, intervals and random lines, then the first tunes.', ['scale', 'interval']],
-  'program/chords': ['Chords', 'Triads to altered chords, and the progressions they make.', ['chord', 'progression']],
-  'program/songs': ['Songs', 'Every bundled piece, rung by rung: L1 RH, L1 LH, L2, L3.', ['level']],
-  'program/hearing': ['Hearing', 'The hearing exercises in order, easiest first.', ['interval']],
-  'program/intervals': ['Intervals', 'Name intervals and compare them, 2nds up to two octaves, each unit heard and then read.', ['interval', 'compound']],
-  'program/scales': ['Scales', 'Name scales by sound and on the staff: major and minor first, then the modes.', ['scale', 'mode']],
   'program/repetition': ['Repetition', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score.', ['score']],
 };
 
 const KIND_PAGES = {
-  continue: ['Continue', 'Opens the next step of the track you have practised least recently, on the stage it needs.', ['stage']],
+  continue: ['Continue', 'Opens the next step of the ready unit whose skill you practised longest ago, in your phase, on the stage it needs. Every fourth Continue is a review, when one is due.', ['stage']],
+  check: ['Check: skip phase', 'Plays the phase\'s check steps one after another at stage 2; steps already passed there count. Pass them all and Continue starts at the next phase. The steps you skipped stay open, marked as assumed.', ['stage']],
+  start: ['Start here', 'Continue starts at this phase. The phases before it count as assumed until you play them; nothing is locked either way.', []],
   skip: ['Skip', 'Passes the next step by; it is marked and you can come back any time. After stage 1 it moves on instead: stage 1 is enough for now.', ['stage']],
-  progress: ['Progress', 'Overall and per track: stages passed over time. Then everything you have played, with a chart of each attempt.', ['stage', 'score']],
+  progress: ['Progress', 'Overall and per phase: stages passed over time. Then everything you have played, with a chart of each attempt.', ['stage', 'score']],
   result: ['Result', 'Your score, and every recent attempt on a fixed 0-100% scale. Hollow points are stage 1, solid ones stage 2; the dotted line is 90%. REC again, BACK to the start, CLICK for next.', ['score', 'stage']],
 };
 
 function slugOf(label) {
   return String(label).toLowerCase().replace(/[^a-z0-9#]+/g, '-').replace(/^-+|-+$/g, '');
 }
+
+/* ---- The Learning Program -------------------------------------------------- */
+
+/* The path's texts do not depend on which songs are installed, except the
+ * whole-category units, whose own summary already says what they hold. */
+let PATH = null;
+const path = () => PATH || (PATH = buildProgram());
+
+const unitLine = (u) => u.num + ' ' + u.name + ': ' + u.purpose.replace(/\.$/, '') + '.';
+
+function programPage(parts) {
+  if (parts.length === 1) {
+    return page('folder:program', 'Learning Program',
+      [sec('', PATH_TEXT.intro), sec('', PATH_TEXT.free), sec('Continue', PATH_TEXT.continue), sec('Stages', PATH_TEXT.stages)],
+      ['stage', 'score']);
+  }
+  const phase = path().find((p) => p.key === parts[1]);
+  if (!phase) return null;
+  if (parts.length === 2) {
+    const sections = [sec('', phase.promise), sec('The idea', phase.idea),
+      sec('Units', phase.units.map(unitLine).join(' '))];
+    if (phase.check.length) sections.push(sec('Check', PATH_TEXT.check));
+    return page('program:' + phase.key, 'Phase ' + phase.n + ': ' + phase.title, sections, []);
+  }
+  const unit = phase.units.find((u) => u.key === parts[2]);
+  if (!unit) return null;
+  const exPage = parts.length > 3 ? unit.exercises.find((e) => e.steps.length > 1 && slugOf(e.label) === parts[3]) : null;
+  if (exPage) return page('program:' + unit.key + ':' + parts[3], exPage.label, exerciseSections(exPage.about, exPage.why), []);
+  const after = unit.after.map((k) => path().flatMap((p) => p.units).find((u) => u.key === k))
+    .filter(Boolean).map((u) => u.num + ' ' + u.name);
+  const sections = [sec('', unit.purpose), sec('Strand', STRANDS[unit.strand] + ': ' + STRAND_TEXT[unit.strand] + '.')];
+  if (after.length) sections.push(sec('Comes after', after.join(', ') + '.'));
+  if (unit.summary) sections.push(sec('', unit.summary));
+  return page('program:' + unit.key, unit.num + ' ' + unit.name, sections, []);
+}
+
+const exerciseSections = (about, why) => [about ? sec('What you do', about) : null, why ? sec('Why', why) : null].filter(Boolean);
 
 /* ---- Lookup ------------------------------------------------------------------ */
 
@@ -456,6 +490,14 @@ export function infoFor(target, env = {}) {
   }
   const id = String(target.id || '');
   if (!id) return null;
+  /* A step of the path: what the curriculum says about it, then the page of
+   * the exercise it points at. */
+  if (target.about || target.why) {
+    const own = infoFor({ id, label }, env);
+    const head = exerciseSections(target.about, target.why);
+    return own ? { ...own, title: target.exercise || own.title, sections: head.concat(own.sections) }
+      : page('step:' + id, target.exercise || label, head, []);
+  }
 
   if (id.indexOf('quiz:') === 0) return quizPage(id.slice(5), label);
   if (id.indexOf('song:') === 0) {
@@ -474,7 +516,7 @@ export function infoFor(target, env = {}) {
       if (found) return found;
     }
   }
-  if (parts[0] === 'program' && parts.length > 2) return infoFor({ id: parts.slice(0, 2).join('/') }, env);
+  if (parts[0] === 'program' && parts[1] !== 'repetition') return programPage(parts);
 
   const folder = FOLDERS[id];
   if (folder) return page('folder:' + id, folder[0], [sec('', folder[1])], folder[2]);

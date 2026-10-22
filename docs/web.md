@@ -165,12 +165,13 @@ put it. Progress shows the same bars for a drill between rounds.
 
 ## The Learning Program and Progress
 
-**Learning Program › Continue** always opens the next step: six tracks —
-Reading, Chords, Songs, Hearing, Intervals and Scales — each going from easy to
-hard, with nothing locked. In Intervals and Scales each unit is heard and then
-read. **Repetition** brings back finished lessons when they are due.
+**Learning Program › Continue** always opens the next step of a path in five
+phases, from the grid and the staff to extended harmony, with nothing locked.
+Each phase starts with **Check: skip phase** and **Start here**; every exercise
+is described in [the curriculum](curriculum.md). **Repetition** brings back
+finished lessons when they are due.
 
-**Progress** shows how far you have got: overall, per track, and every lesson
+**Progress** shows how far you have got: overall, per phase, and every lesson
 you have played, each with its chart.
 
 ## Settings
