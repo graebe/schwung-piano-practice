@@ -349,8 +349,9 @@ export function drawReadyView(ctx, state) {
      * one does what is the thing that has to be readable without being
      * learned — and the knob was the one you could only find by turning it. */
     const gh = 7;
+    /* The words share one column, 3 px clear of the widest glyph (scrub). */
     const gx = b.x + 3;
-    const tx = gx + 11;
+    const tx = gx + R.SCRUB_W + 3;
     R.drawPlayGlyph(ctx, gx, b.y + 4, gh);
     ctx.text(tx, b.y + 4, state.playLabel || 'listen', 1);
     R.drawRecordGlyph(ctx, gx, b.y + 13, gh);
