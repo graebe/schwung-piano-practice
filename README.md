@@ -57,8 +57,9 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   read from the staff alone. You can go straight to the second whenever you like.
 - **Remembers how far you got.** Every exercise keeps its own score, a ◐ for stage 1 and a ✓ for
   stage 2, and a chart of every attempt. Folders add up what is inside them.
-- **Tells you what to do next.** The Learning Program runs four tracks — reading, chords, songs and
-  ear — and Continue always knows the next step. Nothing is locked: follow it, or don't.
+- **Tells you what to do next.** The Learning Program runs six tracks — reading, chords, songs,
+  hearing, intervals and scales — and Continue always knows the next step. Nothing is locked: follow
+  it, or don't.
 
 ## The lesson list
 
@@ -70,15 +71,18 @@ Learning Program  Continue      the next step, one click away
                   Reading       scales, lines and first tunes
                   Chords        triads to altered dominants, and progressions
                   Songs         every bundled piece, rung by rung
-                  Ear           the quiz drills
+                  Hearing       ear training, easiest first
+                  Intervals     name and compare intervals, heard and read
+                  Scales        name scales, heard and read
                   Repetition    finished exercises that are due again
 Basics            Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
                   Chords        thirteen families, one lesson per chord quality
                   Progressions  ten progressions in the Key setting's key
                   Random        random notes, and random chords from the whole vocabulary
-Quiz              Hear    name what you hear, or play it back
-                  Play    find a note or chord on the pads
+Quiz              Hear    by topic: pitch & melody, intervals, chords, scales & keys
+                  Play    notes by alphabet or staff, chords by name or staff, in a moving row
                   Name    name the pad that is lit
+                  Read    the interval and scale courses again, on the staff
 Classics          folk tunes and the classics, easy first
 Electronic        the chord loops of famous tracks, and five electronic style pieces
 Techno            fourteen progression studies, simple to complex
@@ -119,11 +123,14 @@ has two:
 
 | | |
 | --- | --- |
-| **Stage 1** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. You learn the shape |
-| **Stage 2** | nothing lights. You read it off the staff |
+| **Stage 1** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. The names are printed under the notes and the line sounds as it passes (the Reference). You learn the shape |
+| **Stage 2** | nothing lights, no names, no reference sound. You read it off the staff. When the scroll has waited two beats on a note, its name appears: a hint for the stuck, not the answer for the hesitant |
 
-**Passing a stage takes 90% or better**, at any tempo — slow a song down with knob 8 while it is
-new, it still counts. Passing stage 1 earns a **◐**, passing stage 2 a **✓**. Passing stage 2 also
+The help fades because it should: a name under every note is read as letters, not as a staff,
+and a line you can hear is played by ear. **Names** and **Reference** in settings keep either one on
+(or off) at both stages if you want.
+
+**Passing a stage takes 90% or better**, at any tempo. Passing stage 1 earns a **◐**, passing stage 2 a **✓**. Passing stage 2 also
 counts as stage 1: if you can read it unaided, you can read it with help.
 
 An exercise opens on the **first stage you have not yet passed**, and the ready screen says which:
@@ -149,7 +156,7 @@ bar is passage practice and is not, and neither is Listen.
 
 ## The Learning Program
 
-The lesson list holds everything; the **Learning Program** is a path through it. Four tracks run
+The lesson list holds everything; the **Learning Program** is a path through it. Six tracks run
 side by side, because reading, harmony, repertoire and ear are different skills and a session that
 mixes them beats one that grinds a single list:
 
@@ -158,7 +165,13 @@ mixes them beats one that grinds a single list:
 | **Reading** | major scales up, down, in thirds and fifths; random lines in key; the first tunes' melodies; minor and the modes; pentatonics and blues; then every note |
 | **Chords** | major and minor triads, alone then over their roots; diminished and augmented; inversions and sus chords; four progressions; sevenths and ii–V–I; sixths, add9 and ninths; the 12-bar blues; then the advanced chords |
 | **Songs** | every bundled piece in turn — classics, then styles, electronic and techno — each rung by rung: L1 RH, L1 LH, L2, L3 |
-| **Ear** | the quiz: notes in key, then every note, triads, chord types and advanced chords — each guessed, picked and heard |
+| **Hearing** | the ear-training exercises, easiest first: higher or lower, steps and leaps, the shape of a line, chords, keys, degrees |
+| **Intervals** | naming intervals and comparing them, 2nds up to two octaves, interleaved so a pair is named before it is compared |
+| **Scales** | naming scales: major and minor, then the modes, the pentatonics, whole tone and diminished |
+
+In **Intervals** and **Scales** every unit has both sides of one skill: its levels **heard**
+(`Hear up`, `Hear down`, `Hear tog`), then the same levels **read** off the staff (`Read up` …). A
+unit with a single step, such as *Step or leap*, is a row of its own rather than a folder of one.
 
 Each track is in units, and each unit is a few steps. A step is simply a row of the lesson list, so
 **it counts however you get there**: play Ode to Joy from Classics and its step in the program is
@@ -167,7 +180,7 @@ done too.
 **Continue** opens the next step of the track you have left longest, on the stage it needs. A
 track's next step is its first one that is neither finished nor skipped. Finished means stage 2
 passed — or stage 1 passed and then *moved on* from (below). So clicking Continue session after
-session walks all four tracks in turn, and you always know what to do next.
+session walks all the tracks in turn, and you always know what to do next.
 
 **Nothing is locked.** Open any track and any step in it, play anything in the list, go straight to
 stage 2 — the program only ever recommends. The step Continue will open is marked **▸**.
@@ -232,6 +245,8 @@ shows under Piano Practice › Terms:
 | **Major, minor** | Interval sizes. A major 3rd is 4 semitones, a minor 3rd 3. Major sounds brighter. |
 | **Perfect** | 4ths, 5ths and octaves: the most stable intervals, neither major nor minor. |
 | **Tritone** | 6 semitones, half an octave. Tense, unresolved. |
+| **Compound interval** | Wider than an octave: an octave plus a simple interval. A 9th is an octave and a 2nd, a 12th an octave and a 5th. |
+| **Mode** | A scale started from another of its notes: D to D on the white keys is Dorian. Each mode has its own pattern of steps. |
 | **Step** | Two neighbouring notes of the scale, a 2nd apart: C-D. |
 | **Leap** | Two scale notes further apart than a step, a 3rd or more: C-E. |
 | **Contour** | The shape of a melody: which way each note moves. |
@@ -349,9 +364,14 @@ stops on a chord, it names the chord — `C13`, `D/F#` — whatever the right ha
 
 ### Progressions
 
-I–IV–V–I, I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, vi–ii–V–I, i–iv–v–i, i–VI–III–VII, ii–V–i in minor,
-and the 12-bar blues, voiced the same way, in the key the **Key** setting names. The list names the
-shape; the header names it in your key.
+I–IV–V–I, I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, vi–ii–V–I, i–iv–V–i, i–iv–v–i modal,
+i–VI–III–VII, ii–V–i in minor, and the 12-bar blues, voiced the same way, in the key the **Key**
+setting names. The list names the shape; the header names it in your key.
+
+The minor cadence is **i–iv–V–i**: its V is major, borrowed from harmonic minor, so its third is the
+leading tone that pulls home (G♯ in A minor, E♯ in F♯ minor), as in every common-practice cadence.
+The **modal** one keeps the natural minor v (E G B in A minor). It's a colour of modal and pop
+music, learned after the cadence.
 
 ### Random
 
@@ -364,6 +384,11 @@ shape; the header names it in your key.
 
 The chord sets open the usual ladder. Each opening draws a new set, and a restart replays the one
 you just played.
+
+Generated drills follow the pads, so a low **Octave** setting puts them below the treble staff the
+Move draws. Then they are drawn an octave (or two, or three) higher, and the clef is marked with
+`8`, `15` or `22` below it, as a treble-8vb clef is written. Every note you are scored on is a note
+you can see.
 
 ## Electronic
 
@@ -436,17 +461,35 @@ The **Quiz** folder asks in three ways, one folder each:
 | Folder | You are given | You answer by |
 | --- | --- | --- |
 | **Hear** | a sound | naming it, or playing it back — the Hearing exercises below |
-| **Play** | a note or chord on the staff | finding it on the pads |
+| **Play** | a row of notes or chords, by name or on the staff | playing each on the pads |
 | **Name** | a lit pad | choosing its name with the jog |
+| **Read** | an interval, two intervals or a scale on the staff | naming it — the listening courses, read |
 
-Play and Name each hold **Notes** and **Chords**; which one you open is how you choose. They follow
-the **Half tones** and **Chords** settings.
+**Play** holds four drills, two ways of reading for notes and for chords:
 
-In **Play**, one note or chord sits still on the staff with its name below it, and it waits until you play it.
-No clock, no scrolling, nothing timed. This drills a different skill from the reading mode: the
-Move's grid is isomorphic — one semitone right, five up — so the same pitch appears on several pads
-and nothing resembles a keyboard. Finding a pitch is its own problem, and the scrolling mode can
-never isolate it because the note is always moving.
+| Drill | The screen shows | What counts |
+| --- | --- | --- |
+| **Notes by alphabet** | the letter only: `F`, `C#`, `Bb` | that note in any octave |
+| **Notes by staff** | the note on the staff, no name | the written note, in its octave |
+| **Chords by name** | the chord symbol only: `Am`, `G7`, `F#m7b5` | its notes in any octave or inversion |
+| **Chords by staff** | the chord on the staff, no name | the written notes |
+
+Each is a row, like the notes of a song: the one to play is first — boxed when it is a name, on the
+hit line when it is on the staff — and the next ones are already in view to the right. Play it right
+and the row glides on by one. Nothing moves until you do: there is no tempo, so the score is how
+many right answers a minute, as in every quiz.
+
+By example, in **Notes by alphabet** with the row `F  C#  A  E`: any F on the grid answers the
+first, the row moves on, and `C#` is next. In **Chords by name**, `Am` is answered by A, C and E held
+together in any order and octave; in **Chords by staff** only the notes as written count.
+
+The name drills are about finding a pitch on the grid, which is its own skill: the Move's grid is
+isomorphic — one semitone right, five up — so the same pitch appears on several pads and nothing
+resembles a keyboard. The staff drills are about reading, so they show no names. Help (REC) names
+the first one, and a second press lights its pads.
+
+Play and Name follow the **Half tones** and **Chords** settings. The name drills keep the history
+the old **Notes** and **Chords** rows had; the staff drills have their own.
 
 A chord has to be **held all at once**. Part of it down is *incomplete*, not a mistake — a note that
 isn't in the chord is what makes it wrong. A wrong answer is counted once and the question stays
@@ -517,8 +560,19 @@ answer. The only pad feedback here is what you press — green when right, red w
 
 The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
 what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
-Find them in **Quiz › Hear**, or work through them in order as the **Hearing** track of the
-Learning Program.
+Find them in **Quiz › Hear**, grouped by topic, or work through them in order as the **Hearing** track
+of the Learning Program:
+
+```
+Hear  Pitch & melody   Higher or lower · Play it back · Step or leap · Melody shape
+      Intervals        Identify intervals (course) · Compare intervals (course)
+      Chords           Major/minor chord · Four triads · Seventh chords · Play the chord
+      Scales & keys    Identify scales (course) · Major or minor key · Home or away
+                       · Scale degrees · Chords in a key
+```
+
+Inside an exercise the rows are its levels: *wide*, *close*; *broken*, *block*. Inside a course unit
+they are *up*, *down*, *tog*, and *fix up* … for a fixed root.
 
 ### How a question works
 
@@ -555,45 +609,147 @@ upward before downward, and broken chords before block chords.
 | 2 | Play it back | one note | play it on the pads | in key, chromatic |
 | 3 | Step or leap | two notes of a major scale | Step / Leap | — |
 | 4 | Melody shape | three notes | Up, up / Up, down / Down, up / Down, down | — |
-| 5 | Major or minor 3rd | two notes | Major 3rd / Minor 3rd | up, down, together |
-| 6 | Major/minor chord | a triad | Major / Minor | broken, block, inverted |
-| 7 | Perfect intervals | two notes | Perfect 4th / Perfect 5th / Octave | up, together |
-| 8 | 2nds and 3rds | two notes | Minor 2nd … Major 3rd | up, down |
-| 9 | Intervals up | two notes, rising | every interval to the octave | in three groups |
-| 10 | Intervals down | two notes, falling | the same | in three groups |
-| 11 | Intervals together | two notes at once | the same | in three groups |
-| 12 | Four triads | a triad | Major / Minor / Diminished / Augmented | broken, block |
-| 13 | Major or minor key | a scale or a short tune | Major key / Minor key | scale, melody |
-| 14 | Home or away | the tonic chord, then a phrase | Finished / Unfinished | — |
-| 15 | Scale degrees | I–IV–V–I, then one note | 1 do … 7 ti | 1 3 5, all |
-| 16 | Seventh chords | a four-note chord | Major 7th / Dominant 7th / Minor 7th / Half-dim 7th | 3 types, 4 types |
-| 17 | Chords in a key | the I chord, then another | IV / V / vi | IV V, IV V vi |
-| 18 | Play the chord | a chord | play it on the pads | triads, types |
+| 5 | Major/minor chord | a triad | Major / Minor | broken, block, inverted |
+| 6 | Four triads | a triad | Major / Minor / Diminished / Augmented | broken, block |
+| 7 | Major or minor key | a short tune | Major key / Minor key | — |
+| 8 | Home or away | the tonic chord, then a phrase | Finished / Unfinished | — |
+| 9 | Scale degrees | I–IV–V–I, then one note | 1 do … 7 ti | 1 3 5, all |
+| 10 | Seventh chords | a four-note chord | Major 7th / Dominant 7th / Minor 7th / Half-dim 7th | 3 types, 4 types |
+| 11 | Chords in a key | the I chord, then another | IV / V / vi | IV V, IV V vi |
+| 12 | Play the chord | a chord | play it on the pads | triads, types |
 
-The interval groups add answers a few at a time: first 2nds, 3rds, 4th, 5th and octave, then the
-6ths, then the tritone and 7ths.
+Intervals are the **Identify intervals** course below. It took over the earlier interval exercises
+(major or minor 3rd, perfect intervals, 2nds and 3rds, intervals up, down and together), and their
+ids still open the matching course level, so nothing recorded under them is lost. Major or minor
+*as a scale* is **Identify scales › 1 Minor and major**.
+
+### The listening courses
+
+Three courses sit in their topics in **Quiz › Hear**: **Identify intervals** and **Compare intervals**
+under Intervals, **Identify scales** under Scales & keys. Each is a numbered list of units that adds
+a little at a time. In the Learning Program they are the **Intervals** track (identify and compare,
+interleaved) and the **Scales** track, each unit heard and then read. Answering works as in every
+Hear exercise: the answer pads, or the jog and a click.
+
+**Identify intervals.** One interval; name it. Each unit offers only its own intervals, usually two
+to five, and has three levels: **up**, **down** and **tog** (together).
+
+| # | Unit | Answers |
+| --- | --- | --- |
+| 1–2 | 2nds · 3rds | m2 M2 · m3 M3 |
+| 3 | 2nds and 3rds | m2 M2 m3 M3 |
+| 4 | 4th 5th octave | P4 P5 P8 |
+| 5 | Up to the 5th | m2 … P5 |
+| 6–7 | 6ths · 7ths | m6 M6 · m7 M7 |
+| 8 | 6ths 7ths octave | m6 M6 m7 M7 P8 |
+| 9 | Up to the octave | all twelve |
+| 10–13 | Octave with 9ths and 10ths | P8 M9 M10 · P8 m9 M10 P11 P12 · P8 m9 m10 · P8 m9 m10 P11 P12 |
+| 14 | 11th d12 12th | P11 d12 P12 |
+| 15 | Octave to 12th | P8 … P12 |
+| 16–18 | 13ths, 14ths, two octaves | M13 M14 P15 · m13 m14 P15 · m13 … P15 |
+
+Each unit's Info page (**Menu**) names a tune for each of its intervals, rising and falling: a
+minor 3rd is the start of *Greensleeves* going up and *Hey Jude* coming down, a perfect 4th *Here
+Comes the Bride*. Hear the tune in your head, then compare. Intervals wider than an octave are
+*compound*: a 10th is an octave and a 3rd. Hear the octave
+first, then what is left over. When an interval is wider than the pads reach at your Octave
+setting, it is played over the whole staff instead. You can still hear and name it, but notes off
+the grid don't light up when it is revealed.
+
+**Compare intervals.** Two intervals, one after the other. Answer **First bigger**, **Same** or
+**Second bigger**. Each unit takes its intervals from a small set. From unit 9 on, every level
+comes twice:
+
+- **fix** (fixed root): both intervals start on the same note. Listen to where the second note lands.
+- random root: each starts on its own note, three to six semitones apart. The top notes give
+  nothing away, only the sizes do.
+
+For example, in **Compare › 9 6ths › fix up** you hear C–A, then C–A♭. The first is bigger. In
+**6ths › up** the same sizes might come as C–A, then E–C: still first bigger, but the notes no
+longer help.
+
+| # | Unit | Set | Levels |
+| --- | --- | --- | --- |
+| 1–2 | 2nds · 3rds | m2 M2 · m3 M3 | up, down, tog |
+| 3 | M2 and m3 | M2 m3 | mel (up or down) |
+| 4 | 5th and 4th | P4 P5 | up, down, tog |
+| 5–6 | 4th and tritone · 5th and tritone | P4 TT · P5 TT | mel |
+| 7 | 4th TT 5th | P4 TT P5 | any (up, down or together) |
+| 8 | Up to the 5th | m2 … P5 | up, down, tog |
+| 9–10 | 6ths · 7ths | m6 M6 · m7 M7 | fix and random × up, down, tog |
+| 11 | M6 and m7 | M6 m7 | fix and random × mel |
+| 12–13 | 6ths and 7ths · Up to the octave | m6 … M7 · all twelve | fix and random × up, down, tog |
+| 14–15 | 9ths · 10ths | m9 M9 · m10 M10 | 〃 |
+| 16 | M9 and m10 | M9 m10 | fix and random × mel |
+| 17 | 11th and 12th | P11 P12 | fix and random × up, down, tog |
+
+**Identify scales.** A scale from a random note, up through the octave or down from it. Name its
+type. The root changes every time, so you are naming the pattern of steps, not the notes.
+
+| # | Unit | Answers |
+| --- | --- | --- |
+| 1 | Minor and major | Major, Natural minor |
+| 2 | Major Lydian Mixo | Major, Lydian, Mixolydian |
+| 3 | Minor scales | Natural, Harmonic and Melodic minor |
+| 4 | Phrygian Locrian | Phrygian, Locrian |
+| 5 | Pentatonic | Major and Minor pentatonic |
+| 6 | Seven modes | Ionian, Dorian, Phrygian, Lydian, Mixolydian, Aeolian, Locrian |
+| 7 | Whole tone + kin | Whole tone, Lydian dominant, Lydian augmented, Mixolydian b6 |
+| 8 | Diminished scales | Whole-half, Half-whole |
+| 9 | Melodic min modes | the seven modes of melodic minor, Dorian b2 to Altered |
+| 10 | Harmonic min modes | the seven modes of harmonic minor, Locrian #6 to Altered bb7 |
+
+To tell scales apart, listen for where the semitones fall, and for the 3rd, 6th and 7th. Melodic
+minor is played the same way down as up: the jazz form, not the classical one that comes down as
+natural minor.
+
+### Reading the same courses
+
+**Quiz › Read** has the three courses again, unit for unit and level for level and under the same
+names, but you see them instead of hearing them: **Identify intervals**, **Compare intervals** and
+**Identify scales**. The interval, the
+two intervals or the scale is drawn on the staff, and you name it from the same answers. A unit
+read and the same unit heard train one skill from both sides.
+
+- **Up**, **down** and **tog** are how the notes are drawn: one after the other rising, falling, or
+  stacked. In **Read › Compare intervals** a bar line separates the two intervals, and **fix** levels start
+  both on the same written note.
+- **Count the letters.** An interval's size is the number of letters it spans, both ends counted:
+  C to E is C D E, a 3rd. The accidentals then tell major from minor. Every interval is spelled
+  this way, so C–E♭ is a minor 3rd and you will never see C–D♯ asked as one.
+- **A scale has one letter a degree.** Pentatonics, whole tone and the diminished scales are
+  written as players write them: the diminished scale on C reads C D E♭ F G♭ A♭ A B.
+- **One sharp or flat at most.** The Move draws single accidentals only, so a root that would need
+  a double sharp or double flat (altered ♭♭7 on C needs B𝄫) is never asked. The scale comes on
+  another root instead.
+
+On the Move the staff fills the screen, and the answer under the jog is in the line below it. Turn
+the jog to walk the answers and click to choose, or press an answer pad. **Play** sounds what is
+on the staff. That would give the answer away, so the first listen counts as help, like **Record**.
+A right answer then plays what you read. On the page, the staff sits above the answer buttons.
 
 ### What to listen for
 
-- **Major or minor third (5).** A major third is bright and open: the first two notes of *Oh When
-  the Saints*. A minor third is darker and softer: the first two notes of *Greensleeves*.
-- **Major or minor chord (6).** The same difference, now stacked. Major sounds settled and
+- **Major or minor third** (Identify intervals › 2 3rds). A major third is bright and open: the
+  first two notes of *Oh When the Saints*. A minor third is darker and softer: the first two notes
+  of *Greensleeves*.
+- **Major or minor chord (5).** The same difference, now stacked. Major sounds settled and
   bright, minor sounds sad and inward. The broken level plays the chord a note at a time before
   it sounds whole, so you can hear the third arrive.
-- **Perfect intervals (7).** A 4th is the start of *Here Comes the Bride*, a 5th the leap after
+- **4th, 5th and octave** (Identify intervals › 4). A 4th is the start of *Here Comes the Bride*, a 5th the leap after
   the first two notes of *Twinkle Twinkle*, and an octave the first leap of *Somewhere Over the
   Rainbow*. They sound open and hollow, with nothing sweet or sour in them.
-- **Four triads (12).** Diminished is tense and shrinking: a minor chord with its top squeezed
+- **Four triads (6).** Diminished is tense and shrinking: a minor chord with its top squeezed
   down. Augmented is unsettled, stretching, almost dreamlike: a major chord with its top pushed up.
-- **Home or away (14).** A finished phrase lands on *do* and you could stop there. An unfinished
+- **Home or away (8).** A finished phrase lands on *do* and you could stop there. An unfinished
   one leaves you waiting for the next note.
-- **Scale degrees (15).** The cadence sets up the key. Sing down from the note you hear to *do*,
+- **Scale degrees (9).** The cadence sets up the key. Sing down from the note you hear to *do*,
   and count the steps on the way.
-- **Chords in a key (17).** IV feels like a step away, warm and open. V leans back towards home.
+- **Chords in a key (11).** IV feels like a step away, warm and open. V leans back towards home.
   vi is the minor turn, where the music drops into shadow.
 
-Every level is a drill of its own for progress and records, with an id like `ear:thirds:up` or
-`ear:intervals-down:g2`.
+Every level is a drill of its own for progress and records, with an id like `ear:triads:block`,
+`ear:id-3rds:up` (a course unit) or `ear:rd-id-3rds:up` (the same unit, read).
 
 ## Results and progress
 
@@ -612,7 +768,10 @@ A whole run ends on its result:
                 REC again  CLICK next
 ```
 
-The headline is the share you got right. Under it is **every recent attempt at this exercise**, on a
+The headline is the share you got right. Then **how the notes you hit sat on the beat**: `in time
+78%`, and `rushing` or `dragging` when the run leaned ahead of or behind the beat by more than 40 ms
+on average. That is the first thing a teacher tells you after the notes. The page gives the whole split
+(in time, early, late) and the average in ms. Under it is **every recent attempt at this exercise**, on a
 fixed 0–100% scale so a chart looks the same each time you come back to it: **hollow points are
 stage 1, solid ones stage 2**, and the dotted line is the 90% you need to pass.
 
@@ -632,12 +791,37 @@ moment of orientation is not part of the score. Because a prompt waits until you
 round is always exactly N correct answers — a wrong answer costs you *time* rather than needing a
 penalty of its own, the same way a typing test treats a typo.
 
-The result is **correct answers per minute**, with your best for that drill beside it, the round's
-**error rate**, and a chart of the drill's recent rounds so the number has something to be measured
-against. The round also counts toward the drill's progress, scored as right answers over attempts.
+The result has two measures: **correct answers per minute** (speed) and **% right** (success).
+Success is right answers over *attempts*, `correct / (correct + wrong)`, not over prompts. That way a
+10-prompt round and a 30-prompt one sit on the same chart, and it is the same number the drill's
+progress is scored by. Hints don't count against it, but the round notes them.
 
-Error rate is wrong answers over *attempts* (`wrong / (correct + wrong)`), not over prompts, so a
-10-prompt round and a 30-prompt one sit on the same chart.
+On the Move the result is pages, and the **jog** turns them:
+
+1. **The round:** answers a minute, your best for the drill, right % and wrong count, and a chart
+   of the drill's rounds (speed as a line, errors as bars).
+2. **RIGHT %:** this round's success, large, over every round of the drill on a 0–100% scale. The
+   90% a pass needs is dotted across it, and a round that took hints is drawn hollow.
+3. **ANSWERS:** every answer the round asked, four to a page: each interval, scale, note or chord.
+   The bar is its success over **every round** of the drill: of the times it was the answer, how
+   often you got it right first time. The tick through the bar is **this round**, and the numbers at
+   the end are this round's right/asked. The answers you mix up stand out at once: `Minor 6th`
+   full, `Major 6th` half.
+
+What counts as an answer: in the Hear and Read courses and exercises it is the exercise's own
+answer (Major 6th, Dorian). For notes it is the note name without its octave (C♯). For the triads
+of the key it is the chord (Em). For chord types it is the quality (m7), because hundreds of chords
+fall into a few dozen kinds, and the kind is what you are learning. The per-answer totals are kept
+for every round you ever play, apart from the last-200-rounds history behind the charts.
+
+On the page the result shows the same three things on one screen: both headline numbers, the speed
+and success charts, and a bar per answer. **Progress** shows a quiz drill's success chart and answer
+bars too, so you can look them up between rounds.
+
+**A quiz practises what you get wrong.** An answer you have missed before comes round more often.
+Its weight is 1 + 3 × its error rate over every round of the drill, so one you always miss comes
+about four times as often as one you never miss, and every answer still comes. And a prompt you get
+wrong is asked again three to five prompts later, while it is still fresh.
 
 Rates only ever compare **within a drill**: hearing seventh chords is not the same task as naming a
 white note, so every round is recorded against a drill id (`guess:notes:half`, `hear:chords:types`)
@@ -710,10 +894,16 @@ instrument loaded on it, no MIDI channel to match. It is rendered by the Rust en
 the overtake generator slot and *mixed into* Move's audio, so it plays alongside whatever else is
 going on rather than replacing it.
 
-It is a synthesised piano, not a recorded one. Each voice is a small stack of partials whose higher
-ones decay faster — that property, more than the waveform, is what the ear reads as a struck,
-ringing string — and the partials are slightly stretched because real piano strings are stiff and
-their overtones sit progressively sharp.
+It is a recorded grand piano: the Salamander Grand Piano, a Yamaha C5, in four velocity layers
+sampled every minor third, so how hard you strike a pad is heard as well as scored. The
+metronome is a pair of recorded claves, the brighter one on the downbeat. Both ship in the module
+(`samples/`, about 57 MB) and are read into memory when it opens; see
+[Sounds and credits](#sounds-and-credits).
+
+Should the recordings be missing or damaged, the module still plays: then it is the synthesised
+piano it had before, a small stack of partials whose higher ones decay faster, and the click is two
+high piano notes. With **MIDI out** on a track or USB, the click goes out as those notes too, so the
+instrument at the other end clicks with you.
 
 **MIDI out** in settings can send elsewhere instead:
 
@@ -811,9 +1001,10 @@ shortcuts to the first four.
 | Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
 | Scale | **Major** | all 22 of Move's own scales, taken from the device's firmware so the pads light the way Move would |
 | Click | on | MIDI metronome (see the caveat above) |
-| Reference | **on** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along. Off for unaided reading |
+| Reference | **stage 1** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — at stage 1. `on` keeps it at stage 2, `off` never plays it. Listen plays the piece first whatever this says |
+| Names | **stage 1** | the note names under the notes, at stage 1. `always` keeps them at stage 2, `off` hides them at both |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
-| Grace | **1** | how late you may play a note and still be scored in time, in beats, so the tolerance scales with tempo. A beat is 750 ms at 80bpm — long enough to find the key. Raise it to 2 or 4 while a piece is new; drop it to 1/4 once the rhythm is the point. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself, so you can see what is being asked for. Play later than Grace and the scroll still releases — it just scores a miss |
+| Grace | **1/4** | how late you may play a note and still be scored a hit, in beats, so the tolerance scales with tempo. A quarter beat is 190 ms at 80bpm — in time. Raise it to 1, 2 or 4 while a piece is new and finding the pad is the work. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself (Wait). Play later than Grace and the scroll still releases — it just scores a miss |
 | Count in | 4 | beats before the first note |
 | MIDI ch | 1 | which channel the Move track listens on |
 
@@ -858,8 +1049,12 @@ An event may carry `"symbol": "C/E"`. That is the chord's name, shown when the s
 it, for the chords that cannot be named from their notes: a slash chord, or a voicing without its
 root. Otherwise the name is worked out from the pitches, lowest note as the root.
 
-`keySig` is the signature in fifths (`-1` = F major, `2` = D major). It sets how black notes are
-**spelled** — sharp keys read `A#`, flat keys read `Bb`. No key signature is drawn on the staff:
+`keySig` is the signature in fifths (`-1` = F major, `2` = D major). It sets how notes are
+**spelled** — sharp keys read `A#`, flat keys read `Bb`, and six or seven sharps or flats give the
+white keys their accidentals (`E#` in F♯ major, `Cb` in G♭ major). Generated drills are written in
+their scale: one letter a degree, so C minor reads `C D E♭ F G A♭ B♭` and C harmonic minor raises
+its 7th to `B`, never `C♭`, and the signature is the scale's own (D Dorian none, C minor three
+flats). No key signature is drawn on the staff:
 there is no room at 128×64, and for a reading trainer an accidental on the note itself is more use
 than one you have to remember. Beats must run forwards; pitches are MIDI note numbers. A piece that
 changes key part-way can say so with `"keyChanges": [{ "beat": 16, "keySig": -2 }]`: the spelling
@@ -1025,3 +1220,22 @@ Up to 1.8.1 the module was released under MIT; those releases keep that licence.
 The one third-party dependency compiled into `dsp.so` is
 [`libm`](https://crates.io/crates/libm), taken under **MIT**; its notice ships in
 the tarball as [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
+
+## Sounds and credits
+
+The piano and the metronome are recordings, and their makers are credited here as their licences
+ask:
+
+- **Piano:** [Salamander Grand Piano V3](https://archive.org/details/SalamanderGrandPianoV3) by
+  **Alexander Holm**, licensed under
+  [CC BY 3.0](https://creativecommons.org/licenses/by/3.0/); the SFZ edition by kinwie
+  ([sfzinstruments](https://github.com/sfzinstruments/SalamanderGrandPiano)). **Modified:** four of
+  its sixteen velocity layers, resampled to 44.1 kHz, mono, the tails shortened with a fade.
+- **Metronome:** claves from the [Versilian Community Sample Library](https://github.com/sgossner/VCSL)
+  by Versilian Studios, [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/).
+
+Neither author endorses this module. The licence texts ship in the tarball under
+`samples/LICENSES/`, and [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) has the details. The
+packs are cut by `tools/nisp-build` from the manifests in `samples/`
+(`scripts/build-samples.sh`); they are stored with Git LFS, so a clone needs `git lfs pull` before
+`scripts/build.sh`.

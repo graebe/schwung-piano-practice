@@ -11,14 +11,14 @@
 
 import * as L from './layout.mjs';
 import * as R from './staff_render.mjs';
-import { spell, pitchToY, chordLabel, inStaffRange } from './notation.mjs';
+import { spell, pitchToY, diatonicToY, chordLabel, inStaffRange } from './notation.mjs';
 import { nameChord } from './chords.mjs';
 import {
-  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, fifthsAt,
+  visibleEvents, visibleBars, barBeatOf, labelLimitPx, chartTotalBeats, beatToX, keyAt, displayShift,
 } from './chart.mjs';
 import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
-import { drillLabel, sparkline, summarise, errorFraction } from './stats.mjs';
+import { drillLabel, sparkline, summarise, errorFraction, successSeries } from './stats.mjs';
 import { accuracySeries } from './progress.mjs';
 import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
@@ -65,6 +65,16 @@ function twoCell(ctx, y, left, right, x0, x1) {
  * The reading view.
  * state = { chart, run, songBeats, pxPerBeat, running, beatFlash }
  */
+/*
+ * Where the clef's ottava number goes — 8, 15 or 22 for one, two or three
+ * octaves: right of the clef's tail below the staff, and over the staff's
+ * left end above it. Both clear of the clef, and of the notes, which vanish
+ * at DESPAWN_X.
+ */
+const OTTAVA_BELOW = { x: L.CLEF_X + 9, y: L.CLEF_Y + 29 };
+const OTTAVA_ABOVE = { x: L.STAFF_LEFT_X, y: L.STAFF_AREA_TOP_Y + 1 };
+export const OTTAVA_MARK = { 1: '8', 2: '15', 3: '22' };
+
 export function drawReadingView(ctx, state) {
   const { chart, run, songBeats, pxPerBeat } = state;
 
@@ -100,13 +110,16 @@ export function drawReadingView(ctx, state) {
     }
   }
 
+  /* Drawn an octave off where it sounds when that is what puts it on the
+   * staff (an 8 by the clef says so): nothing is scored that is not shown. */
+  const shift = 12 * displayShift(chart);
   for (let i = 0; i < visible.length; i++) {
     const v = visible[i];
     const entry = run ? run.entries[v.index] : null;
-    const fifths = fifthsAt(chart, v.event.beat);
+    const fifths = keyAt(chart, v.event.beat);
     const notes = [];
     for (let n = 0; n < v.event.pitches.length; n++) {
-      const pitch = v.event.pitches[n];
+      const pitch = v.event.pitches[n] + shift;
       if (!inStaffRange(pitch)) continue;
       const s = spell(pitch, fifths);
       notes.push({
@@ -119,7 +132,7 @@ export function drawReadingView(ctx, state) {
     R.drawEntry(ctx, {
       x: v.x,
       notes,
-      label: chordLabel(v.event.pitches, fifths),
+      label: state.names === false ? '' : chordLabel(v.event.pitches, fifths),
       labelLimitPx: labelLimitPx(visible, i, pxPerBeat),
     });
   }
@@ -130,16 +143,23 @@ export function drawReadingView(ctx, state) {
   if (run && run.markers) {
     for (let i = 0; i < run.markers.length; i++) {
       const m = run.markers[i];
-      if (!inStaffRange(m.pitch)) continue;
+      if (!inStaffRange(m.pitch + shift)) continue;
       const mx = beatToX(m.beat, songBeats, pxPerBeat);
       if (mx < L.DESPAWN_X || mx >= L.SCREEN_W) continue;
-      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch, fifthsAt(chart, m.beat)));
+      R.drawPlayedMarker(ctx, mx, pitchToY(m.pitch + shift, keyAt(chart, m.beat)));
     }
   }
 
   /* The clef sits on top: notes scroll behind it and vanish there. */
   ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
   R.drawClef(ctx);
+  /* The ottava: an 8 under the clef sounds an octave below what is written,
+   * one above it an octave higher. */
+  const ottava = OTTAVA_MARK[Math.abs(shift / 12)];
+  if (ottava) {
+    const at = shift > 0 ? OTTAVA_BELOW : OTTAVA_ABOVE;
+    R.drawBigText(ctx, at.x, at.y, ottava, 1);
+  }
   R.drawHitLine(ctx, Boolean(state.beatFlash));
 
   /* Count-in: the beats before the first note used to pass with nothing on
@@ -148,10 +168,10 @@ export function drawReadingView(ctx, state) {
   const countIn = countInRemaining(songBeats);
   if (countIn > 0) {
     drawCentreCallout(ctx, String(Math.min(9, countIn)), 4);
-  } else if (state.blocked && run) {
+  } else if (state.blocked && run && state.stuckNamed !== false) {
     const stuck = chart.events[blockingEntryIndex(run)];
     drawStuckLabel(ctx, blockingNotes(run).map((n) => n.pitch),
-      fifthsAt(chart, stuck ? stuck.beat : songBeats), stuck && stuck.symbol);
+      keyAt(chart, stuck ? stuck.beat : songBeats), stuck && stuck.symbol);
   }
 
   const bb = barBeatOf(chart, songBeats);
@@ -352,6 +372,132 @@ export function drawGuessView(ctx, state) {
 }
 
 /*
+ * A Play drill: the prompt and the ones after it, in a row that moves on one
+ * step per right answer — the song's scroll, paced by your answers instead of
+ * a tempo.
+ *
+ *   staff  noteheads only, on the staff, the prompt on the hit line; the name
+ *          stays hidden (reading it is the drill) until Help reveals it
+ *   name   the names only, big, no staff; the prompt boxed at the left
+ *
+ * `glide` (0..1) is how far the row has moved towards the next prompt. The
+ * session eases it over the pause after a right answer and shifts the queue
+ * as it reaches 1, so a full glide and a fresh row are the same picture.
+ *
+ * state = { queue: [{ pitches, name }], read, glide, solved, hint, fifths,
+ *           title, score, footer }
+ */
+export const QUIZ_STEP_PX = L.PX_PER_BEAT_DEFAULT;   /* one prompt per beat */
+export const QUIZ_NAME_X = 4;
+export const QUIZ_NAME_SCALE = 3;
+export const QUIZ_NAME_GAP = 14;
+/* Centred on the staff, where the eye already is in every other drill. */
+export const QUIZ_NAME_Y = L.STAFF_TOP_Y + ((L.STAFF_BOTTOM_Y - L.STAFF_TOP_Y
+  - R.bigDigitHeight(QUIZ_NAME_SCALE)) >> 1);
+
+export function drawQuizRow(ctx, state) {
+  ctx.clear();
+  const staff = state.read === 'staff';
+  if (staff) drawStaffRow(ctx, state);
+  else drawNameRow(ctx, state);
+
+  R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: staff });
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+function drawStaffRow(ctx, state) {
+  const { queue, fifths = 0 } = state;
+  const shift = (state.glide || 0) * QUIZ_STEP_PX;
+  R.drawStaff(ctx);
+  R.drawHitLine(ctx);
+  for (let i = 0; i < queue.length; i++) {
+    const x = L.HIT_X + i * QUIZ_STEP_PX - shift;
+    if (x < L.DESPAWN_X) continue;
+    if (x > L.SCREEN_W + L.HEAD_W) break;
+    const notes = [];
+    const state0 = i === 0 && state.solved ? 'hit' : 'pending';
+    for (let n = 0; n < queue[i].pitches.length; n++) {
+      const pitch = queue[i].pitches[n];
+      if (!inStaffRange(pitch)) continue;
+      notes.push({ y: pitchToY(pitch, fifths), alter: spell(pitch, fifths).alter, state: state0 });
+    }
+    if (notes.length) R.drawEntry(ctx, { x, notes, label: '' });
+  }
+  /* Help names the prompt — under it, in the lane where names live. */
+  if (state.hint > 0 && queue.length && queue[0].name) {
+    R.drawLabel(ctx, L.HIT_X - shift, queue[0].name, L.TEXT_MAX_PX - L.HIT_X);
+  }
+  /* The clef over the staff lines, notes vanishing behind it, as in a song. */
+  ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
+  R.drawClef(ctx);
+}
+
+/*
+ * A name split for setting: the root in the big font — a letter and its
+ * accidental, which the big font has — and a chord's quality beside it in the
+ * host font, raised, as a chord symbol is written. A stack with no name comes
+ * as its notes, spaces and all, and goes in the host font whole.
+ */
+export function splitName(name) {
+  const m = /^[A-G][#b]*/.exec(name);
+  if (!m || name.indexOf(' ') >= 0) return { root: '', suffix: name };
+  return { root: m[0], suffix: name.slice(m[0].length) };
+}
+
+export function nameWidth(ctx, name) {
+  const { root, suffix } = splitName(name);
+  const big = root ? R.bigTextWidth(root, QUIZ_NAME_SCALE) : 0;
+  return big + (suffix ? (root ? 1 : 0) + ctx.textWidth(suffix) : 0);
+}
+
+function drawNameRow(ctx, state) {
+  const { queue } = state;
+  const h = R.bigDigitHeight(QUIZ_NAME_SCALE);
+  const head = queue.length ? nameWidth(ctx, queue[0].name) : 0;
+  let x = QUIZ_NAME_X - (state.glide || 0) * (head + QUIZ_NAME_GAP);
+  for (let i = 0; i < queue.length && x < L.SCREEN_W; i++) {
+    const name = queue[i].name;
+    const w = nameWidth(ctx, name);
+    const ix = Math.round(x);
+    if (ix + w > 0) {
+      /* The prompt: boxed while it waits, knocked out once it is played. */
+      const lit = i === 0 && state.solved;
+      if (i === 0) {
+        ctx.fillRect(ix - 2, QUIZ_NAME_Y - 2, w + 4, h + 4, lit ? 1 : 0);
+        if (!lit) ctx.drawRect(ix - 2, QUIZ_NAME_Y - 2, w + 4, h + 4, 1);
+      }
+      drawName(ctx, ix, name, lit ? 0 : 1);
+    }
+    x += w + QUIZ_NAME_GAP;
+  }
+}
+
+function drawName(ctx, x, name, colour) {
+  const { root, suffix } = splitName(name);
+  let cx = x;
+  if (root) {
+    drawBigTextColour(ctx, cx, QUIZ_NAME_Y, root, colour);
+    cx += R.bigTextWidth(root, QUIZ_NAME_SCALE) + 1;
+  }
+  if (suffix) {
+    /* Raised beside a root; centred on the row when it stands alone. */
+    const y = root ? QUIZ_NAME_Y : QUIZ_NAME_Y + ((R.bigDigitHeight(QUIZ_NAME_SCALE) - L.TEXT_H) >> 1);
+    ctx.text(cx, y, suffix, colour);
+  }
+}
+
+/* The big font in either colour: drawn lit, or punched out of a lit box. */
+function drawBigTextColour(ctx, x, y, text, colour) {
+  if (colour) {
+    R.drawBigText(ctx, x, y, text, QUIZ_NAME_SCALE);
+    return;
+  }
+  const lit = { fillRect: (fx, fy, fw, fh) => ctx.fillRect(fx, fy, fw, fh, 0) };
+  R.drawBigText(lit, x, y, text, QUIZ_NAME_SCALE);
+}
+
+/*
  * What you are stuck on, named, in the name lane.
  *
  * It used to be a big boxed callout across the middle of the staff — which
@@ -470,18 +616,95 @@ export function drawRoundResult(ctx, state) {
 
   /* Right-aligned beside the headline: the wrong answers on the row above
    * "per min", the hints on its row, fitted to what is left of it. */
-  const pct = Math.round(errorFraction(state.n, state.wrong) * 100);
-  rightText(ctx, L.RESULT_SIDE_A_Y, 'wrong ' + state.wrong + '  ' + pct + '%', L.RESULT_LEFT_X + w + 4);
-  if (state.hints) {
-    rightText(ctx, L.RESULT_SIDE_B_Y, 'hints ' + state.hints, unitX + ctx.textWidth('per min') + 4);
-  }
+  /* Success first — what the round is scored by, and what the next pages
+   * plot — then the wrong answers under it. A round that took hints shows how
+   * many in the streak's place: they qualify the share right, the streak
+   * does not. */
+  const pct = Math.round((1 - errorFraction(state.n, state.wrong)) * 100);
+  rightText(ctx, L.RESULT_SIDE_A_Y, 'right ' + pct + '%', L.RESULT_LEFT_X + w + 4);
+  rightText(ctx, L.RESULT_SIDE_B_Y, 'wrong ' + state.wrong, unitX + ctx.textWidth('per min') + 4);
   twoCell(ctx, L.RESULT_ROW_A_Y,
     state.n + ' in ' + Math.round(state.ms / 1000) + 's',
-    'streak ' + state.bestStreak, L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
+    state.hints ? 'hints ' + state.hints : 'streak ' + state.bestStreak, L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
 
   drawPlot(ctx, L.RESULT_PLOT, state.records || []);
   drawFooterHint(ctx, state.footer || 'PLAY again  CLICK next');
   return ctx;
+}
+
+/*
+ * A round's result is pages, turned with the jog:
+ *
+ *   0  the round      answers a minute, and how the rate has gone
+ *   1  RIGHT %        right of all attempts, this round and every round before
+ *   2+ ANSWERS        each answer's success, four to a page
+ *
+ * state = drawRoundResult's, plus { page, success, answers: [{ label, asked,
+ * right, allAsked, allRight }] }
+ */
+export function drawResultPage(ctx, state) {
+  const page = state.page || 0;
+  if (page === 0) return drawRoundResult(ctx, state);
+  const count = L.resultPageCount(state.answers);
+  ctx.clear();
+  R.drawChrome(ctx, { left: page === 1 ? 'RIGHT %' : 'ANSWERS', right: (page + 1) + '/' + count });
+  if (page === 1) drawSuccessPage(ctx, state);
+  else drawAnswersPage(ctx, state, page - 2);
+  drawFooterHint(ctx, 'JOG page  CLICK next');
+  return ctx;
+}
+
+/* This round's share right, big, over every round of the drill on 0-100%
+ * with the pass mark: hollow where a round took a hint. */
+function drawSuccessPage(ctx, state) {
+  const big = String(Math.round(state.success));
+  const w = R.bigTextWidth(big, L.RESULT_BIG_SCALE);
+  R.drawBigText(ctx, L.RESULT_LEFT_X, L.RESULT_BIG_Y, big, L.RESULT_BIG_SCALE);
+  ctx.text(L.RESULT_LEFT_X + w + 3, L.RESULT_BIG_Y + R.bigDigitHeight(L.RESULT_BIG_SCALE) - L.TEXT_H, '%', 1);
+  const minX = L.RESULT_LEFT_X + w + 3 + ctx.textWidth('%') + 4;
+  rightText(ctx, L.RESULT_SIDE_A_Y, 'right, of all', minX);
+  rightText(ctx, L.RESULT_SIDE_B_Y, 'attempts', minX);
+  drawAccuracyPlot(ctx, L.EXERCISE_PLOT, successSeries(state.records || []));
+}
+
+/*
+ * Four answers a page. Each row: its short name, a bar of its success over
+ * every round (filled from the left, the box is 100%), a tick at this round's
+ * success, and this round's right/asked at the end.
+ */
+export const ANSWER_ROW_TOP_Y = 11;
+export const ANSWER_ROW_STEP = 11;
+const ANSWER_NAME_W = 54;
+const ANSWER_BAR_X = ANSWER_NAME_W + 2;
+const ANSWER_BAR_W = 38;
+
+export function answerBarFill(right, asked, width = ANSWER_BAR_W - 2) {
+  return asked > 0 ? Math.round((right / asked) * width) : 0;
+}
+
+function drawAnswersPage(ctx, state, sub) {
+  const rows = (state.answers || []).slice(sub * L.ANSWER_ROWS, (sub + 1) * L.ANSWER_ROWS);
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    const y = ANSWER_ROW_TOP_Y + i * ANSWER_ROW_STEP;
+    ctx.text(1, y, rowName(ctx, r), 1);
+    ctx.drawRect(ANSWER_BAR_X, y, ANSWER_BAR_W, L.TEXT_H, 1);
+    const fill = answerBarFill(r.allRight, r.allAsked);
+    if (fill) ctx.fillRect(ANSWER_BAR_X + 1, y + 1, fill, L.TEXT_H - 2, 1);
+    /* This round, as a tick through the bar: knocked out where it is filled. */
+    const tick = ANSWER_BAR_X + 1 + answerBarFill(r.right, r.asked);
+    ctx.fillRect(Math.min(tick, ANSWER_BAR_X + ANSWER_BAR_W - 2), y - 1, 1, L.TEXT_H + 2, tick <= ANSWER_BAR_X + fill ? 0 : 1);
+    const score = r.right + '/' + r.asked;
+    ctx.text(L.SCREEN_W - 1 - ctx.textWidth(score), y, score, 1);
+  }
+}
+
+/* The answer's name if it fits; else its key when that is a short name of its
+ * own (d12, P15), else the name cut to fit. */
+function rowName(ctx, r) {
+  if (ctx.textWidth(r.label) <= ANSWER_NAME_W) return r.label;
+  if (r.key && String(r.key).length <= 4) return String(r.key);
+  return truncate(ctx, r.label, ANSWER_NAME_W);
 }
 
 /* Right-aligned to the result's right edge, never reaching left of `minX`. */
@@ -556,7 +779,16 @@ export function drawExerciseResult(ctx, state) {
   rightText(ctx, L.RESULT_SIDE_B_Y,
     state.wrong ? state.wrong + ' wrong' : 'stage ' + state.stage, minX);
 
-  drawAccuracyPlot(ctx, L.EXERCISE_PLOT, state.history || []);
+  /* How the notes you hit sat on the beat — and, when the run leaned one
+   * way, which: the first thing a teacher would tell you after the notes. */
+  const t = state.timing;
+  if (t && t.hits) {
+    twoCell(ctx, L.RESULT_ROW_A_Y, 'in time ' + t.inTime + '%',
+      t.lean === 'rush' ? 'rushing' : t.lean === 'drag' ? 'dragging' : '', L.RESULT_LEFT_X, L.RESULT_RIGHT_X);
+    drawAccuracyPlot(ctx, L.RESULT_PLOT, state.history || []);
+  } else {
+    drawAccuracyPlot(ctx, L.EXERCISE_PLOT, state.history || []);
+  }
   drawFooterHint(ctx, state.footer || 'REC again  CLICK next');
   return ctx;
 }
@@ -740,6 +972,83 @@ function drawAnswerMap(ctx, state, options) {
   }
   const name = truncate(ctx, options[state.index] || '', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(name)) >> 1, MAP_NAME_Y, name, 1);
+}
+
+/*
+ * A reading course: the prompt on the staff, the answer under the jog in the
+ * name lane. The staff needs the screen, so the answers are one line — the
+ * jog walks them, the answer pads light them, the one under the jog pulses.
+ *
+ * Notes come spelled ({ diatonic, alter }): a read interval is counted by its
+ * letters, so they are placed by letter, never re-spelled by a key.
+ *
+ * state = { title, score, staff: [{ part, notes }], option, solved, label, footer }
+ */
+const READ_LEFT_X = 26;
+const READ_RIGHT_X = 122;
+const READ_STEP_MAX = 26;
+
+export function readColumnsX(columns) {
+  const parts = columns.length ? columns[columns.length - 1].part + 1 : 1;
+  const slots = columns.length + (parts - 1);
+  const step = Math.min(READ_STEP_MAX, (READ_RIGHT_X - READ_LEFT_X) / Math.max(1, slots - 1));
+  const width = step * (slots - 1);
+  const left = READ_LEFT_X + ((READ_RIGHT_X - READ_LEFT_X - width) / 2);
+  return columns.map((c, i) => Math.round(left + (i + c.part) * step));
+}
+
+/* One column: a single note, or a stack whose seconds sit side by side and
+ * whose accidentals step left when they would touch. */
+function drawReadColumn(ctx, x, notes) {
+  const sorted = notes.slice().sort((a, b) => a.diatonic - b.diatonic);
+  let accX = x + L.ACCIDENTAL_DX;
+  let lastAccY = null;
+  for (let i = 0; i < sorted.length; i++) {
+    const n = sorted[i];
+    const y = diatonicToY(n.diatonic);
+    const shifted = i > 0 && n.diatonic - sorted[i - 1].diatonic === 1;
+    const hx = shifted ? x + L.HEAD_W : x;
+    R.drawLedgers(ctx, hx, y);
+    R.drawNote(ctx, hx, y, 'pending', 0);
+    if (n.alter) {
+      const clash = lastAccY !== null && Math.abs(lastAccY - y) < L.ACCIDENTAL_H + 1;
+      if (clash) accX -= L.ACCIDENTAL_W + 2;
+      R.drawAccidental(ctx, accX, y, n.alter);
+      lastAccY = y;
+    }
+  }
+}
+
+export function drawReadPick(ctx, state) {
+  ctx.clear();
+  R.drawStaff(ctx);
+  const columns = state.staff || [];
+  const xs = readColumnsX(columns);
+  for (let i = 0; i < columns.length; i++) {
+    /* A bar line between the two intervals of a comparison. */
+    if (i > 0 && columns[i].part !== columns[i - 1].part) R.drawBarLine(ctx, (xs[i - 1] + xs[i]) >> 1);
+    drawReadColumn(ctx, xs[i], columns[i].notes);
+  }
+  ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
+  R.drawClef(ctx);
+  R.drawChrome(ctx, { left: state.title || 'READ', right: state.score || '', lane: true });
+
+  if (state.solved) {
+    /* Right: what it was, knocked out, as a solved prompt is everywhere. */
+    const text = truncate(ctx, state.label || '', L.TEXT_MAX_PX - 4);
+    const w = ctx.textWidth(text);
+    const x = (L.SCREEN_W - w) >> 1;
+    ctx.fillRect(x - 2, L.NAME_LANE_Y - 1, w + 4, L.TEXT_H + 1, 1);
+    ctx.text(x, L.NAME_LANE_Y, text, 0);
+  } else {
+    const text = truncate(ctx, state.option || '', L.TEXT_MAX_PX - 16);
+    ctx.text(1, L.NAME_LANE_Y, '<', 1);
+    ctx.text(L.SCREEN_W - 1 - ctx.textWidth('>'), L.NAME_LANE_Y, '>', 1);
+    ctx.text((L.SCREEN_W - ctx.textWidth(text)) >> 1, L.NAME_LANE_Y, text, 1);
+    if (state.struck) ctx.fillRect(8, L.NAME_LANE_Y + 3, L.SCREEN_W - 16, 1, 1);
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
 }
 
 /*

@@ -451,6 +451,39 @@ export function runStats(run) {
   };
 }
 
+/*
+ * How the hits sat against the beat, for the result: the share in time
+ * (within the good window either side), early and late, and the average
+ * offset in ms — negative is ahead of the beat. Past RUSH_MS either way the
+ * run leans: 'rush' or 'drag', which is what a teacher would say first.
+ * Misses are not timing; they are counted where they always were.
+ */
+export const RUSH_MS = 40;
+
+export function timingSummary(run) {
+  const msPerBeat = 60000 / (run.bpm || 90);
+  let inTime = 0;
+  let early = 0;
+  let late = 0;
+  let sum = 0;
+  let n = 0;
+  for (const entry of run.entries) {
+    for (const note of entry.notes) {
+      if (note.state !== HIT) continue;
+      const ms = note.offsetBeats * msPerBeat;
+      if (ms < -run.windows.goodMs) early++;
+      else if (ms > run.windows.goodMs) late++;
+      else inTime++;
+      sum += ms;
+      n++;
+    }
+  }
+  const pct = (k) => (n ? Math.round((k / n) * 100) : 0);
+  const meanMs = n ? Math.round(sum / n) : 0;
+  const lean = meanMs <= -RUSH_MS ? 'rush' : meanMs >= RUSH_MS ? 'drag' : null;
+  return { hits: n, inTime: pct(inTime), early: pct(early), late: pct(late), meanMs, lean };
+}
+
 /* The run is over once the chart has scrolled past and nothing is pending. */
 /*
  * `blocked` is true while the scroll is frozen waiting for a note, and the run

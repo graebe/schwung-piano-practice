@@ -7,3 +7,4 @@ coverage/
 test-results/
 playwright-report/
 *.profraw
+tools/nisp-build/target/

@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  EXERCISES, INTERVALS, exerciseByKey, exerciseNumber, levelByKey, isNaming, answersFor,
+  EXERCISES, INTERVALS, TOPICS, resolveLegacy, exerciseByKey, exerciseNumber, levelByKey, isNaming, answersFor,
   buildEarPool, groupByAnswer, pickEntry, slowed, promptLength, earRange,
 } from '../src/ear.mjs';
 import { rng } from '../src/generator.mjs';
@@ -17,12 +17,23 @@ const find = (key, level, label) => pool(key, level).find((e) => e.label === lab
 
 /* ---- The list --------------------------------------------------------------- */
 
-test('the requested drills are in, thirds before chords, both early', () => {
-  const thirds = exerciseNumber(exerciseByKey('thirds'));
-  const triads = exerciseNumber(exerciseByKey('triads'));
-  assert.ok(thirds > 0 && triads > 0);
-  assert.ok(thirds < triads);
-  assert.ok(triads <= 6);
+test('the exercises the interval course replaced are gone; their ids lead to it', () => {
+  for (const k of ['thirds', 'perfect', 'seconds-thirds', 'intervals-up', 'intervals-down', 'intervals-together']) {
+    assert.equal(exerciseByKey(k), null, k);
+  }
+  assert.deepEqual(resolveLegacy('thirds', 'down'), ['id-3rds', 'down']);
+  assert.deepEqual(resolveLegacy('intervals-up', 'g1'), ['id-to-5', 'up']);
+  assert.deepEqual(resolveLegacy('intervals-together', 'g3'), ['id-to-8', 'together']);
+  assert.deepEqual(resolveLegacy('key-quality', 'scale'), ['sc-maj-min', 'up']);
+  assert.deepEqual(resolveLegacy('key-quality', 'melody'), ['key-quality', 'melody']);
+  assert.deepEqual(resolveLegacy('steps', 'key'), ['steps', 'key'], 'anything else is itself');
+});
+
+test('every exercise has a topic, and the topics run pitch, intervals, chords, keys', () => {
+  assert.deepEqual(TOPICS.map((t) => t.key), ['pitch', 'intervals', 'chords', 'keys']);
+  for (const ex of EXERCISES) assert.ok(TOPICS.some((t) => t.key === ex.topic), ex.key);
+  /* Major or minor as a scale is Identify scales › 1; the tune is what stays. */
+  assert.deepEqual(exerciseByKey('key-quality').levels.map((l) => l.key), ['melody']);
 });
 
 test('keys are unique, and so are the level keys within an exercise', () => {
@@ -58,7 +69,7 @@ test('play-back exercises point at the existing hear drills', () => {
 });
 
 test('an unknown level falls back to the first, an unknown exercise to null', () => {
-  const ex = exerciseByKey('thirds');
+  const ex = exerciseByKey('triads');
   assert.equal(levelByKey(ex, 'nope'), ex.levels[0]);
   assert.equal(exerciseByKey('nope'), null);
   assert.equal(levelByKey(null, 'up'), null);
@@ -104,7 +115,7 @@ test('the range follows the transpose and stays on the staff', () => {
   assert.ok(inStaffRange(r.lo) && inStaffRange(r.hi));
   const up = earRange(DEFAULT_TRANSPOSE + 12);
   assert.ok(inStaffRange(up.hi));
-  for (const e of buildEarPool(exerciseByKey('thirds'), 'up', DEFAULT_TRANSPOSE + 12)) {
+  for (const e of buildEarPool(exerciseByKey('id-3rds'), 'up', DEFAULT_TRANSPOSE + 12)) {
     assert.ok(e.pitches.every((p) => p >= up.lo && p <= up.hi));
   }
 });
@@ -112,19 +123,19 @@ test('the range follows the transpose and stays on the staff', () => {
 /* ---- Right answers ------------------------------------------------------------ */
 
 test('C-E is a major third and C-Eb a minor one, spelled by letter', () => {
-  const m = find('thirds', 'up', 'C-E M3');
+  const m = find('id-3rds', 'up', 'C-E M3');
   assert.equal(m.answer, 'M3');
   assert.deepEqual(m.pitches, [60, 64]);
-  const n = find('thirds', 'up', 'C-Eb m3');
+  const n = find('id-3rds', 'up', 'C-Eb m3');
   assert.equal(n.answer, 'm3');
   assert.deepEqual(n.pitches, [60, 63]);
   /* A sharp root keeps its sharps going up: never a letter skipped. */
-  assert.ok(pool('thirds', 'up').some((e) => e.label === 'A-C# M3'));
+  assert.ok(pool('id-3rds', 'up').some((e) => e.label === 'A-C# M3'));
 });
 
 test('every interval prompt spans the semitones its answer names', () => {
-  for (const key of ['intervals-up', 'intervals-down', 'intervals-together']) {
-    for (const e of pool(key, 'g3')) {
+  for (const level of ['up', 'down', 'together']) {
+    for (const e of pool('id-to-8', level)) {
       const span = Math.max(...e.pitches) - Math.min(...e.pitches);
       assert.equal(span, INTERVALS.find((i) => i.key === e.answer).semis);
     }
@@ -132,9 +143,9 @@ test('every interval prompt spans the semitones its answer names', () => {
 });
 
 test('ascending rises, descending falls, together starts at once', () => {
-  for (const e of pool('thirds', 'up')) assert.ok(e.events[1].pitch > e.events[0].pitch && e.events[1].at > e.events[0].at);
-  for (const e of pool('thirds', 'down')) assert.ok(e.events[1].pitch < e.events[0].pitch && e.events[1].at > e.events[0].at);
-  for (const e of pool('thirds', 'together')) assert.equal(e.events[0].at, e.events[1].at);
+  for (const e of pool('id-3rds', 'up')) assert.ok(e.events[1].pitch > e.events[0].pitch && e.events[1].at > e.events[0].at);
+  for (const e of pool('id-3rds', 'down')) assert.ok(e.events[1].pitch < e.events[0].pitch && e.events[1].at > e.events[0].at);
+  for (const e of pool('id-3rds', 'together')) assert.equal(e.events[0].at, e.events[1].at);
 });
 
 test('C-E-G is major and A-C-E minor, in every voicing', () => {
@@ -190,7 +201,7 @@ test('a melody shape follows its two moves', () => {
 });
 
 test('major and minor keys differ in the third', () => {
-  for (const level of ['scale', 'melody']) {
+  for (const level of ['melody']) {
     for (const e of pool('key-quality', level)) {
       /* Every line stays at or above its tonic. */
       const tonic = Math.min(...e.pitches);
@@ -256,7 +267,7 @@ test('answers come up evenly, however unevenly the pool is split', () => {
 });
 
 test('the same prompt never comes twice running', () => {
-  const ex = exerciseByKey('thirds');
+  const ex = exerciseByKey('id-3rds');
   const groups = groupByAnswer(buildEarPool(ex, 'up'), ex.answers);
   const rand = rng(5);
   let prev = null;

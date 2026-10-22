@@ -281,11 +281,14 @@ const SCENARIOS = {
   } },
 
   /*
-   * Every quiz kind, each from the Quiz folder (Hear, Play, Name):
-   *   Play notes   every pad in turn, so some are right and most are wrong
-   *   Play chords  both hints, then a few wrong pads
-   *   Hear         Higher or lower, answered with the jog until the round ends
+   * Every quiz kind, each from the Quiz folder (Hear, Play, Name, Read):
+   *   Play notes   by alphabet: every pad in turn, so some are right and
+   *                most are wrong, and the row glides on after each right one
+   *   Play chords  by staff: both hints, then a few wrong pads
+   *   Hear         Pitch & melody › Higher or lower, answered with the jog
+   *                until the round ends
    *   Name notes   the same, through to its result and the stats it writes
+   *   Read         Identify intervals › 1 2nds › up, on the staff, by jog
    */
   quiz: { settings: QUIET, play(d) {
     const open = (path) => {
@@ -301,17 +304,21 @@ const SCENARIOS = {
     for (let p = 0; p < 32; p++) d.pad(p, 40);
     d.run(600); leave();
 
-    open([1, 1]);
+    open([1, 3]);
     d.press(PLAY); d.press(RECORD); d.press(RECORD); d.run(400);
     for (const p of [0, 4, 7]) d.pad(p, 60);
     leave();
 
-    open([0, 0, 0]);
+    open([0, 0, 0, 0]);
     answerWithJog(30); d.run(1000); leave();
 
     open([2, 0]);
     d.press(RECORD); d.run(200);
     answerWithJog(30); d.run(1000); d.click(); d.run(300); leave();
+
+    open([3, 0, 0, 0]);
+    d.press(PLAY); d.run(1500);
+    answerWithJog(30); d.run(1000); leave();
   } },
 
   /* Factory settings: the first Info page opens by itself, quiz sounds on. */

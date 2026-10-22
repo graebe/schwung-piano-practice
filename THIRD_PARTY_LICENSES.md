@@ -5,6 +5,11 @@ Torben Gräber. One third-party library is compiled into the shipped binaries,
 and its notice has to travel with them. MIT is compatible with the GPL: the combined
 work is conveyed under the GPL, and libm's own notice is kept intact.
 
+Two third-party RECORDINGS ship beside the binaries as data, in `samples/`:
+the piano and the metronome. They are content, not code, and keep their own
+licences (below); the full licence texts travel with them in
+`samples/LICENSES/`.
+
 ## libm 0.2.16 — MIT
 
 The piano engine (`dsp/piano-engine`) uses [`libm`](https://crates.io/crates/libm)
@@ -117,7 +122,47 @@ copies, and a subset is a modification, so it ships as "NI Notation" with the
 copyright, licence and reserved-name notices unchanged in
 `web/fonts/Bravura-OFL.txt`.
 
+## Salamander Grand Piano V3 — CC-BY-3.0
+
+The built-in piano (`samples/piano.nisp`) is cut from
+**Salamander Grand Piano V3** by **Alexander Holm**, a Yamaha C5 recorded at
+48 kHz / 24 bit, licensed under
+[Creative Commons Attribution 3.0 Unported](https://creativecommons.org/licenses/by/3.0/)
+(full text: `samples/LICENSES/CC-BY-3.0.txt`). Source: the original release,
+<https://archive.org/details/SalamanderGrandPianoV3>, through the SFZ edition by
+kinwie at <https://github.com/sfzinstruments/SalamanderGrandPiano> (commit
+3382bf9).
+
+**Modified:** 4 of the 16 velocity layers, resampled to 44.1 kHz, folded to
+mono, the silence before each note trimmed, tails ended at 2.5–8 s with a
+fade, and levels scaled as one; by `tools/nisp-build` from
+`samples/piano.manifest.toml`. Licensor endorsement is neither claimed nor
+implied.
+
+A CC licence before 4.0 is outside this project's usual rules for content;
+the owner approved this recording as the exception on 2026-10-21. CC-BY 3.0
+asks for the credit above, a link to the licence and a note of changes, all
+given here and in the README.
+
+## VCSL claves — CC0-1.0
+
+The metronome (`samples/click.nisp`) is two claves from the
+**Versilian Community Sample Library** by Versilian Studios
+(<https://github.com/sgossner/VCSL>, commit c1ea7bc,
+`Idiophones/Struck Idiophones/Claves/Claves{1,2}_Hit_v3_rr1_Mid.wav`),
+dedicated to the public domain under
+[CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/) (text:
+`samples/LICENSES/CC0-1.0.txt`). No credit is required; it is given anyway.
+Modified the same way as the piano, cut to 0.35 s.
+
 ## Not third-party
+
+- `tools/nisp-build`, which cuts the packs, runs on the build machine only and
+  ships in no tarball. Its crates — claxon (Apache-2.0), hound (Apache-2.0),
+  rubato and its audioadapter crates (MIT), serde and toml (MIT) — are all on
+  the project's allowlist.
+- `dsp/ni-sampler`, which plays the packs, is this project's own code,
+  GPL-3.0-or-later.
 
 - `web/src/kit/` is the Ultraviolet Solid kit from neon-ingvy-audio-plugins
   (commit 4e15cc8), by the same author, GPL-3.0-or-later here like the rest of

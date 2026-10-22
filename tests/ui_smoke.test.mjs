@@ -926,14 +926,19 @@ test('the Quiz folder is Hear, Play and Name, and each opens its drills', () => 
   globalThis.init();
   jog(2);
   const quiz = screen.frame(click);
-  assert.match(quiz, /QUIZ \| 1\/3 \| Hear .*\| Play .*\| Name /, quiz);
+  assert.match(quiz, /QUIZ \| 1\/4 \| Hear .*\| Play .*\| Name .*\| Read /, quiz);
   const hear = screen.frame(click);
   assert.match(hear, /HEAR/);
-  assert.match(hear, /Higher or lower/, 'Hear holds the hearing exercises: ' + hear);
+  assert.match(hear, /HEAR \| 1\/4 \| Pitch & melody .*\| Intervals .*\| Chords .*\| Scales & keys/, 'Hear is by topic: ' + hear);
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   jog(1);
   const play = screen.frame(click);
-  assert.match(play, /PLAY \| 1\/2 \| Notes .*\| Chords/, play);
+  assert.match(play, /PLAY \| 1\/4 \| Notes by alphabet .*\| Notes by staff .*\| Chords by name .*\| Chords by staff/, play);
+  assert.match(screen.frame(click), /NOTE\b(?! STAFF)/, 'Notes by alphabet opens the name row');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  jog(1);
+  assert.match(screen.frame(click), /NOTE STAFF/, 'Notes by staff opens the staff row');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   jog(1);
   const name = screen.frame(click);
@@ -943,15 +948,16 @@ test('the Quiz folder is Hear, Play and Name, and each opens its drills', () => 
   screen.restore();
 });
 
-/* Hear › 5 Major or minor 3rd: two answers, on pads 2 and 5 of the bottom row. */
-const THIRDS = { number: 5, pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
+/* Hear › Intervals › Identify intervals › 2 3rds › up: two answers, on pads 2
+ * and 5 of the bottom row. */
+const THIRDS = { path: [1, 0, 1, 0], pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
 
 test('an answer pad answers without a sound, and the bar shows the answers', async () => {
   const { ANSWER_COLOURS } = await import(new URL('../src/answer_pads.mjs', import.meta.url));
   freezeClock();
   globalThis.__leds = {};
   const screen = capture();
-  openHearing(THIRDS.number);
+  openHearing(THIRDS.path);
   advanceMs(2000);                                   /* let the prompt play out */
   assert.ok([ANSWER_COLOURS[0].bright, ANSWER_COLOURS[0].dim].includes(globalThis.__leds[PAD + 2]),
     'the first answer, pulsing under the jog');
@@ -985,7 +991,7 @@ test('pressing the right answer pad scores it, a wrong one counts against you', 
   freezeClock();
   const screen = capture();
   for (let round = 0; round < 3; round++) {
-    openHearing(THIRDS.number);
+    openHearing(THIRDS.path);
     advanceMs(2000);
     let solved = false;
     for (const col of THIRDS.pads) {
@@ -1144,15 +1150,28 @@ test('unloading is clean, and resume does not throw', () => {
 });
 
 /* Quiz › Hear is the first row of the Quiz folder; its exercises are numbered. */
-function openHearing(number, level = 0) {
+/* Quiz › Hear, then one jog position per level of the path, each clicked. */
+function openHearing(path) {
   globalThis.init();
   jog(2);
   click();
   click();
-  jog(number - 1);
-  click();
-  jog(level);
-  click();
+  for (const at of path) {
+    jog(at);
+    click();
+  }
+}
+
+/* Every drill in Quiz › Hear as a jog path to its first level: an exercise's
+ * first level, a course's first unit's, a one-level exercise itself. */
+async function hearPaths() {
+  const { hearMenu } = await import(new URL('../src/program.mjs', import.meta.url));
+  const paths = [];
+  const first = (node, path) => (node.children ? first(node.children[0], path.concat(0)) : path);
+  hearMenu().children.forEach((topic, t) => topic.children.forEach((item, i) => {
+    paths.push({ label: item.label, path: first(item, [t, i]) });
+  }));
+  return paths;
 }
 
 const noteOns = () => hostCalls.notes.join(',').split(',').filter((n) => n && !n.endsWith(':0'));
@@ -1161,7 +1180,7 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
   freezeClock();
   const screen = capture();
   hostCalls.notes.length = 0;
-  openHearing(5);
+  openHearing(THIRDS.path);
 
   /* Melodic: one note now, the second a beat later. */
   advanceMs(200);
@@ -1171,13 +1190,13 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
 
   const asked = screen.frame();
   assert.match(asked, /HEAR 3RDS/, asked);
-  assert.match(asked, /major or minor\?/);
+  assert.match(asked, /which interval\?/);
   assert.match(asked, /Major 3rd/);
   assert.match(asked, /Minor 3rd/);
 
   /* Answer the top option; if that was wrong the question stays, so the other is right. */
   let after = screen.frame(click);
-  if (/major or minor\?/.test(after)) {
+  if (/which interval\?/.test(after)) {
     jog(1);
     after = screen.frame(click);
   }
@@ -1187,7 +1206,7 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
   hostCalls.notes.length = 0;
   advanceMs(1600);
   const next = screen.frame();
-  assert.match(next, /major or minor\?/);
+  assert.match(next, /which interval\?/);
   assert.match(next, /1\/20/);
   assert.ok(noteOns().length >= 1, 'the next prompt sounds by itself');
   screen.restore();
@@ -1196,7 +1215,7 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
 
 test('hearing help: Record replays slower, then strikes an answer; Play repeats', () => {
   freezeClock();
-  openHearing(12, 1);                         /* Four triads, block */
+  openHearing([2, 1, 1]);                     /* Chords › Four triads › block */
   advanceMs(3000);
   hostCalls.notes.length = 0;
   globalThis.onMidiMessageInternal(CC(PLAY, 127));
@@ -1215,13 +1234,15 @@ test('hearing help: Record replays slower, then strikes an answer; Play repeats'
   thawClock();
 });
 
-test('every hearing exercise opens and sounds without throwing', () => {
+test('every hearing exercise and course opens and sounds without throwing', async () => {
   freezeClock();
-  for (let n = 1; n <= 18; n++) {
+  const all = await hearPaths();
+  assert.equal(all.length, 15, 'twelve exercises and three courses');
+  for (const { label, path } of all) {
     hostCalls.notes.length = 0;
-    openHearing(n);
+    openHearing(path);
     advanceMs(400);
-    assert.ok(noteOns().length >= 1, `exercise ${n} played nothing`);
+    assert.ok(noteOns().length >= 1, `${label} played nothing`);
     globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
     globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
     globalThis.onMidiMessageInternal(CC(RECORD, 127));

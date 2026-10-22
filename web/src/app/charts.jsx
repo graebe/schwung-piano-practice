@@ -116,14 +116,14 @@ export function AttemptsChart(props) {
 }
 
 /*
- * A quiz drill's rounds: correct answers a minute, and, on its own scale
- * underneath, how many attempts were wrong. A full error bar is 50% — a fixed
- * ceiling, as on the Move, so two visits compare.
+ * A quiz drill's rounds: correct answers a minute, and, on its own 0-100%
+ * scale underneath, how many attempts were right — what Progress scores a
+ * round by, with the 90% a pass needs dashed across it.
  */
 export function RoundsChart(props) {
   const records = () => props.records || [];
   const rate = (r) => (r.ms > 0 ? (r.n * 60000) / r.ms : 0);
-  const err = (r) => (r.n + r.w > 0 ? r.w / (r.n + r.w) : 0);
+  const ok = (r) => (r.n + r.w > 0 ? r.n / (r.n + r.w) : 0);
   const max = () => Math.max(10, Math.ceil(Math.max(0, ...records().map(rate)) / 10) * 10);
   const [tip, setTip] = createSignal(null);
   const hr = 140;
@@ -132,10 +132,10 @@ export function RoundsChart(props) {
   const fe = frame(he);
   const x = (i) => PAD.l + (records().length <= 1 ? fr.iw / 2 : (i / (records().length - 1)) * fr.iw);
   const yr = (v) => PAD.t + fr.ih - (v / max()) * fr.ih;
-  const ye = (v) => PAD.t + fe.ih - (Math.min(v, 0.5) / 0.5) * fe.ih;
+  const ye = (v) => PAD.t + fe.ih - Math.min(1, v) * fe.ih;
   const barW = () => Math.max(3, Math.min(14, fr.iw / Math.max(1, records().length) - 2));
   const line = () => records().map((r, i) => `${i ? 'L' : 'M'}${x(i)},${yr(rate(r))}`).join(' ');
-  const label = (r) => `${Math.round(rate(r))}/min · ${Math.round(err(r) * 100)}% wrong${r.h ? ` · ${r.h} hint${r.h > 1 ? 's' : ''}` : ''} · ${when(r.t)}`;
+  const label = (r) => `${Math.round(rate(r))}/min · ${Math.round(ok(r) * 100)}% right${r.h ? ` · ${r.h} hint${r.h > 1 ? 's' : ''}` : ''} · ${when(r.t)}`;
   return (
     <figure class="chart">
       <figcaption class="t-label">Correct a minute</figcaption>
@@ -154,12 +154,14 @@ export function RoundsChart(props) {
         </svg>
         <Tip tip={tip()} />
       </div>
-      <figcaption class="t-label chart-second">Wrong, of all attempts</figcaption>
+      <figcaption class="t-label chart-second">Right, of all attempts</figcaption>
       <div class="chart-plot">
-        <svg viewBox={`0 0 ${W} ${he}`} role="img" aria-label="error rate per round, up to 50%">
-          <YAxis h={he} max={0.5} ticks={thirds(0.5)} format={(v) => `${Math.round(v * 100)}%`} />
+        <svg viewBox={`0 0 ${W} ${he}`} role="img"
+             aria-label={`share right per round, latest ${records().length ? Math.round(ok(records().at(-1)) * 100) : 0}%`}>
+          <YAxis h={he} max={1} ticks={thirds(1)} format={(v) => `${Math.round(v * 100)}%`} />
+          <line class="chart-pass" x1={PAD.l} x2={W - PAD.r} y1={ye(0.9)} y2={ye(0.9)} />
           <For each={records()}>{(r, i) => {
-            const top = ye(err(r));
+            const top = ye(ok(r));
             const base = PAD.t + fe.ih;
             return (
               <rect class="chart-bar" x={x(i()) - barW() / 2} width={barW()} y={top}
@@ -170,9 +172,67 @@ export function RoundsChart(props) {
           }}</For>
         </svg>
       </div>
-      <DataTable head={['#', 'Correct', 'Time', 'A minute', 'Wrong', 'Hints', 'Date']}
+      <DataTable head={['#', 'Correct', 'Time', 'A minute', 'Right', 'Hints', 'Date']}
                  rows={records().map((r, i) => [i + 1, r.n, `${Math.round(r.ms / 1000)}s`, Math.round(rate(r)),
-                   `${Math.round(err(r) * 100)}%`, r.h || 0, when(r.t)])} />
+                   `${Math.round(ok(r) * 100)}%`, r.h || 0, when(r.t)])} />
+    </figure>
+  );
+}
+
+/*
+ * Each answer of a drill: a bar of how often it was right first time over
+ * every round (the track is 100%), and a mark where this round put it — so
+ * the answers you confuse stand out from the ones you have. Without a round
+ * (Progress), the bars alone.
+ *
+ * answers: [{ label, allAsked, allRight, asked?, right? }]
+ */
+export function AnswersChart(props) {
+  const rows = () => props.answers || [];
+  const rowH = 26;
+  const nameW = 130;
+  const scoreW = 120;
+  const h = () => rows().length * rowH + 8;
+  const x0 = PAD.l + nameW - PAD.l;
+  const bw = W - x0 - scoreW;
+  const pct = (right, asked) => (asked > 0 ? right / asked : 0);
+  const round = (r) => r.asked !== undefined && r.asked > 0;
+  return (
+    <figure class="chart">
+      <figcaption class="t-label">Each answer, right first time</figcaption>
+      <div class="chart-legend t-hint" aria-hidden="true">
+        <span><svg width="16" height="10"><rect width="16" height="10" rx="2" class="chart-bar" /></svg> all rounds</span>
+        <Show when={rows().some(round)}>
+          <span><svg width="10" height="10"><circle cx="5" cy="5" r="4" class="mark-hollow" /></svg> this round</span>
+        </Show>
+      </div>
+      <div class="chart-plot">
+        <svg viewBox={`0 0 ${W} ${h()}`} role="img"
+             aria-label={`${rows().length} answers, right first time`}>
+          <For each={rows()}>{(r, i) => {
+            const y = 4 + i() * rowH;
+            const all = pct(r.allRight, r.allAsked);
+            return (
+              <g>
+                <text class="chart-name" x={x0 - 8} y={y + rowH / 2 + 1} text-anchor="end">{r.label}</text>
+                <rect class="chart-track" x={x0} y={y + 5} width={bw} height={rowH - 10} rx="2" />
+                <rect class="chart-bar" x={x0} y={y + 5} width={Math.max(0, all * bw)} height={rowH - 10} rx="2">
+                  <title>{`${r.label}: ${Math.round(all * 100)}% over ${r.allAsked}`}</title>
+                </rect>
+                <Show when={round(r)}>
+                  <circle class="mark-hollow" cx={x0 + pct(r.right, r.asked) * bw} cy={y + rowH / 2} r="5" />
+                </Show>
+                <text class="chart-name" x={W - 4} y={y + rowH / 2 + 1} text-anchor="end">
+                  {round(r) ? `${r.right}/${r.asked} · ` : ''}{Math.round(all * 100)}%
+                </text>
+              </g>
+            );
+          }}</For>
+        </svg>
+      </div>
+      <DataTable head={['Answer', 'This round', 'All rounds', 'Right']}
+                 rows={rows().map((r) => [r.label, round(r) ? `${r.right} of ${r.asked}` : '',
+                   `${r.allRight} of ${r.allAsked}`, `${Math.round(pct(r.allRight, r.allAsked) * 100)}%`])} />
     </figure>
   );
 }

@@ -17,16 +17,15 @@
 import { MODES, MODE_LABELS, PC_NAMES } from './generator.mjs';
 import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX, PX_PER_BEAT_DEFAULT } from './layout.mjs';
 
-/* Tolerance before the scroll freezes, as a fraction of a beat. Tempo-relative
- * because "the rhythm doesn't break" is a musical span, not a fixed duration. */
 /*
- * How late you may be, in beats, before the scroll stops and waits for you.
+ * How late a note may be, in beats, and still count as a hit.
  *
- * Sight-reading is mostly spent finding the pad, not deciding which note it
- * is, and at 1/3 of a beat — 250ms at 80bpm — the music halted while a hand
- * was still travelling. A beat is the honest default for someone learning:
- * long enough to look for the key, short enough that the rhythm is still the
- * thing being practised.
+ * It used to also decide when the scroll stopped for you, which is why it was
+ * a whole beat: at a third of one the music halted while a hand was still
+ * travelling. The scroll now stops on the note whatever Grace says (Wait), so
+ * Grace only judges — and a whole beat late, 750ms at 80bpm, is not in time.
+ * A quarter is: about the 180ms the scoring windows allow anyway, so being in
+ * time is part of the score again. Wider is there for anyone who wants it.
  *
  * 1/6 is gone. At any sensible tempo it was shorter than the 180ms late
  * window, so effectiveGrace() clamped it away and the setting did nothing.
@@ -79,7 +78,20 @@ export const SETTINGS_DEF = [
   { key: 'waitForNote', label: 'Wait', type: 'bool', format: onOff },
   { key: 'graceBeats', label: 'Grace', type: 'enum', values: GRACE_VALUES, labels: GRACE_LABELS },
   { key: 'click', label: 'Click', type: 'bool', format: onOff },
-  { key: 'reference', label: 'Reference', type: 'bool', format: onOff },
+  /*
+   * Help that fades with the stage. At stage 1 the target notes sound as they
+   * pass and the names are printed under them; at stage 2, reading alone, both
+   * go quiet — hearing the line or reading its letters would be doing the
+   * reading for you. Listen still plays the piece first, whatever these say.
+   */
+  {
+    key: 'reference', label: 'Reference', type: 'enum',
+    values: ['stage1', 'on', 'off'], labels: ['stage 1', 'on', 'off'],
+  },
+  {
+    key: 'names', label: 'Names', type: 'enum',
+    values: ['stage1', 'always', 'off'], labels: ['stage 1', 'always', 'off'],
+  },
   { key: 'refVel', label: 'Ref vol', type: 'int', min: 0, max: 127 },
   {
     key: 'midiOut', label: 'MIDI out', type: 'enum',

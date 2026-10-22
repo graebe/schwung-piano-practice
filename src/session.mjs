@@ -194,7 +194,7 @@ export function createSession(fx, opts = {}) {
    * A saved settings.json always wins over a default, so changing one silently
    * does nothing for anybody who has already used the module.
    */
-  const SETTINGS_VERSION = 7;
+  const SETTINGS_VERSION = 8;
 
   const settings = {
     version: SETTINGS_VERSION,
@@ -210,10 +210,11 @@ export function createSession(fx, opts = {}) {
     autoInfo: true,    /* show a practice's Info page the first time it is opened */
     chordSet: 'triads',
     click: true,
-    reference: true,   /* hear the line you are meant to be playing */
+    reference: 'stage1', /* hear the line you are meant to be playing — at stage 1 */
+    names: 'stage1',   /* note names under the notes — at stage 1 */
     midiOut: OUT_INTERNAL, /* our own piano: always works, needs no setup */
     waitForNote: true, /* stop at a note until it is played */
-    graceBeats: 1,     /* beats you may be late before the scroll waits for you */
+    graceBeats: 1 / 4, /* beats you may be late and still be in time */
     refVel: 70,
     midiCh: 0,         /* 0 = every channel, so a track mismatch cannot silence us */
     countIn: 4,
@@ -279,6 +280,15 @@ export function createSession(fx, opts = {}) {
     /* v7: Guide pads became each exercise's stage — stage 1 lights the pads,
      * stage 2 does not — so the stored setting is simply no longer read, and
      * writing the file drops it. */
+    /* v8: the reference line and the names fade with the stage, so a stored
+     * "on" becomes "stage 1" — the default — and "off" stays off. Grace only
+     * judges now, and the old default of a whole beat counted a note 750ms
+     * late as in time; it moves to a quarter. A grace chosen deliberately stays. */
+    if (storedVersion < 8) {
+      if (obj.reference === false) settings.reference = 'off';
+      if (settings.graceBeats === 1) settings.graceBeats = 1 / 4;
+      migrated = true;
+    }
     if (storedVersion !== SETTINGS_VERSION) {
       settings.version = SETTINGS_VERSION;
       migrated = true;
@@ -464,12 +474,17 @@ export function createSession(fx, opts = {}) {
    *   Play   a note or chord is shown; you find it on the pads
    *   Name   a pad is lit; you name it
    *
+   * Play is read two ways: by its name (any octave counts) or off the staff
+   * (the written pitches). Either way the next prompts queue up to the right.
+   *
    * Play and Name follow the Half tones and Chords settings, and their ids do
    * too, so a chromatic round and an in-key round are filed apart.
    */
   const QUIZ_PLAY = [
-    { label: 'Notes', guess: GUESS.NOTES },
-    { label: 'Chords', guess: GUESS.CHORDS },
+    { label: 'Notes by alphabet', guess: GUESS.NOTES, read: GUESS.READ_NAME },
+    { label: 'Notes by staff', guess: GUESS.NOTES, read: GUESS.READ_STAFF },
+    { label: 'Chords by name', guess: GUESS.CHORDS, read: GUESS.READ_NAME },
+    { label: 'Chords by staff', guess: GUESS.CHORDS, read: GUESS.READ_STAFF },
   ];
   const QUIZ_NAME = [
     { label: 'Notes', guess: GUESS.NOTES, pick: true },
@@ -478,7 +493,7 @@ export function createSession(fx, opts = {}) {
 
   function settingsQuiz(row) {
     return {
-      kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick),
+      kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick), read: row.read || null,
       halfTones: settings.halfTones, chordSet: settings.chordSet, pinned: false,
     };
   }
@@ -487,16 +502,11 @@ export function createSession(fx, opts = {}) {
     return 'quiz:' + STATS.drillId(spec);
   }
 
-  /* Quiz › Hear: the Hearing track's exercises, each a folder of its levels.
-   * The rows are the track's own steps, so a level played here is the same item
-   * as in the Learning Program — and playing back notes and chords is two of
-   * its units, so they are not listed a second time. */
-  function hearFolder() {
-    const hearing = tracks.find((t) => t.key === 'hearing');
-    const units = hearing ? hearing.units : [];
-    return CAT.folder('Hear', units.map((u) =>
-      CAT.folder(u.name, u.steps.map(PLAN.stepRow), u.exercise)), 'hear');
-  }
+  /* Rows here and in the Learning Program are the same steps by id, so a
+   * level played in either is the same item in Progress. */
+  /* Quiz › Hear and Quiz › Read, as the program lays them out. */
+  const hearFolder = () => PLAN.hearMenu();
+  const readFolder = () => PLAN.readMenu();
 
   function quizRows(rows) {
     return rows.map((r) => ({ ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true }));
@@ -510,6 +520,7 @@ export function createSession(fx, opts = {}) {
       hearFolder(),
       CAT.folder('Play', quizRows(QUIZ_PLAY), 'play'),
       CAT.folder('Name', quizRows(QUIZ_NAME), 'name'),
+      readFolder(),
     ];
     catalog = CAT.buildCatalog({
       songs: fileSongs,
@@ -584,10 +595,20 @@ export function createSession(fx, opts = {}) {
       best,
     };
     STATS.addRecord(stats, rec);
+    STATS.addTally(stats, drill, quiz.tally);
     /* After the append, so the chart's last point is the round you just played.
      * `best` above is deliberately taken before it — that is the number you were
      * trying to beat, not the one you have just set. */
     lastResult.records = STATS.forDrill(stats, drill);
+    lastResult.success = STATS.successPercent(quiz.correct, quiz.wrong);
+    /* Each answer: this round, and every round of this drill so far. */
+    const all = STATS.tallyFor(stats, drill);
+    lastResult.answers = GUESS.tallyRows(quiz).map((r) => ({
+      key: r.key, label: r.label, asked: r.asked, right: r.right,
+      allAsked: all[r.key] ? all[r.key][0] : r.asked,
+      allRight: all[r.key] ? all[r.key][1] : r.right,
+    }));
+    lastResult.page = 0;
     saveStats();
 
     const res = PROG.recordAttempt(progress, quizId(quizSpec), {
@@ -648,13 +669,20 @@ export function createSession(fx, opts = {}) {
       level: spec.level,
       roundSize: settings.roundSize,
       fifths: keyFifths(),
+      read: quizRead(spec),
+      /* What this drill has asked before and how it went: the answers you
+       * miss come round more often. */
+      history: STATS.tallyFor(stats, STATS.drillId(spec)),
       seed: (wallNow() & 0x7fffffff) || 1,
     });
     quizSolvedAt = 0;
     view = GUESS_VIEW;
     dirty = true;
     ledDirty = true;
-    if (quiz.kind === GUESS.EAR) {
+    if (readingCourse()) {
+      /* Reading: the staff is the question, so nothing sounds until you ask. */
+      announce(quiz.exercise.name + '. Read it, then jog to the answer and click.');
+    } else if (quiz.kind === GUESS.EAR) {
       hearPrompt();
       announce(quiz.exercise.name + '. Listen, then jog to the answer and click.');
     } else if (quizPick) {
@@ -662,20 +690,71 @@ export function createSession(fx, opts = {}) {
     } else if (quizHear) {
       hearPrompt();
       announce('Ear training. Listen, then play what you hear.');
+    } else if (quiz.read === GUESS.READ_STAFF) {
+      /* The name is the answer here; saying it would read the staff for you. */
+      announce((quiz.kind === GUESS.CHORDS ? 'Chords' : 'Notes') + ' by staff. Play what is written.');
     } else {
       announce('Note guesser. Play ' + promptName() + '.');
     }
     autoInfo({ id: quizId(spec) });
   }
 
+  /*
+   * How a quiz that is played on the pads is read. A Play row says; a program
+   * step or a repetition from before the split asked for the name and the
+   * notes together, which the name drill — same id — now is.
+   */
+  function quizRead(spec) {
+    if (spec.kind === GUESS.EAR || spec.hear || spec.pick) return null;
+    return spec.read === GUESS.READ_STAFF ? GUESS.READ_STAFF : GUESS.READ_NAME;
+  }
+
+  /*
+   * How far the row has moved on towards the next prompt: 0 at rest, rising to
+   * 1 over the pause after a right answer — which is exactly when nextPrompt
+   * shifts the queue, so the jump back to 0 lands on the same picture. Eased
+   * out, as the song staff settles: quick to leave, gentle to arrive.
+   */
+  function quizGlide() {
+    if (!quiz || !quiz.read || !quizSolvedAt) return 0;
+    const f = Math.min(1, Math.max(0, (now() - quizSolvedAt) / GUESS_ADVANCE_MS));
+    return 1 - Math.pow(1 - f, 3);
+  }
+
+  /* A reading course: the prompt is drawn, not played. */
+  function readingCourse() {
+    return Boolean(quiz && quiz.exercise && quiz.exercise.read);
+  }
+
   /* What the prompt is called: its chord symbol if it has one, else its notes. */
   function promptName() {
     if (!quiz) return '';
+    if (quiz.read === GUESS.READ_NAME && quiz.entry) return GUESS.entryName(quiz, quiz.entry);
     return quiz.label || NOTATION.chordLabel(quiz.prompt, keyFifths());
   }
 
+  /*
+   * The help that fades with the stage: the reference line and the names
+   * under the notes, on at stage 1 and off at stage 2 unless chosen otherwise.
+   */
+  const fades = (value, onWord) => value === onWord || (value === 'stage1' && stage === 1);
+  function referenceOn() {
+    return fades(settings.reference, 'on');
+  }
+  function namesShown() {
+    return fades(settings.names, 'always');
+  }
+
+  /* Without names, the note the scroll waits on is named once it has waited
+   * this long: a hint for the stuck, not the answer for the hesitant. */
+  const STUCK_NAME_BEATS = 2;
+  function stuckNamed() {
+    return namesShown() || (blocked && scoreBeats - songBeats >= STUCK_NAME_BEATS);
+  }
+
+  /* The Key and Scale settings' key, to spell in: C minor's Eb, not D#. */
   function keyFifths() {
-    return NOTATION.majorKeyFifths(settings.rootPc);
+    return GEN.keyForScale(settings.rootPc, settings.mode);
   }
 
   /*
@@ -1025,6 +1104,8 @@ export function createSession(fx, opts = {}) {
       passed: res.passed,
       isBest: played && score > prevBest,
       history: PROG.item(progress, armedId).h,
+      /* In time, early, late, and whether the run rushed or dragged. */
+      timing: SCORE.timingSummary(run),
     };
     lastResult.footer = resultFooter();
     armRun();
@@ -1152,6 +1233,10 @@ export function createSession(fx, opts = {}) {
     if (!settings.click) return;
     const perBar = beatsPerBar(chart);
     const downbeat = ((beat % perBar) + perBar) % perBar === 0;
+    /* A host with a metronome of its own — the piano's recorded claves —
+     * plays it and says so; one that cannot (MIDI out to an instrument
+     * elsewhere) gets the click as notes, below. */
+    if (fx.click && fx.click(downbeat)) return;
     /* Short, high, and out of the way of anything the exercise plays.
      * Goes through noteOn, not a raw midiOut: allNotesOff can only silence what
      * pitchRefcount knows about, and a click sent behind its back was left
@@ -1175,7 +1260,7 @@ export function createSession(fx, opts = {}) {
    */
   function serviceReference() {
     if (songBeats < 0) return;  /* nothing to sound during the count-in */
-    const vel = CTRL.referenceVelocity(listening, settings.reference, settings.refVel);
+    const vel = CTRL.referenceVelocity(listening, referenceOn(), settings.refVel);
     const silent = vel <= 0;
     while (listenIndex < chart.events.length && chart.events[listenIndex].beat <= songBeats) {
       const e = chart.events[listenIndex++];
@@ -1270,10 +1355,13 @@ export function createSession(fx, opts = {}) {
       if (quizHear) {
         hearPrompt();
         announce('Listen.');
-      } else {
+      } else if (quiz.read !== GUESS.READ_STAFF) {
         announce(promptName());
       }
+      return;
     }
+    /* The row is gliding on: every frame of it is a new picture. */
+    if (quizSolvedAt && quiz && quiz.read) dirty = true;
   }
 
   function serviceNoteOffs() {
@@ -1389,7 +1477,7 @@ export function createSession(fx, opts = {}) {
       const away = now() - infoOpenedAt;
       if (quiz.startedAt !== null && quiz.finishedAt === null) quiz.startedAt += away;
       if (quizSolvedAt) quizSolvedAt += away;
-      if ((quizHear || quiz.kind === GUESS.EAR) && !quiz.solved) hearPrompt();
+      if ((quizHear || quiz.kind === GUESS.EAR) && !readingCourse() && !quiz.solved) hearPrompt();
     }
     info = null;
     dirty = true;
@@ -1457,6 +1545,7 @@ export function createSession(fx, opts = {}) {
     if (drill && STATS.forDrill(stats, drill).length) {
       return {
         kind: 'drill', drill, records: STATS.forDrill(stats, drill), drillIndex: index, drillCount: total,
+        answers: STATS.answerRows(stats, drill),
       };
     }
     const it = PROG.item(progress, row.itemId);
@@ -1594,6 +1683,13 @@ export function createSession(fx, opts = {}) {
   /* The jog, or the arrow keys: what "next" means depends on the screen. An Info
    * page scrolls in its renderer, so it is not handled here. */
   function moveSelection(delta) {
+    /* A round's result: the jog turns its pages — the round, right %, answers. */
+    if (view === RESULT_VIEW && lastResult && lastResult.kind === 'quiz') {
+      const pages = L.resultPageCount(lastResult.answers);
+      lastResult.page = ((lastResult.page + (delta > 0 ? 1 : -1)) % pages + pages) % pages;
+      dirty = true;
+      return;
+    }
     /* The one view where the jog is the answer rather than navigation. */
     if (view === GUESS_VIEW && quizPick && quiz && !quiz.solved) {
       GUESS.moveChoice(quiz, delta, now());
@@ -1655,8 +1751,10 @@ export function createSession(fx, opts = {}) {
     playCue(res);
     if (res === GUESS.CORRECT) {
       quizSolvedAt = now();
-      /* Heard, named, now shown: where it sits on the grid. */
+      /* Heard, named, now shown: where it sits on the grid. Read and named:
+       * now heard, so the picture gets its sound. */
       if (quiz.kind === GUESS.EAR) fx.reveal(quiz.prompt, EAR_ADVANCE_MS);
+      if (readingCourse()) hearPrompt();
     }
     dirty = true;
     ledDirty = true;
@@ -1719,7 +1817,10 @@ export function createSession(fx, opts = {}) {
       return;
     }
     if (view === GUESS_VIEW) {
-      hearPrompt();
+      /* Hearing what you are reading answers it, so the first listen is a
+       * hint and is counted as one; once taken, PLAY repeats it freely. */
+      if (readingCourse() && !quiz.solved && quiz.hint === 0) takeHint();
+      else hearPrompt();
       return;
     }
     if (view === RUNNING && listening) togglePause();
@@ -1990,6 +2091,9 @@ export function createSession(fx, opts = {}) {
     decorateRow,
     progressDetail,
     keyFifths,
+    quizGlide,
+    namesShown,
+    stuckNamed,
     collectTarget,
     collectStuck,
     collectSounding,

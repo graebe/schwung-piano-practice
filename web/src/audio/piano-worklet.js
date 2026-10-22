@@ -15,8 +15,14 @@
  *   { type: 'panic' }                       cut every voice now
  *   { type: 'releaseAll' }                  let every voice ring out
  *   { type: 'gain', value: 0.22 }           0..1, anything else ignored
+ *   { type: 'pack', kind: 0|1, bytes }      a NISP pack (ArrayBuffer): 0 the
+ *                                           recorded piano, 1 the claves
  * Messages that arrive before the engine is ready are queued and applied in
- * order once it is. It answers { type: 'ready' } or { type: 'error', message }.
+ * order once it is. It answers { type: 'ready' } or { type: 'error', message },
+ * and each pack with { type: 'pack', kind, ok }.
+ *
+ * A pack is copied into linear memory once, between two quanta; until it
+ * arrives the engine plays its synthesized piano and click.
  *
  * No allocation on the render path: the output view is created once and only
  * again if the wasm memory is replaced (which a growth would do).
@@ -67,9 +73,26 @@ class PianoProcessor extends AudioWorkletProcessor {
       case 'gain':
         if (typeof msg.value === 'number') x.pp_gain(msg.value);
         break;
+      case 'pack':
+        if (msg.bytes instanceof ArrayBuffer) this.pack(msg.kind, msg.bytes);
+        break;
       default:
         break;
     }
+  }
+
+  /* Room in linear memory, the bytes into it, then the engine takes it or
+   * refuses it. The memory grew, so the output view is rebuilt next quantum. */
+  pack(kind, bytes) {
+    const x = this.x;
+    const at = x.pp_pack_alloc(bytes.byteLength);
+    let ok = false;
+    if (at !== 0) {
+      new Uint8Array(x.memory.buffer, at, bytes.byteLength).set(new Uint8Array(bytes));
+      ok = x.pp_pack_commit(kind) === 1;
+    }
+    this.view = null;
+    this.port.postMessage({ type: 'pack', kind, ok });
   }
 
   /* ASCII into the engine's note buffer. A character outside ASCII becomes

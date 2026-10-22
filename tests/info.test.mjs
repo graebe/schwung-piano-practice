@@ -48,7 +48,7 @@ for (const kind of ['notes', 'chords']) {
     }
   }
 }
-for (const ex of EXERCISES) QUIZ_IDS.push('quiz/hear/' + ex.key);
+for (const ex of EXERCISES) QUIZ_IDS.push('quiz/hear/' + ex.topic + '/' + ex.key);
 
 test('every row of the lesson tree has an Info page', () => {
   const missing = [];
@@ -150,8 +150,11 @@ test('a page is one per kind of practice, so the first-time Info shows once a ki
   const key = (id) => infoFor({ id }, env).key;
   assert.equal(key('basics/scales/major/up'), key('basics/scales/dorian/thirds'));
   assert.equal(key('song:ode-to-joy/1r'), key('song:twinkle/3'));
-  assert.notEqual(key('quiz:ear:steps:key'), key('quiz:ear:thirds:up'));
-  assert.equal(key('quiz:ear:thirds:up'), key('quiz:ear:thirds:down'));
+  assert.notEqual(key('quiz:ear:steps:key'), key('quiz:ear:triads:broken'));
+  assert.equal(key('quiz:ear:triads:broken'), key('quiz:ear:triads:block'));
+  /* A course is one kind of practice, whichever unit opens it. */
+  assert.equal(key('quiz:ear:id-3rds:up'), key('quiz:ear:id-to-8:down'));
+  assert.notEqual(key('quiz:ear:id-3rds:up'), key('quiz:ear:rd-id-3rds:up'), 'reading it is another');
 });
 
 test('a song page names its key signature and tempo', () => {

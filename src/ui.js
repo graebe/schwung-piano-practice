@@ -269,6 +269,18 @@ function strike(pitch, vel) {
   if (out & (OUT_TRACK | OUT_USB)) midiOutCh(0x90, pitch, vel);
 }
 
+/*
+ * The metronome. With the built-in piano as the only route it is the piano's
+ * recorded claves, a `c:1`/`c:0` entry in the same parameter write as the
+ * tick's notes. With any MIDI route on, the session sounds it as notes
+ * instead (false here), so the instrument at the other end clicks too.
+ */
+function click(downbeat) {
+  if (S.settings.midiOut !== OUT_INTERNAL) return false;
+  dspNotes.push(downbeat ? 'c:1' : 'c:0');
+  return true;
+}
+
 function release(pitch) {
   const out = S.settings.midiOut;
   if (out & OUT_INTERNAL) dspNote(pitch, 0);
@@ -345,6 +357,7 @@ const S = createSession({
   wallNow: () => Date.now(),
   strike,
   release,
+  click,
   silence,
   announce,
   readText: (name) => readFile(MODULE_DIR + '/' + name),
@@ -509,7 +522,7 @@ function draw() {
     });
   } else if (view === RESULT_VIEW) {
     if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, lastResult);
-    else VIEW.drawRoundResult(ctx, lastResult);
+    else VIEW.drawResultPage(ctx, lastResult);
   } else if (view === PROGRESS_DETAIL) {
     drawProgressDetail();
   } else if (view === INFO_VIEW) {
@@ -519,6 +532,20 @@ function draw() {
       lines: infoLines,
       scroll: infoScroll,
       footer: infoLines.length > L.INFO_ROWS ? 'JOG scroll BACK close' : 'BACK close',
+    });
+  } else if (view === GUESS_VIEW && S.quizPick && quiz.exercise && quiz.exercise.read) {
+    const option = quiz.choices[quiz.choiceIndex];
+    VIEW.drawReadPick(ctx, {
+      title: 'READ ' + quiz.exercise.short.toUpperCase(),
+      score: quiz.roundSize > 0
+        ? quiz.correct + '/' + quiz.roundSize
+        : String(GUESS.quizStats(quiz).correct),
+      staff: quiz.entry ? quiz.entry.staff : [],
+      option: option ? GUESS.optionLabel(quiz, option) : '',
+      struck: GUESS.isEliminated(quiz, quiz.choiceIndex),
+      solved: quiz.solved,
+      label: quiz.label,
+      footer: GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok',
     });
   } else if (view === GUESS_VIEW && S.quizPick) {
     const ear = quiz.kind === GUESS.EAR;
@@ -543,6 +570,24 @@ function draw() {
         ? (GUESS.hintsLeft(quiz) ? 'PAD answer  REC help' : 'PAD or JOG  CLICK ok')
         : (GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok'),
     });
+  } else if (view === GUESS_VIEW && quiz.read) {
+    const st = GUESS.quizStats(quiz);
+    const staff = quiz.read === GUESS.READ_STAFF;
+    VIEW.drawQuizRow(ctx, {
+      queue: quiz.queue.map((e) => ({ pitches: e.pitches, name: GUESS.entryName(quiz, e) })),
+      read: quiz.read,
+      glide: S.quizGlide(),
+      fifths: S.keyFifths(),
+      solved: quiz.solved,
+      hint: quiz.hint,
+      title: (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE') + (staff ? ' STAFF' : ''),
+      score: quiz.roundSize > 0
+        ? quiz.correct + '/' + quiz.roundSize
+        : st.correct + '/' + st.asked,
+      footer: GUESS.hintsLeft(quiz)
+        ? 'streak ' + st.streak + '   REC help'
+        : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
+    });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
     VIEW.drawGuessView(ctx, {
@@ -566,6 +611,7 @@ function draw() {
       run: S.run,
       songBeats,
       pxPerBeat: settings.pxPerBeat,
+      names: S.namesShown(),
       /*
        * The header's right slot holds one thing. At the top that is where the
        * notes are going — a silent channel mismatch is otherwise
@@ -589,6 +635,8 @@ function draw() {
       beatFlash: now() - S.beatFlash < 90,
       blocked: S.blocked,
       paused: S.paused,
+      names: S.namesShown(),
+      stuckNamed: S.stuckNamed(),
     });
   }
 }

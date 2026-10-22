@@ -23,6 +23,8 @@ import { createSchwungSession } from './session/schwung.js';
 import { createPianoEngine } from './audio/engine.js';
 import wasmUrl from '../../build/wasm/piano.wasm?url';
 import workletUrl from './audio/piano-worklet.js?url';
+import pianoPackUrl from '../../samples/piano.nisp?url';
+import clickPackUrl from '../../samples/click.nisp?url';
 
 /* Imported as JSON, so the build minifies them; the session reads text. */
 const exercises = bundleExercises(import.meta.glob('../../src/exercises/*.json',
@@ -46,7 +48,7 @@ let backend;
 if (chooseBackend({ search: location.search, bridge }) === 'schwung') {
   backend = createSchwungSession({ bridge });
 } else {
-  piano = createPianoEngine({ wasmUrl, workletUrl });
+  piano = createPianoEngine({ wasmUrl, workletUrl, packUrls: { piano: pianoPackUrl, click: clickPackUrl } });
   backend = createLocalSession({ piano, storage: storage(), exercises });
 }
 backend.start();

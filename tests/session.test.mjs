@@ -212,7 +212,7 @@ test('changing the MIDI channel silences the old one before the host moves', () 
 test('a Play quiz: the right note is correct, a wrong one counted once', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Play', 'Notes']);
+  openPath(h.session, ['Quiz', 'Play', 'Notes by staff']);
   assert.equal(h.session.view, GUESS_VIEW);
   const prompt = h.session.quiz.prompt.slice();
   const wrong = h.session.play(prompt[0] + 1, 90);
@@ -221,6 +221,100 @@ test('a Play quiz: the right note is correct, a wrong one counted once', () => {
   const right = h.session.play(prompt[0], 90);
   assert.equal(right.res, GUESS.CORRECT);
   assert.equal(h.session.quiz.wrong, 1);
+});
+
+test('Play is four drills: notes and chords, each by name and by staff', () => {
+  const h = fakeHost();
+  h.session.init();
+  for (const [label, kind, read] of [
+    ['Notes by alphabet', GUESS.NOTES, GUESS.READ_NAME],
+    ['Notes by staff', GUESS.NOTES, GUESS.READ_STAFF],
+    ['Chords by name', GUESS.CHORDS, GUESS.READ_NAME],
+    ['Chords by staff', GUESS.CHORDS, GUESS.READ_STAFF],
+  ]) {
+    openPath(h.session, ['Quiz', 'Play', label]);
+    assert.equal(h.session.view, GUESS_VIEW, label);
+    assert.equal(h.session.quiz.kind, kind, label);
+    assert.equal(h.session.quiz.read, read, label);
+    assert.equal(h.session.quiz.queue.length, GUESS.LOOKAHEAD, label + ': the next ones are queued');
+    h.session.back();
+    h.session.back();
+    h.session.back();
+  }
+});
+
+test('the name drills keep the ids Notes and Chords had; the staff drills are filed apart', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play']);
+  const ids = h.session.nav.at(-1).node.children.map((r) => r.id);
+  assert.deepEqual(ids, [
+    'quiz:guess:notes:half', 'quiz:staff:notes:half', 'quiz:guess:chords:triads', 'quiz:staff:chords:triads',
+  ]);
+});
+
+test('Notes by alphabet takes the note in any octave', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes by alphabet']);
+  const [p] = h.session.quiz.prompt;
+  const res = h.session.play(p >= 72 ? p - 12 : p + 12, 90);
+  assert.equal(res.res, GUESS.CORRECT);
+});
+
+test('Notes by staff wants the written octave', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes by staff']);
+  const [p] = h.session.quiz.prompt;
+  const res = h.session.play(p >= 72 ? p - 12 : p + 12, 90);
+  assert.equal(res.res, GUESS.WRONG);
+});
+
+test('Chords by name takes an inversion; Chords by staff does not', () => {
+  for (const [label, want] of [['Chords by name', GUESS.CORRECT], ['Chords by staff', GUESS.WRONG]]) {
+    const h = fakeHost();
+    h.session.init();
+    openPath(h.session, ['Quiz', 'Play', label]);
+    const chord = h.session.quiz.prompt.slice().sort((a, b) => a - b);
+    const inverted = [...chord.slice(1), chord[0] + 12];
+    let res = null;
+    for (const p of inverted) res = h.session.play(p, 90);
+    assert.equal(res.res, want, label);
+  }
+});
+
+test('a right answer glides the row on, then the next prompt is the one that was queued', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes by staff']);
+  const q = h.session.quiz;
+  const next = q.queue[1];
+  assert.equal(h.session.quizGlide(), 0, 'at rest');
+  h.session.play(q.prompt[0], 90);
+  h.session.release(q.prompt[0]);
+  h.session.dirty = false;
+  h.run(200);
+  const mid = h.session.quizGlide();
+  assert.ok(mid > 0 && mid < 1, 'part way: ' + mid);
+  assert.ok(h.session.dirty, 'each step of the glide is a new frame');
+  h.run(400);
+  assert.equal(h.session.quizGlide(), 0, 'at rest again');
+  assert.equal(q.entry, next);
+  assert.equal(q.queue.length, GUESS.LOOKAHEAD);
+});
+
+test('a staff drill never says the answer out loud; a name drill does', () => {
+  const said = (label) => {
+    const h = fakeHost();
+    h.session.init();
+    openPath(h.session, ['Quiz', 'Play', label]);
+    const name = GUESS.entryName(h.session.quiz, h.session.quiz.entry);
+    const lines = h.log.filter((e) => e[0] === 'say').map((e) => e[1]);
+    return lines.some((t) => t.includes('Play ' + name));
+  };
+  assert.equal(said('Notes by staff'), false);
+  assert.equal(said('Notes by alphabet'), true);
 });
 
 test('a Name quiz answers by option, and a round runs to its result', () => {
@@ -243,7 +337,7 @@ test('a Name quiz answers by option, and a round runs to its result', () => {
 test('a Hear drill plays its prompt and reveals the answer once named', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']);
+  openPath(h.session, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
   h.run(1500);
   assert.ok(h.log.some((e) => e[0] === 'strike'), 'the prompt is played');
   const q = h.session.quiz;
@@ -288,4 +382,57 @@ test('first-time Info opens by itself when Auto info is on, once', () => {
   h.session.back();
   openPath(h.session, ['Down']);
   assert.equal(h.session.view, READY, 'scale drills were explained already');
+});
+
+/* ---- Help that fades with the stage ------------------------------------------- */
+
+test('names are printed at stage 1 and not at stage 2, unless chosen otherwise', () => {
+  const h = fakeHost();
+  armScale(h);
+  assert.equal(h.session.namesShown(), true, 'stage 1');
+  h.session.moveSelection(1);
+  assert.equal(h.session.namesShown(), false, 'stage 2 reads the staff');
+  h.session.settings.names = 'always';
+  assert.equal(h.session.namesShown(), true);
+  h.session.settings.names = 'off';
+  h.session.moveSelection(-1);
+  assert.equal(h.session.namesShown(), false);
+});
+
+test('the reference line sounds at stage 1 and is quiet at stage 2', () => {
+  const struck = (stage) => {
+    const h = fakeHost();
+    armScale(h);
+    if (stage === 2) h.session.moveSelection(1);
+    h.session.recordButton();
+    h.run(6000);
+    return h.log.filter((e) => e[0] === 'strike' && e[2] === 70).length;
+  };
+  assert.ok(struck(1) > 0, 'the line you are reading, heard');
+  assert.equal(struck(2), 0, 'reading alone');
+});
+
+test('at stage 2 a stuck note is named only once it has waited two beats', () => {
+  const h = fakeHost();
+  armScale(h);
+  h.session.moveSelection(1);
+  h.session.recordButton();
+  for (let i = 0; i < 200 && !h.session.blocked; i++) h.run(50);
+  assert.ok(h.session.blocked);
+  assert.equal(h.session.stuckNamed(), false, 'a hesitation is not a cue');
+  h.run(2000);                                  /* two beats and more at 80 bpm */
+  assert.equal(h.session.stuckNamed(), true, 'stuck: now it is named');
+});
+
+test('settings saved before v8 move on: reference on is stage 1, off stays off, a beat of grace a quarter', () => {
+  const load = (stored) => {
+    const h = fakeHost({ settings: { ...QUIET, ...stored } });
+    h.session.init();
+    return h.session.settings;
+  };
+  assert.equal(load({ version: 7, reference: true }).reference, 'stage1');
+  assert.equal(load({ version: 7, reference: false }).reference, 'off');
+  assert.equal(load({ version: 7, graceBeats: 1 }).graceBeats, 1 / 4);
+  assert.equal(load({ version: 7, graceBeats: 2 }).graceBeats, 2, 'chosen on purpose, kept');
+  assert.equal(load({ version: 8, graceBeats: 1 }).graceBeats, 1, 'a choice made since, kept');
 });

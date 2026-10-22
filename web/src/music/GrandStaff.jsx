@@ -38,15 +38,19 @@
  * all: the chart is drawn once, still, for a screenshot.
  *
  * Props:
- *   events        [{ beat, durBeats, pitches, hand?, symbol?, index? }], beat
- *                 order, as in an exercise file; `index` (default: position)
- *                 is what judgements and blockingIndex refer to
+ *   events        [{ beat, durBeats, pitches, hand?, symbol?, index?, spelled? }],
+ *                 beat order, as in an exercise file; `index` (default:
+ *                 position) is what judgements and blockingIndex refer to;
+ *                 `spelled` [{ step, alteration, letter }] by pitch places
+ *                 notes by letter instead of by the key (C-Eb, not C-D#)
  *   judgements    by index: a state for every note of the event, or an array
  *                 of states parallel to its pitches; 'pending' | 'hit' |
  *                 'good' | 'late' | 'missed' (absent: pending)
  *   markers       [{ beat, pitch, hand?, stray? }]
  *   fifths        the key signature, -7..7 (default 0)
  *   keyChanges    [{ beat, keySig }], as a chart carries them
+ *   spelling      a generated drill's scale spelling (chart.spelling), so C
+ *                 minor reads Eb and C harmonic minor B natural
  *   timeSig       [numerator, denominator] (default [4, 4]); null draws none
  *   pxPerBeat     default 8 staff spaces
  *   hitX          the hit line, as a fraction of the width (default 0.25)
@@ -55,11 +59,13 @@
  *   showNames     the name lane (default true)
  *   blockingIndex the event the scroll waits on, or null
  *   hitLine       draw the hit line (default true); off for a bare staff
+ *   barLines      draw bar lines (default true); off where there is no metre,
+ *                 as in a quiz's row of prompts
  *   space         the staff space in px (default 10)
  *   label         its accessible name (default "Notation")
  */
 import { For, Index, Show, createMemo, createSignal, createEffect, onCleanup, onMount, untrack } from 'solid-js';
-import { fifthsAt, beatsPerBar, chartTotalBeats } from '../../../src/chart.mjs';
+import { fifthsAt, keyAt, beatsPerBar, chartTotalBeats } from '../../../src/chart.mjs';
 import * as S from './staff.js';
 
 const JUDGED = new Set(['hit', 'good', 'late', 'missed']);
@@ -89,6 +95,7 @@ export function GrandStaff(props) {
   const events = () => props.events ?? [];
   const chart = createMemo(() => ({
     keySig: props.fifths ?? 0, keyChanges: props.keyChanges, timeSig: timeSig() ?? [4, 4], events: events(),
+    spelling: props.spelling ?? null,
   }));
   const sys = createMemo(() => S.systemLayout(space(), { below: 2.5, names: showNames() ? 24 : 0 }));
   const em = () => S.EM * space();
@@ -119,9 +126,10 @@ export function GrandStaff(props) {
     return events().map((ev, pos) => {
       const index = ev.index ?? pos;
       const fifths = fifthsAt(chart(), ev.beat);
+      const key = keyAt(chart(), ev.beat);
       const x = ev.beat * p;
       const notes = ev.pitches.map((pitch, j) => {
-        const w = S.written(pitch, fifths);
+        const w = ev.spelled?.[j] ?? S.written(pitch, key);
         const staff = S.staffOf(w.step, ev.hand);
         const acc = S.accidentalFor(w.alteration, w.letter, fifths);
         return { pitch, j, ...w, staff, y: L.y(w.step, staff), acc, state: judgement(index, j) };
@@ -165,7 +173,7 @@ export function GrandStaff(props) {
     }
     const list = [...byBeat.values()].sort((a, b) => a.beat - b.beat);
     return list.map((n, i) => {
-      const text = S.noteLabel(n.pitches, fifthsAt(chart(), n.beat), n.symbol);
+      const text = S.noteLabel(n.pitches, keyAt(chart(), n.beat), n.symbol);
       const room = i + 1 < list.length ? list[i + 1].x - n.x - 4 : Infinity;
       const chars = Math.max(1, Math.floor(room / HINT_ADVANCE));
       return { ...n, text: text.length > chars ? `${text.slice(0, Math.max(1, chars - 1))}…` : text };
@@ -173,6 +181,7 @@ export function GrandStaff(props) {
   });
 
   const bars = createMemo(() => {
+    if (props.barLines === false) return [];
     const per = beatsPerBar(chart());
     const total = chartTotalBeats(chart());
     const off = barOffset();
@@ -211,7 +220,7 @@ export function GrandStaff(props) {
     return S.staffOf(step, best?.hand);
   };
   const markers = createMemo(() => (props.markers ?? []).map((m) => {
-    const w = S.written(m.pitch, fifthsAt(chart(), m.beat));
+    const w = S.written(m.pitch, keyAt(chart(), m.beat));
     return { x: m.beat * ppb(), y: sys().y(w.step, markerStaff(m, w.step)), stray: !!m.stray };
   }));
 

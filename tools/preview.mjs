@@ -21,7 +21,7 @@ import * as R from '../src/staff_render.mjs';
 import * as V from '../src/view.mjs';
 import { scaleRun, triadDrill, intervalDrill, randomInKey } from '../src/generator.mjs';
 import { createRun, judgeNoteOn, expireMissed } from '../src/scoring.mjs';
-import { createQuiz, NOTES, CHORDS } from '../src/guess.mjs';
+import { createQuiz, entryName, NOTES, CHORDS } from '../src/guess.mjs';
 import { PX_PER_BEAT_DEFAULT } from '../src/layout.mjs';
 import { parseExercise, parseManifest, parseCategories } from '../src/exercise_io.mjs';
 import { availableLevels, projectLevel } from '../src/levels.mjs';
@@ -106,6 +106,21 @@ if (view === 'clef') {
     footer: 'streak 5   PLAY hear',
   });
   show(`guess ${kind}: ${quiz.prompt.join(' ')}`, c);
+} else if (view.startsWith('row-')) {
+  /* row-notes-name, row-chords-staff, ... with --glide 0..1 and --solved */
+  const [, what, read] = view.split('-');
+  const kind = what === 'chords' ? CHORDS : NOTES;
+  const quiz = createQuiz({ kind, read, halfTones: true, chordSet: arg('set', 'triads'),
+    seed: Number(arg('seed', 4)) });
+  const c = createScreen();
+  V.drawQuizRow(c, {
+    queue: quiz.queue.map((e) => ({ pitches: e.pitches, name: entryName(quiz, e) })),
+    read, glide: Number(arg('glide', 0)), solved: process.argv.includes('--solved'), hint: Number(arg('hint', 0)),
+    fifths: 0, score: '7/20',
+    title: (kind === CHORDS ? 'CHORD' : 'NOTE') + (read === 'staff' ? ' STAFF' : ''),
+    footer: 'streak 5   REC help',
+  });
+  show(`row ${kind} by ${read}: ${quiz.queue.map((e) => entryName(quiz, e)).join(' ')}`, c);
 } else if (view === 'menu') {
   /* The cursor at each depth; the last one is the highlight in the folder shown. */
   const nav = navRestore(bundledCatalog(), path || [0]);

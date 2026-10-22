@@ -47,6 +47,13 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
 });
 
 test('practising from the computer keyboard: a right note scores, a wrong one is counted', async ({ page }) => {
+  /* Grace to a whole beat, as for a new piece: the test presses once it has
+   * seen the bar start, a reaction later than the default quarter beat. */
+  await page.getByRole('button', { name: 'Settings' }).click();
+  const grace = page.locator('.setting', { hasText: 'Grace' });
+  for (let i = 0; i < 3; i++) await grace.getByRole('button', { name: 'More Grace' }).click();
+  await expect(grace.locator('.setting-value')).toHaveText('1');
+  await page.keyboard.press('Escape');
   await openPath(page, SCALE);
   await page.keyboard.press('Space');                      /* practise */
   await expect(page.locator('.practice-head .t-hint')).toContainText('bar 1', { timeout: 6000 });
@@ -101,14 +108,63 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
     await page.waitForTimeout(520);
   }
   await expect(page.locator('.result-screen')).toBeVisible();
-  await expect(page.locator('.hero-number')).toContainText('/min');
-  await expect(page.locator('.result-screen svg[role="img"]')).toHaveCount(2);
+  await expect(page.locator('.hero-number').first()).toContainText('/min');
+  await expect(page.locator('.hero-number').nth(1)).toContainText('% right');
+  await expect(page.locator('.result-screen figcaption', { hasText: 'Right, of all attempts' })).toBeVisible();
+  /* Each note asked gets a bar: every right answer is some note's. */
+  const answers = page.locator('.result-screen figure', { hasText: 'Each answer' });
+  await expect(answers).toBeVisible();
+  expect(await answers.locator('rect.chart-bar').count()).toBeGreaterThan(1);
+  await expect(page.locator('.result-screen svg[role="img"]')).toHaveCount(3);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
   await page.locator('.row', { hasText: 'Progress' }).click();
   await page.locator('.progress-screen .row', { hasText: 'Overall' }).click();
   await expect(page.locator('.progress-detail .chart')).toBeVisible();
   await page.locator('.progress-screen .row').last().click();
   await expect(page.locator('.progress-detail svg[role="img"]').first()).toBeVisible();
+});
+
+/* The keys for a name, in every octave: "F#" is spoken "F sharp 4", and "F"
+ * must not match it. */
+const spoken = (name) => new RegExp(`^${name[0]}${name.slice(1).replace('#', ' sharp').replace('b', ' flat')} \\d$`);
+
+test('Notes by alphabet: a row of names, and a right note in any octave moves it on', async ({ page }) => {
+  await openPath(page, ['Quiz', 'Play', 'Notes by alphabet']);
+  const head = page.locator('.name-row-name.head');
+  await expect(head).toHaveAttribute('data-index', '0');
+  expect(await page.locator('.name-row-name').count()).toBeGreaterThanOrEqual(6);
+  for (let i = 0; i < 2; i++) {
+    await expect(page.locator('.quiz-ask')).toHaveText(/any octave/);
+    const name = (await head.textContent()).trim();
+    const labels = await page.locator('.kb-key[aria-label]').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    const octaves = labels.filter((l) => spoken(name).test(l));
+    expect(octaves.length, `a key for ${name}`).toBeGreaterThan(0);
+    /* The lowest such key one round, the highest the next: either octave counts. */
+    await page.locator(`.kb-key[aria-label="${i === 0 ? octaves[0] : octaves.at(-1)}"]`).click();
+    await expect(head).toHaveAttribute('data-index', String(i + 1), { timeout: 3000 });
+  }
+  await expect(page.locator('.screen-head .t-hint')).toContainText(/^2 /);
+});
+
+test('Notes by staff: the next notes on the staff, no names until Help', async ({ page }) => {
+  await openPath(page, ['Quiz', 'Play', 'Notes by staff']);
+  await expect(page.locator('.quiz-row svg')).toBeVisible();
+  expect(await page.locator('.quiz-row .staff-event').count()).toBeGreaterThanOrEqual(4);
+  await expect(page.locator('.quiz-ask')).toHaveText('Play what is written.');
+  const help = page.getByRole('button', { name: /^Help/ });
+  await help.click();
+  await expect(page.locator('.quiz-ask')).toHaveText(/^It is [A-G]/);
+  await help.click();
+  await page.locator('.kb-key.lit').first().click();
+  await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /, { timeout: 3000 });
+  await expect(page.locator('.quiz-ask')).toHaveText('Play what is written.', { timeout: 3000 });
+});
+
+test('Chords by name: chord symbols in the row', async ({ page }) => {
+  await openPath(page, ['Quiz', 'Play', 'Chords by name']);
+  const names = await page.locator('.name-row-name').allTextContents();
+  expect(names.length).toBeGreaterThanOrEqual(6);
+  for (const n of names) expect(n.trim()).toMatch(/^[A-G][#b]?(m|dim|aug)?$|^[A-G][#b]? /);
 });
 
 test('settings are remembered across a reload', async ({ page }) => {
@@ -125,7 +181,7 @@ test('settings are remembered across a reload', async ({ page }) => {
 });
 
 test('a hearing drill answers by colour, then shows where the answer sits', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']);
+  await openPath(page, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
   await expect(page.locator('#quiz-title')).toHaveText(/higher or lower/i);
   await expect(page.locator('.option .chip')).toHaveCount(3);
   for (const option of await page.locator('.option').all()) {
@@ -135,6 +191,43 @@ test('a hearing drill answers by colour, then shows where the answer sits', asyn
   await expect(page.locator('.kb-key.hit')).not.toHaveCount(0);
   await page.getByRole('button', { name: /Help/ }).click();
 });
+
+/* Click through the options until one is right: the question stays until then. */
+async function answerRight(page) {
+  for (const option of await page.locator('.option').all()) {
+    if (await option.isDisabled()) break;
+    await option.click();
+  }
+}
+
+for (const [course, unit, level, title, answers] of [
+  [['Intervals', 'Identify intervals'], '1 2nds', 'up', /2nds/i, 2],
+  [['Intervals', 'Compare intervals'], '9 6ths', 'fix up', /6ths/i, 3],
+  [['Scales & keys', 'Identify scales'], '6 Seven modes', 'up', /seven modes/i, 7],
+]) {
+  test(`${course[1]}: a unit's level asks its own answers, and a right one counts`, async ({ page }) => {
+    await openPath(page, ['Quiz', 'Hear', ...course, unit, level]);
+    await expect(page.locator('#quiz-title')).toHaveText(title);
+    await expect(page.locator('.option')).toHaveCount(answers);
+    await answerRight(page);
+    await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /);
+  });
+}
+
+for (const [course, unit, level, answers, notes] of [
+  ['Identify intervals', '9 Up to the octave', 'tog', 12, 2],
+  ['Compare intervals', '9 6ths', 'fix up', 3, 4],
+  ['Identify scales', '6 Seven modes', 'up', 7, 8],
+]) {
+  test(`Read ${course}: the prompt is on the staff, the answers below it`, async ({ page }) => {
+    await openPath(page, ['Quiz', 'Read', course, unit, level]);
+    await expect(page.locator('.quiz-row svg')).toBeVisible();
+    expect(await page.locator('.quiz-row .staff-note').count()).toBeGreaterThanOrEqual(notes);
+    await expect(page.locator('.option')).toHaveCount(answers);
+    await answerRight(page);
+    await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /);
+  });
+}
 
 test('Info explains what is in front of you, and Escape closes it', async ({ page }) => {
   await page.keyboard.press('KeyI');

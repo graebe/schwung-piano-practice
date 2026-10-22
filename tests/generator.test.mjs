@@ -8,7 +8,8 @@ import {
   scaleRun, intervalDrill, triadDrill, randomInKey, scaleDrills, readingDrills,
 } from '../src/generator.mjs';
 import { validateExercise } from '../src/exercise_io.mjs';
-import { inStaffRange } from '../src/notation.mjs';
+import { inStaffRange, spell } from '../src/notation.mjs';
+import { keyAt } from '../src/chart.mjs';
 import { DEFAULT_TRANSPOSE, padsForPitch } from '../src/padmap.mjs';
 
 const ALL = () => [
@@ -174,4 +175,29 @@ test('the drill lists are stable and every entry builds', () => {
     const chart = b.build();
     assert.ok(validateExercise(chart).ok, b.label);
   }
+});
+
+test('every heptatonic mode has seven notes, and Phrygian dominant keeps its fifth', () => {
+  const seven = ['major', 'minor', 'dorian', 'mixolydian', 'lydian', 'phrygian', 'locrian',
+    'harmonicMinor', 'melodicMinor', 'superLocrian', 'phrygianDominant', 'bhairav', 'hungarianMinor'];
+  for (const m of seven) {
+    assert.equal(MODES[m].length, 7, m);
+    assert.deepEqual(MODES[m].slice().sort((a, b) => a - b), MODES[m], `${m} ascends`);
+  }
+  /* The 5th mode of harmonic minor: b2 and a major third, over a perfect fifth. */
+  assert.deepEqual(MODES.phrygianDominant, [0, 1, 4, 5, 7, 8, 10]);
+});
+
+test('a drill is written in its scale: C minor reads Eb, and the title names the root as spelled', () => {
+  const run = scaleRun({ rootPc: 0, mode: 'minor', direction: 'up' });
+  const key = (beat) => keyAt(run, beat);
+  assert.deepEqual(run.events.map((e) => spell(e.pitches[0], key(e.beat)).label), ['C', 'D', 'Eb', 'F', 'G', 'Ab', 'Bb', 'C']);
+  assert.equal(run.keySig, -3);
+  assert.equal(scaleRun({ rootPc: 3, mode: 'major' }).name, 'Eb Major');
+  const fs = scaleRun({ rootPc: 6, mode: 'major', direction: 'up' });
+  assert.equal(spell(fs.events[6].pitches[0], keyAt(fs, 6)).label, 'E#');
+  /* Random lines and interval drills carry the same spelling. */
+  const line = randomInKey({ rootPc: 0, mode: 'harmonicMinor', seed: 3 });
+  for (const e of line.events) assert.notEqual(spell(e.pitches[0], keyAt(line, e.beat)).label, 'D#');
+  assert.equal(intervalDrill({ rootPc: 0, mode: 'minor' }).keySig, -3);
 });

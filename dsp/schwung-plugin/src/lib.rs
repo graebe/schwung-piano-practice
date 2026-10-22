@@ -10,11 +10,18 @@
  * its own, which is the actual reason to split the two apart.
  *
  * THE CONTRACT THAT IS NOT NEGOTIABLE, because it is not this crate's to relax:
- * every one of these entry points runs on the SPI callback — create_instance,
- * destroy_instance, set_param, get_param, on_midi and render_block alike. No
- * allocation after construction, no locks, no file I/O, no logging. A module
- * author who infers a control thread has inferred wrong; a 2026-08 audit of
- * the fleet found ~150 violations written by people who assumed one existed.
+ * destroy_instance, set_param, get_param, on_midi and render_block run on the
+ * SPI callback. No allocation after construction, no locks, no file I/O, no
+ * logging. A module author who infers a control thread has inferred wrong; a
+ * 2026-08 audit of the fleet found ~150 violations written by people who
+ * assumed one existed.
+ *
+ * create_instance is the one exception, and only for an OVERTAKE module (a
+ * tool): Schwung loads those on its worker thread — dlopen, then create —
+ * and publishes the instance to the audio thread afterwards
+ * (SHIM_EVT_OVERTAKE_DSP_LOAD, schwung_shim.c). That is what makes `fs::read`
+ * in `create` legal for one. A chain-slot module is still created on the
+ * callback and must not read files there.
  */
 #![cfg_attr(feature = "rt", no_std)]
 #![deny(clippy::indexing_slicing, clippy::unwrap_used, clippy::expect_used, clippy::panic)]
@@ -23,6 +30,7 @@ extern crate alloc;
 
 #[cfg(feature = "rt")]
 mod alloc_shim;
+pub mod fs;
 mod panic_shim;
 
 use core::ffi::{c_char, c_int, c_void};

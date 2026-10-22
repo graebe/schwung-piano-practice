@@ -133,10 +133,20 @@ date and tempo; *The numbers* opens them as a table.
 
 **Quiz** has three folders, each a different skill:
 
-- **Play** — a note or chord is shown; find it on the keys.
+- **Play** — notes or chords in a row; play the first and the row moves on.
+  Four drills: **Notes by alphabet** and **Chords by name** show only the name,
+  and any octave or inversion counts; **Notes by staff** and **Chords by staff**
+  show only the notation, and only the written notes count. **Help** names the
+  first one, then lights its keys.
 - **Name** — a key is lit; choose its name.
-- **Hear** — something is played; say what it was. Eighteen exercises, from
-  *higher or lower* to seventh chords and scale degrees, easiest first.
+- **Hear** — something is played; say what it was. Grouped by topic: Pitch &
+  melody, Intervals, Chords, Scales & keys. The three courses sit in their
+  topic: **Identify intervals** (2nds to two octaves) and **Compare intervals**
+  (which of two is bigger, from a fixed or a random root) under Intervals,
+  **Identify scales** (major and minor, then the modes) under Scales & keys.
+- **Read** — the same three courses on the staff: read an interval, compare two,
+  read a scale, and choose the answer. **Hear** plays what is written, and the
+  first listen counts as help.
 
 ![A hearing drill](media/web-hear.png)
 
@@ -148,13 +158,17 @@ ladder of hints — the round still counts, but it records how many you took.
 
 A round is ten, twenty or thirty answers (Settings › Round). Its result is how
 many you got right a minute, beside your best, and how many of your attempts
-were wrong — two charts, so speed and accuracy can each be read on their own.
+were right — two charts, so speed and success can each be read on their own.
+Under them, **Each answer** has a bar per interval, scale, note or chord: how
+often it was right first time over every round, with a mark where this round
+put it. Progress shows the same bars for a drill between rounds.
 
 ## The Learning Program and Progress
 
-**Learning Program › Continue** always opens the next step: four tracks —
-Reading, Chords, Songs and Hearing — each going from easy to hard, with
-nothing locked. **Repetition** brings back finished lessons when they are due.
+**Learning Program › Continue** always opens the next step: six tracks —
+Reading, Chords, Songs, Hearing, Intervals and Scales — each going from easy to
+hard, with nothing locked. In Intervals and Scales each unit is heard and then
+read. **Repetition** brings back finished lessons when they are due.
 
 **Progress** shows how far you have got: overall, per track, and every lesson
 you have played, each with its chart.

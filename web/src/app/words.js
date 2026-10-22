@@ -11,6 +11,7 @@
  */
 export const PHRASES = [
   [' Listen, then jog to the answer and click.', ' Listen, then choose the answer.'],
+  [' Read it, then jog to the answer and click.', ' Read it, then choose the answer.'],
   ['Name the lit pad. Jog to choose, click to answer.', 'Name the lit key. Choose an answer.'],
   [' Press play to start.', ' Listen or Practice to start.'],
   ['The pads stay dark.', 'Nothing lights: read it.'],

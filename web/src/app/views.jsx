@@ -8,9 +8,11 @@
 import { For, Show, Switch, Match, createSignal, createMemo, onCleanup, onMount } from 'solid-js';
 import { Button } from '../kit/components/Button.jsx';
 import { GrandStaff } from '../music/GrandStaff.jsx';
+import { NameRow } from '../music/NameRow.jsx';
+import { createGlide } from '../music/glide.js';
 import { Keyboard } from '../music/Keyboard.jsx';
 import { PadGrid } from '../music/PadGrid.jsx';
-import { AttemptsChart, RoundsChart, TimelineChart } from './charts.jsx';
+import { AnswersChart, AttemptsChart, RoundsChart, TimelineChart } from './charts.jsx';
 import { staffEvents, staffJudgements, staffMarkers } from './chart-view.js';
 import { keyboardRange } from './feedback.js';
 import { MODES } from '../../../src/generator.mjs';
@@ -112,6 +114,8 @@ export function PracticeView(props) {
       <div class="staff-wrap" classList={{ paused: vm().clock.paused, waiting: vm().clock.blocked }}>
         <GrandStaff events={events()} judgements={judgements()} markers={markers()}
                     fifths={vm().chart ? vm().chart.keySig : 0} keyChanges={vm().chart ? vm().chart.keyChanges : []}
+                    spelling={vm().chart ? vm().chart.spelling : null}
+                    showNames={vm().names !== false}
                     timeSig={vm().chart ? vm().chart.timeSig : null}
                     blockingIndex={vm().run && vm().run.blockIndex >= 0 ? vm().run.blockIndex : null}
                     beats={moving() ? () => { const c = props.store.clock(); return c ? c.beats : 0; } : beats()}
@@ -125,7 +129,12 @@ export function PracticeView(props) {
           <div class="staff-badge t-label">Paused</div>
         </Show>
         <Show when={vm().clock.blocked}>
-          <div class="staff-badge t-label">Waiting for the lit note</div>
+          {/* Stage 1 lights it; stage 2 names it only once it has waited. */}
+          <div class="staff-badge t-label">
+            {vm().armed && vm().armed.stage === 2
+              ? (vm().stuckName ? `Waiting for ${vm().stuckName}` : 'Waiting')
+              : 'Waiting for the lit note'}
+          </div>
         </Show>
       </div>
 
@@ -169,7 +178,7 @@ function keyName(vm) {
     const major = ['Cb', 'Gb', 'Db', 'Ab', 'Eb', 'Bb', 'F', 'C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#'][k + 7];
     return `key of ${major}`;
   }
-  return `${names[vm.key.rootPc]} ${vm.key.modeLabel}`;
+  return `${vm.key.root || names[vm.key.rootPc]} ${vm.key.modeLabel}`;
 }
 
 /* ---- Quiz ------------------------------------------------------------------ */
@@ -190,10 +199,37 @@ export function QuizView(props) {
     if (quiz.mode === 'ear') return quiz.solved ? quiz.label || '' : quiz.question || 'Listen, then answer.';
     if (quiz.mode === 'pick') return quiz.solved ? 'Right.' : 'Which is lit?';
     if (quiz.mode === 'hear') return quiz.solved ? 'That was it.' : 'Listen, then play it back.';
-    return quiz.solved ? 'Right.' : 'Play it.';
+    if (quiz.solved) return 'Right.';
+    /* Help names a staff drill's prompt here, not under the staff: a name lane
+     * would name the ones coming up too. */
+    if (quiz.read === 'staff' && quiz.queue[0]?.name) return `It is ${quiz.queue[0].name}.`;
+    if (quiz.read === 'staff') return 'Play what is written.';
+    if (quiz.read === 'name') return 'Play it — any octave.';
+    return 'Play it.';
   };
   const promptEvents = () => (q() && q().prompt ? [{ beat: 0, durBeats: 1, pitches: q().prompt, index: 0, symbol: q().label }] : []);
-  const showStaff = () => q() && (q().mode === 'play' || q().mode === 'hear');
+  const showStaff = () => q() && !q().read && (q().mode === 'play' || q().mode === 'hear');
+  const what = () => (q().kind === 'chords' ? 'chord' : 'note');
+
+  /* A Play drill's row on the staff, as a song's notes: one beat per prompt,
+   * the prompt on the hit line, the one just played kept while it leaves. */
+  const head = () => (q()?.queue?.[0]?.index ?? 0);
+  const rowEvents = createMemo((prev) => {
+    const queue = q()?.queue ?? [];
+    /* No length: a prompt is a pitch to find, not a note to hold. */
+    const events = queue.map((e) => ({ beat: e.index, durBeats: 0, pitches: e.pitches, index: e.index }));
+    const before = prev.find((e) => e.index === head() - 1);
+    return before ? [before, ...events] : events;
+  }, []);
+  const rowJudgements = () => {
+    const out = { [head() - 1]: 'hit' };
+    out[head()] = q().solved ? 'hit' : 'pending';
+    return out;
+  };
+  /* The row moves on as soon as the answer is right, while the session still
+   * holds the old prompt — so the queue's shift lands where the glide ends. */
+  const glide = createGlide();
+  const rowBeats = () => glide(head() + (q()?.solved ? 1 : 0));
   return (
     <Show when={q()}>
       <section class="screen quiz-screen" aria-labelledby="quiz-title">
@@ -211,10 +247,32 @@ export function QuizView(props) {
           <Show when={showStaff()}>
             <div class="quiz-staff" classList={{ hidden: !q().prompt }}>
               <Show when={q().prompt} fallback={<div class="quiz-hidden" aria-label="hidden until you play it">?</div>}>
-                <GrandStaff events={promptEvents()} fifths={q().fifths} timeSig={null} beats={0} hitX={0.5}
+                <GrandStaff events={promptEvents()} fifths={q().fifths} spelling={q().spelling} timeSig={null} beats={0} hitX={0.5}
                             hitLine={false} judgements={[q().solved ? 'hit' : 'pending']}
                             label={`The ${q().kind === 'chords' ? 'chord' : 'note'} to play`} />
               </Show>
+            </div>
+          </Show>
+          <Show when={q().sheet}>
+            <div class="quiz-staff quiz-row">
+              {/* Half a beat back, so no note sits on the hit line and lights as "now". */}
+              <GrandStaff events={q().sheet} fifths={0} timeSig={null} beats={-0.5} hitX={0.06}
+                          pxPerBeat={Math.min(60, 520 / Math.max(1, q().sheet.length))}
+                          hitLine={false} showNames={false} barLines={false}
+                          label={`The ${q().title || 'prompt'} to read`} />
+            </div>
+          </Show>
+          <Show when={q().read === 'staff'}>
+            <div class="quiz-staff quiz-row">
+              <GrandStaff events={rowEvents()} judgements={rowJudgements()} fifths={q().fifths} spelling={q().spelling} timeSig={null}
+                          beats={rowBeats} hitX={0.2} showNames={false} barLines={false}
+                          blockingIndex={q().solved ? null : head()}
+                          label={`The ${what()} to play, and the ones after it`} />
+            </div>
+          </Show>
+          <Show when={q().read === 'name'}>
+            <div class="quiz-row">
+              <NameRow items={q().queue} solved={q().solved} label={`The ${what()} to play, and the ones after it`} />
             </div>
           </Show>
           <Show when={q().options.length}>
@@ -265,6 +323,15 @@ export function ResultView(props) {
               <span class="hero-number">{Math.round(r().percent)}<small>%</small></span>
               <span class="t-value">{r().hits} of {r().total} hit{r().wrong ? ` · ${r().wrong} wrong` : ''}</span>
             </div>
+            <Show when={r().timing && r().timing.hits}>
+              <p class="t-value timing-line">
+                in time {r().timing.inTime}% · early {r().timing.early}% · late {r().timing.late}%
+                <Show when={r().timing.lean}>
+                  {' · '}<strong>{r().timing.lean === 'rush' ? 'rushing' : 'dragging'}</strong>
+                  {` (${r().timing.meanMs > 0 ? '+' : ''}${r().timing.meanMs} ms)`}
+                </Show>
+              </p>
+            </Show>
             <AttemptsChart history={r().history} />
           </Match>
           <Match when={r().kind === 'quiz'}>
@@ -274,6 +341,7 @@ export function ResultView(props) {
             </header>
             <div class="hero">
               <span class="hero-number">{Math.round(r().rate)}<small>/min</small></span>
+              <span class="hero-number">{r().success}<small>% right</small></span>
               <span class="t-value">
                 {r().n} in {Math.round(r().ms / 1000)}s · {r().wrong} wrong
                 {r().hints ? ` · ${r().hints} hint${r().hints > 1 ? 's' : ''}` : ''}
@@ -281,6 +349,9 @@ export function ResultView(props) {
               </span>
             </div>
             <RoundsChart records={r().records} />
+            <Show when={r().answers && r().answers.length}>
+              <AnswersChart answers={r().answers} />
+            </Show>
           </Match>
         </Switch>
         <div class="transport">
@@ -331,6 +402,9 @@ export function ProgressView(props) {
                 </Match>
                 <Match when={d().kind === 'drill'}>
                   <RoundsChart records={d().records} />
+                  <Show when={d().answers && d().answers.length}>
+                    <AnswersChart answers={d().answers} />
+                  </Show>
                 </Match>
                 <Match when={d().kind === 'item'}>
                   <h2 class="t-label">{d().title} · {d().percent}%</h2>

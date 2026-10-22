@@ -25,8 +25,9 @@ import * as SCORE from './scoring.mjs';
 import * as CAT from './catalog.mjs';
 import * as GUESS from './guess.mjs';
 import * as GEN from './generator.mjs';
+import * as NOTATION from './notation.mjs';
 import * as AP from './answer_pads.mjs';
-import { chartTotalBeats, beatsPerBar, barBeatOf } from './chart.mjs';
+import { chartTotalBeats, beatsPerBar, barBeatOf, keyAt } from './chart.mjs';
 import {
   MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
 } from './session.mjs';
@@ -54,7 +55,10 @@ export function keyOf(settings, fifths) {
     rootPc: settings.rootPc,
     mode: settings.mode,
     modeLabel: GEN.MODE_LABELS[settings.mode] || settings.mode,
+    /* The key to spell in — signature and the scale's own letters — and the
+     * tonic's name as the scale spells it. */
     fifths,
+    root: fifths && fifths.root ? fifths.root : null,
     transpose: settings.transpose,
     scale,
   };
@@ -70,6 +74,7 @@ export function chartOf(chart) {
     bpm: chart.bpm,
     timeSig: chart.timeSig || [4, 4],
     keySig: chart.keySig || 0,
+    spelling: chart.spelling || null,
     keyChanges: chart.keyChanges ? chart.keyChanges.map((k) => ({ beat: k.beat, keySig: k.keySig })) : [],
     total: chartTotalBeats(chart),
     events: chart.events.map((e) => ({
@@ -199,6 +204,19 @@ function navOf(S) {
   };
 }
 
+function sheetOf(columns) {
+  return columns.map((c, i) => ({
+    beat: i + c.part,
+    durBeats: 0,
+    index: i,
+    /* All on the treble, as on the Move: a 3rd split across middle C would be
+     * read as two staves, not one interval. */
+    hand: 'r',
+    pitches: c.notes.map((n) => n.pitch),
+    spelled: c.notes.map((n) => ({ step: n.diatonic, alteration: n.alter, letter: ((n.diatonic % 7) + 7) % 7 })),
+  }));
+}
+
 /*
  * The open quiz. While the prompt is withheld — a hearing drill not yet
  * answered — neither the notes nor their name are sent.
@@ -216,7 +234,20 @@ export function quizOf(S) {
     question: ear ? quiz.exercise.question || null : null,
     prompt: hidden ? null : quiz.prompt.slice(),
     label: hidden ? null : quiz.label || null,
-    fifths: quiz.fifths,
+    /* A Play drill's row, head first. `index` counts prompts from the start, so
+     * a prompt keeps its place as the row moves on. A staff drill withholds the
+     * name — reading it is the drill — until Help gives it. */
+    read: quiz.read || null,
+    /* A reading course draws its prompt: one event per column, spelled as the
+     * course wrote it, a beat apart and a beat more between two intervals. */
+    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? sheetOf(quiz.entry.staff) : null,
+    queue: quiz.read ? quiz.queue.map((e, i) => ({
+      index: quiz.asked - 1 + i,
+      pitches: e.pitches.slice(),
+      name: quiz.read === GUESS.READ_NAME || (i === 0 && quiz.hint > 0) ? GUESS.entryName(quiz, e) : null,
+    })) : [],
+    fifths: NOTATION.keyFifths(quiz.fifths),
+    spelling: quiz.fifths && quiz.fifths.map ? quiz.fifths.map : null,
     solved: quiz.solved,
     hint: quiz.hint,
     maxHint: GUESS.MAX_HINT,
@@ -248,6 +279,15 @@ function progressOf(S, plotW, plotH) {
   };
 }
 
+/* The note or chord the scroll waits on, named in its key. */
+function stuckNameOf(S) {
+  const at = SCORE.blockingEntryIndex(S.run);
+  const event = S.chart.events[at];
+  const pitches = SCORE.blockingNotes(S.run).map((n) => n.pitch);
+  if (!event || !pitches.length) return null;
+  return event.symbol || NOTATION.chordLabel(pitches, keyAt(S.chart, event.beat));
+}
+
 /* ---- The whole picture -------------------------------------------------------- */
 
 export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
@@ -261,6 +301,10 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     key: keyOf(settings, S.keyFifths()),
     nav: view === MENU ? navOf(S) : null,
     armed: S.armedId ? { id: S.armedId, stage: S.stage } : null,
+    /* The names under the notes, as the stage and the Names setting have them;
+     * a stuck note's name once it has waited long enough. */
+    names: inSong ? S.namesShown() : true,
+    stuckName: inSong && S.blocked && S.run && S.stuckNamed() ? stuckNameOf(S) : null,
     chart: inSong ? chartOf(S.chart) : null,
     run: inSong ? runOf(S.run, S.blocked) : null,
     clock: clockOf(S, t),

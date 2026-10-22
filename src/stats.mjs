@@ -13,7 +13,7 @@
  * drill id and nothing ever compares across them.
  */
 
-import { exerciseByKey, levelByKey } from './ear.mjs';
+import { exerciseByKey, levelByKey, answersFor, resolveLegacy } from './ear.mjs';
 
 export const STATS_VERSION = 1;
 export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound */
@@ -27,10 +27,13 @@ export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound *
  */
 export function drillId({ hear = false, pick = false, kind = 'notes',
                           chordSet = 'triads', halfTones = false,
-                          exercise = '', level = '' } = {}) {
+                          read = null, exercise = '', level = '' } = {}) {
   /* A hearing drill is its exercise and level: ear:thirds:up. */
   if (kind === 'ear') return 'ear:' + exercise + ':' + level;
-  const mode = pick ? 'pick' : (hear ? 'hear' : 'guess');
+  /* Reading the staff is a different skill from finding a name on the grid, so
+   * it is filed apart. The name drills keep 'guess': they are what Play asked
+   * before the split, and their history carries on. */
+  const mode = pick ? 'pick' : (hear ? 'hear' : (read === 'staff' ? 'staff' : 'guess'));
   if (kind === 'chords') {
     const set = chordSet === 'types' || chordSet === 'advanced' ? chordSet : 'triads';
     return mode + ':chords:' + set;
@@ -40,7 +43,7 @@ export function drillId({ hear = false, pick = false, kind = 'notes',
 
 const DRILL_WORDS = {
   /* The Quiz folder's own words: Play finds it on the pads, Name names a lit pad. */
-  guess: 'Play', hear: 'Hear', pick: 'Name',
+  guess: 'Play', hear: 'Hear', pick: 'Name', staff: 'Staff',
   notes: 'notes', chords: 'chords',
   half: 'chromatic', key: 'in key', types: 'types', triads: 'triads',
   advanced: 'advanced',
@@ -52,8 +55,10 @@ export function drillLabel(id) {
   const parts = String(id).split(':');
   if (parts.length !== 3) return String(id);
   if (parts[0] === 'ear') {
-    const ex = exerciseByKey(parts[1]);
-    return ex ? 'Hear ' + ex.short + ' ' + levelByKey(ex, parts[2]).name : String(id);
+    /* An exercise the courses replaced is named as the course twin it opens. */
+    const [exKey, levelKey] = resolveLegacy(parts[1], parts[2]);
+    const ex = exerciseByKey(exKey);
+    return ex ? (ex.tag || 'Hear') + ' ' + ex.short + ' ' + levelByKey(ex, levelKey).name : String(id);
   }
   return [DRILL_WORDS[parts[0]], DRILL_WORDS[parts[1]], DRILL_WORDS[parts[2]]]
     .filter(Boolean)
@@ -102,7 +107,7 @@ export function recordError(rec) {
 }
 
 export function emptyStats() {
-  return { version: STATS_VERSION, records: [] };
+  return { version: STATS_VERSION, records: [], tally: {} };
 }
 
 /* Append, dropping the oldest once the cap is reached. */
@@ -139,11 +144,83 @@ export function parseStats(text) {
       h: typeof r.h === 'number' ? r.h : 0,
     });
   }
-  return { version: STATS_VERSION, records };
+  return { version: STATS_VERSION, records, tally: parseTally(obj.tally) };
+}
+
+/* Older files have no tally; a damaged entry is dropped, the rest kept. */
+function parseTally(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const drill of Object.keys(raw)) {
+    const answers = raw[drill];
+    if (!answers || typeof answers !== 'object') continue;
+    for (const key of Object.keys(answers)) {
+      const v = answers[key];
+      if (!Array.isArray(v) || v.length !== 2) continue;
+      const [asked, right] = v;
+      if (!(asked > 0) || !(right >= 0) || right > asked) continue;
+      (out[drill] || (out[drill] = {}))[key] = [asked, right];
+    }
+  }
+  return out;
 }
 
 export function serialiseStats(stats) {
-  return JSON.stringify({ version: STATS_VERSION, records: stats.records });
+  return JSON.stringify({ version: STATS_VERSION, records: stats.records, tally: stats.tally || {} });
+}
+
+/* ---- Success per answer ----------------------------------------------------- */
+/*
+ * Every answer of every drill, asked and right, added up over all rounds.
+ * Kept apart from the records and never trimmed: the records are the last 200
+ * rounds of everything, and "how am I at minor 6ths" should not forget the
+ * rounds before them. Its size is bounded by drills times answers.
+ */
+export function addTally(stats, drill, round) {
+  if (!stats.tally) stats.tally = {};
+  const into = stats.tally[drill] || (stats.tally[drill] = {});
+  for (const key of Object.keys(round)) {
+    const [asked, right] = round[key];
+    const had = into[key] || [0, 0];
+    into[key] = [had[0] + asked, had[1] + right];
+  }
+  return stats;
+}
+
+export function tallyFor(stats, drill) {
+  return (stats.tally && stats.tally[drill]) || {};
+}
+
+/*
+ * A drill's answers over every round, for Progress: [{ key, label, allAsked,
+ * allRight }]. A hearing or reading drill names and orders them by its own
+ * answers; any other in the order they were first answered.
+ */
+export function answerRows(stats, drill) {
+  const t = tallyFor(stats, drill);
+  let keys = Object.keys(t);
+  const parts = String(drill).split(':');
+  const ex = parts[0] === 'ear' ? exerciseByKey(parts[1]) : null;
+  const answers = ex ? answersFor(ex, levelByKey(ex, parts[2])) : [];
+  if (answers.length) {
+    const order = answers.map((a) => a.key);
+    keys = keys.filter((k) => order.indexOf(k) >= 0).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  }
+  return keys.map((k) => {
+    const a = answers.find((x) => x.key === k);
+    return { key: k, label: a ? a.label : k, allAsked: t[k][0], allRight: t[k][1] };
+  });
+}
+
+/* Right, of all attempts, per round — what Progress scores a quiz round by —
+ * as the accuracy plot reads a history: [t, percent, stage]. A round that took
+ * a hint is a stage 1 round, drawn hollow. */
+export function successPercent(n, wrong) {
+  return Math.round((1 - errorFraction(n, wrong)) * 100);
+}
+
+export function successSeries(records) {
+  return records.map((r) => [r.t, (1 - errorFraction(r.n, r.w)) * 100, r.h ? 1 : 2]);
 }
 
 /* ---- Reading the history ---------------------------------------------------- */

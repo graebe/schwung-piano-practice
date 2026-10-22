@@ -1,0 +1,15 @@
+# The metronome: two claves from the Versilian Community Sample Library
+# (VCSL, CC0-1.0, https://github.com/sgossner/VCSL). Key 1 is the downbeat,
+# the brighter clave; key 0 every other beat. Fetched by scripts/fetch-samples.sh.
+budget_mb = 0.2
+one_shot = true
+max_seconds = [[0, 0.35]]
+fade_ms = 60
+
+[[sample]]
+file = "Claves2_Hit_v3_rr1_Mid.wav"
+key = 0
+
+[[sample]]
+file = "Claves1_Hit_v3_rr1_Mid.wav"
+key = 1

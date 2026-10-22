@@ -12,6 +12,7 @@ import {
   NOTE_HIT, NOTE_PENDING, NOTE_MISSED, VM_VERSION,
 } from '../src/view_model.mjs';
 import { MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_DETAIL } from '../src/session.mjs';
+import * as GUESS from '../src/guess.mjs';
 
 const plain = (vm) => JSON.parse(JSON.stringify(vm));
 
@@ -87,7 +88,7 @@ test('listening: the cue names what is sounding', () => {
 test('a hidden prompt is never sent — not its notes, not its name', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']);
+  openPath(h.session, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
   let vm = viewModel(h.session);
   assert.equal(vm.screen, GUESS_VIEW);
   assert.equal(vm.quiz.mode, 'ear');
@@ -103,10 +104,37 @@ test('a hidden prompt is never sent — not its notes, not its name', () => {
   assert.ok(Array.isArray(vm.quiz.prompt) && vm.quiz.prompt.length > 0);
 });
 
+test('a Play quiz shows its row: by name with the names, by staff without', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Quiz', 'Play', 'Notes by alphabet']);
+  let vm = viewModel(h.session);
+  assert.equal(vm.quiz.read, 'name');
+  assert.equal(vm.quiz.queue.length, GUESS.LOOKAHEAD);
+  assert.deepEqual(vm.quiz.queue.map((e) => e.index), [0, 1, 2, 3, 4, 5]);
+  assert.ok(vm.quiz.queue.every((e) => typeof e.name === 'string' && e.name.length));
+  h.session.back();
+  openPath(h.session, ['Chords by staff']);
+  vm = viewModel(h.session);
+  assert.equal(vm.quiz.read, 'staff');
+  assert.ok(vm.quiz.queue.every((e) => e.name === null), 'no names to read off');
+  assert.ok(vm.quiz.queue.every((e) => e.pitches.length >= 3));
+  h.session.recordButton(true);                 /* Help */
+  vm = viewModel(h.session);
+  assert.equal(h.session.quiz.hint, 1);
+  assert.ok(vm.quiz.queue[0].name, 'Help names the prompt');
+  assert.equal(vm.quiz.queue[1].name, null, 'and only the prompt');
+  const q = h.session.quiz;
+  for (const p of q.prompt) h.session.play(p, 90);
+  h.run(600);
+  vm = viewModel(h.session);
+  assert.equal(vm.quiz.queue[0].index, 1, 'the row moved on by one');
+});
+
 test('a Play quiz shows its prompt; a Name quiz lights it as the question', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Play', 'Notes']);
+  openPath(h.session, ['Quiz', 'Play', 'Notes by alphabet']);
   let vm = viewModel(h.session);
   assert.equal(vm.quiz.mode, 'play');
   assert.equal(vm.quiz.prompt.length, 1);

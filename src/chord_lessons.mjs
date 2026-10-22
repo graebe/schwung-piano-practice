@@ -22,9 +22,9 @@
  */
 
 import { qualityById, chordSymbol } from './chords.mjs';
-import { majorKeyFifths, spell } from './notation.mjs';
+import { majorKeyFifths, spell, scaleKey } from './notation.mjs';
 import { pitchRange, DEFAULT_TRANSPOSE } from './padmap.mjs';
-import { rng } from './generator.mjs';
+import { rng, MODES } from './generator.mjs';
 
 /* Roots in falling fifths, the order the cycle is practised in: C F Bb Eb ... */
 export const CIRCLE = [0, 5, 10, 3, 8, 1, 6, 11, 4, 9, 2, 7];
@@ -178,7 +178,7 @@ function voiceRightHand(tones, rootPc, bassBelow, floor, hi, bottomPc, prev) {
  * key wants; without it each chord is spelled in its own key, by key change.
  */
 export function chordSong({
-  id, name, steps, bpm = 60, beatsPer = 2, hands = 'lr', keySig = null,
+  id, name, steps, bpm = 60, beatsPer = 2, hands = 'lr', keySig = null, spelling = null,
   transpose = DEFAULT_TRANSPOSE,
 }) {
   const { lo, hi } = pitchRange(transpose);
@@ -191,7 +191,7 @@ export function chordSong({
     const quality = typeof step.quality === 'string' ? qualityById(step.quality) : step.quality;
     if (!quality) throw new Error(`${id}: unknown quality ${step.quality}`);
     const beat = i * beatsPer;
-    const fifths = keySig == null ? spellingFor(step.root, quality) : keySig;
+    const fifths = keySig == null ? spellingFor(step.root, quality) : (spelling ? { fifths: keySig, map: spelling } : keySig);
     if (keySig == null && fifths !== lastFifths) keyChanges.push({ beat, keySig: fifths });
     lastFifths = fifths;
 
@@ -223,6 +223,7 @@ export function chordSong({
     source: 'file',
   };
   if (keyChanges.length > 1) song.keyChanges = keyChanges;
+  if (spelling) song.spelling = spelling;
   return song;
 }
 
@@ -312,7 +313,12 @@ export function slashLesson(transpose = DEFAULT_TRANSPOSE) {
 /*
  * Progressions, as semitones above the tonic, in the key the Key setting
  * names. A minor progression is spelled in its relative major, the same rule
- * homeOffset applies to a single minor chord.
+ * homeOffset applies to a single minor chord — and with harmonic minor's
+ * raised 7th on its own letter, so F# minor's V is C# E# G#, not C# F G#.
+ *
+ * The minor cadence is i-iv-V-i: the V is major, its 3rd the leading tone
+ * that pulls home, as every common-practice cadence in minor has it. The
+ * minor v of the natural scale is a modal colour, taught after it.
  */
 export const PROGRESSIONS = [
   { id: 'I-IV-V-I', steps: [[0, 'maj'], [5, 'maj'], [7, 'maj'], [0, 'maj']] },
@@ -321,7 +327,8 @@ export const PROGRESSIONS = [
   { id: 'I-vi-IV-V', steps: [[0, 'maj'], [9, 'min'], [5, 'maj'], [7, 'maj']] },
   { id: 'ii-V-I', steps: [[2, 'm7'], [7, '7'], [0, 'maj7'], [0, 'maj7']] },
   { id: 'vi-ii-V-I', steps: [[9, 'm7'], [2, 'm7'], [7, '7'], [0, 'maj7']] },
-  { id: 'i-iv-v-i', minor: true, steps: [[0, 'min'], [5, 'min'], [7, 'min'], [0, 'min']] },
+  { id: 'i-iv-V-i', minor: true, steps: [[0, 'min'], [5, 'min'], [7, 'maj'], [0, 'min']] },
+  { id: 'i-iv-v-i modal', minor: true, steps: [[0, 'min'], [5, 'min'], [7, 'min'], [0, 'min']] },
   { id: 'i-VI-III-VII', minor: true, steps: [[0, 'min'], [8, 'maj'], [3, 'maj'], [10, 'maj']] },
   { id: 'ii-V-i minor', minor: true, steps: [[2, 'm7b5'], [7, '7b9'], [0, 'm7'], [0, 'm7']] },
   {
@@ -339,8 +346,9 @@ export function progressionLesson(prog, tonicPc = 0, transpose = DEFAULT_TRANSPO
   const repeat = prog.repeat || 2;
   let steps = [];
   for (let r = 0; r < repeat; r++) steps = steps.concat(once);
-  const keySig = majorKeyFifths(tonicPc + (prog.minor ? 3 : 0));
-  const keyed = spell(tonicPc + 60, keySig).label + ' ' + prog.id;
+  const minor = prog.minor ? scaleKey(tonicPc, MODES.harmonicMinor, 'harmonicMinor') : null;
+  const keySig = minor ? minor.fifths : majorKeyFifths(tonicPc);
+  const keyed = spell(tonicPc + 60, minor || keySig).label + ' ' + prog.id;
   return chordSong({
     id: 'prog-' + prog.id.replace(/\s+/g, '-') + '-' + tonicPc,
     name: keyed.length <= 13 ? keyed : prog.id,
@@ -348,6 +356,7 @@ export function progressionLesson(prog, tonicPc = 0, transpose = DEFAULT_TRANSPO
     bpm: 70,
     beatsPer: prog.beatsPer || 2,
     keySig,
+    spelling: minor ? minor.map : null,
     transpose,
   });
 }

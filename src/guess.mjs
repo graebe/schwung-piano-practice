@@ -7,7 +7,17 @@
  * one semitone right, five semitones up — so the same pitch appears on several
  * pads and nothing looks like a keyboard. Finding a pitch is its own problem,
  * and the reading mode can never drill it because the note is always moving.
- * Here it sits still, named, until you play it.
+ * Here it waits, until you play it.
+ *
+ * The Play drills read it one of two ways, and show what is coming next:
+ *
+ *   name   the letter or chord symbol only — any octave, any voicing counts,
+ *          since a name carries no octave; this drills the grid
+ *   staff  the notation only, no name — the written pitches exactly; this
+ *          drills reading
+ *
+ * Either way a row of prompts is queued up, like the notes of a song, and it
+ * moves on one prompt per right answer.
  */
 
 import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './generator.mjs';
@@ -33,6 +43,14 @@ export const MAX_HINT = 2;        /* rungs on the help ladder */
 export const TRIADS = 'triads';   /* diatonic triads on scale degrees */
 export const TYPES = 'types';     /* a quality chosen deliberately: dim, sus, 7ths... */
 export const ADVANCED = 'advanced'; /* ...and ninths, and altered dominants */
+
+/* How a Play drill is read. Null for everything else: hearing, picking. */
+export const READ_NAME = 'name';
+export const READ_STAFF = 'staff';
+/* Prompts in a Play drill's row: the one to play and the five after it. Four
+ * fit on the Move's screen at the staff's spacing; the fifth is coming in at
+ * the edge and the sixth is already there to glide in behind it. */
+export const LOOKAHEAD = 6;
 
 export const CORRECT = 'correct';
 export const WRONG = 'wrong';
@@ -82,7 +100,9 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
         if (roots[r] + qualitySpan(quality) > hi) continue;
         const pitches = buildChord(roots[r], quality);
         if (!playable(pitches, transpose)) continue;
-        pool.push({ pitches, label: chordSymbol(roots[r], quality, fifths) });
+        /* The quality is what the tally files it under: a few dozen kinds read
+         * better than hundreds of chords. */
+        pool.push({ pitches, label: chordSymbol(roots[r], quality, fifths), quality: quality.suffix || 'maj' });
       }
     }
     return pool;
@@ -130,6 +150,8 @@ export function createQuiz({
   exercise = null,      /* EAR: which exercise of ear.mjs, by key */
   level = null,         /* EAR: and which of its levels */
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
+  read = null,          /* Play drills: READ_NAME or READ_STAFF */
+  history = null,       /* the drill's tally over every round: { key: [asked, right] } */
   seed = 1,
 } = {}) {
   const ear = kind === EAR ? exerciseByKey(exercise) : null;
@@ -152,6 +174,10 @@ export function createQuiz({
     answers,
     groups: ear ? groupByAnswer(pool, answers) : null,
     fifths,
+    read: read === READ_NAME || read === READ_STAFF ? read : null,
+    /* The prompt and what follows it, head first. A Play drill shows them all;
+     * everything else only ever has the one. */
+    queue: [],
     entry: null,        /* the pool entry behind the current prompt */
     choices: [],        /* the options offered, when picking */
     choiceIndex: 0,
@@ -166,6 +192,19 @@ export function createQuiz({
     bestStreak: 0,
     solved: false,
     penalised: false,
+    missed: false,      /* any wrong attempt on this prompt, for the tally */
+    /* Per answer, this round: { key: [asked, right] }, and the order to show
+     * them in. Filled as each prompt is solved. */
+    tally: {},
+    tallyOrder: [],
+    tallyLabels: {},
+    /* What the drill has asked before, and how it went: the answers you get
+     * wrong come round more often. */
+    history: history && typeof history === 'object' ? history : null,
+    keyCache: new Map(),
+    /* Prompts answered wrong, to ask again a few prompts later. */
+    reask: [],
+    draws: 0,
     roundSize,
     /*
      * Null until the first press. A round is timed from when you start
@@ -187,9 +226,23 @@ export function nextPrompt(quiz) {
     quiz.label = null;
     return quiz.prompt;
   }
-  const chosen = quiz.kind === EAR
-    ? pickEntry(quiz.groups, quiz.rand, quiz.entry)
-    : randomEntry(quiz);
+  let chosen;
+  if (quiz.kind === EAR) {
+    chosen = dueReask(quiz, quiz.entry)
+      || pickEntry(quiz.groups, quiz.rand, quiz.entry, groupWeights(quiz));
+    quiz.draws++;
+  } else {
+    /* Drawn in order, each against the one before it, so a row reads exactly
+     * as the same prompts would have arrived one at a time. */
+    const depth = quiz.read ? LOOKAHEAD : 1;
+    quiz.queue.shift();
+    while (quiz.queue.length < depth) {
+      const before = quiz.queue[quiz.queue.length - 1] || quiz.entry;
+      quiz.queue.push(dueReask(quiz, before) || randomEntry(quiz, before));
+      quiz.draws++;
+    }
+    chosen = quiz.queue[0];
+  }
   quiz.prompt = chosen.pitches.slice();
   quiz.label = chosen.label;
   quiz.entry = chosen;
@@ -206,23 +259,76 @@ export function nextPrompt(quiz) {
   quiz.held = [];
   quiz.solved = false;
   quiz.penalised = false;
+  quiz.missed = false;
   quiz.hint = 0;
   quiz.eliminated = [];
   quiz.asked++;
   return quiz.prompt;
 }
 
-function randomEntry(quiz) {
-  const previous = quiz.prompt.join(',') + '|' + (quiz.label || '');
-  const same = (e) => e.pitches.join(',') + '|' + (e.label || '') === previous;
-  let chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+const promptKey = (e) => e.pitches.join(',') + '|' + (e.label || '');
+
+function randomEntry(quiz, before) {
+  const previous = before ? promptKey(before) : '';
+  const same = (e) => promptKey(e) === previous;
+  const draw = quiz.history ? () => weightedEntry(quiz) : () => quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+  let chosen = draw();
   if (quiz.pool.length > 1) {
     let guard = 8;
-    while (same(chosen) && guard-- > 0) {
-      chosen = quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
-    }
+    while (same(chosen) && guard-- > 0) chosen = draw();
   }
   return chosen;
+}
+
+/* ---- Practising what you get wrong ---------------------------------------------- */
+/*
+ * Two habits of a good teacher. What you have got wrong before comes round
+ * more often: an answer's weight is 1 + 3 x its error rate over every round
+ * of the drill, so one you always miss comes four times as often as one you
+ * never do — and every answer still comes. And a prompt you get wrong now is
+ * asked again three to five prompts later, while it is still fresh.
+ */
+const MISS_WEIGHT = 3;
+export const REASK_MIN = 3;
+export const REASK_SPREAD = 3;
+
+function weightOfKey(quiz, key) {
+  const t = quiz.history && quiz.history[key];
+  if (!t || !(t[0] > 0)) return 1;
+  return 1 + MISS_WEIGHT * ((t[0] - t[1]) / t[0]);
+}
+
+function entryKey(quiz, entry) {
+  let k = quiz.keyCache.get(entry);
+  if (k === undefined) {
+    k = answerKey(quiz, entry).key;
+    quiz.keyCache.set(entry, k);
+  }
+  return k;
+}
+
+function weightedEntry(quiz) {
+  let total = 0;
+  for (const e of quiz.pool) total += weightOfKey(quiz, entryKey(quiz, e));
+  let r = quiz.rand() * total;
+  for (const e of quiz.pool) {
+    r -= weightOfKey(quiz, entryKey(quiz, e));
+    if (r < 0) return e;
+  }
+  return quiz.pool[quiz.pool.length - 1];
+}
+
+/* Hearing draws an answer first, then a prompt for it: the answers weigh. */
+function groupWeights(quiz) {
+  if (!quiz.history) return null;
+  return quiz.groups.map((g) => weightOfKey(quiz, g[0].answer));
+}
+
+/* A missed prompt whose turn has come, unless it would repeat the last one. */
+function dueReask(quiz, before) {
+  const at = quiz.reask.findIndex((r) => r.due <= quiz.draws && !(before && promptKey(r.entry) === promptKey(before)));
+  if (at < 0) return null;
+  return quiz.reask.splice(at, 1)[0].entry;
 }
 
 /*
@@ -240,13 +346,35 @@ function isRight(quiz, option) {
   return option === quiz.entry;
 }
 
+const pc = (pitch) => ((pitch % 12) + 12) % 12;
+
 function evaluate(quiz) {
+  if (quiz.read === READ_NAME) return evaluateByName(quiz);
   for (let i = 0; i < quiz.held.length; i++) {
     if (quiz.prompt.indexOf(quiz.held[i]) < 0) return WRONG;
   }
   /* Deduplicated on the way in, so equal lengths means the whole chord is
    * down — which is what makes a chord a chord rather than an arpeggio. */
   return quiz.held.length === quiz.prompt.length ? CORRECT : INCOMPLETE;
+}
+
+/*
+ * A name has no octave, so the answer is its pitch classes: any F for "F", and
+ * A, C and E in any octave or inversion for "Am". Still held together, and
+ * still nothing outside the chord — a doubled note is fine, a stray one is not.
+ */
+function evaluateByName(quiz) {
+  const wanted = quiz.prompt.map(pc);
+  const have = [];
+  for (let i = 0; i < quiz.held.length; i++) {
+    const p = pc(quiz.held[i]);
+    if (wanted.indexOf(p) < 0) return WRONG;
+    if (have.indexOf(p) < 0) have.push(p);
+  }
+  for (let i = 0; i < wanted.length; i++) {
+    if (have.indexOf(wanted[i]) < 0) return INCOMPLETE;
+  }
+  return CORRECT;
 }
 
 /*
@@ -266,27 +394,96 @@ export function pressPitch(quiz, pitch, nowMs = 0) {
   if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
 
   const result = evaluate(quiz);
-  if (result === CORRECT) {
-    quiz.solved = true;
-    quiz.correct++;
-    quiz.streak++;
-    if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
-    if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
-      quiz.finishedAt = nowMs || quiz.startedAt || 0;
-    }
-  } else if (result === WRONG && !quiz.penalised) {
-    /* Once per prompt: holding a wrong note down should not keep scoring. */
-    quiz.penalised = true;
-    quiz.wrong++;
-    quiz.streak = 0;
-  }
+  if (result === CORRECT) solve(quiz, nowMs);
+  else if (result === WRONG) miss(quiz);
   return result;
+}
+
+/* A prompt answered: the round's count, the streak, and the answer's tally. */
+function solve(quiz, nowMs) {
+  quiz.solved = true;
+  quiz.correct++;
+  quiz.streak++;
+  if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
+  if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
+    quiz.finishedAt = nowMs || quiz.startedAt || 0;
+  }
+  if (quiz.entry) {
+    const { key, label } = answerKey(quiz, quiz.entry);
+    if (!quiz.tally[key]) {
+      quiz.tally[key] = [0, 0];
+      quiz.tallyOrder.push(key);
+      quiz.tallyLabels[key] = label;
+    }
+    quiz.tally[key][0]++;
+    if (!quiz.missed) quiz.tally[key][1]++;
+    /* Missed: ask it again a few prompts on (the row already holds the next
+     * few, so it lands after them). */
+    if (quiz.missed) {
+      const due = quiz.draws + REASK_MIN - 1 + Math.floor(quiz.rand() * REASK_SPREAD);
+      quiz.reask.push({ entry: quiz.entry, due });
+    }
+  }
+}
+
+/* A wrong attempt. Counted once per prompt: holding a wrong note down should
+ * not keep scoring — but the prompt stays missed for its answer's tally. */
+function miss(quiz) {
+  quiz.missed = true;
+  if (quiz.penalised) return;
+  quiz.penalised = true;
+  quiz.wrong++;
+  quiz.streak = 0;
 }
 
 export function releasePitch(quiz, pitch) {
   const at = quiz.held.indexOf(pitch);
   if (at >= 0) quiz.held.splice(at, 1);
   if (!quiz.solved && quiz.held.length === 0) quiz.penalised = false;
+}
+
+/* ---- Success per answer -------------------------------------------------------- */
+/*
+ * What an answer is, for the tally: the thing you would name.
+ *
+ *   hearing and reading    the exercise's answer ("Major 6th")
+ *   notes                  the note's name without its octave ("C#")
+ *   triads of the key      the chord ("Em") — seven of them
+ *   chord types            the quality ("m7") — hundreds of chords, a few
+ *                          dozen kinds, and the kind is what is being learned
+ */
+export function answerKey(quiz, entry) {
+  if (quiz.kind === EAR) {
+    const a = (quiz.answers || []).find((x) => x.key === entry.answer);
+    return { key: entry.answer, label: a ? a.label : entry.answer };
+  }
+  if (entry.pitches.length === 1) {
+    const name = spell(entry.pitches[0], quiz.fifths).label;
+    return { key: name, label: name };
+  }
+  if (entry.quality) return { key: entry.quality, label: entry.quality };
+  const name = labelFor(quiz, entry.pitches);
+  return { key: name, label: name };
+}
+
+const NOTE_ORDER = (name) => {
+  const LET = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+  return (LET[name[0]] ?? 99) + (name[1] === '#' ? 0.5 : name[1] === 'b' ? -0.5 : 0);
+};
+
+/*
+ * The round's tally as rows, in the order to show them: a hearing or reading
+ * exercise's own answer order, notes from C up, anything else as first asked.
+ */
+export function tallyRows(quiz) {
+  let keys = quiz.tallyOrder.slice();
+  if (quiz.kind === EAR && quiz.answers) {
+    const order = quiz.answers.map((a) => a.key);
+    keys.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  } else if (quiz.kind === NOTES) {
+    keys.sort((a, b) => NOTE_ORDER(a) - NOTE_ORDER(b));
+  }
+  return keys.map((k) => ({ key: k, label: quiz.tallyLabels[k], asked: quiz.tally[k][0], right: quiz.tally[k][1] }));
 }
 
 export function quizStats(quiz) {
@@ -347,6 +544,16 @@ export function optionLabel(quiz, entry) {
   return entry.label || labelFor(quiz, entry.pitches);
 }
 
+/*
+ * What a name drill shows for an entry: the letter without its octave, or the
+ * chord's symbol. A stack that is not a chord — degrees of a non-tertian scale —
+ * shows its notes, which is the honest name for it.
+ */
+export function entryName(quiz, entry) {
+  if (entry.pitches.length === 1) return spell(entry.pitches[0], quiz.fifths).label;
+  return entry.label || nameChord(entry.pitches, quiz.fifths) || chordLabel(entry.pitches, quiz.fifths);
+}
+
 export function isEliminated(quiz, index) {
   return quiz.eliminated.indexOf(index) >= 0;
 }
@@ -377,20 +584,10 @@ export function pickChoice(quiz, nowMs = 0) {
   if (!chosen) return WRONG;
 
   if (isRight(quiz, chosen)) {
-    quiz.solved = true;
-    quiz.correct++;
-    quiz.streak++;
-    if (quiz.streak > quiz.bestStreak) quiz.bestStreak = quiz.streak;
-    if (quiz.roundSize > 0 && quiz.correct >= quiz.roundSize && quiz.finishedAt === null) {
-      quiz.finishedAt = nowMs || quiz.startedAt || 0;
-    }
+    solve(quiz, nowMs);
     return CORRECT;
   }
-  if (!quiz.penalised) {
-    quiz.penalised = true;
-    quiz.wrong++;
-    quiz.streak = 0;
-  }
+  miss(quiz);
   return WRONG;
 }
 

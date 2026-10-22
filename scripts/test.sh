@@ -49,7 +49,9 @@ if [ "$tier" = full ]; then
     stage device-build sh scripts/build.sh
     stage package sh tests/package/run.sh
     stage web-build npx vite build --config web/vite.config.js --logLevel warn
-    rm -f build/coverage/e2e.lcov
+    # Raw coverage is one file per test, named after it: a renamed test would
+    # leave its old file behind, pointing at a bundle that no longer exists.
+    rm -rf build/coverage/e2e.lcov build/coverage/e2e-raw
     PP_E2E_COVERAGE=1 stage e2e npx playwright test --config web/e2e/playwright.config.mjs
     stage coverage bash scripts/coverage.sh
 fi

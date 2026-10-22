@@ -106,6 +106,26 @@ test('practice through the browser: notes reach the piano and the judgement come
   assert.ok(l.backend.clock().beats > -4);
 });
 
+test('a piano with a metronome of its own clicks; one without gets notes', () => {
+  const clicks = [];
+  const l = local();
+  l.piano.click = (downbeat) => clicks.push(downbeat);
+  const settings = JSON.parse(l.storage.getItem('piano-practice:settings.json'));
+  l.storage.setItem('piano-practice:settings.json', JSON.stringify({ ...settings, click: true }));
+  const plain = local();
+  plain.storage.setItem('piano-practice:settings.json', JSON.stringify({ ...settings, click: true }));
+  for (const s of [l, plain]) {
+    s.backend.start();
+    for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(s, label);
+    s.backend.dispatch({ type: 'practice' });
+    s.advance(6000);
+  }
+  assert.ok(clicks.length >= 4, `${clicks.length} clicks`);
+  assert.ok(clicks.includes(true) && clicks.includes(false), 'downbeats and beats');
+  assert.ok(!l.piano.log.some((e) => e[0] === 'on' && (e[1] === 91 || e[1] === 96)), 'no click notes');
+  assert.ok(plain.piano.log.some((e) => e[0] === 'on' && (e[1] === 91 || e[1] === 96)), 'the click as notes');
+});
+
 test('the playhead moves without republishing every tick', () => {
   const l = local();
   l.backend.start();
@@ -147,7 +167,7 @@ test('a storage that refuses (private mode) does not stop practice', () => {
 test('a heard answer is revealed on the keyboard for a while, then not', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Quiz', 'Hear', '1 Higher or lower', 'Hear High/low wide']) select(l, label);
+  for (const label of ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']) select(l, label);
   l.advance(1500);
   const q = l.backend.session.quiz;
   for (let i = 0; i < q.choices.length && !q.solved; i++) l.backend.dispatch({ type: 'answer', index: i });

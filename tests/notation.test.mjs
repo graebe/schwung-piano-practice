@@ -5,18 +5,26 @@ import assert from 'node:assert/strict';
 
 import {
   spell, pitchToY, diatonicToY, ledgerYs, inStaffRange, chordLabel,
-  majorKeyFifths, MIN_PITCH, MAX_PITCH, NATURAL_PC, LETTERS,
+  majorKeyFifths, MIN_PITCH, MAX_PITCH, NATURAL_PC, LETTERS, scaleKey,
 } from '../src/notation.mjs';
+import { MODES } from '../src/generator.mjs';
 import { STAFF_LINE_YS, STEP_PX } from '../src/layout.mjs';
 
-test('naturals spell without an accidental in every key', () => {
-  for (let fifths = -7; fifths <= 7; fifths++) {
+test('naturals spell without an accidental, unless the signature names that pitch another way', () => {
+  for (let fifths = -5; fifths <= 5; fifths++) {
     for (let i = 0; i < NATURAL_PC.length; i++) {
       const s = spell(60 + NATURAL_PC[i], fifths);
       assert.equal(s.alter, 0, `pc ${NATURAL_PC[i]} in ${fifths}`);
       assert.equal(s.letter, LETTERS[i]);
     }
   }
+  /* Six and seven sharps or flats put accidentals on white keys: F# major's
+   * 7th is E#, Gb major's 4th Cb — and in the octave the letter belongs to. */
+  assert.equal(spell(65, 6).label, 'E#');
+  assert.equal(spell(72, 7).name, 'B#4');
+  assert.equal(spell(71, -6).name, 'Cb5');
+  assert.equal(spell(64, -7).label, 'Fb');
+  assert.equal(spell(62, 6).label, 'D', 'a white key the signature does not touch stays natural');
 });
 
 test('sharp keys spell black notes as sharps, flat keys as flats', () => {
@@ -90,4 +98,54 @@ test('major key signatures follow the circle of fifths', () => {
   assert.equal(majorKeyFifths(5), -1);  /* F  */
   assert.equal(majorKeyFifths(2), 2);   /* D  */
   assert.equal(majorKeyFifths(10), -2); /* Bb */
+});
+
+/* ---- A scale's own spelling ------------------------------------------------- */
+
+test('every seven-note scale on every root takes one letter a degree, one accidental at most', () => {
+  const fallbacks = [];
+  for (const mode of Object.keys(MODES)) {
+    if (MODES[mode].length !== 7) continue;
+    for (let pc = 0; pc < 12; pc++) {
+      const key = scaleKey(pc, MODES[mode], mode);
+      const notes = MODES[mode].map((s) => spell(60 + pc + s, key));
+      const line = `${key.root} ${mode}: ${notes.map((n) => n.label).join(' ')}`;
+      for (const n of notes) assert.ok(Math.abs(n.alter) <= 1, line);
+      /* Some cannot: the altered scale on F would need Bbb, Bhairav on Ab
+       * Bbb and on G# F##. Those are written with a letter twice, as jazz
+       * players write the altered scale — and only those. */
+      if (key.nearest) fallbacks.push(line);
+      else assert.equal(new Set(notes.map((n) => n.letterIndex)).size, 7, line);
+    }
+  }
+  assert.ok(fallbacks.length < 12, fallbacks.join('\n'));
+  assert.ok(fallbacks.every((l) => /superLocrian|bhairav|hungarianMinor|phrygianDominant|harmonicMinor/.test(l)), fallbacks.join('\n'));
+  const f = scaleKey(5, MODES.superLocrian, 'superLocrian');
+  assert.ok(f.map, 'still spelled as a scale, not chromatically');
+});
+
+test('C minor is Eb Ab Bb; F# major has its E#; harmonic minor raises the 7th on its own letter', () => {
+  const line = (pc, mode) => {
+    const k = scaleKey(pc, MODES[mode], mode);
+    return MODES[mode].map((s) => spell(60 + pc + s, k).label).join(' ');
+  };
+  assert.equal(line(0, 'minor'), 'C D Eb F G Ab Bb');
+  assert.equal(line(6, 'major'), 'F# G# A# B C# D# E#');
+  assert.equal(line(6, 'harmonicMinor'), 'F# G# A B C# D E#');
+  assert.equal(line(0, 'harmonicMinor'), 'C D Eb F G Ab B');
+  assert.equal(line(0, 'minorBlues'), 'C Eb F Gb G Bb');
+  assert.equal(line(1, 'major'), 'Db Eb F Gb Ab Bb C', 'five flats beat seven sharps');
+});
+
+test('the signature: a mode takes its parent major, other scales their tonic', () => {
+  const sig = (pc, mode) => scaleKey(pc, MODES[mode], mode).fifths;
+  assert.equal(sig(9, 'minor'), 0);
+  assert.equal(sig(0, 'minor'), -3);
+  assert.equal(sig(2, 'dorian'), 0);
+  assert.equal(sig(4, 'phrygian'), 0);
+  assert.equal(sig(0, 'harmonicMinor'), -3, 'its raised 7th is an accidental');
+  assert.equal(sig(6, 'major'), 6);
+  assert.equal(sig(0, 'majorPent'), 0);
+  assert.equal(sig(9, 'minorPent'), 0);
+  assert.equal(scaleKey(0, MODES.chromatic, 'chromatic').map, null);
 });

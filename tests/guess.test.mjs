@@ -9,7 +9,7 @@ import {
   roundComplete, roundElapsed, roundProgress,
   moveChoice, pickChoice, optionLabel, PICK_COUNT,
   takeHint, hintsLeft, isEliminated, MAX_HINT,
-  EAR, promptEvents,
+  EAR, promptEvents, READ_NAME, READ_STAFF, LOOKAHEAD, entryName, answerKey, chooseAnswer,
 } from '../src/guess.mjs';
 import { inStaffRange } from '../src/notation.mjs';
 import { padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
@@ -643,14 +643,14 @@ test('the multiple-choice drill offers chord names, not note spellings', () => {
 
 /* ---- Hearing: hear it, name it ---------------------------------------------- */
 
-const earQuiz = (o = {}) => createQuiz({ kind: EAR, exercise: 'thirds', level: 'up', seed: 3, ...o });
+const earQuiz = (o = {}) => createQuiz({ kind: EAR, exercise: 'id-3rds', level: 'up', seed: 3, ...o });
 
 test('a hearing quiz offers the exercise answers, in a fixed order, cursor on top', () => {
   const q = earQuiz();
   assert.equal(q.kind, EAR);
   assert.equal(q.pick, true);
   for (let i = 0; i < 20; i++) {
-    assert.deepEqual(q.choices.map((c) => c.key), ['M3', 'm3']);
+    assert.deepEqual(q.choices.map((c) => c.key), ['m3', 'M3']);
     assert.equal(q.choiceIndex, 0);
     assert.ok(['M3', 'm3'].includes(q.entry.answer));
     assert.ok(q.label, 'the answer has something to reveal');
@@ -659,7 +659,7 @@ test('a hearing quiz offers the exercise answers, in a fixed order, cursor on to
 });
 
 test('a level can bring its own answers', () => {
-  const q = earQuiz({ exercise: 'intervals-up', level: 'g3' });
+  const q = earQuiz({ exercise: 'id-to-8', level: 'up' });
   assert.equal(q.choices.length, 12);
   assert.equal(earQuiz({ exercise: 'degrees', level: '135' }).choices.length, 3);
 });
@@ -738,3 +738,149 @@ test('naming a lit pad asks about every note playing one does', () => {
   }
 });
 
+
+/* ---- The Play row: what comes next, and how it is read -------------------- */
+
+const key = (e) => e.pitches.join(',') + '|' + (e.label || '');
+
+test('a Play drill queues the prompt and the ones after it', () => {
+  const q = notesQuiz({ read: READ_STAFF, halfTones: true });
+  assert.equal(q.queue.length, LOOKAHEAD);
+  assert.equal(q.queue[0], q.entry);
+  assert.deepEqual(q.prompt, q.queue[0].pitches);
+});
+
+test('every other drill only ever has the one', () => {
+  assert.equal(notesQuiz().queue.length, 1);
+  assert.equal(notesQuiz({ pick: true }).queue.length, 1);
+  assert.equal(createQuiz({ kind: EAR, exercise: 'id-3rds', level: 'up' }).queue.length, 0);
+});
+
+test('the row moves on by one: the next prompt is the one that was waiting', () => {
+  const q = chordQuiz({ read: READ_NAME });
+  const waiting = q.queue.slice(1);
+  nextPrompt(q);
+  assert.equal(q.entry, waiting[0]);
+  assert.deepEqual(q.queue.slice(0, LOOKAHEAD - 1), waiting);
+  assert.equal(q.queue.length, LOOKAHEAD);
+});
+
+test('no two neighbours in the row are the same', () => {
+  const q = notesQuiz({ read: READ_STAFF });
+  for (let i = 0; i < 200; i++) {
+    for (let k = 1; k < q.queue.length; k++) assert.notEqual(key(q.queue[k]), key(q.queue[k - 1]));
+    nextPrompt(q);
+  }
+});
+
+test('a row asks what the same seed would have asked one at a time', () => {
+  const one = notesQuiz({ halfTones: true });
+  const row = notesQuiz({ halfTones: true, read: READ_STAFF });
+  for (let i = 0; i < 30; i++) {
+    assert.deepEqual(row.prompt, one.prompt);
+    nextPrompt(one);
+    nextPrompt(row);
+  }
+});
+
+test('by name, a note counts in any octave', () => {
+  const q = notesQuiz({ read: READ_NAME, halfTones: true });
+  const p = q.prompt[0];
+  assert.equal(pressPitch(q, p + 12), CORRECT);
+  const r = notesQuiz({ read: READ_NAME, halfTones: true });
+  assert.equal(pressPitch(r, r.prompt[0] - 24), CORRECT);
+});
+
+test('by name, another note is still wrong', () => {
+  const q = notesQuiz({ read: READ_NAME, halfTones: true });
+  assert.equal(pressPitch(q, q.prompt[0] + 13), WRONG);
+});
+
+test('by staff, only the written octave counts', () => {
+  const q = notesQuiz({ read: READ_STAFF, halfTones: true });
+  assert.equal(pressPitch(q, q.prompt[0] + 12), WRONG);
+  releasePitch(q, q.prompt[0] + 12);
+  assert.equal(pressPitch(q, q.prompt[0]), CORRECT);
+});
+
+test('by name, a chord counts in any inversion, and a doubled note is fine', () => {
+  const q = chordQuiz({ read: READ_NAME });
+  const [a, b, c] = q.prompt.slice().sort((x, y) => x - y);
+  assert.equal(pressPitch(q, b), INCOMPLETE);
+  assert.equal(pressPitch(q, c), INCOMPLETE);
+  assert.equal(pressPitch(q, a + 12), CORRECT, 'first inversion');
+  const r = chordQuiz({ read: READ_NAME });
+  const [x, y, z] = r.prompt.slice().sort((m, n) => m - n);
+  for (const p of [x, x + 12, y]) assert.notEqual(pressPitch(r, p), WRONG);
+  assert.equal(pressPitch(r, z - 12), CORRECT, 'spread and doubled');
+});
+
+test('by name, a note outside the chord is wrong, whatever else is held', () => {
+  const q = chordQuiz({ read: READ_NAME });
+  const pcs = q.prompt.map((p) => p % 12);
+  let stray = q.prompt[0] + 1;
+  while (pcs.includes(stray % 12)) stray++;
+  assert.equal(pressPitch(q, q.prompt[0]), INCOMPLETE);
+  assert.equal(pressPitch(q, stray), WRONG);
+});
+
+test('by staff, an inversion is not what is written', () => {
+  const q = chordQuiz({ read: READ_STAFF });
+  const lowest = Math.min(...q.prompt);
+  assert.equal(pressPitch(q, lowest + 12), WRONG);
+});
+
+test('the name of an entry: a letter with no octave, or the chord symbol', () => {
+  const q = notesQuiz({ fifths: 2 });
+  assert.equal(entryName(q, { pitches: [66], label: null }), 'F#');
+  const flat = notesQuiz({ fifths: -3 });
+  assert.equal(entryName(flat, { pitches: [66], label: null }), 'Gb');
+  assert.equal(entryName(q, { pitches: [64, 67, 71], label: null }), 'Em', 'a triad is named');
+  assert.equal(entryName(q, { pitches: [64, 67, 71, 74], label: 'Em7' }), 'Em7', 'a written symbol wins');
+  assert.equal(entryName(q, { pitches: [60, 61, 62], label: null }), 'C C# D', 'no chord: its notes');
+});
+
+/* ---- Practising what you get wrong -------------------------------------------- */
+
+test('an answer missed before comes about four times as often as one never missed', () => {
+  const count = (history) => {
+    const q = createQuiz({ kind: EAR, exercise: 'id-3rds', level: 'up', seed: 11, history });
+    const seen = { m3: 0, M3: 0 };
+    for (let i = 0; i < 4000; i++) { seen[q.entry.answer]++; nextPrompt(q); }
+    return seen;
+  };
+  const even = count(null);
+  assert.ok(Math.abs(even.m3 - even.M3) < 400, 'no history: even');
+  const weighted = count({ m3: [10, 0], M3: [10, 10] });
+  const ratio = weighted.m3 / weighted.M3;
+  assert.ok(ratio > 3 && ratio < 5.5, `m3 always missed, M3 never: ${ratio.toFixed(2)}`);
+  assert.ok(weighted.M3 > 0, 'every answer still comes');
+});
+
+test('notes and chords weigh by their own answer too', () => {
+  const q = createQuiz({ kind: NOTES, halfTones: true, seed: 2, history: { 'C#': [5, 0] } });
+  let cs = 0;
+  for (let i = 0; i < 3000; i++) { if (answerKey(q, q.entry).key === 'C#') cs++; nextPrompt(q); }
+  const fair = 3000 / q.pool.length;
+  assert.ok(cs > 2 * fair, `C# missed every time comes more: ${cs} vs ${fair.toFixed(0)}`);
+});
+
+test('a prompt answered wrong is asked again three to five prompts later', () => {
+  for (let seed = 1; seed < 30; seed++) {
+    const q = createQuiz({ kind: EAR, exercise: 'id-to-8', level: 'up', seed });
+    const missed = q.entry;
+    const right = q.choices.findIndex((c) => c.key === missed.answer);
+    chooseAnswer(q, (right + 1) % q.choices.length);
+    chooseAnswer(q, right);
+    const after = [];
+    for (let i = 0; i < 6; i++) { nextPrompt(q); after.push(q.entry); }
+    const at = after.indexOf(missed) + 1;
+    assert.ok(at >= 3 && at <= 5, `seed ${seed}: asked again ${at} prompts later`);
+  }
+});
+
+test('a prompt answered right is not asked again on purpose', () => {
+  const q = createQuiz({ kind: EAR, exercise: 'id-to-8', level: 'up', seed: 4 });
+  chooseAnswer(q, q.choices.findIndex((c) => c.key === q.entry.answer));
+  assert.equal(q.reask.length, 0);
+});

@@ -28,155 +28,18 @@
  */
 
 import { MODES, scalePitches, playableRange } from './generator.mjs';
-import { MIN_PITCH, MAX_PITCH, LETTERS, NATURAL_PC, spell, majorKeyFifths } from './notation.mjs';
+import { MIN_PITCH, MAX_PITCH, majorKeyFifths } from './notation.mjs';
 import { qualityById, buildChord, chordSymbol } from './chords.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
+import {
+  NOTE_LEN, ev, melodic, together, broken, pcOf, rootName, noteNames,
+} from './ear_core.mjs';
+import { COURSES } from './ear_course.mjs';
+import { READ_COURSES } from './read_course.mjs';
 
-/* ---- Time ------------------------------------------------------------------- */
+export { NOTE_GAP, INTERVALS, promptLength, slowed } from './ear_core.mjs';
 
-/* Milliseconds. Slow enough to hear each note as a note, quick enough that two
- * of them are still heard as one interval. */
-export const NOTE_GAP = 700;
-const NOTE_LEN = 650;
-const CHORD_LEN = 1400;
-const ARP_GAP = 300;
 const CADENCE_STEP = 750;
-const SLOW = 1.5;
-
-const ev = (pitch, at, dur) => ({ pitch, at, dur });
-
-function melodic(pitches, at = 0) {
-  return pitches.map((p, i) => ev(p, at + i * NOTE_GAP, NOTE_LEN));
-}
-
-function together(pitches, at = 0, dur = CHORD_LEN) {
-  return pitches.map((p) => ev(p, at, dur));
-}
-
-/* Low to high, then all together: hear the parts, then the colour. */
-function broken(pitches, at = 0) {
-  const sorted = pitches.slice().sort((a, b) => a - b);
-  const up = sorted.map((p, i) => ev(p, at + i * ARP_GAP, ARP_GAP));
-  return up.concat(together(sorted, at + sorted.length * ARP_GAP + 150));
-}
-
-/* When the last note of a prompt stops. */
-export function promptLength(events) {
-  let end = 0;
-  for (let i = 0; i < events.length; i++) {
-    end = Math.max(end, events[i].at + events[i].dur);
-  }
-  return end;
-}
-
-/*
- * The first rung of help: the same prompt, slower, with every chord broken
- * into its notes before it sounds whole. Groups are the notes that start
- * together; a single note keeps its place, only further apart.
- */
-export function slowed(events) {
-  const onsets = [];
-  for (let i = 0; i < events.length; i++) {
-    if (onsets.indexOf(events[i].at) < 0) onsets.push(events[i].at);
-  }
-  onsets.sort((a, b) => a - b);
-
-  const out = [];
-  let t = 0;
-  for (let g = 0; g < onsets.length; g++) {
-    const group = events.filter((e) => e.at === onsets[g]).sort((a, b) => a.pitch - b.pitch);
-    const dur = Math.max(...group.map((e) => e.dur));
-    const next = g + 1 < onsets.length ? onsets[g + 1] - onsets[g] : dur;
-    if (group.length > 1) {
-      for (let i = 0; i < group.length; i++) out.push(ev(group[i].pitch, t + i * ARP_GAP * SLOW, ARP_GAP * SLOW));
-      t += group.length * ARP_GAP * SLOW + 150;
-    }
-    for (let i = 0; i < group.length; i++) out.push(ev(group[i].pitch, t, dur * SLOW));
-    t += next * SLOW;
-  }
-  return out;
-}
-
-/* ---- Spelling the answer ---------------------------------------------------- */
-
-const pcOf = (pitch) => ((pitch % 12) + 12) % 12;
-const ACCIDENTAL = { '-2': 'bb', '-1': 'b', 0: '', 1: '#', 2: 'x' };
-
-/* A note named as the key it would be the tonic of names it: Eb, not D#. */
-function rootName(pitch) {
-  return spell(pitch, majorKeyFifths(pcOf(pitch)));
-}
-
-/*
- * The note `semis` above `root` with the letter `steps` on from the root's,
- * so a minor third above C reads Eb and never D#. That is what makes the
- * revealed answer agree with the interval's name.
- */
-function spellAbove(root, semis, steps) {
-  const r = rootName(root);
-  const letterIndex = (r.letterIndex + steps - 1) % 7;
-  let alter = pcOf(root + semis - NATURAL_PC[letterIndex]);
-  if (alter > 6) alter -= 12;
-  return LETTERS[letterIndex] + (ACCIDENTAL[alter] ?? '?');
-}
-
-function noteNames(pitches) {
-  return pitches.map((p) => rootName(p).label).join('-');
-}
-
-/* ---- Intervals -------------------------------------------------------------- */
-
-export const INTERVALS = [
-  { key: 'm2', semis: 1, steps: 2, label: 'Minor 2nd' },
-  { key: 'M2', semis: 2, steps: 2, label: 'Major 2nd' },
-  { key: 'm3', semis: 3, steps: 3, label: 'Minor 3rd' },
-  { key: 'M3', semis: 4, steps: 3, label: 'Major 3rd' },
-  { key: 'P4', semis: 5, steps: 4, label: 'Perfect 4th' },
-  { key: 'TT', semis: 6, steps: 4, label: 'Tritone' },
-  { key: 'P5', semis: 7, steps: 5, label: 'Perfect 5th' },
-  { key: 'm6', semis: 8, steps: 6, label: 'Minor 6th' },
-  { key: 'M6', semis: 9, steps: 6, label: 'Major 6th' },
-  { key: 'm7', semis: 10, steps: 7, label: 'Minor 7th' },
-  { key: 'M7', semis: 11, steps: 7, label: 'Major 7th' },
-  { key: 'P8', semis: 12, steps: 8, label: 'Octave' },
-];
-
-const interval = (key) => INTERVALS.find((i) => i.key === key);
-const intervalAnswers = (keys) => keys.map((k) => ({ key: k, label: interval(k).label }));
-
-/* Every root, every interval, played the way the level says. */
-function intervalPrompts(keys, way) {
-  return ({ lo, hi }) => {
-    const out = [];
-    for (let root = lo; root <= hi; root++) {
-      for (let k = 0; k < keys.length; k++) {
-        const iv = interval(keys[k]);
-        const top = root + iv.semis;
-        const names = rootName(root).label + '-' + spellAbove(root, iv.semis, iv.steps);
-        let events;
-        if (way === 'down') events = melodic([top, root]);
-        else if (way === 'together') events = together([root, top]);
-        else events = melodic([root, top]);
-        out.push({ answer: iv.key, events, label: names + ' ' + iv.key });
-      }
-    }
-    return out;
-  };
-}
-
-const SECONDS_THIRDS = ['m2', 'M2', 'm3', 'M3'];
-const GROUP_1 = ['m2', 'M2', 'm3', 'M3', 'P4', 'P5', 'P8'];
-const GROUP_2 = ['m2', 'M2', 'm3', 'M3', 'P4', 'P5', 'm6', 'M6', 'P8'];
-const GROUP_3 = INTERVALS.map((i) => i.key);
-
-/* The three staged levels the full interval exercises share. */
-function groupLevels(way) {
-  return [
-    { key: 'g1', name: '2-5,8', answers: intervalAnswers(GROUP_1), prompts: intervalPrompts(GROUP_1, way) },
-    { key: 'g2', name: '+6ths', answers: intervalAnswers(GROUP_2), prompts: intervalPrompts(GROUP_2, way) },
-    { key: 'g3', name: 'all', answers: intervalAnswers(GROUP_3), prompts: intervalPrompts(GROUP_3, way) },
-  ];
-}
 
 /* ---- Chords ----------------------------------------------------------------- */
 
@@ -292,7 +155,7 @@ function functionPrompts(keys) {
  */
 export const EXERCISES = [
   {
-    key: 'direction', name: 'Higher or lower', short: 'High/low', question: 'second note is...',
+    key: 'direction', topic: 'pitch', name: 'Higher or lower', short: 'High/low', question: 'second note is...',
     answers: [{ key: 'higher', label: 'Higher' }, { key: 'same', label: 'Same' }, { key: 'lower', label: 'Lower' }],
     levels: [{ key: 'wide', name: 'wide', gaps: [5, 7, 9, 12] }, { key: 'narrow', name: 'close', gaps: [1, 2, 3, 4] }],
     prompts: ({ lo, hi }, level) => {
@@ -309,14 +172,14 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'playback-notes', name: 'Play it back', short: 'Play back',
+    key: 'playback-notes', topic: 'pitch', name: 'Play it back', short: 'Play back',
     levels: [
       { key: 'key', name: 'in key', quiz: { kind: 'notes', hear: true, halfTones: false } },
       { key: 'half', name: 'chromatic', quiz: { kind: 'notes', hear: true, halfTones: true } },
     ],
   },
   {
-    key: 'steps', name: 'Step or leap', short: 'Step/leap', question: 'step or leap?',
+    key: 'steps', topic: 'pitch', name: 'Step or leap', short: 'Step/leap', question: 'step or leap?',
     answers: [{ key: 'step', label: 'Step' }, { key: 'leap', label: 'Leap' }],
     levels: [{ key: 'key', name: 'in key' }],
     prompts: ({ lo, hi }) => {
@@ -337,7 +200,7 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'contour', name: 'Melody shape', short: 'Shape', question: 'which way?',
+    key: 'contour', topic: 'pitch', name: 'Melody shape', short: 'Shape', question: 'which way?',
     answers: [
       { key: 'uu', label: 'Up, up' }, { key: 'ud', label: 'Up, down' },
       { key: 'du', label: 'Down, up' }, { key: 'dd', label: 'Down, down' },
@@ -365,16 +228,7 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'thirds', name: 'Major or minor 3rd', short: '3rds', question: 'major or minor?',
-    answers: intervalAnswers(['M3', 'm3']),
-    levels: [
-      { key: 'up', name: 'up', prompts: intervalPrompts(['M3', 'm3'], 'up') },
-      { key: 'down', name: 'down', prompts: intervalPrompts(['M3', 'm3'], 'down') },
-      { key: 'together', name: 'together', prompts: intervalPrompts(['M3', 'm3'], 'together') },
-    ],
-  },
-  {
-    key: 'triads', name: 'Major/minor chord', short: 'Maj/min', question: 'major or minor?',
+    key: 'triads', topic: 'chords', name: 'Major/minor chord', short: 'Maj/min', question: 'major or minor?',
     answers: chordAnswers(['maj', 'min']),
     levels: [
       { key: 'broken', name: 'broken', prompts: chordPrompts(['maj', 'min'], 'broken') },
@@ -383,26 +237,7 @@ export const EXERCISES = [
     ],
   },
   {
-    key: 'perfect', name: 'Perfect intervals', short: '4/5/8', question: 'which interval?',
-    answers: intervalAnswers(['P4', 'P5', 'P8']),
-    levels: [
-      { key: 'up', name: 'up', prompts: intervalPrompts(['P4', 'P5', 'P8'], 'up') },
-      { key: 'together', name: 'together', prompts: intervalPrompts(['P4', 'P5', 'P8'], 'together') },
-    ],
-  },
-  {
-    key: 'seconds-thirds', name: '2nds and 3rds', short: '2nds/3rds', question: 'which interval?',
-    answers: intervalAnswers(SECONDS_THIRDS),
-    levels: [
-      { key: 'up', name: 'up', prompts: intervalPrompts(SECONDS_THIRDS, 'up') },
-      { key: 'down', name: 'down', prompts: intervalPrompts(SECONDS_THIRDS, 'down') },
-    ],
-  },
-  { key: 'intervals-up', name: 'Intervals up', short: 'Int up', question: 'which interval?', levels: groupLevels('up') },
-  { key: 'intervals-down', name: 'Intervals down', short: 'Int down', question: 'which interval?', levels: groupLevels('down') },
-  { key: 'intervals-together', name: 'Intervals together', short: 'Int tog', question: 'which interval?', levels: groupLevels('together') },
-  {
-    key: 'four-triads', name: 'Four triads', short: '4 triads', question: 'which chord?',
+    key: 'four-triads', topic: 'chords', name: 'Four triads', short: '4 triads', question: 'which chord?',
     answers: chordAnswers(['maj', 'min', 'dim', 'aug']),
     levels: [
       { key: 'broken', name: 'broken', prompts: chordPrompts(['maj', 'min', 'dim', 'aug'], 'broken') },
@@ -410,12 +245,10 @@ export const EXERCISES = [
     ],
   },
   {
-    key: 'key-quality', name: 'Major or minor key', short: 'Key', question: 'major or minor?',
+    key: 'key-quality', topic: 'keys', name: 'Major or minor key', short: 'Key', question: 'major or minor?',
     answers: [{ key: 'major', label: 'Major key' }, { key: 'minor', label: 'Minor key' }],
-    levels: [
-      { key: 'scale', name: 'scale', lines: [[0, 1, 2, 3, 4, 5, 6, 7]] },
-      { key: 'melody', name: 'melody', lines: MELODIES },
-    ],
+    /* Its scale level is Identify scales › 1 Minor and major now (LEGACY). */
+    levels: [{ key: 'melody', name: 'melody', lines: MELODIES }],
     prompts: ({ lo, hi }, level) => {
       const out = [];
       for (let t = lo; t <= hi; t++) {
@@ -429,7 +262,7 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'home', name: 'Home or away', short: 'Home/away', question: 'did it end at home?',
+    key: 'home', topic: 'keys', name: 'Home or away', short: 'Home/away', question: 'did it end at home?',
     answers: [{ key: 'home', label: 'Finished' }, { key: 'away', label: 'Unfinished' }],
     levels: [{ key: 'major', name: 'major' }],
     prompts: ({ lo, hi }) => {
@@ -448,28 +281,28 @@ export const EXERCISES = [
     },
   },
   {
-    key: 'degrees', name: 'Scale degrees', short: 'Degrees', question: 'which degree?',
+    key: 'degrees', topic: 'keys', name: 'Scale degrees', short: 'Degrees', question: 'which degree?',
     levels: [
       { key: '135', name: '1 3 5', answers: degreeAnswers([0, 2, 4]), prompts: degreePrompts([0, 2, 4]) },
       { key: 'all', name: 'all', answers: degreeAnswers([0, 1, 2, 3, 4, 5, 6]), prompts: degreePrompts([0, 1, 2, 3, 4, 5, 6]) },
     ],
   },
   {
-    key: 'sevenths', name: 'Seventh chords', short: '7ths', question: 'which chord?',
+    key: 'sevenths', topic: 'chords', name: 'Seventh chords', short: '7ths', question: 'which chord?',
     levels: [
       { key: 'three', name: '3 types', answers: chordAnswers(['maj7', '7', 'm7']), prompts: chordPrompts(['maj7', '7', 'm7'], 'broken') },
       { key: 'four', name: '4 types', answers: chordAnswers(['maj7', '7', 'm7', 'm7b5']), prompts: chordPrompts(['maj7', '7', 'm7', 'm7b5'], 'broken') },
     ],
   },
   {
-    key: 'functions', name: 'Chords in a key', short: 'Chords', question: 'after I comes...',
+    key: 'functions', topic: 'keys', name: 'Chords in a key', short: 'Chords', question: 'after I comes...',
     levels: [
       { key: 'iv-v', name: 'IV V', answers: [{ key: 'IV', label: 'IV' }, { key: 'V', label: 'V' }], prompts: functionPrompts(['IV', 'V']) },
       { key: 'iv-v-vi', name: 'IV V vi', answers: [{ key: 'IV', label: 'IV' }, { key: 'V', label: 'V' }, { key: 'vi', label: 'vi' }], prompts: functionPrompts(['IV', 'V', 'vi']) },
     ],
   },
   {
-    key: 'playback-chords', name: 'Play the chord', short: 'Play chord',
+    key: 'playback-chords', topic: 'chords', name: 'Play the chord', short: 'Play chord',
     levels: [
       { key: 'triads', name: 'triads', quiz: { kind: 'chords', hear: true, chordSet: 'triads' } },
       { key: 'types', name: 'types', quiz: { kind: 'chords', hear: true, chordSet: 'types' } },
@@ -478,13 +311,54 @@ export const EXERCISES = [
   },
 ];
 
+/* The hearing exercises, then every unit of every course: one namespace of
+ * keys, so an id like ear:cmp-6ths:fix-up resolves wherever it was filed. */
+const ALL = EXERCISES.concat(...COURSES.concat(READ_COURSES).map((c) => c.exercises));
+
 export function exerciseByKey(key) {
-  return EXERCISES.find((e) => e.key === key) || null;
+  return ALL.find((e) => e.key === key) || null;
 }
 
-/* 1-based, from the list's order, so the numbering cannot drift from it. */
+/*
+ * The topics Quiz › Hear is grouped by, in order. Every exercise and course
+ * names one; within a topic the courses come first, then the exercises.
+ */
+export const TOPICS = [
+  { key: 'pitch', name: 'Pitch & melody' },
+  { key: 'intervals', name: 'Intervals' },
+  { key: 'chords', name: 'Chords' },
+  { key: 'keys', name: 'Scales & keys' },
+];
+
+/*
+ * Exercises the courses replaced, and where their ids lead now, so a
+ * repetition or a Next filed under an old id still opens the same drill.
+ * The interval groups map onto the course's spans: 2nds to the 5th, and to
+ * the octave.
+ */
+const GROUP = { g1: 'id-to-5', g2: 'id-to-8', g3: 'id-to-8' };
+/* A level the old exercise never had stays as it was, and so stays unknown. */
+const groups = (way) => (lv) => (GROUP[lv] ? [GROUP[lv], way] : ['id-to-8', lv]);
+const LEGACY = {
+  thirds: (lv) => ['id-3rds', lv],
+  perfect: (lv) => ['id-4-5-8', lv],
+  'seconds-thirds': (lv) => ['id-2-3', lv],
+  'intervals-up': groups('up'),
+  'intervals-down': groups('down'),
+  'intervals-together': groups('together'),
+  'key-quality': (lv) => (lv === 'scale' ? ['sc-maj-min', 'up'] : ['key-quality', lv]),
+};
+
+/* [exercise key, level key] for an id's parts, followed through LEGACY. */
+export function resolveLegacy(exKey, levelKey) {
+  const move = LEGACY[exKey];
+  return move ? move(levelKey) : [exKey, levelKey];
+}
+
+/* 1-based, from its list's order, so the numbering cannot drift from it. */
 export function exerciseNumber(exercise) {
-  return EXERCISES.indexOf(exercise) + 1;
+  const course = COURSES.concat(READ_COURSES).find((c) => c.exercises.indexOf(exercise) >= 0);
+  return (course ? course.exercises : EXERCISES).indexOf(exercise) + 1;
 }
 
 export function levelByKey(exercise, key) {
@@ -520,18 +394,34 @@ function pitchesOf(events) {
   return out;
 }
 
+/*
+ * Where a level's prompts may sit. On the pads when its widest prompt fits
+ * there with a few roots to spare, so what you heard can be played back; over
+ * the whole staff when it does not — a two-octave interval is wider than the
+ * grid, and hearing it needs no pad.
+ */
+export function levelRange(level, transpose = DEFAULT_TRANSPOSE) {
+  /* A reading level is drawn, not played back: the whole staff, always. */
+  if (level.staffOnly) return { lo: MIN_PITCH, hi: MAX_PITCH };
+  const pads = earRange(transpose);
+  if (!level.span || pads.hi - pads.lo >= level.span + 2) return pads;
+  return { lo: MIN_PITCH, hi: MAX_PITCH };
+}
+
 /* Every prompt the level can ask at this transpose: { answer, events, pitches, label }. */
 export function buildEarPool(exercise, levelKey, transpose = DEFAULT_TRANSPOSE) {
   if (!isNaming(exercise)) return [];
   const level = levelByKey(exercise, levelKey);
-  const range = earRange(transpose);
+  const range = levelRange(level, transpose);
   const make = level.prompts || exercise.prompts;
   const pool = [];
   const raw = make(range, level);
   for (let i = 0; i < raw.length; i++) {
     const pitches = pitchesOf(raw[i].events);
     if (pitches.some((p) => p < range.lo || p > range.hi)) continue;
-    pool.push({ answer: raw[i].answer, events: raw[i].events, pitches, label: raw[i].label });
+    const entry = { answer: raw[i].answer, events: raw[i].events, pitches, label: raw[i].label };
+    if (raw[i].staff) entry.staff = raw[i].staff;
+    pool.push(entry);
   }
   return pool;
 }
@@ -548,11 +438,22 @@ export function groupByAnswer(pool, answers) {
  * straight from the pool would ask "leap" four times as often as "step",
  * and always answering leap would score 80%.
  */
-export function pickEntry(groups, rand, previous = null) {
+export function pickEntry(groups, rand, previous = null, weights = null) {
   if (!groups.length) return null;
+  let total = 0;
+  if (weights) for (const w of weights) total += w;
+  const pickGroup = () => {
+    if (!weights) return groups[Math.floor(rand() * groups.length)];
+    let r = rand() * total;
+    for (let i = 0; i < groups.length; i++) {
+      r -= weights[i];
+      if (r < 0) return groups[i];
+    }
+    return groups[groups.length - 1];
+  };
   let chosen = null;
   for (let guard = 8; guard >= 0; guard--) {
-    const group = groups[Math.floor(rand() * groups.length)];
+    const group = pickGroup();
     chosen = group[Math.floor(rand() * group.length)];
     if (chosen !== previous) break;
   }
