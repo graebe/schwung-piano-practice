@@ -25,7 +25,7 @@ node -e '
   if (!release.download_url.includes("/v" + manifest.version + "/")) throw new Error("release URL version mismatch");
 
   const text = help.children.flatMap(s => s.lines).join(" ");
-  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Guided", "The Path is five stages", "Review brings back", "MENU is help", "I know it all: skip", "Quiz sounds", "Any octave", "index.json", "LEVEL box", "L3 Both hands"]) {
+  for (const phrase of ["turns into a circle", "an X", "where", "its own piano", "Wait stops", "Grace", "Guided", "The Path is five stages", "Review brings back", "MENU is help", "I know it all: skip", "Quiz sounds", "Any octave", "index.json", "LEVEL box", "L3 Both hands", "Home is where the module opens", "Show as list"]) {
     if (!text.includes(phrase)) throw new Error("help missing: " + phrase);
   }
 '
@@ -127,10 +127,23 @@ for f in src/pathmap/*.mjs; do
     *) echo "src/pathmap/$mod.mjs is not in package.sh's PATHMAP, so it would not ship" >&2; exit 1 ;;
   esac
 done
+# And the home screen engine, its own folder too.
+HOMESCREEN=$(sed -n 's/^HOMESCREEN="\(.*\)"$/\1/p' scripts/package.sh)
+test -n "$HOMESCREEN"
+for mod in $HOMESCREEN; do
+  test -f "src/home/$mod.mjs" || { echo "package.sh names src/home/$mod.mjs, which does not exist" >&2; exit 1; }
+done
+for f in src/home/*.mjs; do
+  mod=$(basename "$f" .mjs)
+  case " $HOMESCREEN " in
+    *" $mod "*) ;;
+    *) echo "src/home/$mod.mjs is not in package.sh's HOMESCREEN, so it would not ship" >&2; exit 1 ;;
+  esac
+done
 
 node --check src/ui.js
 test -f tests/ui_smoke.test.mjs   # ui.js must be executed by the suite, not only read
-for mod in src/*.mjs tools/*.mjs; do node --check "$mod"; done
+for mod in src/*.mjs src/pathmap/*.mjs src/home/*.mjs tools/*.mjs; do node --check "$mod"; done
 sh -n scripts/package.sh scripts/install.sh scripts/verify-package.sh scripts/build.sh scripts/build-dsp.sh scripts/build-wasm.sh
 
 # The upload goes beside the module on /data: the Move's /tmp sits on a small

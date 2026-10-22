@@ -54,6 +54,7 @@ import {
 } from './session.mjs';
 import { hintPart, ROTATE_MS } from './hints.mjs';
 import { mapPadColors } from './pathmap/leds.mjs';
+import { homePadColors } from './home/leds.mjs';
 import { viewModel, encodeViewModel } from './view_model.mjs';
 import { applyAction } from './actions.mjs';
 import { createRemote } from './remote.mjs';
@@ -443,6 +444,17 @@ const padColorBuf = new Array(PAD.PAD_COUNT);
 
 function paintPads() {
   navButtons();
+  /* At home the five circles' pads, and nothing else: lit means pressable.
+   * Home has nothing to play or record, so those are dark. */
+  const home = S.homeModel();
+  if (home) {
+    homePadColors({ count: home.items.length, selected: home.selected, now: now(), palette: PAD.HOME_PALETTE,
+      out: padColorBuf });
+    for (let i = 0; i < PAD.PAD_COUNT; i++) setLED(PAD.PAD_FIRST + i, padColorBuf[i]);
+    setButtonLED(CC_PLAY, CTRL.OFF);
+    setButtonLED(CC_RECORD, CTRL.OFF);
+    return;
+  }
   /* On the map the pads are its places: lit means you can walk there, and
    * Play is Continue, so it is lit too. */
   const m = S.mapModel();
@@ -582,8 +594,12 @@ function draw() {
   const chart = S.chart;
   const songBeats = S.songBeats;
   const lastResult = S.lastResult;
-  const m = view === MENU ? S.mapModel() : null;
-  if (m) {
+  const home = view === MENU ? S.homeModel() : null;
+  const m = view === MENU && !home ? S.mapModel() : null;
+  if (home) {
+    VIEW.drawHomeScreen(ctx, { title: S.listTitle().toUpperCase(), items: home.items, selected: home.selected,
+      grow: home.grow, now: now(), footer: footer() });
+  } else if (m) {
     VIEW.drawMapScreen(ctx, { place: m.place, places: m.places, layout: m.layout, walk: m.walk, now: now(),
       footer: footer() });
   } else if (view === MENU) {
@@ -759,11 +775,12 @@ function drawProgressDetail() {
  */
 const answerPressed = {};
 
-/* Pads pressed on the map: places, not notes, so nothing to let go. */
+/* Pads pressed on home or the map: circles and places, not notes, so nothing
+ * to let go. */
 const mapPressed = {};
 
 function onPadDown(pad, vel) {
-  if (S.mapPad(pad)) {
+  if (S.homePad(pad) || S.mapPad(pad)) {
     mapPressed[pad] = 1;
     return;
   }

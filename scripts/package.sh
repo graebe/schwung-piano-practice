@@ -19,6 +19,10 @@ cp "$ROOT/src/ui.js" "$STAGE/ui.js"
 # import each other, and one shares a name with a module beside ui.js
 # (layout), so it cannot be flattened into one folder.
 PATHMAP="model layout walk render leds"
+# The home screen engine, src/home/, vendored the same way and shipped the
+# same way: its own folder, stamped (its render and leds share names with the
+# map's). Not HOME: that is the shell's own.
+HOMESCREEN="icons render leds"
 
 MODULES="layout notation staff_render chart scoring generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices chord_lessons catalog progress curriculum program ear_core ear_course read_course ear answer_pads info cues hints tips row_sheet map_places session view_model actions remote"
 
@@ -37,7 +41,8 @@ MODULES="layout notation staff_render chart scoring generator exercise_io levels
 # So each build stamps its own filenames. New build, new paths, cache cannot
 # serve anything stale — and no hand-maintained version suffixes to forget.
 BUILD_ID=$(cat "$ROOT/src/ui.js" $(for m in $MODULES; do echo "$ROOT/src/$m.mjs"; done) \
-  $(for m in $PATHMAP; do echo "$ROOT/src/pathmap/$m.mjs"; done) | cksum | cut -d' ' -f1)
+  $(for m in $PATHMAP; do echo "$ROOT/src/pathmap/$m.mjs"; done) \
+  $(for m in $HOMESCREEN; do echo "$ROOT/src/home/$m.mjs"; done) | cksum | cut -d' ' -f1)
 
 for mod in $MODULES; do
   cp "$ROOT/src/$mod.mjs" "$STAGE/$mod-$BUILD_ID.mjs"
@@ -47,6 +52,10 @@ mkdir -p "$STAGE/pathmap"
 for mod in $PATHMAP; do
   cp "$ROOT/src/pathmap/$mod.mjs" "$STAGE/pathmap/$mod-$BUILD_ID.mjs"
 done
+mkdir -p "$STAGE/home"
+for mod in $HOMESCREEN; do
+  cp "$ROOT/src/home/$mod.mjs" "$STAGE/home/$mod-$BUILD_ID.mjs"
+done
 
 for f in "$STAGE/ui.js" "$STAGE"/*.mjs; do
   for mod in $MODULES; do
@@ -55,11 +64,20 @@ for f in "$STAGE/ui.js" "$STAGE"/*.mjs; do
   for mod in $PATHMAP; do
     sed -i.bak "s#'\./pathmap/$mod\.mjs'#'./pathmap/$mod-$BUILD_ID.mjs'#g" "$f"
   done
+  for mod in $HOMESCREEN; do
+    sed -i.bak "s#'\./home/$mod\.mjs'#'./home/$mod-$BUILD_ID.mjs'#g" "$f"
+  done
   rm -f "$f.bak"
 done
-# Inside the folder its files import one another as './<name>.mjs'.
+# Inside a folder its files import one another as './<name>.mjs'.
 for f in "$STAGE"/pathmap/*.mjs; do
   for mod in $PATHMAP; do
+    sed -i.bak "s#'\./$mod\.mjs'#'./$mod-$BUILD_ID.mjs'#g" "$f"
+  done
+  rm -f "$f.bak"
+done
+for f in "$STAGE"/home/*.mjs; do
+  for mod in $HOMESCREEN; do
     sed -i.bak "s#'\./$mod\.mjs'#'./$mod-$BUILD_ID.mjs'#g" "$f"
   done
   rm -f "$f.bak"

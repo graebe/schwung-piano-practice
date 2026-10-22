@@ -52,7 +52,8 @@ import { layoutPlaces } from '../src/pathmap/layout.mjs';
 import { createWalk, walkTo, posAt } from '../src/pathmap/walk.mjs';
 import { makePlace } from '../src/pathmap/model.mjs';
 import { drawMap } from '../src/pathmap/render.mjs';
-import { drawHome, createGrow, startGrow, GROW_MS } from '../src/home/render.mjs';
+import { createGrow, startGrow, GROW_MS } from '../src/home/render.mjs';
+import { hintFor } from '../src/hints.mjs';
 import { PRACTICE_PIANO, PRACTICE_DRUMS } from '../src/home/icons.mjs';
 
 function arg(name, fallback) {
@@ -220,11 +221,9 @@ if (view === 'home') {
       grow.to = sel === 0 ? 1 : sel - 1;
       startGrow(grow, sel, 0);
     }
-    const c = createScreen();
-    c.clear();
-    R.drawChrome(c, { left: 'PIANO' });
-    drawHome(c, { items: HOME_ITEMS, selected: sel, grow, now: now ?? GROW_MS });
-    V.drawFooterHint(c, 'JOG choose CLICK open');
+    /* The module's own screen: its title bar, the engine's band, the hint. */
+    const c = V.drawHomeScreen(createScreen(), { title: 'PIANO', items: HOME_ITEMS, selected: sel, grow,
+      now: now ?? GROW_MS, footer: hintFor('home')[Number(arg('part', 0))] });
     show(`home, ${HOME_ITEMS[sel].label}${now === null ? '' : ` growing @ ${now}ms`} (${c.calls} draw calls)`, c);
   }
 } else if (view === 'map') {

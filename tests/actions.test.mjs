@@ -33,7 +33,7 @@ test('a malformed action does nothing', () => {
 test('select and open walk the list; back steps out', () => {
   const h = fakeHost();
   h.session.init();
-  applyAction(h.session, { type: 'select', index: 2 });
+  applyAction(h.session, { type: 'select', index: 1 });
   applyAction(h.session, { type: 'open' });
   assert.equal(h.session.nav[1].node.label, 'Practice');
   applyAction(h.session, { type: 'move', delta: 3 });
@@ -69,14 +69,14 @@ test('settings opens the Settings folder, from the list only', () => {
 test('options: the sheet, its picks, and the welcome answered from a page', () => {
   const h = fakeHost();
   h.session.init();
-  applyAction(h.session, { type: 'select', index: 1 });
+  applyAction(h.session, { type: 'select', index: 0 });
   applyAction(h.session, { type: 'sheet' });
   assert.equal(h.session.view, 'sheet');
   applyAction(h.session, { type: 'sheetPick', index: 9 });
   assert.equal(h.session.view, 'sheet', 'out of range: nothing');
-  applyAction(h.session, { type: 'sheetPick', index: 0 });
+  applyAction(h.session, { type: 'sheetPick', index: 1 });
   assert.equal(h.session.view, MENU);
-  assert.equal(h.session.nav.at(-1).node.label, 'Settings', 'Path offers only Settings...');
+  assert.equal(h.session.nav.at(-1).node.label, 'Settings', 'Path on home: Show as list, Settings...');
   applyAction(h.session, { type: 'back' });
   applyAction(h.session, { type: 'options' });
   assert.equal(h.session.view, 'sheet', 'Shift + click, as on the Move');
@@ -86,7 +86,8 @@ test('options: the sheet, its picks, and the welcome answered from a page', () =
   for (let i = 0; i < 3; i++) applyAction(w.session, { type: 'move', delta: 1 });
   applyAction(w.session, { type: 'cardPick', index: 0 });
   assert.equal(w.session.view, MENU);
-  assert.equal(w.session.nav[0].cursor, 0);
+  assert.equal(w.session.nav.at(-1).node.label, 'Path', 'From the start: the Path map');
+  assert.ok(w.session.onMap());
 });
 
 test('notes: a velocity of 0 or none plays at 100; the outcome comes back', () => {
@@ -236,12 +237,25 @@ test('any action, in any state, in any order: nothing throws, nothing sticks', (
   }
 });
 
+test('homeGo opens a circle; off home it does nothing', () => {
+  const h = fakeHost();
+  h.session.init();
+  applyAction(h.session, { type: 'homeGo', index: 2 });
+  assert.equal(h.session.nav.at(-1).node.label, 'Quiz');
+  applyAction(h.session, { type: 'homeGo', index: 0 });
+  assert.equal(h.session.nav.at(-1).node.label, 'Quiz', 'not on home: nothing');
+  applyAction(h.session, { type: 'back' });
+  assert.equal(h.session.nav[0].cursor, 2, 'back on home, the circle it left selected');
+  applyAction(h.session, { type: 'homeGo', index: 9 });
+  assert.equal(h.session.nav.length, 1, 'no such circle: nothing');
+});
+
 test('mapGo walks to a place, then goes in; off the map it does nothing', () => {
   const h = fakeHost();
   h.session.init();
   applyAction(h.session, { type: 'mapGo', index: 1 });
   assert.equal(h.session.nav.length, 1, 'no map on screen');
-  applyAction(h.session, { type: 'select', index: 1 });
+  applyAction(h.session, { type: 'select', index: 0 });
   applyAction(h.session, { type: 'open' });
   applyAction(h.session, { type: 'mapGo', index: 4 });
   assert.equal(h.session.mapModel().at, 4);

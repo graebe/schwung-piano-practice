@@ -64,6 +64,8 @@ import * as SHEET from './row_sheet.mjs';
 import * as MP from './map_places.mjs';
 import { layoutPlaces, placeOfPad } from './pathmap/layout.mjs';
 import { createWalk, walkTo, walkStep, posAt, arrived } from './pathmap/walk.mjs';
+import { createGrow, startGrow, growing, itemOfPad } from './home/render.mjs';
+import { PRACTICE_PIANO } from './home/icons.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -109,11 +111,13 @@ export const CARD_VIEW = 'card';
  * stays MENU, the cursor a child index — but a screen with its own hint
  * line and help (screenNow). */
 export const MAP_SCREEN = 'map';
+/* The top of the list drawn as five circles (src/home/): MENU too. */
+export const HOME_SCREEN = 'home';
 
 /* Every screen, for whoever must cover them all (hints.mjs, its test). */
 export const VIEWS = [
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
-  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN,
+  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN,
 ];
 
 /* What the session keeps, by name; the host decides where. */
@@ -610,10 +614,13 @@ export function createSession(fx, opts = {}) {
       songs: fileSongs,
       categories: fileCategories,
       gen: generatorOptions(),
-      lead: [{ label: 'Continue', value: '', continueRow: true }, PLAN.programFolder(phases, repetitionRows)],
+      /* Continue lives in the Path: PLAY on its map, the first row of its list. */
+      lead: [PLAN.programFolder(phases, repetitionRows)],
       after: [CAT.folder('Quiz', quizFolders, 'quiz')],
       tail: [{ label: 'Progress', progress: true, value: '~' }, settingsFolder()],
     });
+    /* The top of the list is the home screen: five circles. */
+    catalog.view = 'home';
     nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
     const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN });
     CAT.stampChildren([pinned], '');
@@ -1733,6 +1740,10 @@ export function createSession(fx, opts = {}) {
    * the scroll, the round's clock — so reading costs nothing.
    */
   function infoTarget() {
+    if (view === MENU && onHome()) {
+      const row = CAT.navCurrent(nav);
+      return row ? (row.progress ? { kind: 'progress' } : { id: row.id, label: row.label }) : null;
+    }
     if (view === MENU && onMap()) {
       /* The place under the avatar: a stage's promise, a unit's purpose and
        * why, the checkpoint's exam. */
@@ -2027,6 +2038,8 @@ export function createSession(fx, opts = {}) {
     view: () => {
       const node = CAT.navTop(nav).node;
       if (view !== SHEET_VIEW && view !== MENU) return null;
+      /* Home offers its list; Back from the list is the circles again. */
+      if (node.view === 'home') return listViews.has(node) ? null : 'map';
       return node.view !== 'map' ? null : listViews.has(node) ? 'list' : 'map';
     },
     continueSkippable: () => {
@@ -2154,7 +2167,7 @@ export function createSession(fx, opts = {}) {
     if (done.kind === 'welcome') {
       PROG.markTipSeen(progress, TIPS.WELCOME);
       saveProgress();
-      goTop('continue', false);
+      goTop('program', false);
       return;
     }
     returnTo(done.back);
@@ -2204,8 +2217,8 @@ export function createSession(fx, opts = {}) {
     }
     PROG.setProgramStart(progress, 0);
     saveProgress();
-    goTop('continue', false);
-    announce('Continue opens your first step.');
+    goTop('program', true);
+    announce('Path. PLAY opens your first step.');
   }
 
   /* At start-up: the welcome for somebody new; an existing learner is
@@ -2293,9 +2306,73 @@ export function createSession(fx, opts = {}) {
     return view === MENU && isMapNode(CAT.navTop(nav).node) && Boolean(mapNow());
   }
 
-  /* The screen the hint line and help speak for: a map is drawn on MENU. */
+  /* The screen the hint line and help speak for: a map, and home, are drawn
+   * on MENU. */
   function screenNow() {
-    return onMap() ? MAP_SCREEN : view;
+    return onHome() ? HOME_SCREEN : onMap() ? MAP_SCREEN : view;
+  }
+
+  /* ---- Home: the top of the list as five circles ------------------------------ */
+  /*
+   * The root folder (view 'home') is drawn by src/home/: Path, Practice,
+   * Quiz, Progress, Settings as circles, the one the cursor is on filled and
+   * grown. The cursor is the child index, as in the list, so coming back
+   * from a section finds its circle selected. The jog grows the next one;
+   * Click, or the circle's pad (69..73, silent), opens it. Shift + Click's
+   * options can show the five as a list for the session.
+   */
+  let homeGrow = null;
+
+  function onHome() {
+    const top = CAT.navTop(nav);
+    return view === MENU && nav.length === 1 && top.node.view === 'home' && !listViews.has(top.node);
+  }
+
+  const HOME_ICONS = { program: 'path', basics: PRACTICE_PIANO, quiz: 'quiz', progress: 'progress', settings: 'settings' };
+
+  /* The five, as the engine takes them, and the grow of the selection. */
+  function homeModel() {
+    if (!onHome()) return null;
+    const top = CAT.navTop(nav);
+    if (!homeGrow) homeGrow = createGrow(top.cursor);
+    if (homeGrow.to !== top.cursor) homeGrow = createGrow(top.cursor);
+    return {
+      items: top.node.children.map((r) => ({ key: r.key || (r.progress ? 'progress' : ''), label: r.label,
+        icon: HOME_ICONS[r.key || (r.progress ? 'progress' : '')] || null })),
+      selected: top.cursor,
+      grow: homeGrow,
+    };
+  }
+
+  function homeJog(delta) {
+    const top = CAT.navTop(nav);
+    const to = clamp(top.cursor + (delta > 0 ? 1 : -1), 0, top.node.children.length - 1);
+    if (to === top.cursor) return;
+    homeModel();
+    top.cursor = to;
+    startGrow(homeGrow, to, now());
+    dirty = true;
+    ledDirty = true;
+    announce(top.node.children[to].label + '.');
+  }
+
+  /* A circle, from a pad or a pointer: selected, and opened at once. */
+  function homePick(i) {
+    if (!onHome()) return;
+    const top = CAT.navTop(nav);
+    if (i < 0 || i >= top.node.children.length) return;
+    homeModel();
+    top.cursor = i;
+    startGrow(homeGrow, i, now());
+    openRow();
+  }
+
+  /* A pad on home: its circle, or nothing; true when home took it, so the
+   * host sounds nothing. */
+  function homePad(note) {
+    if (!onHome()) return false;
+    homePick(itemOfPad(note));
+    return true;
   }
 
   /* The child of `node` a place opens. */
@@ -2410,7 +2487,8 @@ export function createSession(fx, opts = {}) {
     } else {
       listViews.delete(top.node);
       map = null;
-      announce('Map.');
+      homeGrow = null;
+      announce(top.node.view === 'home' ? 'Home.' : 'Map.');
     }
     dirty = true;
     ledDirty = true;
@@ -2427,7 +2505,7 @@ export function createSession(fx, opts = {}) {
 
   /* Back has somewhere to go, except at the top of the list, where it leaves. */
   function canGoBack() {
-    return !(view === MENU && nav.length <= 1);
+    return !(view === MENU && nav.length <= 1 && !listViews.has(CAT.navTop(nav).node));
   }
 
   /* ---- Input ------------------------------------------------------------ */
@@ -2499,6 +2577,10 @@ export function createSession(fx, opts = {}) {
   /* The jog, or the arrow keys: what "next" means depends on the screen. An Info
    * page scrolls in its renderer, so it is not handled here. */
   function moveSelection(delta) {
+    if (onHome()) {
+      homeJog(delta);
+      return;
+    }
     if (onMap()) {
       mapJog(delta);
       return;
@@ -2646,6 +2728,8 @@ export function createSession(fx, opts = {}) {
    */
   function playButton() {
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
+    /* Home offers nothing to play. */
+    if (onHome()) return;
     /* On the map Play is Continue: the one button. */
     if (onMap()) {
       checkPhase = null;
@@ -2749,7 +2833,7 @@ export function createSession(fx, opts = {}) {
       ledDirty = true;
       return;
     }
-    /* A map folder shown as its list goes back to the map first. */
+    /* A map folder (or home) shown as its list goes back to the picture first. */
     if (view === MENU && listViews.has(CAT.navTop(nav).node)) {
       showFolderAs('map');
       return;
@@ -2794,6 +2878,7 @@ export function createSession(fx, opts = {}) {
     awayAt = 0;
     listViews.clear();
     map = null;
+    homeGrow = null;
     stage = 1;
     runFromTop = false;
     settingsCursor = 0;
@@ -2833,6 +2918,11 @@ export function createSession(fx, opts = {}) {
    */
   function tick(t) {
     if (view === MENU) serviceMap(t);
+    /* While a circle grows every frame is a new picture. */
+    if (homeGrow && onHome() && growing(homeGrow, t)) {
+      dirty = true;
+      ledDirty = true;
+    }
     if (view === RUNNING) {
      /*
       * Paused stops the CLOCK, not the frame. The draw gate requires `dirty`,
@@ -2981,6 +3071,10 @@ export function createSession(fx, opts = {}) {
     openSettingsFolder: () => goTop('settings', true),
     hint,
     onMap,
+    onHome,
+    homeModel,
+    homePad,
+    homePick,
     mapPad,
     mapPick,
     mapModel,

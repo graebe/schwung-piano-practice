@@ -8,8 +8,8 @@ import { buildProgram, programFolder, stepsUnder } from '../src/program.mjs';
 
 const phases = buildProgram();
 const path = programFolder(phases);
-const stage1 = path.children[0];
-const stage5 = path.children[4];
+const stage1 = path.children[1];
+const stage5 = path.children[5];
 const unit = stage1.children[0];
 const step = unit.children[0];
 
@@ -56,7 +56,7 @@ test('a stage: skip all, start here, test out; the last stage has no checkpoint'
 
 test('a unit and an exercise of several steps skip everything inside; the checkpoint does not', () => {
   assert.deepEqual(acts(unit, look()), [SKIP_ALL, SETTINGS]);
-  const multi = path.children[1].children.find((u) => u.unit.key === 'first-tracks').children[0];
+  const multi = path.children[2].children.find((u) => u.unit.key === 'first-tracks').children[0];
   assert.ok(multi.pathFolder);
   assert.deepEqual(acts(multi, look()), [SKIP_ALL, SETTINGS]);
   assert.deepEqual(acts(stage1.children.at(-1), look()), [SETTINGS], 'the Checkpoint folder');

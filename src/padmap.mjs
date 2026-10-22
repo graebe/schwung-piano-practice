@@ -126,3 +126,14 @@ export const MAP_PALETTE = Object.freeze({
   skipped: 95,            /* AzureBlue, dim #134566                        */
   avatar: 120,            /* White: where you stand                        */
 });
+
+/*
+ * The home screen's pads (home/leds.mjs): the five circles' pads, 69..73,
+ * dim, the selected one bright and pulsing; the rest dark.
+ */
+export const HOME_PALETTE = Object.freeze({
+  off: LED_OFF,
+  item: 118,              /* LightGrey #595959                             */
+  selected: 120,          /* White                                         */
+  selectedDim: 119,       /* DarkGrey #1A1A1A: the pulse's low half        */
+});

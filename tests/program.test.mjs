@@ -336,26 +336,28 @@ test('the Path folder: five stages, then Review while anything is due', () => {
   let asked = 0;
   const node = programFolder(phases, () => { asked++; return due; });
   assert.equal(node.label, 'Path');
-  assert.deepEqual(node.children.map((r) => r.label), ['1 Grid and staff', '2 Four chords',
+  assert.deepEqual(node.children.map((r) => r.label), ['Continue', '1 Grid and staff', '2 Four chords',
     '3 Shapes and time', '4 Sevenths', '5 Colour']);
   due = [{ label: 'x', repId: 'x', done: true }];
-  assert.equal(node.children.length, 5, 'a review done today is not due');
+  assert.equal(node.children.length, 6, 'a review done today is not due');
+  assert.ok(node.children[0].continueRow, 'Continue heads its list: on its map it is PLAY');
+  assert.equal(node.children[0].id, 'program/continue');
   due = [{ label: 'x', repId: 'x', done: false }];
   assert.equal(node.children.at(-1).label, 'Review');
   assert.equal(node.children.at(-1).children[0].repId, 'x');
   assert.ok(asked > 0);
-  const p1 = node.children[0];
+  const p1 = node.children[1];
   assert.equal(p1.id, 'program/p1', 'stamped, so its help page is found');
   assert.equal(p1.children[0].label, '1.1 Find the notes');
   assert.equal(p1.children.at(-1).label, 'Checkpoint');
   assert.equal(p1.children.at(-1).checkpoint, phases[0]);
   assert.deepEqual(p1.children.at(-1).children.map((r) => r.id), phases[0].check);
-  assert.notEqual(node.children[4].children.at(-1).label, 'Checkpoint', 'the last stage has no checkpoint');
+  assert.notEqual(node.children[5].children.at(-1).label, 'Checkpoint', 'the last stage has no checkpoint');
 });
 
 test('steps under a node of the path: each once, the checkpoint not counted twice', () => {
   const node = programFolder(phases);
-  const p1 = node.children[0];
+  const p1 = node.children[1];
   assert.deepEqual(stepsUnder(p1).map((st) => st.id), phaseSteps(phases[0]).map((st) => st.id));
   assert.deepEqual(stepsUnder(p1.children[0]).map((st) => st.id), unitSteps(phases[0].units[0]).map((st) => st.id));
 });
@@ -363,11 +365,11 @@ test('steps under a node of the path: each once, the checkpoint not counted twic
 test('steps in the tree carry the id of the row they point at', () => {
   const program = root.children[0];
   assert.equal(program.id, 'program');
-  const firstStep = program.children[0].children[2].children[0];
+  const firstStep = program.children[1].children[2].children[0];
   assert.equal(firstStep.id, 'basics/scales/major/up-down');
   assert.ok(firstStep.step && firstStep.path);
   /* An exercise of several steps is a folder of them. */
-  const tracks = program.children[1].children.find((r) => r.unit && r.unit.key === 'first-tracks');
+  const tracks = program.children[2].children.find((r) => r.unit && r.unit.key === 'first-tracks');
   assert.ok(isFolder(tracks.children[0]) && tracks.children[0].pathFolder);
   assert.deepEqual(tracks.children[0].children.map((r) => r.label), ['L2 RH chords', 'L3 Both hands']);
 });

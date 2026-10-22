@@ -38,6 +38,8 @@ const SHEET = 'sheet';
 const CARD = 'card';
 /* A folder of the Path drawn as its map: the session's MENU, on a map. */
 const MAP = 'map';
+/* The top of the list drawn as five circles (src/home/). */
+const HOME = 'home';
 
 /* Shift+Back leaves the module from anywhere (ui.js). */
 const QUIT = 'BACK quit';
@@ -51,6 +53,8 @@ function table(screen, s) {
       };
     case MAP:
       return { keys: ['PAD go', 'CLICK enter', 'PLAY continue', 'MENU help'], shift: ['CLICK options', QUIT] };
+    case HOME:
+      return { keys: ['JOG choose', 'CLICK open', 'PAD open', 'MENU help'], shift: ['CLICK options', QUIT] };
     case SHEET:
       return { keys: ['CLICK do it', 'BACK close'], shift: [QUIT] };
     case INFO:
@@ -106,8 +110,10 @@ function about(screen, s) {
   switch (screen) {
     case MENU:
       return s.top
-        ? 'The top of the list. Continue opens your next step; the Path, the free library, the quiz, your progress and the settings are below it.'
+        ? 'Home, as a list: the Path, the free library to practise, the quiz, your progress and the settings. BACK shows the circles again.'
         : 'A folder of the list. A row with > opens another folder; any other row opens what it holds.';
+    case HOME:
+      return 'Home: the Path, the free library to practise, the quiz, your progress and the settings, as five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad. PLAY continues on the Path\'s map.';
     case MAP:
       return 'The map: a lit pad is a place. Press one to walk there, again to go in; the jog walks too, CLICK goes in, PLAY continues. SHIFT+CLICK shows it as a list.';
     case SHEET:

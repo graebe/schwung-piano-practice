@@ -220,10 +220,10 @@ function driver(host) {
     }
     for (const n of down.keys()) midi([0x80, n, 0]);
   };
-  /* Back up to the top of the lesson list, and no further: one Back more
-   * would close the module. */
+  /* Back up to home, the top of the lesson list, and no further: one Back
+   * more would close the module. Home's title is the module's name. */
   const toTop = () => {
-    for (let i = 0; i < 8 && !host.screen().endsWith('CLICK open  MENU help'); i++) press(BACK);
+    for (let i = 0; i < 8 && !host.screen().startsWith('PIANO | '); i++) press(BACK);
   };
   return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, toTop, host };
 }
@@ -242,7 +242,7 @@ const SCENARIOS = {
    * edit that rebuilds. */
   navigate: { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
-    d.jog(2); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);   /* Practice › Progressions */
+    d.jog(1); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);   /* Practice › Progressions */
     d.click(); d.jog(4); d.click(); d.jog(1); d.click(); d.jog(1);           /* Practice › Songs › Electronic */
     d.press(BACK); d.press(BACK); d.press(BACK);
     d.jog(60); d.click();                         /* Settings */
@@ -255,7 +255,7 @@ const SCENARIOS = {
 
   /* Practice › Scales › Major › Up & down: listen, pause, scrub, resume, restart. */
   listen: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(2); d.click(); d.click(); d.click(); d.click();
+    d.jog(1); d.click(); d.click(); d.click(); d.click();
     d.press(PLAY); d.run(4000);
     d.press(PLAY); d.run(200);                    /* pause */
     d.knob(0, 12); d.knob(0, -5); d.run(100);     /* scrub */
@@ -267,7 +267,7 @@ const SCENARIOS = {
   /* The same drill practised, played from the guide pads to its result, then
    * again with a few wrong pads and a wait; then on from the result. */
   practice: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(2); d.click(); d.click(); d.click(); d.click();
+    d.jog(1); d.click(); d.click(); d.click(); d.click();
     d.press(RECORD); d.follow(26000);
     d.run(1000);
     d.press(RECORD); d.run(3500);
@@ -280,7 +280,7 @@ const SCENARIOS = {
   /* Path › 1 › 1.3 Major scale › Major up & down, guide pads on stage 1, Back
    * to the list. */
   program: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(1); d.click(); d.run(100); d.click(); d.jog(2); d.click(); d.click(); d.run(100);
+    d.click(); d.run(100); d.click(); d.jog(2); d.click(); d.click(); d.run(100);
     d.press(PLAY); d.run(2500);                   /* listen a little */
     d.press(PLAY); d.press(BACK); d.run(100);     /* pause, back to the top */
     d.press(RECORD); d.follow(30000);             /* stage 1, to its result */
@@ -300,7 +300,7 @@ const SCENARIOS = {
    */
   quiz: { settings: QUIET, progress: WELCOMED, play(d) {
     const open = (path) => {
-      d.jog(-60); d.jog(3); d.click();
+      d.jog(-60); d.jog(2); d.click();
       for (const step of path) { d.jog(step); d.click(); }
       d.run(600);
     };
@@ -332,7 +332,7 @@ const SCENARIOS = {
   /* Factory settings: the first Info page opens by itself, quiz sounds on. */
   info: { settings: null, progress: WELCOMED, play(d) {
     d.run(200);
-    d.jog(2); d.press(MENU); d.jog(3); d.jog(-1); d.press(MENU);
+    d.jog(1); d.press(MENU); d.jog(3); d.jog(-1); d.press(MENU);
     d.click(); d.run(300); d.press(MENU); d.press(BACK);
     d.press(BACK);
     d.jog(1); d.click(); d.jog(2); d.click(); d.click(); d.run(800);   /* a quiz, sounds on */
@@ -341,7 +341,7 @@ const SCENARIOS = {
 
   /* Progress: the list, a chart, the jog across drills, back out. */
   progress: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(4); d.click(); d.run(100);
+    d.jog(3); d.click(); d.run(100);
     d.jog(1); d.click(); d.jog(1); d.jog(1); d.press(BACK); d.press(BACK);
   } },
 
@@ -354,7 +354,7 @@ const SCENARIOS = {
   page: { settings: QUIET, progress: WELCOMED, page: true, play(d, dsp) {
     d.run(2500);                                  /* unwatched: reads, nudges */
     dsp.openPage(); d.run(1200);
-    for (const a of [{ type: 'move', delta: 1 }, { type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' },
+    for (const a of [{ type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' },
       { type: 'open' }, { type: 'open' }]) {
       dsp.act(a); d.run(250);
     }
@@ -370,7 +370,7 @@ const SCENARIOS = {
   /* A song armed from its row, its level walked on the ready screen,
    * practised briefly; then Shift+Back. */
   exit: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(2); d.click(); d.jog(4); d.click(); d.click(); d.click(); d.run(100);   /* a song: armed at once */
+    d.jog(1); d.click(); d.jog(4); d.click(); d.click(); d.click(); d.run(100);   /* a song: armed at once */
     d.jog(1); d.jog(1); d.jog(-1); d.run(100);    /* the jog walks its levels: 1 Solo, 2 Guided, 1 Solo */
     d.press(RECORD); d.run(2500); d.pad(10); d.pad(11);
     d.shiftWith(BACK); d.run(600);
@@ -396,6 +396,28 @@ const SCENARIOS = {
   } },
 
   /*
+   * Home: the jog growing circle after circle (every frame of a grow drawn),
+   * MENU's help, a pad opening Quiz and making no sound, Back finding its
+   * circle selected, a pad off the five doing nothing, home shown as a list
+   * for the session and Back to the circles, and Settings by its pad.
+   */
+  home: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    for (let i = 0; i < 4; i++) { d.jog(1); d.run(60); }
+    d.jog(1); d.run(200);                         /* clamped on Settings */
+    d.jog(-1); d.run(200);                        /* Progress */
+    d.press(MENU); d.press(MENU);                 /* help, and closed */
+    d.pad(3, 60); d.run(200);                     /* pad 71: Quiz, silent */
+    d.press(BACK); d.run(200);                    /* Quiz's circle selected */
+    d.pad(0, 60); d.pad(20, 60); d.run(200);      /* off the five: nothing */
+    d.shiftWith(JOG_CLICK); d.click(); d.run(100);   /* Show as list */
+    d.jog(1); d.run(100);
+    d.press(BACK); d.run(200);                    /* the circles again */
+    d.pad(5, 60); d.run(200);                     /* pad 73: Settings */
+    d.toTop(); d.run(200);
+  } },
+
+  /*
    * The Path as a map: the world, a pad walking the avatar to stage 3 and a
    * second press going in, the jog walking the island, MENU's help, the
    * island as a list and back, Back up to the world, and Play as Continue.
@@ -403,7 +425,7 @@ const SCENARIOS = {
    */
   map: { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
-    d.jog(1); d.click(); d.run(300);              /* Path: the world */
+    d.click(); d.run(300);                        /* Path: the world */
     const third = padOfCell(layoutPlaces(5).cells[2]) - PAD;
     d.pad(third, 60); d.run(800);                 /* walk to stage 3 */
     d.pad(third, 60); d.run(300);                 /* and in: its island */
@@ -418,22 +440,24 @@ const SCENARIOS = {
 
   /*
    * The options of a row: the sheet's tip once, Test out: checkpoint on a
-   * stage, I know this on Continue and Continue then opening the step after,
-   * and Settings... from a library row into Settings › Path.
+   * stage, the Path as a list, I know this on its Continue and Continue then
+   * opening the step after, and Settings... from home into Settings › Path.
    */
   sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz', 'map', 'island'] }), play(d) {
     d.run(100);
-    d.jog(1); d.click(); d.run(100);              /* Path */
+    d.click(); d.run(100);                        /* Path */
     d.shiftWith(JOG_CLICK); d.run(100);           /* 1 Grid and staff: its tip, over the sheet */
     d.click(); d.run(100);                        /* the tip closes */
     d.jog(2); d.click(); d.run(300);              /* Test out: checkpoint */
     d.press(BACK); d.run(100); d.toTop();
+    d.click(); d.run(100);                        /* the Path again */
+    d.shiftWith(JOG_CLICK); d.jog(60); d.jog(-1); d.click(); d.run(100);   /* Show as list */
     d.jog(-1); d.shiftWith(JOG_CLICK); d.run(100); /* Continue */
     d.click(); d.run(100);                        /* I know this: skip */
     d.click(); d.run(600);                        /* Continue: the step after */
     d.toTop();
-    d.jog(2); d.shiftWith(JOG_CLICK); d.run(100); /* Practice: only Settings... */
-    d.click(); d.click(); d.run(100);             /* Settings › Path */
+    d.jog(1); d.shiftWith(JOG_CLICK); d.run(100); /* Practice: Show as list, Settings... */
+    d.jog(1); d.click(); d.click(); d.run(100);   /* Settings › Path */
     d.click(); d.jog(1); d.click(); d.run(100);   /* Start at: stage 2 */
     d.press(BACK); d.press(BACK); d.toTop(); d.run(1200);
   } },

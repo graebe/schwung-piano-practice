@@ -303,15 +303,15 @@ test('the sheet, a card and the settings page are data too', () => {
   });
   assert.deepEqual(vm.hint, ['JOG page  CLICK go on']);
   h.session.back();
-  h.session.selectRow(1);
+  h.session.selectRow(0);
   h.session.activate(true);
   vm = viewModel(h.session);
   assert.equal(vm.screen, 'card', 'the sheet\'s first-visit tip');
   h.session.back();
   vm = viewModel(h.session);
-  assert.deepEqual(vm.sheet, { title: 'Path', cursor: 0, items: ['Settings...'] });
+  assert.deepEqual(vm.sheet, { title: 'Path', cursor: 0, items: ['Show as list', 'Settings...'] });
   assert.equal(vm.card, null);
-  h.session.pickSheet(0);
+  h.session.pickSheet(1);
   openPath(h.session, ['Help']);
   vm = viewModel(h.session);
   assert.equal(vm.settings.title, 'Help');

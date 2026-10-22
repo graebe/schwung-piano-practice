@@ -32,7 +32,7 @@ done
 # The expected count is READ OUT OF package.sh rather than written here: it was
 # a literal 16, and adding a seventeenth module failed this check with a number
 # that said nothing about which file was missing.
-WANT=$(sed -n -e 's/^MODULES="\(.*\)"$/\1/p' -e 's/^PATHMAP="\(.*\)"$/\1/p' \
+WANT=$(sed -n -e 's/^MODULES="\(.*\)"$/\1/p' -e 's/^PATHMAP="\(.*\)"$/\1/p' -e 's/^HOMESCREEN="\(.*\)"$/\1/p' \
   "$ROOT/scripts/package.sh" | wc -w | tr -d ' ')
 MJS=$(echo "$LIST" | grep -c '/[A-Za-z0-9_]*-[0-9][0-9]*\.mjs$' || true)
 [ "$MJS" -eq "$WANT" ] || { echo "package.sh names $WANT modules, the tarball has $MJS" >&2; exit 1; }
@@ -44,7 +44,7 @@ MJS=$(echo "$LIST" | grep -c '/[A-Za-z0-9_]*-[0-9][0-9]*\.mjs$' || true)
 TMPD=$(mktemp -d)
 tar -xzf "$ARCHIVE" -C "$TMPD"
 MODDIR="$TMPD/piano-practice"
-for f in "$MODDIR/ui.js" "$MODDIR"/*.mjs "$MODDIR"/pathmap/*.mjs; do
+for f in "$MODDIR/ui.js" "$MODDIR"/*.mjs "$MODDIR"/pathmap/*.mjs "$MODDIR"/home/*.mjs; do
   for imp in $(sed -n "s/.*from '\.\/\([A-Za-z0-9_/-]*\.mjs\)'.*/\1/p" "$f"); do
     if [ ! -f "$(dirname "$f")/$imp" ]; then
       echo "$(basename "$f") imports $imp, which is not in the package" >&2

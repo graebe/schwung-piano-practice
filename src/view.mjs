@@ -23,6 +23,7 @@ import { accuracySeries } from './progress.mjs';
 import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
 import { drawMap } from './pathmap/render.mjs';
+import { drawHome } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
 
 /* Every footer is a part of a hint from hints.mjs: the caller picks the part
@@ -1247,6 +1248,20 @@ export function drawMapScreen(ctx, state) {
     right: head.right,
   });
   drawMap(ctx, { places: state.places, layout: state.layout, walk: state.walk, now: state.now || 0 });
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
+ * The top of the list as five circles (home/render.mjs): the title bar, the
+ * circles and the chosen one's name in y 10..54, the hint line under them.
+ *
+ * state = { title, items, selected, grow, now, footer }
+ */
+export function drawHomeScreen(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title || '' });
+  drawHome(ctx, { items: state.items, selected: state.selected, grow: state.grow, now: state.now || 0 });
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
 }

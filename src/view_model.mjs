@@ -32,6 +32,7 @@ import {
   MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SHEET_VIEW, CARD_VIEW,
 } from './session.mjs';
 import { groupByKey } from './settings_def.mjs';
+import { iconRows } from './home/render.mjs';
 
 export const VM_VERSION = 2;
 
@@ -230,6 +231,22 @@ function mapOf(S) {
   };
 }
 
+/*
+ * Home on screen: the five circles, their icons as the engine's rows ('#'
+ * lit) at both sizes, and which one is selected. The page draws its own
+ * circles and grows the selected one itself.
+ */
+function homeOf(S) {
+  const h = S.view === MENU ? S.homeModel() : null;
+  if (!h) return null;
+  return {
+    selected: h.selected,
+    items: h.items.map((it) => ({
+      key: it.key, label: it.label, small: iconRows(it.icon, false), large: iconRows(it.icon, true),
+    })),
+  };
+}
+
 /* The card on screen: its page, as paragraphs, or the question it asks. */
 function cardOf(S) {
   const card = S.card;
@@ -361,6 +378,7 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     sheet: sheetOf(S),
     card: cardOf(S),
     map: mapOf(S),
+    home: homeOf(S),
     /* The hint line, as the Move's footer has it: its parts, which take turns. */
     hint: S.hint(),
     settings: {

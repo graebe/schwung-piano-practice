@@ -23,6 +23,7 @@
  *   { type: 'cardPick', index }        answer the welcome's question
  *   { type: 'mapGo', index }           a place of the map: walk there, or go
  *                                      in when the avatar is already there
+ *   { type: 'homeGo', index }          a circle of home: select it and open it
  *   { type: 'settings' }               the Settings folder, from the list
  *   { type: 'listen' }                 Play: hear it; again to pause
  *   { type: 'practice' }               Record: play it; again to pause
@@ -55,7 +56,7 @@ const SCRUB_UNITS_PER_BAR = 36;
 
 export const ACTIONS = [
   'noteOn', 'noteOff', 'select', 'open', 'back', 'move', 'options', 'sheet', 'sheetPick', 'cardPick', 'mapGo',
-  'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'level',
+  'homeGo', 'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'level',
   'scrubTo', 'tempo', 'editSetting', 'selectSetting', 'editRow', 'settingRow', 'progress',
 ];
 
@@ -95,6 +96,9 @@ export function applyAction(S, a) {
       return null;
     case 'mapGo':
       S.mapPick(a.index | 0);
+      return null;
+    case 'homeGo':
+      S.homePick(a.index | 0);
       return null;
     case 'settings':
       /* The Settings folder, from the list; on a result the same Move gesture

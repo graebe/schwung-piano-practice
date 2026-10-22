@@ -296,7 +296,9 @@ function phaseRow(phase, phases) {
 }
 
 /*
- * The Path folder: the five stages, then Review while anything is due. What
+ * The Path folder: Continue, the five stages, then Review while anything is
+ * due (Continue and Review are rows of its list; on its map Continue is
+ * PLAY, and Review one option away). What
  * is due changes with the day and with every result, so the folder's rows are
  * asked for each time rather than built once; the stages are built once and
  * stamped here, since a folder made on demand is not stamped by the catalog.
@@ -306,6 +308,7 @@ function phaseRow(phase, phases) {
 export function programFolder(phases, repetitionRows = () => []) {
   const stages = phases.map((p) => phaseRow(p, phases));
   stampChildren(stages, 'program');
+  const cont = { label: 'Continue', value: '', continueRow: true, id: 'program/continue' };
   const review = {
     label: 'Review',
     value: '>',
@@ -320,8 +323,10 @@ export function programFolder(phases, repetitionRows = () => []) {
     key: 'program',
     /* Shown as the world map: an island per stage. Review is in its list. */
     view: 'map',
+    /* In its list, Continue first: on the map it is PLAY. */
     get children() {
-      return repetitionRows().some((r) => !r.done) ? stages.concat([review]) : stages;
+      const rows = [cont].concat(stages);
+      return repetitionRows().some((r) => !r.done) ? rows.concat([review]) : rows;
     },
   };
 }

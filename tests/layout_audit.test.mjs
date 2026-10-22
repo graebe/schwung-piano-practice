@@ -36,6 +36,8 @@ import { makePlace } from '../src/pathmap/model.mjs';
 import { layoutPlaces } from '../src/pathmap/layout.mjs';
 import { createWalk, walkTo } from '../src/pathmap/walk.mjs';
 import { mapTitle } from '../src/map_places.mjs';
+import { createGrow, startGrow } from '../src/home/render.mjs';
+import { PRACTICE_PIANO } from '../src/home/icons.mjs';
 
 /* A map at its worst: long names, three-digit percents, reviews due. */
 function mapScreen(c, n, kind, at, opts = {}) {
@@ -49,6 +51,17 @@ function mapScreen(c, n, kind, at, opts = {}) {
   if (opts.to !== undefined) walkTo(walk, opts.to, 0);
   return V.drawMapScreen(c, { place: places[at], places, layout, walk, now: opts.now || 0,
     footer: hintFor('map')[0] });
+}
+
+/* Home with this module's five circles, at rest or mid-grow. */
+const HOME_ITEMS = [['program', 'Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['quiz', 'Quiz', 'quiz'],
+  ['progress', 'Progress', 'progress'], ['settings', 'Settings', 'settings']]
+  .map(([key, label, icon]) => ({ key, label, icon }));
+function homeScreen(c, selected, opts = {}) {
+  const grow = createGrow(opts.from === undefined ? selected : opts.from);
+  if (opts.from !== undefined) startGrow(grow, selected, 0);
+  return V.drawHomeScreen(c, { title: 'PIANO', items: HOME_ITEMS, selected, grow, now: opts.now || 0,
+    footer: hintFor('home')[opts.part || 0] });
 }
 
 /*
@@ -258,6 +271,9 @@ const SCREENS = {
     footer: hintFor('menu', { top: true, shift: true })[0], centreFooter: true,
     decorate: () => ({ label: 'Review', value: 'Name chords advanced', short: '' }),
   }),
+  'home, Path selected': (c) => homeScreen(c, 0),
+  'home, Settings selected, its longest hint part': (c) => homeScreen(c, 4, { part: 1 }),
+  'home, mid-grow from Practice to Progress': (c) => homeScreen(c, 3, { from: 1, now: 80 }),
   'map, the world': (c) => mapScreen(c, 5, 'island', 1),
   'map, the world with reviews due': (c) => mapScreen(c, 5, 'island', 2, { due: 12 }),
   'map, an island of nine, walking': (c) => mapScreen(c, 9, 'place', 0, { to: 8, now: 300 }),
@@ -422,7 +438,7 @@ test('every footer this module can show fits across the screen', () => {
     { ear: true }, { pick: true, hintsLeft: true }, { pick: true }, { hintsLeft: true, streak: 999 },
     { streak: 999 }, { editing: true }, { action: true }];
   for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
-    'progress-detail', 'info', 'sheet', 'card']) {
+    'progress-detail', 'info', 'sheet', 'card', 'map', 'home']) {
     for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
   }
   for (const f of footers) {
