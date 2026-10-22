@@ -119,19 +119,21 @@ export function shouldRebuildChart(view, chartSource) {
 }
 
 /*
- * Where a jog click goes. The settings page has nine rows but only four knobs,
- * so the rest are reachable the way Move does it everywhere else: click to
- * enter edit, turn to change, click to leave.
+ * Where a jog click goes. The settings page has more rows than knobs, so the
+ * rest are reachable the way Move does it everywhere else: click to enter
+ * edit, turn to change, click to leave.
  *
  * MENU answers 'open': the highlighted row decides whether that opens a
- * folder or arms what is in it.
+ * folder or arms what is in it. With Shift it is 'sheet', the row's options;
+ * on a piece or a quiz Shift still opens the settings, and on a result it
+ * still moves on past it.
  */
-export function jogClickAction(view, shiftHeld, hasChart) {
+export function jogClickAction(view, shiftHeld) {
   /* A result is a fork: on to what is next, or — with Shift — past it. */
   if (view === SUMMARY) return shiftHeld ? 'skip' : 'next';
-  if (shiftHeld) return view === SETTINGS ? (hasChart ? 'ready' : 'menu') : 'settings';
-  if (view === SETTINGS) return 'toggle-edit';
-  if (view === MENU) return 'open';
+  if (view === SETTINGS) return shiftHeld ? 'close-settings' : 'toggle-edit';
+  if (view === MENU) return shiftHeld ? 'sheet' : 'open';
+  if (shiftHeld) return 'settings';
   return 'menu';
 }
 

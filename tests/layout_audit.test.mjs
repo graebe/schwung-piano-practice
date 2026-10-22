@@ -29,6 +29,9 @@ import * as L from '../src/layout.mjs';
 import { makeRecord } from '../src/stats.mjs';
 import { scaleRun } from '../src/generator.mjs';
 import { createRun, expireMissed } from '../src/scoring.mjs';
+import { hintFor } from '../src/hints.mjs';
+import { welcomePages, tipCard, TIP_KEYS, PLACEMENT } from '../src/tips.mjs';
+import { sheetFor, LABELS } from '../src/row_sheet.mjs';
 
 /*
  * A ctx that draws normally and keeps a transcript of what it was asked to.
@@ -95,6 +98,14 @@ function collisions(c) {
 }
 
 const chart = scaleRun({ rootPc: 0, direction: 'updown', bpm: 80 });
+
+/* A card as ui.js draws one: its paragraphs wrapped by the panel's font. */
+function card(c, page, at, pages, footer) {
+  return V.drawCard(c, {
+    title: page.title, lines: V.cardLines(c, page), choices: page.choices || null, choice: 0,
+    page: at, pages, footer,
+  });
+}
 
 function records(n) {
   const out = [];
@@ -186,10 +197,32 @@ const SCREENS = {
   'info, short': (c) => V.drawInfo(c, {
     title: 'Continue', lines: [{ text: 'Opens the next step.', head: false }], scroll: 0, footer: 'BACK close',
   }),
-    'ready, stage 2': (c) => V.drawReadyView(c, {
+  'ready, stage 2': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
-    footer: V.stageFooter(2),
+    footer: hintFor('ready', { stages: true, stage: 2 }).at(-1),
   }),
+  /* The options sheet at its longest: a stage row, every option it can have. */
+  'sheet, a stage': (c) => V.drawList(c, '3 SHAPES AND TIME', Object.values(LABELS).map((label) => ({ label })), 3, {
+    footer: hintFor('sheet')[0], centreFooter: true,
+  }),
+  'sheet, Continue': (c) => V.drawList(c, 'CONTINUE', sheetFor({ continueRow: true }, { continueSkippable: () => true }), 0, {
+    footer: hintFor('sheet')[1], centreFooter: true,
+  }),
+  'top list, Continue naming a long step': (c) => V.drawList(c, 'EXERCISE', [
+    { label: 'Continue' }, { label: 'Path' }, { label: 'Practice' }, { label: 'Quiz' },
+  ], 0, {
+    footer: hintFor('menu', { top: true })[0], centreFooter: true,
+    decorate: (r) => (r.label === 'Continue'
+      ? { label: 'Continue', value: 'Scarborough Fair L3 Both hands', fit: true } : { value: '100% >', mark: 'half' }),
+  }),
+  'top list, a review due': (c) => V.drawList(c, 'EXERCISE', [{ label: 'Continue' }], 0, {
+    footer: hintFor('menu', { top: true, shift: true })[0], centreFooter: true,
+    decorate: () => ({ label: 'Review', value: 'Name chords advanced', fit: true }),
+  }),
+  'card, welcome': (c) => card(c, welcomePages()[0], 0, 3, hintFor('card', { pages: 3 })[0]),
+  'card, keys': (c) => card(c, welcomePages()[1], 1, 3, hintFor('card', { pages: 3 })[0]),
+  'card, new to piano': (c) => card(c, welcomePages()[2], 2, 3, hintFor('card', { choice: true })[0]),
+  'card, the longest tip': (c) => card(c, tipCard(PLACEMENT), 0, 1, hintFor('card', { pages: 1 })[0]),
   'result, worst case': (c) => V.drawRoundResult(c, {
     rate: 144, ms: 480000, n: 30, wrong: 12, bestStreak: 100, hints: 2,
     best: 144, isBest: false, records: records(12),
@@ -261,7 +294,7 @@ const SCREENS = {
     { label: 'Hear: chords all types', value: 'q' },
     { label: 'Name: chords all types', value: 'q' },
     { label: 'C major scale, two octaves', value: 'f' },
-  ], 0, { footer: V.SETTINGS_HINT, centreFooter: true }),
+  ], 0, { footer: hintFor('menu', { top: true })[0], centreFooter: true }),
   /* "Key = C# mixolydian" is the widest row this module can actually produce,
    * at 114px; the second fixture is past anything real, to prove the label is
    * fitted against the value rather than against a fixed budget. */
@@ -288,6 +321,13 @@ const SCREENS = {
   }),
   'reading, paused': (c) => V.drawReadingView(c, {
     chart, run: createRun(chart), songBeats: 2.5, pxPerBeat: 24, paused: true,
+  }),
+  'reading, paused, with its hint': (c) => V.drawReadingView(c, {
+    chart, run: createRun(chart), songBeats: 2.5, pxPerBeat: 24, paused: true,
+    footer: hintFor('running', { paused: true })[0],
+  }),
+  'reading, count-in, with its hint': (c) => V.drawReadingView(c, {
+    chart, run: createRun(chart), songBeats: -3, pxPerBeat: 24, footer: hintFor('running', {})[0],
   }),
   'reading, stuck on a chord': (c) => {
     const run = createRun(chart, { bpm: 80, graceBeats: 1 });
@@ -331,16 +371,60 @@ test('the ready view puts one label in the header, not two', () => {
 test('every footer this module can show fits across the screen', () => {
   const c = createScreen();
   const footers = [
-    'PLAY again  BACK list', 'PLAY again  JOG pick', 'JOG pick  REC help',
-    'JOG pick  CLICK ok', 'CLICK edit SHIFT back', 'turn change  CLICK ok',
-    V.SETTINGS_HINT, 'jog: another drill', 'jog: drill 12/12', 'play a round',
-    'hint 2/2   streak 100', 'streak 100   REC help',
-    'PLAY again CLICK next', 'REC again  CLICK next', 'CLICK S2  SHIFT next',
-    'CLICK chart BACK list', 'jog: 99/99', '24 plays',
-    V.stageFooter(1), V.stageFooter(2),
-    'JOG scroll BACK close', 'BACK close',
+    'JOG 99/99  BACK list', 'JOG drill 12/12', '24 plays', '99 rounds', 'BACK list', 'JOG next  BACK list',
   ];
+  /* Every part of every hint, in every state the table distinguishes. */
+  const states = [{}, { top: true }, { scrolls: true }, { pages: 3 }, { pages: 1 }, { choice: true },
+    { stages: true, stage: 1 }, { stages: true, stage: 2 }, { listening: true }, { paused: true },
+    { paused: true, listening: true }, { quiz: true, twoNext: true }, { ear: true, hintsLeft: true },
+    { ear: true }, { pick: true, hintsLeft: true }, { pick: true }, { hintsLeft: true, streak: 999 },
+    { streak: 999 }, { editing: true }, { action: true }];
+  for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
+    'progress-detail', 'info', 'sheet', 'card']) {
+    for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
+  }
   for (const f of footers) {
     assert.ok(c.textWidth(f) <= L.TEXT_MAX_PX, `${JSON.stringify(f)} is ${c.textWidth(f)}px`);
   }
+});
+
+/* A page of text — help, the welcome, a tip — wraps to the width beside its
+ * scrollbar, measured in the panel's font; a page longer than five lines
+ * scrolls. */
+test('every line of every card fits beside the scrollbar', () => {
+  const c = createScreen();
+  for (const page of welcomePages().concat(TIP_KEYS.concat([PLACEMENT]).map(tipCard).filter(Boolean))) {
+    for (const line of V.cardLines(c, page)) {
+      assert.ok(c.textWidth(line) <= L.INFO_TEXT_PX, `${page.title}: "${line}" is ${c.textWidth(line)}px`);
+    }
+    for (const choice of page.choices || []) assert.ok(c.textWidth(choice) <= L.INFO_TEXT_PX, choice);
+  }
+});
+
+/* Every option of the sheet fits its row whole, even beside a scrollbar:
+ * a cut "I know all this: ski" is how this test came to be. */
+test('every option of the sheet fits its row', () => {
+  const c = createScreen();
+  for (const label of Object.values(LABELS)) {
+    assert.ok(c.textWidth(label) <= L.INFO_TEXT_PX, `"${label}" is ${c.textWidth(label)}px`);
+    const probeList = probe();
+    V.drawList(probeList, 'X', [{ label }], 1, {});
+    assert.ok(probeList.transcript().texts.some((t) => t.s === label), `"${label}" is cut on the list`);
+  }
+});
+
+test('Continue names its step by whole words, keeping its level', () => {
+  const c = createScreen();
+  const room = L.SCREEN_W - 4 - c.textWidth('Continue') - 6;
+  assert.equal(V.fitWords(c, 'Scarborough Fair L3 Both hands', 110), 'Scarborough L3');
+  assert.equal(V.fitWords(c, 'Bach Prelude L3', room), 'Bach L3');
+  assert.equal(V.fitWords(c, 'Notes by alphabet', room), 'Notes by');
+  assert.equal(V.fitWords(c, 'Compare 6ths', room), 'Compare 6ths');
+  assert.equal(V.fitWords(c, 'Greensleeves L3', room), 'Greensleeves', 'no room for both: the name');
+  assert.equal(V.fitWords(c, 'Supercalifragilistic', room).length, 12, 'one word too wide is all that is ever cut');
+  const top = probe();
+  V.drawList(top, 'EXERCISE', [{ label: 'Continue' }], 0, {
+    decorate: () => ({ label: 'Continue', value: 'Ode to Joy melody', fit: true }),
+  });
+  assert.ok(top.transcript().texts.some((t) => t.s === 'Ode to Joy'));
 });

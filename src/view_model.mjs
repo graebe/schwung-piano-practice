@@ -29,10 +29,11 @@ import * as NOTATION from './notation.mjs';
 import * as AP from './answer_pads.mjs';
 import { chartTotalBeats, beatsPerBar, barBeatOf, keyAt } from './chart.mjs';
 import {
-  MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
+  MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SHEET_VIEW, CARD_VIEW,
 } from './session.mjs';
+import { groupByKey } from './settings_def.mjs';
 
-export const VM_VERSION = 1;
+export const VM_VERSION = 2;
 
 /* One character per note judgement, so a long piece stays small. */
 export const NOTE_PENDING = 'p';
@@ -185,7 +186,7 @@ export function cueOf(S) {
   };
 }
 
-function navOf(S) {
+export function navOf(S) {
   if (!S.nav.length) return null;
   const top = CAT.navTop(S.nav);
   return {
@@ -198,13 +199,38 @@ function navOf(S) {
         label: deco.label || row.label,
         value: deco.value !== undefined ? String(deco.value) : String(row.value || ''),
         mark: deco.mark || null,
-        folder: CAT.isFolder(row),
+        /* A settings group opens a page, not a folder, but reads as one. */
+        folder: CAT.isFolder(row) || Boolean(row.settingsGroup),
       };
     }),
   };
 }
 
-function sheetOf(columns) {
+/* The options sheet: the row's name and what can be done with it. */
+function sheetOf(S) {
+  const sheet = S.sheet;
+  if (S.view !== SHEET_VIEW || !sheet) return null;
+  return { title: sheet.title, cursor: sheet.cursor, items: sheet.items.map((it) => it.label) };
+}
+
+/* The card on screen: its page, as paragraphs, or the question it asks. */
+function cardOf(S) {
+  const card = S.card;
+  if (S.view !== CARD_VIEW || !card) return null;
+  const page = card.pages[card.page];
+  return {
+    kind: card.kind,
+    title: page.title,
+    paragraphs: page.paragraphs.map((p) => p.text),
+    lines: Boolean(page.lines),
+    choices: page.choices ? page.choices.slice() : null,
+    choice: card.choice,
+    page: card.page,
+    pages: card.pages.length,
+  };
+}
+
+function staffOf(columns) {
   return columns.map((c, i) => ({
     beat: i + c.part,
     durBeats: 0,
@@ -240,7 +266,7 @@ export function quizOf(S) {
     read: quiz.read || null,
     /* A reading course draws its prompt: one event per column, spelled as the
      * course wrote it, a beat apart and a beat more between two intervals. */
-    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? sheetOf(quiz.entry.staff) : null,
+    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? staffOf(quiz.entry.staff) : null,
     queue: quiz.read ? quiz.queue.map((e, i) => ({
       index: quiz.asked - 1 + i,
       pitches: e.pitches.slice(),
@@ -313,10 +339,21 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     result: view === RESULT_VIEW && S.lastResult ? JSON.parse(JSON.stringify(S.lastResult)) : null,
     progress: progressOf(S, plotW, plotH),
     info: S.info ? { title: S.info.title, paragraphs: S.info.paragraphs.slice(), back: S.info.back } : null,
+    sheet: sheetOf(S),
+    card: cardOf(S),
+    /* The hint line, as the Move's footer has it: its parts, which take turns. */
+    hint: S.hint(),
     settings: {
+      group: S.settingsGroup,
+      title: groupByKey(S.settingsGroup) ? groupByKey(S.settingsGroup).label : 'Settings',
       cursor: S.settingsCursor,
       editing: S.settingsEditing,
-      rows: rows.map((r, i) => ({ index: i, label: r.label, value: r.value })),
+      /* `row` is the place on the page; `index` the setting, for a setting;
+       * `act` an action a click runs; `edit` something else the jog changes. */
+      rows: rows.map((r, i) => ({
+        row: i, index: r.index !== undefined ? r.index : -1, label: r.label, value: r.value,
+        act: r.act || null, edit: r.edit || null,
+      })),
     },
     can: {
       listen: Boolean(S.chart) && inSong,

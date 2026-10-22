@@ -3,9 +3,10 @@
 /*
  * session.mjs — Piano Practice itself, with no host in it. Pure.
  *
- * Everything the module DOES lives here: the lesson tree and the Learning
- * Program, arming, the transport and its two clocks, scoring, the quizzes and
- * the hearing drills, results, progress, Info, the settings and their file.
+ * Everything the module DOES lives here: the lesson tree and the Path,
+ * arming, the transport and its two clocks, scoring, the quizzes and the
+ * hearing drills, results, progress, help, the options of a row, the welcome
+ * and the tips, the settings and their file.
  * What it does not do is touch a device. It reads the time, sounds a note,
  * saves a file and speaks through the `fx` it is given, so the same session
  * runs inside the Move (ui.js) and in a browser (web/), and the two cannot
@@ -57,6 +58,9 @@ import {
 } from './chart.mjs';
 import { parseExercise, parseManifest, parseCategories } from './exercise_io.mjs';
 import * as CAT from './catalog.mjs';
+import * as HINTS from './hints.mjs';
+import * as TIPS from './tips.mjs';
+import * as SHEET from './row_sheet.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -93,6 +97,16 @@ export const RESULT_VIEW = CTRL.SUMMARY;
 export const PROGRESS_VIEW = 'progress';
 export const PROGRESS_DETAIL = 'progress-detail';
 export const INFO_VIEW = 'info';
+/* The options of a row (Shift + jog-click in the list). */
+export const SHEET_VIEW = 'sheet';
+/* A card over whatever is underneath: the welcome, a first-visit tip. */
+export const CARD_VIEW = 'card';
+
+/* Every screen, for whoever must cover them all (hints.mjs, its test). */
+export const VIEWS = [
+  MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
+  INFO_VIEW, SHEET_VIEW, CARD_VIEW,
+];
 
 /* What the session keeps, by name; the host decides where. */
 const SETTINGS_FILE = 'settings.json';
@@ -416,14 +430,13 @@ export function createSession(fx, opts = {}) {
   let lastResult = null;       /* the attempt just finished, for the result screen */
   let progress = PROG.emptyProgress();
   const agg = PROG.createAggregator();
-  let phases = [];             /* the Learning Program (program.mjs) */
+  let phases = [];             /* the Path (program.mjs) */
   let progressRows = [];       /* the Progress list: overview, phases, recent items */
   let progressCursor = 0;
   /* The Info page open: { title, lines, scroll, back }. `back` is the view
    * it came from, which Back and Menu return to exactly as it was. */
   let info = null;
   let infoEnv = { songs: {} };
-  let infoOpenedAt = 0;
   let quiz = null;
   let quizHear = false;        /* ear training: the prompt is played, not shown */
   let quizPick = false;        /* multiple choice: the pad is lit, you name it */
@@ -446,11 +459,22 @@ export function createSession(fx, opts = {}) {
   let armedId = null;
   /* The program unit it was opened from, so Next carries on in that unit. */
   let armedUnit = null;
-  /* The phase whose check is being played, from "Check: skip phase". */
+  /* The stage whose checkpoint is being played (Test out: checkpoint, or a
+   * row of its Checkpoint folder). */
   let checkPhase = null;
-  /* Continues opened this session: every fourth is a review, when one is due.
-   * Kept in memory on purpose — it paces a sitting, it is not a record. */
-  let continueTurns = 0;
+  /* Whether the next Continue is a review, when one is due: they alternate,
+   * one review, then one new step. Kept in memory on purpose — it paces a
+   * sitting, it is not a record. */
+  let reviewNext = true;
+  /* The options sheet open over the list: { title, items, cursor, row }. */
+  let sheet = null;
+  /* The card open: { kind: 'welcome'|'tip', pages, page, choice, back }. */
+  let card = null;
+  /* The settings group open (settings_def GROUPS), or null for every setting
+   * at once — Shift+click on a piece. */
+  let settingsGroup = null;
+  /* When the quiz was left for a page over it (help, a tip), for its clock. */
+  let awayAt = 0;
   /* Basics built the way the program teaches it (PLAN.PROGRAM_GEN), whatever
    * the settings say; program steps open from here. */
   let programTree = null;
@@ -475,7 +499,7 @@ export function createSession(fx, opts = {}) {
       bpm: settings.bpm,
       transpose: settings.transpose,
       seed: 1,
-      /* Basics › Random draws a new set each time a row is opened. */
+      /* Practice › Random draws a new set each time a row is opened. */
       newSeed: () => (wallNow() & 0x7fffffff) || 1,
     };
   }
@@ -498,43 +522,41 @@ export function createSession(fx, opts = {}) {
   /* The path's whole-category units are made from the files, so they follow them. */
   function buildTracks() {
     phases = PLAN.buildProgram({ songs: fileSongs });
-    infoEnv = { songs: {} };
+    infoEnv = { songs: {}, phases };
     for (let i = 0; i < fileSongs.length; i++) infoEnv.songs[fileSongs[i].chart.id] = fileSongs[i].chart;
   }
 
   /*
    * The tree, built again whenever a setting that shapes the generated lessons
    * changes. The open folders are carried across by path, so turning the key
-   * with Basics › Progressions open leaves you in Basics › Progressions.
+   * with Practice › Progressions open leaves you in Practice › Progressions.
    */
   /*
-   * The Quiz folder: three ways of asking, one folder each.
+   * The Quiz folder, by skill:
    *
-   *   Hear   something is played; you name it or play it back
-   *   Play   a note or chord is shown; you find it on the pads
-   *   Name   a pad is lit; you name it
+   *   Ear      something is played; you name it or play it back
+   *   Reading  the courses on the staff, and notes and chords by staff
+   *   Keys     a name is shown and you find it on the pads (any octave
+   *            counts), or a pad is lit and you name it
    *
-   * Play is read two ways: by its name (any octave counts) or off the staff
-   * (the written pitches). Either way the next prompts queue up to the right.
-   *
-   * Play and Name follow the Half tones and Chords settings, and their ids do
-   * too, so a chromatic round and an in-key round are filed apart.
+   * The drills here follow the Half tones and Chords settings, and their ids
+   * do too, so a chromatic round and an in-key round are filed apart.
    */
-  const QUIZ_PLAY = [
-    { label: 'Notes by alphabet', guess: GUESS.NOTES, read: GUESS.READ_NAME },
+  const QUIZ_READ = [
     { label: 'Notes by staff', guess: GUESS.NOTES, read: GUESS.READ_STAFF },
-    { label: 'Chords by name', guess: GUESS.CHORDS, read: GUESS.READ_NAME },
     { label: 'Chords by staff', guess: GUESS.CHORDS, read: GUESS.READ_STAFF },
   ];
-  const QUIZ_NAME = [
-    { label: 'Notes', guess: GUESS.NOTES, pick: true },
-    { label: 'Chords', guess: GUESS.CHORDS, pick: true },
+  const QUIZ_KEYS = [
+    { label: 'Notes by alphabet', guess: GUESS.NOTES, read: GUESS.READ_NAME },
+    { label: 'Chords by name', guess: GUESS.CHORDS, read: GUESS.READ_NAME },
+    { label: 'Name notes', guess: GUESS.NOTES, pick: true },
+    { label: 'Name chords', guess: GUESS.CHORDS, pick: true },
   ];
 
   function settingsQuiz(row) {
     return {
       kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick), read: row.read || null,
-      halfTones: settings.halfTones, chordSet: settings.chordSet, pinned: false,
+      halfTones: settings.halfTones, chordSet: settings.chordSet, pinned: false, label: row.label,
     };
   }
 
@@ -542,34 +564,43 @@ export function createSession(fx, opts = {}) {
     return 'quiz:' + STATS.drillId(spec);
   }
 
-  /* Rows here and in the Learning Program are the same steps by id, so a
-   * level played in either is the same item in Progress. */
-  /* Quiz › Hear and Quiz › Read, as the program lays them out. */
-  const hearFolder = () => PLAN.hearMenu();
-  const readFolder = () => PLAN.readMenu();
-
+  /* Rows here and on the Path are the same steps by id, so a level played in
+   * either is the same item in Progress. */
   function quizRows(rows) {
     return rows.map((r) => ({ ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true }));
   }
 
+  /* Settings, as a folder of groups; a group opens the settings page with
+   * its rows only. */
+  function settingsFolder() {
+    return CAT.folder('Settings', SET.GROUPS.map((g) => ({
+      label: g.label, value: CAT.FOLDER, key: g.key, settingsGroup: g.key,
+    })), 'settings');
+  }
+
+  /*
+   * The top of the list, the same in Piano Practice and Drums Practice:
+   *
+   *   Continue   the next step, or a review that is due
+   *   Path       the stages, then Review while anything is due
+   *   Practice   the free library: scales, chords, progressions, random, songs
+   *   Quiz       Ear, Reading, Keys
+   *   Progress
+   *   Settings
+   */
   function rebuildMenu() {
-    /* The guesser is a mode, not an exercise, but putting it in the one list you
-     * already open means no new screen and no new gesture — and which entry you
-     * pick is also how you choose notes or chords. */
     const quizFolders = [
-      hearFolder(),
-      CAT.folder('Play', quizRows(QUIZ_PLAY), 'play'),
-      CAT.folder('Name', quizRows(QUIZ_NAME), 'name'),
-      readFolder(),
+      PLAN.hearMenu(),
+      PLAN.readMenu(quizRows(QUIZ_READ)),
+      CAT.folder('Keys', quizRows(QUIZ_KEYS), 'keys'),
     ];
     catalog = CAT.buildCatalog({
       songs: fileSongs,
       categories: fileCategories,
       gen: generatorOptions(),
-      /* The guided way in leads; the quiz sits straight after Basics. */
-      lead: [PLAN.programFolder(phases, repetitionRows)],
+      lead: [{ label: 'Continue', value: '', continueRow: true }, PLAN.programFolder(phases, repetitionRows)],
       after: [CAT.folder('Quiz', quizFolders, 'quiz')],
-      tail: [{ label: 'Progress', progress: true, value: '~' }],
+      tail: [{ label: 'Progress', progress: true, value: '~' }, settingsFolder()],
     });
     nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
     const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN });
@@ -577,7 +608,23 @@ export function createSession(fx, opts = {}) {
     programTree = { children: [pinned] };
   }
 
-  /* A program step's row: generated ones from the pinned Basics. */
+  /* Where a top-level row sits, by its key. */
+  function topIndex(key) {
+    return catalog.children.findIndex((r) => r.key === key || (key === 'continue' && r.continueRow));
+  }
+
+  /* The list at the top, the cursor on a top-level row, and into it if it is
+   * a folder: how the sheet reaches Settings, and the welcome the Path. */
+  function goTop(key, enter) {
+    nav = CAT.navStart(catalog);
+    nav[0].cursor = Math.max(0, topIndex(key));
+    if (enter) CAT.navPush(nav);
+    view = MENU;
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* A program step's row: generated ones from the pinned Practice. */
   function findProgramLeaf(id) {
     if (programTree && id.indexOf('basics/') === 0) {
       const hit = CAT.findById(programTree, id);
@@ -670,7 +717,7 @@ export function createSession(fx, opts = {}) {
     });
     saveProgress();
     lastResult.passed = res.passed;
-    lastResult.footer = resultFooter();
+    lastResult.twoNext = twoNext();
     const assumed = checkCompleted();
 
     allNotesOff();
@@ -698,11 +745,9 @@ export function createSession(fx, opts = {}) {
    * stage 2, the next thing is stage 2 of the same piece; Shift moves on with
    * stage 1 counted as enough. Otherwise it is the program's next step.
    */
-  function resultFooter() {
+  function twoNext() {
     const it = PROG.item(progress, currentItemId());
-    const twoNext = it && PROG.stagePassed(it, 1) && !PROG.isFinished(it);
-    if (twoNext) return 'CLICK S2  SHIFT next';
-    return lastResult.kind === 'quiz' ? 'PLAY again CLICK next' : 'REC again  CLICK next';
+    return Boolean(it && PROG.stagePassed(it, 1) && !PROG.isFinished(it));
   }
 
   /* The key a quiz asks in: a program step's own, or the settings'. */
@@ -755,6 +800,7 @@ export function createSession(fx, opts = {}) {
       announce('Note guesser. Play ' + promptName() + '.');
     }
     autoInfo({ id: quizId(spec) });
+    showTip(TIPS.QUIZ);
   }
 
   /*
@@ -816,10 +862,10 @@ export function createSession(fx, opts = {}) {
   }
 
   /*
-   * The check just played through is complete: every check step passed at
-   * stage 2. Continue now starts at the next phase. Passing the same steps in
-   * ordinary practice moves the learner on too (currentPhase), but only the
-   * check skips the rest of the phase, because only the check asked to.
+   * The checkpoint just played through is complete: every check step passed
+   * at stage 2. Continue now starts at the next stage. Passing the same steps
+   * in ordinary practice moves the learner on too (currentPhase), but only
+   * the checkpoint skips the rest of the stage, because only it asked to.
    */
   function checkCompleted() {
     if (!checkPhase || !PLAN.checkPassed(progress, checkPhase)) return '';
@@ -829,7 +875,7 @@ export function createSession(fx, opts = {}) {
       PROG.setProgramStart(progress, Math.min(done.index + 1, phases.length - 1));
       saveProgress();
     }
-    return ' Phase ' + done.n + ' assumed.';
+    return ' Checkpoint ' + done.n + ' passed. The path moves on.';
   }
 
   /*
@@ -854,24 +900,24 @@ export function createSession(fx, opts = {}) {
       openProgress();
       return;
     }
+    if (row.settingsGroup) {
+      openSettings(row.settingsGroup);
+      return;
+    }
     checkPhase = null;
     if (row.continueRow) {
       openContinue();
       return;
     }
-    if (row.skipRow) {
-      skipContinue();
-      return;
-    }
-    if (row.checkRow) {
-      openCheck(row.phase);
-      return;
-    }
-    if (row.startRow) {
-      startHere(row.phase);
-      return;
-    }
     if (row.step) {
+      /* A row of a Checkpoint folder is the exam: at S2, and on to the next
+       * check step from its result. */
+      const exam = CAT.navTop(nav).node.checkpoint;
+      if (exam) {
+        checkPhase = exam;
+        openStep(row.step, null, 2);
+        return;
+      }
       openStep(row.step, openUnit());
       return;
     }
@@ -893,11 +939,6 @@ export function createSession(fx, opts = {}) {
     return null;
   }
 
-  /*
-   * What Continue opens: every fourth time a review, when one is due, so a
-   * sitting of new work still brings old work back; otherwise the program's
-   * next step.
-   */
   /* The program's next step, worked out once per change of progress: the list
    * asks for it on every row it draws. */
   let nextCache = { progress: null, phases: null, rev: -1, value: null };
@@ -910,18 +951,24 @@ export function createSession(fx, opts = {}) {
     return nextCache.value;
   }
 
+  /*
+   * What Continue opens: when a review is due, one review and then one new
+   * step, in turn, so a sitting of new work still brings old work back. With
+   * nothing new left, only reviews; with nothing due, only new steps.
+   */
   function continueTarget() {
-    if (continueTurns % 4 === 3) {
+    const next = continueNext();
+    if (reviewNext || !next) {
       const due = repetitionRows().find((r) => !r.done);
       if (due) return { review: due.repId };
     }
-    return continueNext();
+    return next;
   }
 
   function openContinue() {
     const next = continueTarget();
     if (!next) return;
-    continueTurns++;
+    reviewNext = !next.review;
     if (next.review) {
       armedUnit = null;
       openItem(next.review);
@@ -934,20 +981,20 @@ export function createSession(fx, opts = {}) {
   function openStep(step, unit, forceStage) {
     armedUnit = unit || PLAN.unitOf(phases, step.id);
     if (step.quiz) {
-      startQuiz({ ...step.quiz, pinned: true, gen: PLAN.PROGRAM_GEN });
+      startQuiz({ ...step.quiz, pinned: true, gen: PLAN.PROGRAM_GEN, label: PLAN.stepTitle(step) });
       return;
     }
     const node = findProgramLeaf(step.id);
     if (node) armLeaf(node, forceStage);
   }
 
-  /* Check: skip phase. Its steps one after another at stage 2; the ones
+  /* Test out: checkpoint. Its steps one after another at stage 2; the ones
    * already passed there count without being played again. */
   function openCheck(phase) {
     checkPhase = phase;
     const step = PLAN.nextCheckStep(progress, phases, phase);
     if (!step) {
-      announce('Check passed.' + checkCompleted());
+      announce('Checkpoint passed.' + checkCompleted());
       dirty = true;
       return;
     }
@@ -957,7 +1004,7 @@ export function createSession(fx, opts = {}) {
   function startHere(phase) {
     PROG.setProgramStart(progress, phase.index);
     saveProgress();
-    announce('Continue starts at phase ' + phase.n + '.' + (phase.index ? ' The phases before it count as assumed.' : ''));
+    announce('The path starts at stage ' + phase.n + '.' + (phase.index ? ' The stages before it count as assumed.' : ''));
     dirty = true;
   }
 
@@ -966,7 +1013,7 @@ export function createSession(fx, opts = {}) {
     const inProgram = Boolean(PLAN.findStep(phases, id));
     if (id.indexOf('quiz:') === 0) {
       const spec = PLAN.quizFromId(id);
-      if (spec) startQuiz({ ...spec, pinned: true, gen: inProgram ? PLAN.PROGRAM_GEN : null });
+      if (spec) startQuiz({ ...spec, pinned: true, gen: inProgram ? PLAN.PROGRAM_GEN : null, label: itemTitle(id) });
       return;
     }
     const node = inProgram ? findProgramLeaf(id) : findLeaf(id);
@@ -988,6 +1035,7 @@ export function createSession(fx, opts = {}) {
     dirty = true;
     ledDirty = true;
     autoInfo({ id: armedId, label: chart.name });
+    showTip(TIPS.PRACTICE);
   }
 
   /*
@@ -1255,7 +1303,7 @@ export function createSession(fx, opts = {}) {
       /* In time, early, late, and whether the run rushed or dragged. */
       timing: SCORE.timingSummary(run),
     };
-    lastResult.footer = resultFooter();
+    lastResult.twoNext = twoNext();
     armRun();
     view = RESULT_VIEW;
     dirty = true;
@@ -1526,28 +1574,21 @@ export function createSession(fx, opts = {}) {
    * get better at something.
    */
   function decorateRow(row) {
+    /* Continue names what it opens; the renderer fits the name into what
+     * the label leaves (`fit`), since a step's title is longer than a row. */
     if (row.continueRow) {
       const next = continueTarget();
-      if (!next) return { label: 'Continue: all done', value: '', mark: PROG.MARK_DONE };
-      const id = next.review || next.step.id;
+      if (!next) return { label: 'Continue', value: 'all done', mark: PROG.MARK_DONE };
+      return next.review
+        ? { label: 'Review', value: itemTitle(next.review), fit: true }
+        : { label: 'Continue', value: PLAN.stepTitle(next.step), fit: true };
+    }
+    if (row.checkpoint) {
+      const passed = row.checkpoint.check.filter((id) => PROG.stagePassed(PROG.item(progress, id), 2)).length;
       return {
-        label: next.review ? 'Review: ' + itemTitle(id) : 'Next: ' + PLAN.stepTitle(next.step),
-        value: 'S' + PROG.recommendedStage(PROG.item(progress, id)),
-        mark: 'next',
+        value: passed + '/' + row.checkpoint.check.length + ' >',
+        mark: PLAN.checkPassed(progress, row.checkpoint) ? PROG.MARK_DONE : null,
       };
-    }
-    if (row.checkRow) {
-      const passed = row.phase.check.filter((id) => PROG.stagePassed(PROG.item(progress, id), 2)).length;
-      return { value: passed + '/' + row.phase.check.length };
-    }
-    if (row.startRow) {
-      return PLAN.startIndex(progress, phases) === row.phase.index ? { value: 'start', mark: 'next' } : { value: '' };
-    }
-    if (row.skipRow) {
-      const next = continueNext();
-      if (!next) return { label: 'Skip: nothing left', value: '' };
-      const it = PROG.item(progress, next.step.id);
-      return { label: (PROG.stagePassed(it, 1) ? 'Move on: ' : 'Skip: ') + PLAN.stepTitle(next.step), value: '' };
     }
     if (row.key === 'repetition') {
       const due = PROG.dueCount(repetitionRows().map((r) => ({ done: r.done })));
@@ -1582,7 +1623,7 @@ export function createSession(fx, opts = {}) {
 
   /* A phase or unit folder of the program: where you are, or skipped past. */
   function programMark(row) {
-    if (row.phase && !row.checkRow) {
+    if (row.phase) {
       if (PLAN.isAssumed(progress, phases, row.phase)) return PROG.MARK_ASSUMED;
       const cur = PLAN.currentPhase(progress, phases);
       return cur === row.phase ? 'next' : null;
@@ -1593,19 +1634,20 @@ export function createSession(fx, opts = {}) {
     }
     return null;
   }
-  /* ---- Info -------------------------------------------------------------------- */
+  /* ---- Help (MENU) -------------------------------------------------------------- */
   /*
-   * Menu explains whatever is in front of you: the highlighted row of the list,
-   * the armed exercise, the drill under way, a result. Opening it pauses what
-   * is running — the scroll, the round's clock — so reading costs nothing.
+   * Menu is help for whatever is in front of you: the highlighted row of the
+   * list, the armed exercise, the drill under way, a result, the sheet, a
+   * card. Every page ends with the keys of the screen it was opened from,
+   * from the same table as the hint line. Opening it pauses what is running —
+   * the scroll, the round's clock — so reading costs nothing.
    */
   function infoTarget() {
     if (view === MENU) {
       const row = CAT.navCurrent(nav) || CAT.navTop(nav).node;
       if (row.continueRow) return { kind: 'continue' };
-      if (row.skipRow) return { kind: 'skip' };
-      if (row.checkRow) return { kind: 'check', id: 'program/' + row.phase.key };
-      if (row.startRow) return { kind: 'start', id: 'program/' + row.phase.key };
+      if (row.checkpoint) return { kind: 'checkpoint', id: 'program/' + row.checkpoint.key };
+      if (row.settingsGroup) return { kind: 'settings', group: row.settingsGroup };
       if (row.step) {
         const ex = PLAN.exerciseOf(phases, row.step.id);
         if (ex) return { id: row.id, label: row.label, about: ex.about, why: ex.why, exercise: ex.label };
@@ -1614,52 +1656,75 @@ export function createSession(fx, opts = {}) {
       return { id: row.repId || row.id, label: row.label };
     }
     if (view === READY || view === RUNNING) return { id: armedId, label: chart ? chart.name : '' };
-    if (view === GUESS_VIEW && quizSpec) return { id: quizId(quizSpec) };
+    if (view === GUESS_VIEW && quizSpec) return { id: quizId(quizSpec), label: quizSpec.label };
     if (view === RESULT_VIEW) return { kind: 'result' };
     if (view === PROGRESS_VIEW || view === PROGRESS_DETAIL) return { kind: 'progress' };
+    if (view === SETTINGS) return { kind: 'settings', group: settingsGroup };
+    if (view === SHEET_VIEW) return { kind: 'sheet', label: sheet ? sheet.title : '' };
+    if (view === CARD_VIEW) return { kind: card && card.kind === 'welcome' ? 'welcome' : 'tip' };
     return null;
   }
 
-  function openInfo(target) {
-    const pageInfo = INFO.infoFor(target, infoEnv);
-    if (!pageInfo) return false;
+  /* What the screen in front of you is called, for a row with no page of its
+   * own: its help is still its keys. */
+  function screenTitle() {
+    if (view === MENU) {
+      const row = CAT.navCurrent(nav);
+      return row ? row.label : CAT.navTop(nav).node.label;
+    }
+    return chart ? chart.name : 'Help';
+  }
+
+  /* A page left for another over it: the quiz's prompt stops, and its clock
+   * is put back by the time spent away (returnTo). */
+  function leaveView() {
     if (view === RUNNING && !paused) togglePause();
     if (view === GUESS_VIEW) {
-      /* Silence the prompt: it is played again on the way back. */
       stopPrompt();
-      infoOpenedAt = now();
+      awayAt = now();
     }
+  }
+
+  function returnTo(back) {
+    view = back;
+    if (view === GUESS_VIEW && quiz) {
+      /* The time spent reading is not part of the round. */
+      const away = now() - awayAt;
+      if (quiz.startedAt !== null && quiz.finishedAt === null) quiz.startedAt += away;
+      if (quizSolvedAt) quizSolvedAt += away;
+      if ((quizHear || quiz.kind === GUESS.EAR) && !readingCourse() && !quiz.solved) hearPrompt();
+    }
+    dirty = true;
+    ledDirty = true;
+  }
+
+  function openInfo(target) {
+    const screen = HINTS.screenHelp(view, hintState());
+    const pageInfo = INFO.infoFor(target, infoEnv) || INFO.screenPage(screenTitle());
+    leaveView();
     /* The words, not the lines: wrapping is the renderer's, and a 128px panel
      * and a browser window wrap the same paragraphs very differently. */
     info = {
       title: pageInfo.title,
-      paragraphs: INFO.infoParagraphs(pageInfo),
+      paragraphs: INFO.infoParagraphs(INFO.withScreen(pageInfo, screen)),
       back: view,
     };
-    if (!PROG.infoSeen(progress, pageInfo.key)) {
+    if (pageInfo.key && !PROG.infoSeen(progress, pageInfo.key)) {
       PROG.markInfoSeen(progress, pageInfo.key, wallNow());
       saveProgress();
     }
     view = INFO_VIEW;
     dirty = true;
     ledDirty = true;
-    announce(pageInfo.title + '. Info.');
+    announce(pageInfo.title + '. Help.');
     return true;
   }
 
   function closeInfo() {
     if (!info) return;
-    view = info.back;
-    if (view === GUESS_VIEW && quiz) {
-      /* The time spent reading is not part of the round. */
-      const away = now() - infoOpenedAt;
-      if (quiz.startedAt !== null && quiz.finishedAt === null) quiz.startedAt += away;
-      if (quizSolvedAt) quizSolvedAt += away;
-      if ((quizHear || quiz.kind === GUESS.EAR) && !readingCourse() && !quiz.solved) hearPrompt();
-    }
+    const back = info.back;
     info = null;
-    dirty = true;
-    ledDirty = true;
+    returnTo(back);
   }
 
   /* The first time a kind of practice is opened, its Info page comes first. */
@@ -1678,7 +1743,7 @@ export function createSession(fx, opts = {}) {
   function openProgress() {
     const rows = [{ label: 'Overall', overview: 'all' }];
     for (let i = 0; i < phases.length; i++) {
-      rows.push({ label: 'Phase ' + phases[i].n, overview: phases[i].key, phase: phases[i] });
+      rows.push({ label: 'Stage ' + phases[i].n, overview: phases[i].key, phase: phases[i] });
     }
     const recent = PROG.recentIds(progress).slice(0, PROGRESS_RECENT);
     for (let i = 0; i < recent.length; i++) rows.push({ label: itemTitle(recent[i]), itemId: recent[i] });
@@ -1711,7 +1776,7 @@ export function createSession(fx, opts = {}) {
       const sum = PROG.summariseIds(progress, ids);
       return {
         kind: 'overview',
-        title: row.overview === 'all' ? 'Overall' : 'Phase ' + row.phase.n + ' ' + row.phase.name,
+        title: row.overview === 'all' ? 'Overall' : 'Stage ' + row.phase.n + ' ' + row.phase.name,
         percent: sum.percent, done: sum.done, half: sum.half, count: sum.count,
         timeline: PROG.passTimeline(progress, ids, plotW, plotH, wallNow()),
         index, total,
@@ -1739,8 +1804,66 @@ export function createSession(fx, opts = {}) {
     };
   }
 
+  /* ---- Settings ---------------------------------------------------------------- */
+  /*
+   * The rows of the settings page: the open group's, or every setting when
+   * it was opened from a piece. A row is a setting ({ index } into
+   * settings_def), the path's start, or an action (Help's two).
+   */
   function settingsRows() {
-    return SET.settingsRows(settings);
+    return SET.groupRows(settingsGroup, settings, { start: PLAN.startIndex(progress, phases) + 1 });
+  }
+
+  function openSettings(group) {
+    settingsGroup = group || null;
+    settingsCursor = 0;
+    settingsEditing = false;
+    view = SETTINGS;
+    dirty = true;
+    ledDirty = true;
+    const g = SET.groupByKey(settingsGroup);
+    announce((g ? g.label : 'Settings') + '.');
+  }
+
+  function closeSettings() {
+    settingsEditing = false;
+    view = settingsGroup ? MENU : (chart ? READY : MENU);
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* A row of the page changed by the jog or a knob. */
+  function editRow(row, delta) {
+    const r = settingsRows()[row];
+    if (!r || !delta) return;
+    if (r.index !== undefined) {
+      editSetting(r.index, delta);
+      return;
+    }
+    if (r.edit === 'start') {
+      const at = clamp(PLAN.startIndex(progress, phases) + (delta > 0 ? 1 : -1), 0, phases.length - 1);
+      if (at !== PLAN.startIndex(progress, phases)) startHere(phases[at]);
+      ledDirty = true;
+    }
+  }
+
+  /* Click on a row of the page: an action runs, anything else is edited. */
+  function clickRow(row) {
+    const r = settingsRows()[row];
+    if (!r) return;
+    if (!r.act) {
+      settingsEditing = !settingsEditing;
+      dirty = true;
+      return;
+    }
+    if (r.act === 'tips') {
+      PROG.clearTips(progress);
+      saveProgress();
+      announce('Tips will show again.');
+    } else if (r.act === 'welcome') {
+      openWelcome(SETTINGS);
+    }
+    dirty = true;
   }
 
   function editSetting(index, delta) {
@@ -1792,6 +1915,247 @@ export function createSession(fx, opts = {}) {
     ledDirty = true;
     dirty = true;
   }
+  /* ---- The options sheet ----------------------------------------------------- */
+  /*
+   * Shift + jog-click on a row: what can be done with it besides opening it
+   * (row_sheet.mjs). Drawn as a short list under the row's name; CLICK runs
+   * an option and closes the sheet, BACK closes it.
+   */
+  const sheetLook = {
+    settled: (id) => {
+      const it = PROG.item(progress, id);
+      return PROG.isFinished(it) || Boolean(it && it.skip);
+    },
+    skipped: (id) => PROG.isSkipped(PROG.item(progress, id)),
+    continueSkippable: () => {
+      const next = continueTarget();
+      return Boolean(next && !next.review);
+    },
+  };
+
+  function openSheet() {
+    const row = CAT.navCurrent(nav);
+    if (!row) return;
+    const deco = decorateRow(row);
+    sheet = {
+      title: deco && deco.label ? deco.label : row.label,
+      items: SHEET.sheetFor(row, sheetLook),
+      cursor: 0,
+      row,
+    };
+    view = SHEET_VIEW;
+    dirty = true;
+    ledDirty = true;
+    announce(sheet.title + '. Options: ' + sheet.items.map((it) => it.label).join(', ') + '.');
+    showTip(TIPS.SHEET);
+  }
+
+  function closeSheet() {
+    sheet = null;
+    view = MENU;
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* Every step a sheet's row stands for: the step, or what a folder holds. */
+  function sheetSteps(row) {
+    return row.step ? [row.step] : PLAN.stepsUnder(row);
+  }
+
+  function runSheet(index) {
+    if (!sheet) return;
+    const pick = sheet.items[index];
+    if (!pick) return;
+    const row = sheet.row;
+    closeSheet();
+    switch (pick.act) {
+      case SHEET.SKIP:
+        if (row.continueRow) {
+          skipContinue();
+        } else {
+          passOver(row.step.id);
+          announce('Skipped.');
+        }
+        break;
+      case SHEET.SKIP_ALL: {
+        const open = sheetSteps(row).filter((st) => !sheetLook.settled(st.id));
+        for (const st of open) {
+          if (!PROG.moveOn(progress, st.id, wallNow())) PROG.skipItem(progress, st.id, wallNow());
+        }
+        saveProgress();
+        announce('Skipped ' + open.length + (open.length === 1 ? ' step.' : ' steps.'));
+        break;
+      }
+      case SHEET.UNDO: {
+        let n = 0;
+        for (const st of sheetSteps(row)) if (PROG.unskipItem(progress, st.id)) n++;
+        saveProgress();
+        announce(n === 1 ? 'Skip undone.' : n + ' skips undone.');
+        break;
+      }
+      case SHEET.START:
+        startHere(row.phase);
+        break;
+      case SHEET.TEST_OUT:
+        checkPhase = null;
+        openCheck(row.phase);
+        break;
+      case SHEET.SETTINGS:
+        goTop('settings', true);
+        announce('Settings.');
+        break;
+      default:
+        break;
+    }
+    dirty = true;
+  }
+
+  /* ---- Cards: the welcome and the tips --------------------------------------- */
+  /*
+   * A card sits over the screen it was opened on and goes back to it. A tip
+   * is shown once, the first time its kind of screen appears (tips.mjs), and
+   * recorded in the progress; the welcome runs on the first launch of
+   * somebody who has played nothing yet.
+   */
+  function openCard(kind, pages) {
+    leaveView();
+    card = { kind, pages, page: 0, choice: 0, back: view };
+    view = CARD_VIEW;
+    dirty = true;
+    ledDirty = true;
+    const p = pages[0];
+    announce(p.title + '. ' + p.paragraphs.map((x) => x.text).join(' '));
+  }
+
+  function showTip(key) {
+    if (PROG.tipSeen(progress, key)) return;
+    const page = TIPS.tipCard(key);
+    if (!page) return;
+    PROG.markTipSeen(progress, key);
+    saveProgress();
+    openCard('tip', [page]);
+  }
+
+  function openWelcome(back) {
+    openCard('welcome', TIPS.welcomePages('Piano Practice', 'piano', 'note'));
+    if (back) card.back = back;
+  }
+
+  function closeCard() {
+    if (!card) return;
+    const done = card;
+    card = null;
+    if (done.kind === 'welcome') {
+      PROG.markTipSeen(progress, TIPS.WELCOME);
+      saveProgress();
+      goTop('continue', false);
+      return;
+    }
+    returnTo(done.back);
+  }
+
+  function cardPage(delta) {
+    const p = card.pages[card.page];
+    if (p.choices) {
+      card.choice = clamp(card.choice + (delta > 0 ? 1 : -1), 0, p.choices.length - 1);
+      announce(p.choices[card.choice] + '.');
+    } else {
+      const to = clamp(card.page + (delta > 0 ? 1 : -1), 0, card.pages.length - 1);
+      if (to === card.page) return;
+      card.page = to;
+      const q = card.pages[to];
+      announce(q.title + '. ' + (q.choices ? q.choices.join(' or ') : q.paragraphs.map((x) => x.text).join(' ')));
+    }
+    dirty = true;
+  }
+
+  /* CLICK on a card: the next page, or the end of it. On the welcome's last
+   * page it answers its question. */
+  function cardOn(choice) {
+    const p = card.pages[card.page];
+    if (!p.choices && card.page < card.pages.length - 1) {
+      cardPage(1);
+      return;
+    }
+    if (p.choices && card.kind === 'welcome') {
+      placement(choice === undefined ? card.choice : choice);
+      return;
+    }
+    closeCard();
+  }
+
+  /* The welcome's answer. From the start: the path from stage 1, the cursor
+   * on Continue. Already playing: the Path, and how to test out of a stage. */
+  function placement(choice) {
+    card = null;
+    PROG.markTipSeen(progress, TIPS.WELCOME);
+    if (choice === TIPS.ALREADY_PLAY) {
+      saveProgress();
+      goTop('program', true);
+      announce('Path.');
+      showTip(TIPS.PLACEMENT);
+      return;
+    }
+    PROG.setProgramStart(progress, 0);
+    saveProgress();
+    goTop('continue', false);
+    announce('Continue opens your first step.');
+  }
+
+  /* At start-up: the welcome for somebody new; an existing learner is
+   * marked as welcomed without being shown it. */
+  function welcomeAtStart() {
+    const due = TIPS.welcomeDue(PROG.tipSeen(progress, TIPS.WELCOME),
+      PROG.hasHistory(progress) || stats.records.length > 0);
+    if (due === 'silent') {
+      PROG.markTipSeen(progress, TIPS.WELCOME);
+      saveProgress();
+    } else if (due === 'show') {
+      openWelcome(MENU);
+    }
+  }
+
+  /* ---- The hint line ----------------------------------------------------------- */
+  /* What hints.mjs needs to know about the screen beyond its name. */
+  function hintState(extra = {}) {
+    const st = { ...extra };
+    if (view === MENU) st.top = nav.length <= 1;
+    if (view === READY) {
+      st.stages = Boolean(armedId);
+      st.stage = stage;
+    }
+    if (view === RUNNING) {
+      st.listening = listening;
+      st.paused = paused;
+    }
+    if (view === RESULT_VIEW && lastResult) {
+      st.quiz = lastResult.kind === 'quiz';
+      st.twoNext = Boolean(lastResult.twoNext);
+    }
+    if (view === GUESS_VIEW && quiz) {
+      st.ear = quiz.kind === GUESS.EAR;
+      st.pick = quizPick;
+      st.hintsLeft = GUESS.hintsLeft(quiz) > 0;
+      st.streak = GUESS.quizStats(quiz).streak;
+    }
+    if (view === SETTINGS) {
+      const r = settingsRows()[settingsCursor];
+      st.editing = settingsEditing;
+      st.action = Boolean(r && r.act);
+    }
+    if (view === CARD_VIEW && card) {
+      st.pages = card.pages.length;
+      st.choice = Boolean(card.pages[card.page].choices);
+    }
+    return st;
+  }
+
+  /* The footer's parts for this screen; `opts.shift` while Shift is held,
+   * `opts.scrolls` when the renderer's help page is longer than the panel. */
+  function hint(opts = {}) {
+    return HINTS.hintFor(view, hintState(opts));
+  }
+
   /* ---- Input ------------------------------------------------------------ */
   /*
    * An answer given on its own pad (the Hear drills' answer bar). Nothing
@@ -1888,9 +2252,18 @@ export function createSession(fx, opts = {}) {
       return;
     }
     if (view === SETTINGS) {
-      if (settingsEditing) editSetting(settingsCursor, delta);
+      if (settingsEditing) editRow(settingsCursor, delta);
       else settingsCursor = clamp(settingsCursor + delta, 0, settingsRows().length - 1);
       dirty = true;
+      return;
+    }
+    if (view === SHEET_VIEW && sheet) {
+      sheet.cursor = clamp(sheet.cursor + (delta > 0 ? 1 : -1), 0, sheet.items.length - 1);
+      dirty = true;
+      return;
+    }
+    if (view === CARD_VIEW && card) {
+      cardPage(delta);
       return;
     }
     /* A nudge mid-exercise used to drop straight back to the menu and abandon the
@@ -1938,10 +2311,19 @@ export function createSession(fx, opts = {}) {
     ledDirty = true;
   }
   /* The jog's click, or Enter: open, choose, confirm. Shift is the "move on"
-   * modifier on a result, and settings from the list. */
+   * modifier on a result, the row's options in the list, and settings from a
+   * piece. */
   function activate(shiftHeld) {
     if (view === INFO_VIEW) {
       closeInfo();
+      return;
+    }
+    if (view === CARD_VIEW && card) {
+      cardOn();
+      return;
+    }
+    if (view === SHEET_VIEW) {
+      runSheet(sheet ? sheet.cursor : -1);
       return;
     }
     if (view === GUESS_VIEW && quizPick && quiz && !shiftHeld) {
@@ -1954,24 +2336,25 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
-    switch (CTRL.jogClickAction(view, shiftHeld, Boolean(chart))) {
+    switch (CTRL.jogClickAction(view, shiftHeld)) {
       case 'next':
         goNext();
         break;
       case 'skip':
         skipFromResult();
         break;
+      case 'sheet':
+        openSheet();
+        return;
       case 'settings':
-        view = SETTINGS;
-        settingsEditing = false;
-        break;
-      case 'ready':
-        view = READY;
-        settingsEditing = false;
-        break;
+        openSettings(null);
+        return;
+      case 'close-settings':
+        closeSettings();
+        return;
       case 'toggle-edit':
-        settingsEditing = !settingsEditing;
-        break;
+        clickRow(settingsCursor);
+        return;
       case 'open':
         openRow();
         break;
@@ -1988,7 +2371,7 @@ export function createSession(fx, opts = {}) {
    * Play and Record start things; on an Info page nothing is to be started.
    */
   function playButton() {
-    if (view === INFO_VIEW) return;
+    if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
     if (view === RESULT_VIEW) {
       if (lastResult.kind === 'quiz') startQuiz(quizSpec);
       else startRun(true);
@@ -2008,7 +2391,7 @@ export function createSession(fx, opts = {}) {
   }
 
   function recordButton() {
-    if (view === INFO_VIEW) return;
+    if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
     if (view === RESULT_VIEW) {
       if (lastResult.kind === 'quiz') startQuiz(quizSpec);
       else startRun(false);
@@ -2024,21 +2407,14 @@ export function createSession(fx, opts = {}) {
     return;
   }
 
-  /* Menu is Info: what the thing in front of you is, and its words. Press it
-   * again to go back. From Settings it still leaves for the list. */
+  /* Menu is help, on every screen: what the thing in front of you is, its
+   * words, and its keys. Press it again to go back. */
   function menuButton() {
     if (view === INFO_VIEW) {
       closeInfo();
       return;
     }
-    if (view === SETTINGS) {
-      view = MENU;
-      settingsEditing = false;
-      dirty = true;
-      return;
-    }
     openInfo(infoTarget());
-    return;
   }
 
   /*
@@ -2050,9 +2426,21 @@ export function createSession(fx, opts = {}) {
       closeInfo();
       return;
     }
+    if (view === CARD_VIEW) {
+      closeCard();
+      return;
+    }
+    if (view === SHEET_VIEW) {
+      closeSheet();
+      return;
+    }
     if (view === SETTINGS) {
-      view = chart ? READY : MENU;
-      dirty = true;
+      if (settingsEditing) {
+        settingsEditing = false;
+        dirty = true;
+        return;
+      }
+      closeSettings();
       return;
     }
     if (view === RUNNING) {
@@ -2112,7 +2500,11 @@ export function createSession(fx, opts = {}) {
     armedId = null;
     armedUnit = null;
     checkPhase = null;
-    continueTurns = 0;
+    reviewNext = true;
+    sheet = null;
+    card = null;
+    settingsGroup = null;
+    awayAt = 0;
     stage = 1;
     runFromTop = false;
     settingsCursor = 0;
@@ -2141,6 +2533,7 @@ export function createSession(fx, opts = {}) {
     buildTracks();
     PROG.resetShape(agg);
     rebuildMenu();
+    welcomeAtStart();
     ledDirty = true;
     dirty = true;
   }
@@ -2240,9 +2633,29 @@ export function createSession(fx, opts = {}) {
 
   /* Moves the cursor only; whoever moved it decides whether that alone is
    * worth a redraw (a knob's edit redraws anyway, a touch does not). */
-  function selectSetting(row) {
-    if (row < 0 || row >= SET.SETTINGS_COUNT) return;
-    settingsCursor = row;
+  function selectSetting(index) {
+    const at = settingsRows().findIndex((r) => r.index === index);
+    if (at >= 0) settingsCursor = at;
+  }
+
+  /* The same by the row's place on the page, for a row that is not a setting. */
+  function selectSettingRow(row) {
+    if (row >= 0 && row < settingsRows().length) settingsCursor = row;
+  }
+
+  /* Pointing at an option of the sheet, or at the welcome's answer. */
+  function pickSheet(index) {
+    if (view !== SHEET_VIEW || !sheet || index < 0 || index >= sheet.items.length) return;
+    sheet.cursor = index;
+    runSheet(index);
+  }
+
+  function pickCard(index) {
+    if (view !== CARD_VIEW || !card) return;
+    const p = card.pages[card.page];
+    if (!p.choices || index < 0 || index >= p.choices.length) return;
+    card.choice = index;
+    cardOn(index);
   }
 
   return {
@@ -2265,7 +2678,14 @@ export function createSession(fx, opts = {}) {
     scrubAllowed,
     editSetting,
     selectSetting,
+    selectSettingRow,
+    editRow,
     selectRow,
+    openSheet,
+    pickSheet,
+    pickCard,
+    openSettingsFolder: () => goTop('settings', true),
+    hint,
     selectProgress,
     settingsRows,
     decorateRow,
@@ -2304,6 +2724,9 @@ export function createSession(fx, opts = {}) {
     get quizPick() { return quizPick; },
     get quizHear() { return quizHear; },
     get info() { return info; },
+    get sheet() { return sheet; },
+    get card() { return card; },
+    get settingsGroup() { return settingsGroup; },
     get lastResult() { return lastResult; },
     get progressRows() { return progressRows; },
     get progressCursor() { return progressCursor; },

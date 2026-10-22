@@ -117,7 +117,7 @@ test('a comparison is two parts, a fixed root written as one note', () => {
 test('a reading quiz plays nothing until asked; PLAY is help and counted', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Read', 'Identify intervals', '1 2nds', 'up']);
+  openPath(h.session, ['Quiz', 'Reading', 'Identify intervals', '1 2nds', 'up']);
   assert.equal(h.session.view, GUESS_VIEW);
   h.run(1500);
   assert.equal(h.log.filter((e) => e[0] === 'strike').length, 0, 'silent: the staff is the question');
@@ -130,7 +130,7 @@ test('a reading quiz plays nothing until asked; PLAY is help and counted', () =>
 test('a right answer sounds what was read, and counts', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Read', 'Identify scales', '1 Minor and major', 'up']);
+  openPath(h.session, ['Quiz', 'Reading', 'Identify scales', '1 Minor and major', 'up']);
   const q = h.session.quiz;
   const right = q.choices.findIndex((c) => c.key === q.entry.answer);
   const before = h.log.length;

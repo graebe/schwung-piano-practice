@@ -149,19 +149,19 @@ test('an empty list is inert', () => {
 
 /* ---- Jog click ---------------------------------------------------------- */
 
-test('shift-click reaches settings and comes back', () => {
-  assert.equal(jogClickAction(READY, true, true), 'settings');
-  assert.equal(jogClickAction(MENU, true, false), 'settings');
-  assert.equal(jogClickAction(SETTINGS, true, true), 'ready');
-  assert.equal(jogClickAction(SETTINGS, true, false), 'menu', 'nothing armed, so go to the list');
+test('shift-click: the options in the list, settings on a piece, and back out', () => {
+  assert.equal(jogClickAction(READY, true), 'settings');
+  assert.equal(jogClickAction(RUNNING, true), 'settings');
+  assert.equal(jogClickAction(MENU, true), 'sheet', 'the row\'s options');
+  assert.equal(jogClickAction(SETTINGS, true), 'close-settings');
 });
 
 test('plain click edits in settings, opens in the menu, and lists elsewhere', () => {
-  assert.equal(jogClickAction(SETTINGS, false, true), 'toggle-edit');
-  assert.equal(jogClickAction(MENU, false, true), 'open');
-  assert.equal(jogClickAction(READY, false, true), 'menu');
-  assert.equal(jogClickAction(SUMMARY, false, true), 'next', 'a result offers what comes next');
-  assert.equal(jogClickAction(SUMMARY, true, true), 'skip', 'and Shift goes past it');
+  assert.equal(jogClickAction(SETTINGS, false), 'toggle-edit');
+  assert.equal(jogClickAction(MENU, false), 'open');
+  assert.equal(jogClickAction(READY, false), 'menu');
+  assert.equal(jogClickAction(SUMMARY, false), 'next', 'a result offers what comes next');
+  assert.equal(jogClickAction(SUMMARY, true), 'skip', 'and Shift goes past it');
 });
 
 /* ---- Rebuilding the armed exercise -------------------------------------- */

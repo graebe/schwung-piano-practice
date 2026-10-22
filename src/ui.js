@@ -50,7 +50,9 @@ import * as CAT from './catalog.mjs';
 import {
   createSession, OUT_TRACK, OUT_USB, OUT_INTERNAL,
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
+  SHEET_VIEW, CARD_VIEW,
 } from './session.mjs';
+import { hintPart, ROTATE_MS } from './hints.mjs';
 import { viewModel, encodeViewModel } from './view_model.mjs';
 import { applyAction } from './actions.mjs';
 import { createRemote } from './remote.mjs';
@@ -493,6 +495,42 @@ function infoView() {
   infoScroll = 0;
 }
 
+/* A card's page, the same way: its lines, and how far down it is scrolled. */
+let cardShown = null;
+let cardLines = [];
+let cardScroll = 0;
+
+function cardView() {
+  const card = S.card;
+  const page = card ? card.pages[card.page] : null;
+  if (page === cardShown) return;
+  cardShown = page;
+  cardLines = page && !page.choices ? VIEW.cardLines(ctx, page) : [];
+  cardScroll = 0;
+}
+
+/* Whether the page on screen is longer than the panel. */
+function pageScrolls() {
+  if (S.view === INFO_VIEW) return infoLines.length > L.INFO_ROWS;
+  if (S.view === CARD_VIEW) return cardLines.length > L.INFO_ROWS;
+  return false;
+}
+
+/*
+ * The hint line: the part of this screen's hint showing now, or, while Shift
+ * is held, what Shift does here. Parts that do not fit one row take turns;
+ * the frame loop only has to compare the clock with when the next turn is
+ * due, so nothing is built per tick.
+ */
+let hintTurnAt = Infinity;
+
+function footer() {
+  const parts = S.hint({ shift: shiftHeld, scrolls: pageScrolls() });
+  const t = now();
+  hintTurnAt = parts.length > 1 ? (Math.floor(t / ROTATE_MS) + 1) * ROTATE_MS : Infinity;
+  return hintPart(parts, t);
+}
+
 function draw() {
   const view = S.view;
   const nav = S.nav;
@@ -504,25 +542,47 @@ function draw() {
   if (view === MENU) {
     const top = CAT.navTop(nav);
     VIEW.drawList(ctx, top.node.label.toUpperCase(), top.node.children, top.cursor, {
-      footer: nav.length > 1 ? VIEW.FOLDER_HINT : VIEW.SETTINGS_HINT,
+      footer: footer(),
       centreFooter: true,
       decorate: S.decorateRow,
+    });
+  } else if (view === SHEET_VIEW) {
+    const sheet = S.sheet;
+    VIEW.drawList(ctx, sheet.title.toUpperCase(), sheet.items, sheet.cursor, {
+      footer: footer(),
+      centreFooter: true,
+    });
+  } else if (view === CARD_VIEW) {
+    cardView();
+    const card = S.card;
+    const page = card.pages[card.page];
+    VIEW.drawCard(ctx, {
+      title: page.title,
+      lines: cardLines,
+      scroll: cardScroll,
+      choices: page.choices || null,
+      choice: card.choice,
+      page: card.page,
+      pages: card.pages.length,
+      footer: footer(),
     });
   } else if (view === PROGRESS_VIEW) {
     VIEW.drawList(ctx, 'PROGRESS ' + PROG.folderSummary(S.agg, S.progress, S.catalog).percent + '%',
       S.progressRows, S.progressCursor, {
-        footer: 'CLICK chart BACK list',
+        footer: footer(),
         centreFooter: true,
         decorate: S.decorateRow,
       });
   } else if (view === SETTINGS) {
-    VIEW.drawList(ctx, 'SETTINGS', S.settingsRows(), S.settingsCursor, {
-      footer: S.settingsEditing ? 'turn change  CLICK ok' : 'CLICK edit SHIFT back',
+    const group = SET.groupByKey(S.settingsGroup);
+    VIEW.drawList(ctx, group ? group.label.toUpperCase() : 'SETTINGS', S.settingsRows(), S.settingsCursor, {
+      footer: footer(),
+      centreFooter: true,
       editing: S.settingsEditing,
     });
   } else if (view === RESULT_VIEW) {
-    if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, lastResult);
-    else VIEW.drawResultPage(ctx, lastResult);
+    if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, { ...lastResult, footer: footer() });
+    else VIEW.drawResultPage(ctx, { ...lastResult, footer: footer() });
   } else if (view === PROGRESS_DETAIL) {
     drawProgressDetail();
   } else if (view === INFO_VIEW) {
@@ -531,7 +591,7 @@ function draw() {
       title: S.info.title,
       lines: infoLines,
       scroll: infoScroll,
-      footer: infoLines.length > L.INFO_ROWS ? 'JOG scroll BACK close' : 'BACK close',
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW && S.quizPick && quiz.exercise && quiz.exercise.read) {
     const option = quiz.choices[quiz.choiceIndex];
@@ -545,7 +605,7 @@ function draw() {
       struck: GUESS.isEliminated(quiz, quiz.choiceIndex),
       solved: quiz.solved,
       label: quiz.label,
-      footer: GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok',
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW && S.quizPick) {
     const ear = quiz.kind === GUESS.EAR;
@@ -566,9 +626,7 @@ function draw() {
       index: quiz.choiceIndex,
       eliminated: quiz.eliminated,
       hint: ask,
-      footer: ear
-        ? (GUESS.hintsLeft(quiz) ? 'PAD answer  REC help' : 'PAD or JOG  CLICK ok')
-        : (GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok'),
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW && quiz.read) {
     const st = GUESS.quizStats(quiz);
@@ -584,9 +642,7 @@ function draw() {
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : st.correct + '/' + st.asked,
-      footer: GUESS.hintsLeft(quiz)
-        ? 'streak ' + st.streak + '   REC help'
-        : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
@@ -601,9 +657,7 @@ function draw() {
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : st.correct + '/' + st.asked,
-      footer: GUESS.hintsLeft(quiz)
-        ? 'streak ' + st.streak + '   REC help'
-        : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
+      footer: footer(),
     });
   } else if (view === READY) {
     VIEW.drawReadyView(ctx, {
@@ -623,8 +677,8 @@ function draw() {
       outLabel: songBeats > 0 ? '' :
         SET.formatSetting(settings, SET.settingIndex('midiOut')) + ' ' +
         SET.formatSetting(settings, SET.settingIndex('midiCh')),
-      /* Which stage is armed, and that the jog changes it. */
-      footer: S.armedId ? VIEW.stageFooter(S.stage) : '',
+      /* Which stage is armed, that the jog changes it, and the keys. */
+      footer: footer(),
     });
   } else {
     VIEW.drawReadingView(ctx, {
@@ -637,6 +691,7 @@ function draw() {
       paused: S.paused,
       names: S.namesShown(),
       stuckNamed: S.stuckNamed(),
+      footer: footer(),
     });
   }
 }
@@ -699,6 +754,19 @@ function onPadUp(pad) {
 }
 
 function onJog(delta) {
+  /* A card longer than the panel scrolls first; at its end the jog turns the
+   * page, as it does on a card that fits. */
+  if (S.view === CARD_VIEW) {
+    cardView();
+    const next = cardScroll + (delta > 0 ? 1 : -1);
+    if (next >= 0 && next <= cardLines.length - L.INFO_ROWS) {
+      cardScroll = next;
+      S.dirty = true;
+      return;
+    }
+    S.moveSelection(delta);
+    return;
+  }
   if (S.view === INFO_VIEW) {
     infoView();
     infoScroll = clamp(infoScroll + (delta > 0 ? 1 : -1), 0, Math.max(0, infoLines.length - L.INFO_ROWS));
@@ -723,7 +791,7 @@ function onJog(delta) {
 const SETTINGS_PER_PAGE = 4;   /* what drawList shows */
 
 function settingsPageTop() {
-  const n = SET.SETTINGS_COUNT;
+  const n = S.settingsRows().length;
   return Math.max(0, Math.min(S.settingsCursor - (SETTINGS_PER_PAGE >> 1), n - SETTINGS_PER_PAGE));
 }
 
@@ -750,13 +818,14 @@ function onKnob(index, delta) {
   }
   if (S.view === SETTINGS) {
     const row = settingsPageTop() + index;
-    if (index >= SETTINGS_PER_PAGE || row >= SET.SETTINGS_COUNT) return;
-    S.selectSetting(row);
+    const rows = S.settingsRows();
+    if (index >= SETTINGS_PER_PAGE || row >= rows.length || rows[row].act) return;
+    S.selectSettingRow(row);
     /* Key and octave wrap through a lot of values; one step per event or a
      * flick sends them spinning. */
-    const def = SET.SETTINGS_DEF[row];
-    const step = def && (def.type === 'wrap' || def.type === 'list' || def.type === 'enum');
-    S.editSetting(row, step ? (delta > 0 ? 1 : -1) : delta);
+    const def = SET.SETTINGS_DEF[rows[row].index];
+    const step = !def || def.type === 'wrap' || def.type === 'list' || def.type === 'enum';
+    S.editRow(row, step ? (delta > 0 ? 1 : -1) : delta);
   }
 }
 
@@ -770,8 +839,8 @@ function onKnob(index, delta) {
 function onKnobTouch(index) {
   if (S.view !== SETTINGS || index >= SETTINGS_PER_PAGE) return;
   const row = settingsPageTop() + index;
-  if (row >= SET.SETTINGS_COUNT) return;
-  S.selectSetting(row);
+  if (row >= S.settingsRows().length) return;
+  S.selectSettingRow(row);
   S.dirty = true;
 }
 /* ---- Lifecycle ---------------------------------------------------------- */
@@ -783,6 +852,8 @@ globalThis.init = function init() {
   pendingExitAt = 0;
   panicChannelNext = 16;
   infoShown = null;
+  cardShown = null;
+  hintTurnAt = Infinity;
   for (const k in heldPads) delete heldPads[k];
   for (const k in answerPressed) delete answerPressed[k];
   for (const k in padFlash) delete padFlash[k];
@@ -792,7 +863,8 @@ globalThis.init = function init() {
   invalidateLedCache();
   ledDirty = true;
   S.dirty = true;
-  announce('Piano Practice. Pick an exercise.');
+  /* A first launch has announced its welcome; anything else, the list. */
+  if (S.view === MENU) announce('Piano Practice. Pick an exercise.');
   draw();
 };
 
@@ -832,6 +904,9 @@ globalThis.tick = function tick() {
     S.ledDirty = false;
   }
 
+  /* A hint too long for one row takes turns, part by part. */
+  if (t >= hintTurnAt) S.dirty = true;
+
   S.flushSettings(false);
   flushDsp();
   flushOutbox(false);
@@ -869,6 +944,8 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
 
   if (d1 === CC_SHIFT) {
     shiftHeld = d2 > 0;
+    /* The footer turns to the Shift layer and back. */
+    S.dirty = true;
     return;
   }
   if (d2 === 0 && d1 !== CC_JOG_TURN && (d1 < CC_KNOB1 || d1 >= CC_KNOB1 + KNOB_COUNT)) return;

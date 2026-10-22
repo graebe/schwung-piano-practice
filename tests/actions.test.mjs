@@ -15,7 +15,7 @@ import {
 function ready() {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   return h;
 }
 
@@ -33,26 +33,61 @@ test('a malformed action does nothing', () => {
 test('select and open walk the list; back steps out', () => {
   const h = fakeHost();
   h.session.init();
-  applyAction(h.session, { type: 'select', index: 1 });
+  applyAction(h.session, { type: 'select', index: 2 });
   applyAction(h.session, { type: 'open' });
-  assert.equal(h.session.nav[1].node.label, 'Basics');
+  assert.equal(h.session.nav[1].node.label, 'Practice');
   applyAction(h.session, { type: 'move', delta: 3 });
   assert.equal(h.session.nav[1].cursor, 1, 'the jog moves one row whatever the delta');
   applyAction(h.session, { type: 'back' });
   assert.equal(h.session.nav.length, 1);
 });
 
-test('settings opens from the list only', () => {
+test('settings opens the Settings folder, from the list only', () => {
   const h = fakeHost();
   h.session.init();
   applyAction(h.session, { type: 'settings' });
+  assert.equal(h.session.view, MENU);
+  assert.equal(h.session.nav.at(-1).node.label, 'Settings');
+  applyAction(h.session, { type: 'select', index: 1 });
+  applyAction(h.session, { type: 'open' });
   assert.equal(h.session.view, SETTINGS);
   applyAction(h.session, { type: 'selectSetting', index: 2 });
-  assert.equal(h.session.settingsCursor, 2);
+  assert.equal(h.session.settingsCursor, 2, 'Key is the third row of Practice');
   applyAction(h.session, { type: 'editSetting', index: 0, delta: 3 });
   assert.equal(h.session.settings.bpm, 83);
   applyAction(h.session, { type: 'editSetting', index: 0, delta: 0 });
   assert.equal(h.session.settings.bpm, 83);
+  applyAction(h.session, { type: 'editRow', row: 0, delta: 2 });
+  assert.equal(h.session.settings.bpm, 85, 'a row by its place on the page');
+  applyAction(h.session, { type: 'back' });
+  applyAction(h.session, { type: 'select', index: 5 });
+  applyAction(h.session, { type: 'open' });
+  applyAction(h.session, { type: 'settingRow', row: 1 });
+  assert.deepEqual(h.session.progress.tips, [], 'an action row runs: Show tips again');
+});
+
+test('options: the sheet, its picks, and the welcome answered from a page', () => {
+  const h = fakeHost();
+  h.session.init();
+  applyAction(h.session, { type: 'select', index: 1 });
+  applyAction(h.session, { type: 'sheet' });
+  assert.equal(h.session.view, 'sheet');
+  applyAction(h.session, { type: 'sheetPick', index: 9 });
+  assert.equal(h.session.view, 'sheet', 'out of range: nothing');
+  applyAction(h.session, { type: 'sheetPick', index: 0 });
+  assert.equal(h.session.view, MENU);
+  assert.equal(h.session.nav.at(-1).node.label, 'Settings', 'Path offers only Settings...');
+  applyAction(h.session, { type: 'back' });
+  applyAction(h.session, { type: 'options' });
+  assert.equal(h.session.view, 'sheet', 'Shift + click, as on the Move');
+  applyAction(h.session, { type: 'back' });
+  const w = fakeHost({ progress: null });
+  w.session.init();
+  applyAction(w.session, { type: 'move', delta: 1 });
+  applyAction(w.session, { type: 'move', delta: 1 });
+  applyAction(w.session, { type: 'cardPick', index: 0 });
+  assert.equal(w.session.view, MENU);
+  assert.equal(w.session.nav[0].cursor, 0);
 });
 
 test('notes: a velocity of 0 or none plays at 100; the outcome comes back', () => {
@@ -118,7 +153,7 @@ test('info opens and closes the Info page', () => {
 test('quiz: hear, hint and answer', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Name', 'Notes']);
+  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
   assert.equal(h.session.view, GUESS_VIEW);
   applyAction(h.session, { type: 'hint' });
   assert.equal(h.session.quiz.hint, 1);
@@ -135,7 +170,7 @@ test('next, retry and skip act on a result, and only there', () => {
   applyAction(h.session, { type: 'skip' });
   applyAction(h.session, { type: 'retry' });
   assert.equal(h.session.view, MENU, 'nothing happens off a result');
-  openPath(h.session, ['Quiz', 'Name', 'Notes']);
+  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
   for (let i = 0; i < 40 && h.session.view === GUESS_VIEW; i++) {
     const q = h.session.quiz;
     applyAction(h.session, { type: 'answer', index: q.choices.findIndex((c) => c.pitches.join() === q.prompt.join()) });
@@ -179,7 +214,9 @@ test('any action, in any state, in any order: nothing throws, nothing sticks', (
   for (let round = 0; round < 6; round++) {
     const h = fakeHost();
     h.session.init();
-    const held = new Set();
+    /* Counted, not a set: two pads share a pitch, so a pitch can be down
+     * twice, and is only let go when both are. */
+    const held = new Map();
     for (let i = 0; i < 1500; i++) {
       const type = pick(ACTIONS);
       const pitch = 48 + Math.floor(rand() * 36);
@@ -187,12 +224,12 @@ test('any action, in any state, in any order: nothing throws, nothing sticks', (
         type, index: Math.floor(rand() * 8) - 1, delta: pick([-1, 1, 3]), pitch,
         vel: Math.floor(rand() * 128), beat: rand() * 40 - 4, stage: pick([1, 2]),
       };
-      if (type === 'noteOn') held.add(pitch);
-      if (type === 'noteOff') held.delete(pitch);
+      if (type === 'noteOn') held.set(pitch, (held.get(pitch) || 0) + 1);
+      if (type === 'noteOff' && held.get(pitch)) held.set(pitch, held.get(pitch) - 1);
       assert.doesNotThrow(() => applyAction(h.session, a), `${type} in ${h.session.view}`);
       if (rand() < 0.3) h.run(Math.floor(rand() * 400));
     }
-    for (const p of held) applyAction(h.session, { type: 'noteOff', pitch: p });
+    for (const [p, n] of held) for (let k = 0; k < n; k++) applyAction(h.session, { type: 'noteOff', pitch: p });
     /* Let anything scheduled run out, then leave whatever is running. */
     for (let i = 0; i < 6; i++) applyAction(h.session, { type: 'back' });
     h.run(5000);

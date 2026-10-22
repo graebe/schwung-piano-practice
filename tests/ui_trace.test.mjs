@@ -228,27 +228,33 @@ function driver(host) {
 }
 
 const QUIET = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false, roundSize: 10 });
+/* Welcomed, with every tip seen: the scenarios below are about what they
+ * drive, not about the first-visit cards, which `welcome` and `sheet` cover. */
+const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'placement'] });
 
 /*
  * Each scenario is a session someone might actually have. They start from
  * init() on a fresh copy of the module, with settings.json as given.
  */
 const SCENARIOS = {
-  /* The list, its folders, Back, the settings page and an edit that rebuilds. */
-  navigate: { settings: QUIET, play(d) {
+  /* The list, its folders, Back, the settings folder, a group's page and an
+   * edit that rebuilds. */
+  navigate: { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
-    d.jog(1); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);
-    d.jog(3); d.click(); d.jog(1); d.press(BACK);
-    d.shiftWith(JOG_CLICK);
+    d.jog(2); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);   /* Practice › Progressions */
+    d.click(); d.jog(4); d.click(); d.jog(1); d.click(); d.jog(1);           /* Practice › Songs › Electronic */
+    d.press(BACK); d.press(BACK); d.press(BACK);
+    d.jog(60); d.click();                         /* Settings */
+    d.jog(1); d.click();                          /* Practice */
     d.click(); d.jog(1); d.click();              /* edit row 0 */
     d.jog(2); d.click(); d.jog(-1); d.click();    /* edit row 2 */
     d.knob(0, 1); d.knob(1, 2); d.knob(2, -1);
     d.toTop(); d.run(1200);                       /* the throttled save lands */
   } },
 
-  /* Basics › Scales › Major › Up & down: listen, pause, scrub, resume, restart. */
-  listen: { settings: QUIET, play(d) {
-    d.jog(1); d.click(); d.click(); d.click(); d.click();
+  /* Practice › Scales › Major › Up & down: listen, pause, scrub, resume, restart. */
+  listen: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.jog(2); d.click(); d.click(); d.click(); d.click();
     d.press(PLAY); d.run(4000);
     d.press(PLAY); d.run(200);                    /* pause */
     d.knob(0, 12); d.knob(0, -5); d.run(100);     /* scrub */
@@ -259,8 +265,8 @@ const SCENARIOS = {
 
   /* The same drill practised, played from the guide pads to its result, then
    * again with a few wrong pads and a wait; then on from the result. */
-  practice: { settings: QUIET, play(d) {
-    d.jog(1); d.click(); d.click(); d.click(); d.click();
+  practice: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.jog(2); d.click(); d.click(); d.click(); d.click();
     d.press(RECORD); d.follow(26000);
     d.run(1000);
     d.press(RECORD); d.run(3500);
@@ -270,9 +276,10 @@ const SCENARIOS = {
     d.click(); d.run(500);                        /* next from the result */
   } },
 
-  /* Learning Program › Continue, guide pads on stage 1, Back to the list. */
-  program: { settings: QUIET, play(d) {
-    d.click(); d.run(100); d.click(); d.run(100);
+  /* Path › 1 › 1.3 Major scale › Major up & down, guide pads on stage 1, Back
+   * to the list. */
+  program: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.jog(1); d.click(); d.run(100); d.click(); d.jog(2); d.click(); d.click(); d.run(100);
     d.press(PLAY); d.run(2500);                   /* listen a little */
     d.press(PLAY); d.press(BACK); d.run(100);     /* pause, back to the top */
     d.press(RECORD); d.follow(30000);             /* stage 1, to its result */
@@ -281,30 +288,30 @@ const SCENARIOS = {
   } },
 
   /*
-   * Every quiz kind, each from the Quiz folder (Hear, Play, Name, Read):
-   *   Play notes   by alphabet: every pad in turn, so some are right and
-   *                most are wrong, and the row glides on after each right one
-   *   Play chords  by staff: both hints, then a few wrong pads
-   *   Hear         Pitch & melody › Higher or lower, answered with the jog
-   *                until the round ends
-   *   Name notes   the same, through to its result and the stats it writes
-   *   Read         Identify intervals › 1 2nds › up, on the staff, by jog
+   * Every quiz kind, each from the Quiz folder (Ear, Reading, Keys):
+   *   Notes by alphabet  every pad in turn, so some are right and most are
+   *                      wrong, and the row glides on after each right one
+   *   Chords by staff    both hints, then a few wrong pads
+   *   Ear                Pitch & melody › Higher or lower, answered with the
+   *                      jog until the round ends
+   *   Name notes         the same, through to its result and the stats it writes
+   *   Reading            Identify intervals › 1 2nds › up, on the staff, by jog
    */
-  quiz: { settings: QUIET, play(d) {
+  quiz: { settings: QUIET, progress: WELCOMED, play(d) {
     const open = (path) => {
-      d.jog(-60); d.jog(2); d.click();
+      d.jog(-60); d.jog(3); d.click();
       for (const step of path) { d.jog(step); d.click(); }
       d.run(600);
     };
     const leave = () => d.toTop();
     const answerWithJog = (n) => { for (let i = 0; i < n; i++) { d.jog(1); d.click(); d.run(1500); } };
 
-    open([1, 0]);
+    open([2, 0]);
     d.press(RECORD); d.press(RECORD);
     for (let p = 0; p < 32; p++) d.pad(p, 40);
     d.run(600); leave();
 
-    open([1, 3]);
+    open([1, 4]);
     d.press(PLAY); d.press(RECORD); d.press(RECORD); d.run(400);
     for (const p of [0, 4, 7]) d.pad(p, 60);
     leave();
@@ -312,28 +319,28 @@ const SCENARIOS = {
     open([0, 0, 0, 0]);
     answerWithJog(30); d.run(1000); leave();
 
-    open([2, 0]);
+    open([2, 2]);
     d.press(RECORD); d.run(200);
     answerWithJog(30); d.run(1000); d.click(); d.run(300); leave();
 
-    open([3, 0, 0, 0]);
+    open([1, 0, 0, 0]);
     d.press(PLAY); d.run(1500);
     answerWithJog(30); d.run(1000); leave();
   } },
 
   /* Factory settings: the first Info page opens by itself, quiz sounds on. */
-  info: { settings: null, play(d) {
+  info: { settings: null, progress: WELCOMED, play(d) {
     d.run(200);
-    d.jog(1); d.press(MENU); d.jog(3); d.jog(-1); d.press(MENU);
+    d.jog(2); d.press(MENU); d.jog(3); d.jog(-1); d.press(MENU);
     d.click(); d.run(300); d.press(MENU); d.press(BACK);
     d.press(BACK);
-    d.jog(1); d.click(); d.jog(1); d.click(); d.run(800);   /* a quiz, sounds on */
+    d.jog(1); d.click(); d.jog(2); d.click(); d.click(); d.run(800);   /* a quiz, sounds on */
     for (let i = 0; i < 4; i++) { d.pad(i * 7, 60); d.run(900); }
   } },
 
   /* Progress: the list, a chart, the jog across drills, back out. */
-  progress: { settings: QUIET, play(d) {
-    d.jog(60); d.click(); d.run(100);
+  progress: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.jog(4); d.click(); d.run(100);
     d.jog(1); d.click(); d.jog(1); d.jog(1); d.press(BACK); d.press(BACK);
   } },
 
@@ -343,10 +350,11 @@ const SCENARIOS = {
    * the top of the list — which must not close the tool. Then it closes, and
    * ui.js goes back to sending nothing but the occasional nudge.
    */
-  page: { settings: QUIET, page: true, play(d, dsp) {
+  page: { settings: QUIET, progress: WELCOMED, page: true, play(d, dsp) {
     d.run(2500);                                  /* unwatched: reads, nudges */
     dsp.openPage(); d.run(1200);
-    for (const a of [{ type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' }, { type: 'open' }, { type: 'open' }]) {
+    for (const a of [{ type: 'move', delta: 1 }, { type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' },
+      { type: 'open' }, { type: 'open' }]) {
       dsp.act(a); d.run(250);
     }
     dsp.act({ type: 'listen' }); d.run(2000);
@@ -359,11 +367,50 @@ const SCENARIOS = {
   } },
 
   /* A song: its levels, a level armed, practised briefly; then Shift+Back. */
-  exit: { settings: QUIET, play(d) {
-    d.jog(3); d.click(); d.click(); d.run(100); d.click(); d.run(100);
+  exit: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.jog(2); d.click(); d.jog(4); d.click(); d.click(); d.click(); d.run(100); d.click(); d.run(100);
     d.press(RECORD); d.run(2500); d.pad(10); d.pad(11);
     d.shiftWith(BACK); d.run(600);
     globalThis.onUnload(); d.tick();
+  } },
+
+  /*
+   * A first launch: the welcome's three pages, the Shift layer of the hint
+   * line, "I already play", the Path with its tip, help on that tip, and the
+   * hint line taking turns.
+   */
+  welcome: { settings: QUIET, progress: null, play(d) {
+    d.run(200);
+    d.click(); d.run(100);                        /* Keys */
+    d.cc(SHIFT, 127); d.tick(); d.cc(SHIFT, 0); d.tick();
+    d.jog(1); d.run(100);                         /* New to piano? */
+    d.jog(1); d.click(); d.run(200);              /* I already play: the Path, and a tip */
+    d.press(MENU); d.press(MENU);                 /* help on the tip, and back */
+    d.click(); d.run(100);                        /* the tip closes on the Path */
+    d.run(6500);                                  /* nothing moves; the hint stays */
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * The options of a row: the sheet's tip once, Test out: checkpoint on a
+   * stage, I know this on Continue and Continue then opening the step after,
+   * and Settings... from a library row into Settings › Path.
+   */
+  sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz'] }), play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(100);              /* Path */
+    d.shiftWith(JOG_CLICK); d.run(100);           /* 1 Grid and staff: its tip, over the sheet */
+    d.click(); d.run(100);                        /* the tip closes */
+    d.jog(2); d.click(); d.run(300);              /* Test out: checkpoint */
+    d.press(BACK); d.run(100); d.toTop();
+    d.jog(-1); d.shiftWith(JOG_CLICK); d.run(100); /* Continue */
+    d.click(); d.run(100);                        /* I know this: skip */
+    d.click(); d.run(600);                        /* Continue: the step after */
+    d.toTop();
+    d.jog(2); d.shiftWith(JOG_CLICK); d.run(100); /* Practice: only Settings... */
+    d.click(); d.click(); d.run(100);             /* Settings › Path */
+    d.click(); d.jog(1); d.click(); d.run(100);   /* Start at: stage 2 */
+    d.press(BACK); d.press(BACK); d.toTop(); d.run(1200);
   } },
 };
 
@@ -375,6 +422,7 @@ let loads = 0;
 async function record(name, scenario, seen = {}) {
   const files = new Map();
   if (scenario.settings) files.set(MODULE_DIR + '/settings.json', scenario.settings);
+  if (scenario.progress) files.set(MODULE_DIR + '/progress.json', scenario.progress);
   let clockOf = () => 0;
   const dsp = scenario.page ? fakeDsp(() => clockOf()) : null;
   const host = makeHost(files, dsp);
@@ -438,7 +486,13 @@ test('a page watches and steers the Move, and cannot close it', async () => {
   assert.ok(events.some((e) => e[0] === 'dsp' && e[1] === 'n' && /(^|,)60:90/.test(e[2])), 'its note sounded');
   assert.ok(!events.some((e) => e[0] === 'exit'), 'a page closed the tool');
   assert.equal(dsp.last().screen, 'menu');
+  /* From the moment the close is noticed — the first nudge after the last
+   * picture — about six seconds remain: a read a second, not five. Counted
+   * from the notice, not from the last picture, which can fall anywhere in
+   * the last second the page was open. */
   const lastVm = events.map((e, i) => (e[0] === 'dsp' && e[1] === 'vm' ? i : -1)).filter((i) => i >= 0).pop();
-  const tail = events.slice(lastVm + 1);
+  const noticed = events.findIndex((e, i) => i > lastVm && e[0] === 'dsp' && e[1] === 'stale');
+  const tail = events.slice(noticed + 1);
+  assert.ok(noticed > lastVm, 'the close is noticed');
   assert.ok(tail.filter((e) => e[0] === 'read').length <= 7, 'closed: back to a read a second');
 });

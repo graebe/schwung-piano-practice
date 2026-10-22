@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { createScreen, countOn, isOn, toAscii, W, H } from '../tools/screen_buffer.mjs';
 import * as R from '../src/staff_render.mjs';
 import * as V from '../src/view.mjs';
+import { hintFor } from '../src/hints.mjs';
 import * as L from '../src/layout.mjs';
 import { pitchToY, spell, inStaffRange } from '../src/notation.mjs';
 import {
@@ -515,7 +516,7 @@ test('the ready prompt shows the symbol as well as the word', () => {
 
 test('the ready prompt names both modes, with a symbol for each', () => {
   const c = createScreen();
-  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24 });
+  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24, footer: READY_HINT[0] });
   const b = V.READY_BOX;
 
   /* A triangle on the first line and a disc on the second, each in the glyph
@@ -529,10 +530,10 @@ test('the ready prompt names both modes, with a symbol for each', () => {
   const blankLabels = createScreen();
   V.drawReadyView(blankLabels, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24,
-    playLabel: ' ', recLabel: ' ',
+    playLabel: ' ', recLabel: ' ', footer: READY_HINT[0],
   });
   assert.ok(countOn(c, 0, 0, W, H) > countOn(blankLabels, 0, 0, W, H));
-  /* The footer still carries the jog hint. */
+  /* The footer still carries the hint. */
   assert.ok(countOn(c, 0, L.FOOTER_Y - 2, W, 8) > 40, 'no footer hint');
 });
 
@@ -612,28 +613,29 @@ test('the settings list brackets the value it is editing', () => {
   assert.equal(countOn(idle, 0, 19, W, 9), countOn(editing, 0, 19, W, 9), 'other rows unchanged');
 });
 
-/* ---- Discoverability hint ------------------------------------------------ */
+/* ---- The hint line ------------------------------------------------------- */
 
-test('the settings gesture is spelled out, and fits the screen', () => {
+const LIST_HINT = hintFor('menu', { top: true });
+const READY_HINT = hintFor('ready', { stages: true, stage: 1 });
+
+test('every part of a hint fits the screen', () => {
   const probe = createScreen();
-  assert.ok(
-    probe.textWidth(V.SETTINGS_HINT) <= W,
-    `"${V.SETTINGS_HINT}" is ${probe.textWidth(V.SETTINGS_HINT)}px, wider than the screen`,
-  );
-  assert.match(V.SETTINGS_HINT, /shift/i);
-  assert.match(V.SETTINGS_HINT, /settings/i);
+  for (const part of LIST_HINT.concat(READY_HINT, hintFor('menu', { shift: true }))) {
+    assert.ok(probe.textWidth(part) <= L.TEXT_MAX_PX, `"${part}" is ${probe.textWidth(part)}px, wider than the screen`);
+  }
+  assert.match(hintFor('menu', { shift: true })[0], /^SHIFT: CLICK options$/, 'Shift is spelled out');
 });
 
 test('the exercise list carries the hint, centred on the bottom line', () => {
   const c = createScreen();
   V.drawList(c, 'EXERCISE', [{ label: 'Scale', value: '' }], 0, {
-    footer: V.SETTINGS_HINT,
+    footer: LIST_HINT[0],
     centreFooter: true,
   });
   /* Compare against the same string drawn alone at the same place: the footer
    * must be that text, not merely some ink. */
   const expected = blank();
-  V.drawFooterHint(expected, V.SETTINGS_HINT);
+  V.drawFooterHint(expected, LIST_HINT[0]);
   for (let y = L.FOOTER_Y - 2; y < H; y++) {
     for (let x = 0; x < W; x++) {
       assert.equal(isOn(c, x, y), isOn(expected, x, y), `footer differs at ${x},${y}`);
@@ -641,11 +643,11 @@ test('the exercise list carries the hint, centred on the bottom line', () => {
   }
 });
 
-test('the ready screen carries it too — settings is unreachable by trying things', () => {
+test('the ready screen carries it too', () => {
   const c = createScreen();
-  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24 });
+  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24, footer: READY_HINT[0] });
   const expected = blank();
-  V.drawFooterHint(expected, V.SETTINGS_HINT);
+  V.drawFooterHint(expected, READY_HINT[0]);
   let matched = 0;
   for (let y = L.FOOTER_Y - 2; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -653,7 +655,49 @@ test('the ready screen carries it too — settings is unreachable by trying thin
       if (isOn(expected, x, y)) matched++;
     }
   }
-  assert.ok(matched > 50, 'the hint should actually be there');
+  assert.ok(matched > 30, 'the hint should actually be there');
+});
+
+test('the reading view gives its footer to the hint only in the count-in and while paused', () => {
+  const run = createRun(chart);
+  const hint = 'REC pause  BACK stop';
+  const at = (songBeats, paused) => {
+    const c = createScreen();
+    V.drawReadingView(c, { chart, run, songBeats, pxPerBeat: 24, paused, footer: hint });
+    return c;
+  };
+  const expected = blank();
+  V.drawFooterHint(expected, hint);
+  const same = (c) => {
+    for (let y = L.FOOTER_Y - 2; y < H; y++) {
+      for (let x = 0; x < W; x++) if (isOn(c, x, y) !== isOn(expected, x, y)) return false;
+    }
+    return true;
+  };
+  assert.ok(same(at(-2, false)), 'count-in');
+  assert.ok(same(at(2, true)), 'paused');
+  assert.ok(!same(at(2, false)), 'running: the progress bar');
+});
+
+test('a card: title, wrapped lines, page count, or a choice', () => {
+  const c = createScreen();
+  V.drawCard(c, { title: 'Welcome', lines: ['Piano Practice takes', 'you'], page: 0, pages: 3, footer: 'JOG page  CLICK go on' });
+  assert.ok(countOn(c, 0, L.INFO_TOP_Y, W, 8) > 30, 'the first line, where Info has it');
+  assert.ok(countOn(c, 100, 0, 28, 7) > 5, 'the page count');
+  const pick = createScreen();
+  V.drawCard(pick, { title: 'New to piano?', choices: ['From the start', 'I already play'], choice: 1, pages: 1 });
+  assert.ok(countOn(pick, 0, 19, W, 9) > countOn(pick, 0, 10, W, 9), 'the chosen row is inverted');
+});
+
+test('a value that names something gives way to its label', () => {
+  const c = createScreen();
+  V.drawList(c, 'X', [{ label: 'Continue' }], 1, {
+    decorate: () => ({ label: 'Continue', value: 'Scarborough Fair L3 Both hands', fit: true }),
+  });
+  /* The label stays whole: its first letters are where they always are. */
+  const plain = createScreen();
+  V.drawList(plain, 'X', [{ label: 'Continue' }], 1, { decorate: () => ({ label: 'Continue', value: '' }) });
+  assert.equal(countOn(c, 2, 10, 47, 8), countOn(plain, 2, 10, 47, 8));
 });
 
 /* ---- Played markers ------------------------------------------------------ */
@@ -1528,14 +1572,16 @@ test('a list row carries its mark, and the mark inverts with the highlight', () 
 
 test('the ready screen names the stage, and only when asked to', () => {
   const run = createRun(chart);
+  const part = READY_HINT.find((p) => /S1 pads lit/.test(p));
   const staged = createScreen();
-  V.drawReadyView(staged, { chart, run, songBeats: 0, pxPerBeat: 24, footer: V.stageFooter(1) });
+  V.drawReadyView(staged, { chart, run, songBeats: 0, pxPerBeat: 24, footer: part });
   const expected = blank();
-  V.drawFooterHint(expected, V.stageFooter(1));
+  V.drawFooterHint(expected, part);
   for (let y = L.FOOTER_Y - 2; y < H; y++) {
     for (let x = 0; x < W; x++) assert.equal(isOn(staged, x, y), isOn(expected, x, y), `${x},${y}`);
   }
-  assert.notEqual(V.stageFooter(1), V.stageFooter(2));
+  assert.notDeepEqual(hintFor('ready', { stages: true, stage: 1 }), hintFor('ready', { stages: true, stage: 2 }));
+  assert.ok(!hintFor('ready', { stages: false }).some((p) => /S1/.test(p)));
 });
 
 test('four answers or fewer list each with the colour of its pad', () => {

@@ -13,8 +13,16 @@
   *   npm run preview -- --exercise triads --film 0,1,2,3
  *   npm run preview -- --view levels --song rising-sun          a song's ladder
  *   npm run preview -- --song rising-sun --level 3 --film 3,6   read it
- *   npm run preview -- --view menu --path 0,1                   a folder of the list
+ *   npm run preview -- --view menu --path 1,0                   a folder of the list (Path › 1)
+ *   npm run preview -- --view menu --shift                      its footer while Shift is held
+ *   npm run preview -- --view sheet --path 1,0                  the options of a row
+ *   npm run preview -- --view welcome                           the welcome, every page
+ *   npm run preview -- --view card --tip sheet                  a first-visit tip
+ *   npm run preview -- --view help --path 1,0 --scroll 4        MENU's help on a row
  *   npm run preview -- --path 0,1,4,0,3 --film 0,2              read the lesson there
+ *
+ * The list, the sheet and the cards come from a session, as on the Move, with
+ * the hint line's first part as their footer.
  */
 import { createScreen, toAscii } from './screen_buffer.mjs';
 import * as R from '../src/staff_render.mjs';
@@ -25,8 +33,10 @@ import { createQuiz, entryName, NOTES, CHORDS } from '../src/guess.mjs';
 import { PX_PER_BEAT_DEFAULT } from '../src/layout.mjs';
 import { parseExercise, parseManifest, parseCategories } from '../src/exercise_io.mjs';
 import { availableLevels, projectLevel } from '../src/levels.mjs';
-import { buildCatalog, navRestore, navTop, nodeAt, isFolder } from '../src/catalog.mjs';
-import { readFileSync } from 'node:fs';
+import { buildCatalog, navTop, nodeAt, isFolder } from '../src/catalog.mjs';
+import { createSession } from '../src/session.mjs';
+import { tipCard, TIP_KEYS, PLACEMENT } from '../src/tips.mjs';
+import { readFileSync, existsSync } from 'node:fs';
 
 function arg(name, fallback) {
   const i = process.argv.indexOf('--' + name);
@@ -58,8 +68,37 @@ function bundledCatalog() {
   }));
   return buildCatalog({ songs, categories: parseCategories(text), tail: [{ label: 'Quiz', value: '>' }, { label: 'Progress', value: '~' }] });
 }
+
+/* A session on the bundled files, in memory: what the Move's list shows.
+ * `progress` is the stored file: by default a learner already welcomed. */
+function bundledSession(progress = { tips: TIP_KEYS.concat([PLACEMENT]) }) {
+  const src = new URL('../src/', import.meta.url).pathname;
+  const files = new Map([['settings.json', JSON.stringify({ version: 8, autoInfo: false })]]);
+  if (progress) files.set('progress.json', JSON.stringify(progress));
+  const S = createSession({
+    now: () => 0, wallNow: () => Date.UTC(2026, 9, 22), strike() {}, release() {}, silence() {},
+    announce() {}, exit() {}, settingChanged() {}, reveal() {},
+    readText: (name) => files.get(name) || (name.startsWith('exercises/') && existsSync(src + name)
+      ? readFileSync(src + name, 'utf8') : null),
+    writeText: (name, text) => { files.set(name, text); return true; },
+  });
+  S.init();
+  return S;
+}
+
+/* Walk the session's list: the cursor at each depth, the last one the
+ * highlight in the folder shown. */
+function walk(S, at) {
+  for (let i = 0; i < at.length; i++) {
+    S.selectRow(at[i]);
+    if (i < at.length - 1) S.activate(false);
+  }
+}
+
+const footerOf = (S) => S.hint({ shift: process.argv.includes('--shift') })[0] || '';
 const path = arg('path', null) ? arg('path', '').split(',').map(Number) : null;
-const leaf = path && arg('view', 'reading') !== 'menu' ? nodeAt(bundledCatalog(), path) : null;
+const LISTS = ['menu', 'sheet', 'welcome', 'card', 'help'];
+const leaf = path && !LISTS.includes(arg('view', 'reading')) ? nodeAt(bundledCatalog(), path) : null;
 if (leaf && isFolder(leaf)) throw new Error('--path ends on a folder; add the row to open, or use --view menu');
 
 const chart = leaf
@@ -122,21 +161,52 @@ if (view === 'clef') {
   });
   show(`row ${kind} by ${read}: ${quiz.queue.map((e) => entryName(quiz, e)).join(' ')}`, c);
 } else if (view === 'menu') {
-  /* The cursor at each depth; the last one is the highlight in the folder shown. */
-  const nav = navRestore(bundledCatalog(), path || [0]);
-  const top = navTop(nav);
+  const S = bundledSession();
+  walk(S, path || [0]);
+  const top = navTop(S.nav);
   const c = createScreen();
   V.drawList(c, top.node.label.toUpperCase(), top.node.children, top.cursor, {
-    footer: nav.length > 1 ? V.FOLDER_HINT : V.SETTINGS_HINT,
-    centreFooter: true,
+    footer: footerOf(S), centreFooter: true, decorate: S.decorateRow,
   });
   show(top.node.label, c);
+} else if (view === 'sheet') {
+  const S = bundledSession();
+  walk(S, path || [1, 0]);
+  S.openSheet();
+  const c = createScreen();
+  V.drawList(c, S.sheet.title.toUpperCase(), S.sheet.items, S.sheet.cursor, { footer: footerOf(S), centreFooter: true });
+  show('options: ' + S.sheet.title, c);
+} else if (view === 'help') {
+  const S = bundledSession();
+  walk(S, path || [0]);
+  S.menuButton();
+  const c = createScreen();
+  const lines = V.infoLines(c, S.info.paragraphs);
+  V.drawInfo(c, {
+    title: S.info.title, lines, scroll: Number(arg('scroll', 0)),
+    footer: S.hint({ scrolls: lines.length > 5 })[0] || '',
+  });
+  show('help: ' + S.info.title, c);
+} else if (view === 'welcome' || view === 'card') {
+  const S = bundledSession(view === 'welcome' ? null : undefined);
+  const pages = view === 'welcome' ? S.card.pages : [tipCard(arg('tip', 'sheet'))];
+  pages.forEach((page, i) => {
+    const c = createScreen();
+    V.drawCard(c, {
+      title: page.title, lines: V.cardLines(c, page), choices: page.choices || null, choice: 0,
+      scroll: Number(arg('scroll', 0)),
+      page: i, pages: pages.length,
+      footer: view === 'welcome' ? (S.hint({ shift: process.argv.includes('--shift') })[0] || '') : 'CLICK go on',
+    });
+    if (view === 'welcome') S.moveSelection(1);
+    show(page.title, c);
+  });
 } else if (view === 'levels') {
   if (!song) throw new Error('--view levels needs --song <id>');
   const c = createScreen();
   V.drawList(c, song.name.toUpperCase(),
     availableLevels(song).map((lv) => ({ label: lv.label, value: lv.step })), 0, {
-      footer: V.FOLDER_HINT,
+      footer: 'CLICK open  BACK up',
       centreFooter: true,
     });
   show(`${song.name} ladder`, c);

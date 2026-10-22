@@ -144,16 +144,41 @@ test('categories come in manifest order, empty ones are left out, tail goes last
     categories: [{ id: 'a', name: 'Ay' }, { id: 'empty', name: 'Empty' }, { id: 'b', name: 'Bee' }],
     tail: [{ label: 'Tail' }],
   });
-  assert.deepEqual(labels(root), ['Basics', 'Ay', 'Bee', 'Tail']);
+  assert.deepEqual(labels(root), ['Practice', 'Tail']);
+  const practice = root.children[0];
+  assert.equal(practice.id, 'basics', 'Practice keeps the ids Basics gave its rows');
+  assert.deepEqual(labels(practice), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
+  assert.deepEqual(labels(practice.children[4]), ['Ay', 'Bee']);
 });
+
+const songsOf = (root) => root.children[0].children.find((c) => c.label === 'Songs');
 
 test('a file with no category, or an unknown one, lands in Other', () => {
   const root = buildCatalog({
     songs: [{ chart: twoHands, category: null }, { chart: oneNote, category: 'nope' }],
     categories: [{ id: 'a', name: 'Ay' }],
   });
-  assert.deepEqual(labels(root), ['Basics', 'Other']);
-  assert.deepEqual(labels(root.children[1]), ['Song', 'Drill']);
+  assert.deepEqual(labels(songsOf(root)), ['Other']);
+  assert.deepEqual(labels(songsOf(root).children[0]), ['Song', 'Drill']);
+});
+
+test('back to a folder that lost a row lands on a row it still has', () => {
+  let short = false;
+  const root = { label: 'r', children: [
+    { label: 'a', get children() { return short ? [{ label: 'x' }] : [{ label: 'x' }, { label: 'gone', children: [] }]; } },
+  ] };
+  const nav = navStart(root);
+  navPush(nav);
+  nav[1].cursor = 1;
+  navPush(nav);
+  short = true;
+  navPop(nav);
+  assert.equal(nav[1].cursor, 0);
+  assert.equal(navCurrent(nav).label, 'x');
+});
+
+test('with no songs at all there is no Songs folder', () => {
+  assert.deepEqual(labels(buildCatalog({}).children[0]), ['Scales', 'Chords', 'Progressions', 'Random']);
 });
 
 test('a manifest from before categories still lists every file', () => {
@@ -162,7 +187,7 @@ test('a manifest from before categories still lists every file', () => {
     songs: parseManifest(text).map((r) => ({ chart: twoHands, category: r.category })),
     categories: parseCategories(text),
   });
-  assert.deepEqual(labels(root), ['Basics', 'Other']);
+  assert.deepEqual(labels(songsOf(root)), ['Other']);
 });
 
 test('the bundled manifest files every exercise in a category, and none in Other', () => {
@@ -174,8 +199,8 @@ test('the bundled manifest files every exercise in a category, and none in Other
     category: row.category,
   }));
   const root = buildCatalog({ songs, categories });
-  assert.equal(labels(root).indexOf('Other'), -1);
-  const filed = root.children.slice(1).reduce((n, c) => n + c.children.length, 0);
+  assert.equal(labels(songsOf(root)).indexOf('Other'), -1);
+  const filed = songsOf(root).children.reduce((n, c) => n + c.children.length, 0);
   assert.equal(filed, songs.length);
 });
 

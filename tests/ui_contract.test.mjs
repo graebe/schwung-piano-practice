@@ -270,7 +270,9 @@ test('the LED pulse is repainted on phase change, not every tick', () => {
 
 test('every settings row is reachable, not just the four on knobs', () => {
   assert.match(code, /settingsEditing/);
-  assert.match(code, /if \(settingsEditing\) editSetting\(settingsCursor, delta\)/);
+  assert.match(code, /if \(settingsEditing\) editRow\(settingsCursor, delta\)/);
+  /* The knobs follow the rows on the page, whichever group is open. */
+  assert.match(fnBody(uiCode, 'onKnob'), /S\.editRow\(row,/);
 });
 
 test('the reference line is decided in controls.mjs, and skips the count-in', () => {
@@ -286,10 +288,13 @@ test('the reference line is decided in controls.mjs, and skips the count-in', ()
   assert.match(fnBody(code, 'referenceOn'), /fades\(settings\.reference, 'on'\)/);
 });
 
-test("Move's Menu button opens the exercise list", () => {
+test("Move's Menu button is help, on every screen", () => {
   assert.match(code, /const CC_MENU = 50;/);
   assert.match(uiCode, /d1 === CC_MENU\) \{\s*S\.menuButton\(\)/);
-  assert.match(fnBody(sessionCode, 'menuButton'), /view === SETTINGS\) \{\s*view = MENU/);
+  const menu = fnBody(sessionCode, 'menuButton');
+  assert.match(menu, /view === INFO_VIEW\) \{\s*closeInfo\(\)/, 'and closes it again');
+  assert.match(menu, /openInfo\(infoTarget\(\)\)/);
+  assert.doesNotMatch(menu, /SETTINGS/, 'no screen is left out');
 });
 
 test('the scroll freezes on the note and the judge keeps real time', () => {
@@ -336,7 +341,7 @@ test('every press is marked, at the moment it happened', () => {
 
 test('the settings page is a table, not a renumbering hazard', () => {
   assert.match(code, /SET\.applySetting\(settings, index, delta\)/);
-  assert.match(code, /SET\.settingsRows\(settings\)/);
+  assert.match(code, /SET\.groupRows\(settingsGroup, settings/);
   assert.doesNotMatch(code, /case 7:/, 'the numeric switch is gone');
   assert.doesNotMatch(code, /CHART_AFFECTING_SETTINGS/);
 });
@@ -625,18 +630,19 @@ test('a scrub lights the note it lands on, and only while the music is parked', 
     'and resuming hands the pads back to the reading-first rule');
 });
 
-test('the quiz is three folders — Hear, Play, Name — and the row picks notes or chords', () => {
-  const play = code.match(/const QUIZ_PLAY = \[([\s\S]*?)\n\s*\];/)[1];
-  const name = code.match(/const QUIZ_NAME = \[([\s\S]*?)\n\s*\];/)[1];
-  for (const rows of [play, name]) {
+test('the quiz is three folders by skill — Ear, Reading, Keys — and the row picks notes or chords', () => {
+  const read = code.match(/const QUIZ_READ = \[([\s\S]*?)\n\s*\];/)[1];
+  const keys = code.match(/const QUIZ_KEYS = \[([\s\S]*?)\n\s*\];/)[1];
+  for (const rows of [read, keys]) {
     assert.match(rows, /guess: GUESS\.NOTES/);
     assert.match(rows, /guess: GUESS\.CHORDS/);
   }
-  assert.match(name, /pick: true/, 'Name is the multiple-choice drill');
-  assert.doesNotMatch(play, /pick|hear/, 'Play is finding it on the pads');
+  assert.match(keys, /pick: true/, 'naming a lit pad is a Keys drill');
+  assert.match(read, /read: GUESS\.READ_STAFF/);
+  assert.doesNotMatch(read, /pick|hear|READ_NAME/, 'Reading is off the staff');
   assert.match(code, /if \(row\.guess\)[\s\S]{0,100}startQuiz\(settingsQuiz\(row\)\)/);
   const menu = fnBody(code, 'rebuildMenu');
-  assert.match(menu, /hearFolder\(\),\s*CAT\.folder\('Play'[\s\S]{0,80}CAT\.folder\('Name'/, 'in that order');
+  assert.match(menu, /PLAN\.hearMenu\(\),\s*PLAN\.readMenu\(quizRows\(QUIZ_READ\)\),\s*CAT\.folder\('Keys'/, 'in that order');
 });
 
 test('leaving the guesser silences it', () => {
@@ -739,13 +745,17 @@ test('an answer pad is a button: it answers before any note is struck', () => {
   assert.ok(up.indexOf('answerPressed[pad]') < up.indexOf('S.release('), 'no note-off for a note never struck');
 });
 
-test('reading Info is not part of a round: the clock is moved on by the time away', () => {
-  const close = fnBody(code, 'closeInfo');
-  assert.match(close, /quiz\.startedAt \+= away/);
-  assert.match(close, /quizSolvedAt \+= away/);
-  const open = fnBody(code, 'openInfo');
-  assert.match(open, /stopPrompt\(\)/, 'and the prompt stops while you read');
-  assert.match(open, /togglePause\(\)/, 'a running exercise pauses');
+test('reading help or a tip is not part of a round: the clock is moved on by the time away', () => {
+  const back = fnBody(code, 'returnTo');
+  assert.match(back, /quiz\.startedAt \+= away/);
+  assert.match(back, /quizSolvedAt \+= away/);
+  const leave = fnBody(code, 'leaveView');
+  assert.match(leave, /stopPrompt\(\)/, 'and the prompt stops while you read');
+  assert.match(leave, /togglePause\(\)/, 'a running exercise pauses');
+  assert.match(fnBody(code, 'openInfo'), /leaveView\(\)/);
+  assert.match(fnBody(code, 'openCard'), /leaveView\(\)/);
+  assert.match(fnBody(code, 'closeInfo'), /returnTo\(back\)/);
+  assert.match(fnBody(code, 'closeCard'), /returnTo\(done\.back\)/);
 });
 
 test('the answer cues go through the quiz scheduler and the Quiz sounds setting', () => {

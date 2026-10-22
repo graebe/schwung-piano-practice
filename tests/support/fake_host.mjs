@@ -7,14 +7,20 @@
  */
 import { readFileSync, existsSync } from 'node:fs';
 import { createSession } from '../../src/session.mjs';
+import { TIP_KEYS, PLACEMENT } from '../../src/tips.mjs';
 
 const SRC = new URL('../../src/', import.meta.url).pathname;
 export const QUIET = { version: 7, autoInfo: false, quizSounds: false, roundSize: 10 };
+/* A learner who has been welcomed and seen every tip: what most tests want,
+ * so a card does not sit over the screen they are about. `progress: null`
+ * is a first launch. */
+export const WELCOMED = { tips: TIP_KEYS.concat([PLACEMENT]) };
 
-export function fakeHost({ settings = QUIET, opts = {} } = {}) {
+export function fakeHost({ settings = QUIET, progress = WELCOMED, opts = {} } = {}) {
   let ms = 1000;
   const files = new Map();
   if (settings) files.set('settings.json', JSON.stringify(settings));
+  if (progress) files.set('progress.json', JSON.stringify(progress));
   const log = [];
   const sounding = new Map();
   const fx = {
