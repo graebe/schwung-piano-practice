@@ -159,7 +159,8 @@ export function createLocalSession({
     capabilities: { audio: Boolean(piano && piano.state !== 'unavailable'), notes: true, files: Boolean(storage) },
     start() {
       session.init();
-      fx.announce('Piano Practice. Pick an exercise.');
+      /* A first launch has announced its welcome; anything else, the list. */
+      if (session.view === 'menu') fx.announce('Piano Practice. Pick an exercise.');
       publish();
       if (timer === null) timer = setTimer(frame, TICK_MS);
     },

@@ -43,6 +43,8 @@ function local(opts = {}) {
   const piano = fakePiano();
   const storage = memoryStorage();
   storage.setItem('piano-practice:settings.json', JSON.stringify({ version: 7, autoInfo: false, quizSounds: false }));
+  /* Welcomed, every tip seen: the welcome has its own test below. */
+  storage.setItem('piano-practice:progress.json', JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz'] }));
   const backend = createLocalSession({
     piano,
     storage,
@@ -75,8 +77,12 @@ test('the browser session starts on the list and publishes view models', () => {
   l.backend.start();
   assert.ok(l.running, 'it ticks');
   assert.equal(seen.at(-1).screen, 'menu');
-  assert.ok(seen.at(-1).nav.rows.some((r) => r.label === 'Classics'), 'the bundled songs are there');
+  assert.deepEqual(seen.at(-1).nav.rows.map((r) => r.label), ['Continue', 'Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
+  assert.deepEqual(seen.at(-1).hint, ['CLICK open  MENU help'], 'the hint line travels with the picture');
   assert.equal(seen.at(-1).announcement.text, 'Piano Practice. Pick an exercise.');
+  select(l, 'Practice');
+  select(l, 'Songs');
+  assert.ok(l.backend.viewModel.nav.rows.some((r) => r.label === 'Classics'), 'the bundled songs are there');
   assert.ok(l.backend.capabilities.audio);
   l.backend.stop();
   assert.ok(!l.running);
@@ -93,7 +99,7 @@ test('a late subscriber gets the current picture at once', () => {
 test('practice through the browser: notes reach the piano and the judgement comes back', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(l, label);
+  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(l, label);
   assert.equal(l.backend.viewModel.screen, 'ready');
   l.backend.dispatch({ type: 'practice' });
   l.advance(4000);
@@ -116,7 +122,7 @@ test('a piano with a metronome of its own clicks; one without gets notes', () =>
   plain.storage.setItem('piano-practice:settings.json', JSON.stringify({ ...settings, click: true }));
   for (const s of [l, plain]) {
     s.backend.start();
-    for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(s, label);
+    for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(s, label);
     s.backend.dispatch({ type: 'practice' });
     s.advance(6000);
   }
@@ -129,7 +135,7 @@ test('a piano with a metronome of its own clicks; one without gets notes', () =>
 test('the playhead moves without republishing every tick', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(l, label);
+  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(l, label);
   let published = 0;
   l.backend.subscribe(() => published++);
   l.backend.dispatch({ type: 'listen' });
@@ -158,7 +164,10 @@ test('settings are kept in storage across a reload', () => {
 test('a storage that refuses (private mode) does not stop practice', () => {
   const l = local({ storage: { getItem() { throw new Error('denied'); }, setItem() { throw new Error('denied'); } } });
   l.backend.start();
+  assert.equal(l.backend.viewModel.screen, 'card', 'nothing stored: a first launch, welcomed');
+  l.backend.dispatch({ type: 'back' });
   l.backend.dispatch({ type: 'settings' });
+  select(l, 'Practice');
   l.backend.dispatch({ type: 'editSetting', index: 0, delta: 1 });
   l.advance(1500);
   assert.equal(l.backend.viewModel.screen, 'settings');
@@ -167,7 +176,7 @@ test('a storage that refuses (private mode) does not stop practice', () => {
 test('a heard answer is revealed on the keyboard for a while, then not', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']) select(l, label);
+  for (const label of ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']) select(l, label);
   l.advance(1500);
   const q = l.backend.session.quiz;
   for (let i = 0; i < q.choices.length && !q.solved; i++) l.backend.dispatch({ type: 'answer', index: i });
@@ -181,7 +190,7 @@ test('without a piano the session still runs, silently', () => {
   const l = local({ piano: null });
   l.backend.start();
   assert.equal(l.backend.capabilities.audio, false);
-  for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(l, label);
+  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(l, label);
   l.backend.dispatch({ type: 'listen' });
   l.advance(6000);                               /* past the four-beat count-in */
   assert.ok(l.backend.clock().beats > 2);
@@ -204,7 +213,7 @@ function fakeBridge() {
 test('the Move\'s view model arrives through the bridge, field by field', () => {
   const src = local();
   src.backend.start();
-  for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(src, label);
+  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(src, label);
   const flat = encodeViewModel(viewModel(src.backend.session));
 
   let t = 0;
@@ -241,7 +250,7 @@ test('between updates the Move\'s playhead is carried forward, unless it stands 
 test('a field that did not change keeps its object, so the staff is not rebuilt', () => {
   const src = local();
   src.backend.start();
-  for (const label of ['Basics', 'Scales', 'Major', 'Up & down']) select(src, label);
+  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(src, label);
   const flat = encodeViewModel(viewModel(src.backend.session));
   const bridge = fakeBridge();
   const remote = createSchwungSession({ bridge, now: () => 0 });

@@ -376,6 +376,8 @@ button.status-pill { cursor: pointer; }
   /* Sound stays in view on a phone; MIDI only once a device is there. */
   .status-pill.midi:not(.live) { display: none; }
   .app-title .app-crumb { display: none; }
+  /* Info, Options and Settings do not fit beside the title: they wrap. */
+  .app-bar { flex-wrap: wrap; row-gap: var(--space-2); }
   .rows { grid-template-columns: 1fr; }
   .progress-layout { grid-template-columns: 1fr; }
   .settings-rows { grid-template-columns: 1fr; }
@@ -387,3 +389,24 @@ button.status-pill { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .count-in, .hero-number, .staff-wrap.waiting .staff-badge { text-shadow: none; box-shadow: none; }
 }
+
+/* ------------------------------------------------- sheet, card, hint -- */
+.sheet-rows, .card-choices { grid-template-columns: minmax(260px, 420px); }
+.card-text.table p { font-family: var(--font-mono); white-space: pre; }
+.move-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0 0;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.move-hint-tag {
+  color: var(--ink-dim);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.move-hint-part { white-space: pre; }

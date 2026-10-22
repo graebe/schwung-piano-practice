@@ -9,43 +9,83 @@ import { createSession } from '../../src/session.mjs';
 import { viewModel, encodeViewModel } from '../../src/view_model.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 
-const SCALE = ['Basics', 'Scales', 'Major', 'Up & down'];
+const SCALE = ['Practice', 'Scales', 'Major', 'Up & down'];
+/* Settings is a folder of groups; a group opens the page with its rows. */
+async function openSettings(page, group) {
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.locator('.row', { hasText: new RegExp(`^${group}`) }).click();
+}
 /* A lit key's spoken name ("C sharp 4") as the options print it ("C#4"). */
 const asLabel = (spoken) => spoken.replace(' sharp ', '#').replace(' flat ', 'b').replace(/ /g, '');
 
 test.beforeEach(async ({ page }) => {
   await page.goto('./');
-  await page.waitForSelector('.row');
+  await page.waitForSelector('.screen');
 });
 
 test('the lesson list opens folders and steps back out', async ({ page }) => {
-  await expect(page.locator('.row')).toHaveCount(8);
-  await page.locator('.row', { hasText: 'Basics' }).click();
-  await expect(page.locator('#list-title')).toHaveText(/basics/i);
-  await expect(page.locator('.row')).toHaveCount(4);
+  await expect(page.locator('.row')).toHaveCount(6);
+  await expect(page.locator('.row .row-label')).toHaveText(['Continue', 'Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
+  await page.locator('.row', { hasText: /^Practice/ }).click();
+  await expect(page.locator('#list-title')).toHaveText(/practice/i);
+  await expect(page.locator('.row')).toHaveCount(5);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.row')).toHaveCount(8);
-  await expect(page.locator('.row.on')).toHaveText(/Basics/, { message: 'back where it came from' });
+  await expect(page.locator('.row')).toHaveCount(6);
+  await expect(page.locator('.row.on')).toHaveText(/Practice/, { message: 'back where it came from' });
   await page.keyboard.press('ArrowDown');
   await expect(page.locator('.row.on')).toHaveText(/Quiz/);
   await page.keyboard.press('Enter');
   await expect(page.locator('#list-title')).toHaveText(/quiz/i);
+  await expect(page.locator('.row .row-label')).toHaveText(['Ear', 'Reading', 'Keys']);
 });
 
-test('the Learning Program is five phases, and a fresh start continues in Phase 1', async ({ page }) => {
-  await page.locator('.row', { hasText: 'Learning Program' }).click();
+test('the Path is five stages, each ending on its Checkpoint; Continue names the next step', async ({ page }) => {
+  await expect(page.locator('.row').first()).toHaveText(/Continue.*Notes by alphabet/);
+  await page.locator('.row', { hasText: /^Path/ }).click();
   await closeInfo(page);
   for (const name of ['1 Grid and staff', '2 Four chords', '3 Shapes and time', '4 Sevenths', '5 Colour']) {
     await expect(page.locator('.row', { hasText: name })).toHaveCount(1);
   }
   await page.locator('.row', { hasText: '3 Shapes and time' }).click();
   await closeInfo(page);
-  await expect(page.locator('.row').first()).toHaveText(/Check: skip phase/);
-  await expect(page.locator('.row', { hasText: 'Start here' })).toHaveCount(1);
+  await expect(page.locator('.row').first()).toHaveText(/3\.1 Intervals II/);
+  await expect(page.locator('.row').last()).toHaveText(/Checkpoint/);
+  await expect(page.locator('.row', { hasText: /Start here|Check: skip/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
-  await page.locator('.row', { hasText: /Next: Major up/ }).click();
+  await page.keyboard.press('Escape');
+  await page.locator('.row', { hasText: /^Continue/ }).click();
+  await closeInfo(page);
+  await expect(page.locator('#quiz-title')).toBeVisible();
+});
+
+test('the options of a row: Test out: checkpoint plays the exam at stage 2', async ({ page }) => {
+  await openPath(page, ['Path']);
+  await expect(page.locator('.row.on')).toHaveText(/1 Grid and staff/);
+  await page.keyboard.press('Shift+Enter');
+  await expect(page.locator('.sheet-screen')).toBeVisible();
+  await expect(page.locator('.sheet-screen .row-label')).toHaveText(
+    ['I know it all: skip', 'Start the path here', 'Test out: checkpoint', 'Settings...']);
+  await expect(page.locator('.move-hint')).toContainText('CLICK do it');
+  await page.locator('.sheet-screen .row', { hasText: 'Test out: checkpoint' }).click();
   await closeInfo(page);
   await expect(page.locator('#piece-title')).toHaveText(/C Major/i);
+  await expect(page.getByRole('button', { name: 'Stage 2 · read' })).toHaveClass(/on/);
+});
+
+test('the Options button opens the sheet for the highlighted row; Close leaves it', async ({ page }) => {
+  await page.getByRole('button', { name: 'Options' }).click();
+  await expect(page.locator('#sheet-title')).toHaveText('Continue');
+  await expect(page.locator('.sheet-screen .row-label')).toHaveText(['I know this: skip', 'Settings...']);
+  await page.locator('.sheet-screen .row', { hasText: 'I know this: skip' }).click();
+  await expect(page.locator('.row').first()).toHaveText(/Continue.*Name notes/, { message: 'the step after' });
+});
+
+test('the hint line names the Move\'s keys on every screen', async ({ page }) => {
+  await expect(page.locator('.move-hint')).toContainText('CLICK open  MENU help');
+  await openPath(page, ['Practice']);
+  await expect(page.locator('.move-hint')).toContainText('CLICK open  BACK up');
+  await openPath(page, ['Scales', 'Major', 'Up & down']);
+  await expect(page.locator('.move-hint')).toContainText('REC start');
 });
 
 test('arming a drill: the staff, its stage, and Listen lighting the keys', async ({ page }) => {
@@ -65,10 +105,11 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
 test('practising from the computer keyboard: a right note scores, a wrong one is counted', async ({ page }) => {
   /* Grace to a whole beat, as for a new piece: the test presses once it has
    * seen the bar start, a reaction later than the default quarter beat. */
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettings(page, 'Practice');
   const grace = page.locator('.setting', { hasText: 'Grace' });
   for (let i = 0; i < 3; i++) await grace.getByRole('button', { name: 'More Grace' }).click();
   await expect(grace.locator('.setting-value')).toHaveText('1');
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await openPath(page, SCALE);
   await page.keyboard.press('Space');                      /* practise */
@@ -107,12 +148,13 @@ test('scrubbing picks the start; tempo follows the knob-less stepper', async ({ 
 
 test('a Name round answered from the lit keys runs to its result, and Progress charts it', async ({ page }) => {
   /* Settings first: a round of ten. */
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettings(page, 'Practice');
   const round = page.locator('.setting', { hasText: 'Round' });
   await round.getByRole('button', { name: 'Less Round' }).click();
   await expect(round.locator('.setting-value')).toHaveText('10');
   await page.keyboard.press('Escape');
-  await openPath(page, ['Quiz', 'Name', 'Notes']);
+  await page.keyboard.press('Escape');
+  await openPath(page, ['Quiz', 'Keys', 'Name notes']);
   await expect(page.locator('#quiz-title')).toHaveText(/name the note/i);
   for (let i = 0; i < 40; i++) {
     if (await page.locator('.result-screen').count()) break;
@@ -133,7 +175,7 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
   expect(await answers.locator('rect.chart-bar').count()).toBeGreaterThan(1);
   await expect(page.locator('.result-screen svg[role="img"]')).toHaveCount(3);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
-  await page.locator('.row', { hasText: 'Progress' }).click();
+  await page.locator('.row', { hasText: /^Progress/ }).click();
   await page.locator('.progress-screen .row', { hasText: 'Overall' }).click();
   await expect(page.locator('.progress-detail .chart')).toBeVisible();
   await page.locator('.progress-screen .row').last().click();
@@ -145,7 +187,7 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
 const spoken = (name) => new RegExp(`^${name[0]}${name.slice(1).replace('#', ' sharp').replace('b', ' flat')} \\d$`);
 
 test('Notes by alphabet: a row of names, and a right note in any octave moves it on', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Play', 'Notes by alphabet']);
+  await openPath(page, ['Quiz', 'Keys', 'Notes by alphabet']);
   const head = page.locator('.name-row-name.head');
   await expect(head).toHaveAttribute('data-index', '0');
   expect(await page.locator('.name-row-name').count()).toBeGreaterThanOrEqual(6);
@@ -163,7 +205,7 @@ test('Notes by alphabet: a row of names, and a right note in any octave moves it
 });
 
 test('Notes by staff: the next notes on the staff, no names until Help', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Play', 'Notes by staff']);
+  await openPath(page, ['Quiz', 'Reading', 'Notes by staff']);
   await expect(page.locator('.quiz-row svg')).toBeVisible();
   expect(await page.locator('.quiz-row .staff-event').count()).toBeGreaterThanOrEqual(4);
   await expect(page.locator('.quiz-ask')).toHaveText('Play what is written.');
@@ -177,14 +219,14 @@ test('Notes by staff: the next notes on the staff, no names until Help', async (
 });
 
 test('Chords by name: chord symbols in the row', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Play', 'Chords by name']);
+  await openPath(page, ['Quiz', 'Keys', 'Chords by name']);
   const names = await page.locator('.name-row-name').allTextContents();
   expect(names.length).toBeGreaterThanOrEqual(6);
   for (const n of names) expect(n.trim()).toMatch(/^[A-G][#b]?(m|dim|aug)?$|^[A-G][#b]? /);
 });
 
 test('settings are remembered across a reload', async ({ page }) => {
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettings(page, 'Practice');
   const tempo = page.locator('.setting', { hasText: 'Tempo' });
   await tempo.getByRole('button', { name: 'More Tempo' }).click();
   await tempo.getByRole('button', { name: 'More Tempo' }).click();
@@ -192,12 +234,12 @@ test('settings are remembered across a reload', async ({ page }) => {
   await expect(page.locator('.setting', { hasText: 'MIDI out' })).toHaveCount(0);
   await page.waitForTimeout(1200);                        /* the lazy save */
   await page.reload();
-  await page.getByRole('button', { name: 'Settings' }).click();
+  await openSettings(page, 'Practice');
   await expect(page.locator('.setting', { hasText: 'Tempo' }).locator('.setting-value')).toHaveText('82');
 });
 
 test('a hearing drill answers by colour, then shows where the answer sits', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
+  await openPath(page, ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']);
   await expect(page.locator('#quiz-title')).toHaveText(/higher or lower/i);
   await expect(page.locator('.option .chip')).toHaveCount(3);
   for (const option of await page.locator('.option').all()) {
@@ -222,7 +264,7 @@ for (const [course, unit, level, title, answers] of [
   [['Scales & keys', 'Identify scales'], '6 Seven modes', 'up', /seven modes/i, 7],
 ]) {
   test(`${course[1]}: a unit's level asks its own answers, and a right one counts`, async ({ page }) => {
-    await openPath(page, ['Quiz', 'Hear', ...course, unit, level]);
+    await openPath(page, ['Quiz', 'Ear', ...course, unit, level]);
     await expect(page.locator('#quiz-title')).toHaveText(title);
     await expect(page.locator('.option')).toHaveCount(answers);
     await answerRight(page);
@@ -236,7 +278,7 @@ for (const [course, unit, level, answers, notes] of [
   ['Identify scales', '6 Seven modes', 'up', 7, 8],
 ]) {
   test(`Read ${course}: the prompt is on the staff, the answers below it`, async ({ page }) => {
-    await openPath(page, ['Quiz', 'Read', course, unit, level]);
+    await openPath(page, ['Quiz', 'Reading', course, unit, level]);
     await expect(page.locator('.quiz-row svg')).toBeVisible();
     expect(await page.locator('.quiz-row .staff-note').count()).toBeGreaterThanOrEqual(notes);
     await expect(page.locator('.option')).toHaveCount(answers);
@@ -245,12 +287,48 @@ for (const [course, unit, level, answers, notes] of [
   });
 }
 
-test('Info explains what is in front of you, and Escape closes it', async ({ page }) => {
+test('Info explains what is in front of you, with its keys, and Escape closes it', async ({ page }) => {
   await page.keyboard.press('KeyI');
   await expect(page.locator('.info-screen')).toBeVisible();
   await expect(page.locator('.info-text p').first()).not.toBeEmpty();
+  await expect(page.locator('.info-text h2', { hasText: 'Keys' })).toBeVisible();
+  await expect(page.locator('.info-text p', { hasText: 'SHIFT+CLICK options' })).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.locator('.info-screen')).toHaveCount(0);
+});
+
+test.describe('a first visit', () => {
+  test.use({ welcomed: false });
+
+  test('the welcome, then "I already play" opens the Path with a tip', async ({ page }) => {
+    await expect(page.locator('#card-title')).toHaveText('Welcome');
+    await expect(page.locator('.card-text p').first()).toHaveText(/Piano Practice takes you from your first note to pro/);
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.locator('#card-title')).toHaveText('Keys');
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('#card-title')).toHaveText('New to piano?');
+    await page.locator('.card-choices .row', { hasText: 'I already play' }).click();
+    await expect(page.locator('.card-text p').first()).toHaveText(/^Know a stage already\?/);
+    await page.getByRole('button', { name: 'Go on' }).click();
+    await expect(page.locator('#list-title')).toHaveText(/path/i);
+    await page.reload();
+    await page.waitForSelector('.screen');
+    await expect(page.locator('.card-screen')).toHaveCount(0, { message: 'welcomed once' });
+  });
+
+  test('"From the start" lands on Continue; a first piece shows its tip once', async ({ page }) => {
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await page.locator('.card-choices .row', { hasText: 'From the start' }).click();
+    await expect(page.locator('.row.on')).toHaveText(/^Continue/);
+    await openPath(page, SCALE);
+    await expect(page.locator('.card-text p').first()).toHaveText(/^REC plays and scores it/);
+    await page.keyboard.press('Escape');
+    /* Factory settings: the piece's help comes by itself, under the tip. */
+    await expect(page.locator('#info-title')).toHaveText(/C Major/i);
+    await closeInfo(page);
+    await expect(page.locator('#piece-title')).toHaveText(/C Major/i);
+  });
 });
 
 test('the pads play the Move\'s grid', async ({ page }) => {
@@ -299,13 +377,14 @@ function moveState() {
     now: () => 1000, wallNow: () => Date.UTC(2026, 9, 9), strike() {}, release() {}, silence() {}, announce() {},
     readText: (n) => {
       if (n === 'settings.json') return JSON.stringify({ version: 7, autoInfo: false });
+      if (n === 'progress.json') return JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz'] });
       return n.startsWith('exercises/') && existsSync(ex + n.slice(10)) ? readFileSync(ex + n.slice(10), 'utf8') : null;
     },
     writeText: () => true, exit() {}, settingChanged() {}, reveal() {},
   };
   const S = createSession(fx);
   S.init();
-  for (const label of ['Classics', 'Marys Lamb', 'L1 RH melody']) {
+  for (const label of ['Practice', 'Songs', 'Classics', 'Marys Lamb', 'L1 RH melody']) {
     const top = S.nav[S.nav.length - 1];
     S.selectRow(top.node.children.findIndex((r) => r.label === label));
     S.activate(false);

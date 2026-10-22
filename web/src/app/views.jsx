@@ -18,7 +18,7 @@ import { keyboardRange } from './feedback.js';
 import { MODES } from '../../../src/generator.mjs';
 
 const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
-const MARK_INFO = { done: 'both stages passed', half: 'stage 1 passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a phase you skipped' };
+const MARK_INFO = { done: 'both stages passed', half: 'stage 1 passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a stage you skipped' };
 
 /* The playhead, every animation frame while the music moves; still otherwise. */
 function createFrameClock(store) {
@@ -424,27 +424,128 @@ export function ProgressView(props) {
 /* Move-only: where the Move sends its notes. A browser has its own piano. */
 const MOVE_ONLY = new Set(['MIDI out', 'MIDI ch']);
 
+/*
+ * One group's rows, as the Move's page has them: a setting (− and +), the
+ * path's start (the same), or an action (Help's two), which is one button.
+ */
 export function SettingsView(props) {
   const s = () => props.vm().settings;
   const rows = () => s().rows.filter((r) => props.remote || !MOVE_ONLY.has(r.label));
+  const edit = (row, delta) => props.dispatch(row.index >= 0
+    ? { type: 'editSetting', index: row.index, delta }
+    : { type: 'editRow', row: row.row, delta });
   return (
     <section class="screen settings-screen" aria-labelledby="settings-title">
-      <header class="screen-head"><h1 id="settings-title" class="t-title">Settings</h1></header>
+      <header class="screen-head"><h1 id="settings-title" class="t-title">{s().title}</h1></header>
       <ul class="rows settings-rows">
         <For each={rows()}>{(row) => (
-          <li class="setting" classList={{ on: row.index === s().cursor }}
-              onClick={() => props.dispatch({ type: 'selectSetting', index: row.index })}>
+          <li class="setting" classList={{ on: row.row === s().cursor }}
+              onClick={() => props.dispatch(row.index >= 0
+                ? { type: 'selectSetting', index: row.index } : { type: 'settingRow', row: row.row })}>
             <span class="row-label">{row.label}</span>
-            <Button title={`Less ${row.label}`} ariaLabel={`Less ${row.label}`}
-                    onClick={() => props.dispatch({ type: 'editSetting', index: row.index, delta: -1 })}>−</Button>
-            <span class="pp-value setting-value">{row.value}</span>
-            <Button title={`More ${row.label}`} ariaLabel={`More ${row.label}`}
-                    onClick={() => props.dispatch({ type: 'editSetting', index: row.index, delta: 1 })}>+</Button>
+            <Show when={!row.act} fallback={
+              <Button info={row.label} onClick={(e) => { e.stopPropagation(); props.dispatch({ type: 'settingRow', row: row.row }); }}>{row.label}</Button>
+            }>
+              <Button title={`Less ${row.label}`} ariaLabel={`Less ${row.label}`}
+                      onClick={() => edit(row, -1)}>−</Button>
+              <span class="pp-value setting-value">{row.value}</span>
+              <Button title={`More ${row.label}`} ariaLabel={`More ${row.label}`}
+                      onClick={() => edit(row, 1)}>+</Button>
+            </Show>
           </li>
         )}</For>
       </ul>
-      {props.extra}
+      {/* The browser's own inputs belong with MIDI, whose Move rows a browser
+        * does not have; and with every setting at once, from a piece. */}
+      <Show when={!s().group || s().group === 'midi'}>{props.extra}</Show>
     </section>
+  );
+}
+
+/* ---- The options of a row ---------------------------------------------------- */
+
+/* Shift + click on the Move: what can be done with the row besides opening it. */
+export function SheetView(props) {
+  const sheet = () => props.vm().sheet;
+  return (
+    <Show when={sheet()}>
+      <section class="screen sheet-screen" aria-labelledby="sheet-title">
+        <header class="screen-head">
+          <h1 id="sheet-title" class="t-title">{sheet().title}</h1>
+          <p class="t-hint">Options for this row</p>
+        </header>
+        <ul class="rows sheet-rows" role="listbox" aria-labelledby="sheet-title">
+          <For each={sheet().items}>{(label, i) => (
+            <li>
+              <button class="row" classList={{ on: i() === sheet().cursor }} role="option"
+                      aria-selected={i() === sheet().cursor} data-info={label}
+                      onClick={() => props.dispatch({ type: 'sheetPick', index: i() })}>
+                <span class="row-label">{label}</span>
+              </button>
+            </li>
+          )}</For>
+        </ul>
+        <div class="transport"><Button onClick={() => props.dispatch({ type: 'back' })} info="Close the options">Close</Button></div>
+      </section>
+    </Show>
+  );
+}
+
+/* ---- Cards: the welcome and the tips --------------------------------------- */
+
+export function CardView(props) {
+  const card = () => props.vm().card;
+  const last = () => card().page >= card().pages - 1;
+  return (
+    <Show when={card()}>
+      <section class="screen card-screen" aria-labelledby="card-title">
+        <header class="screen-head">
+          <h1 id="card-title" class="t-title">{card().title}</h1>
+          <Show when={card().pages > 1}><p class="t-hint">{card().page + 1} of {card().pages}</p></Show>
+        </header>
+        <Show when={card().choices} fallback={
+          <article class="info-text card-text" classList={{ table: card().lines }}>
+            <For each={card().paragraphs}>{(p) => <p class="t-value">{p}</p>}</For>
+          </article>
+        }>
+          <ul class="rows card-choices" role="listbox" aria-labelledby="card-title">
+            <For each={card().choices}>{(label, i) => (
+              <li>
+                <button class="row" classList={{ on: i() === card().choice }} role="option"
+                        aria-selected={i() === card().choice}
+                        onClick={() => props.dispatch({ type: 'cardPick', index: i() })}>
+                  <span class="row-label">{label}</span>
+                </button>
+              </li>
+            )}</For>
+          </ul>
+        </Show>
+        <div class="transport">
+          <Show when={!card().choices}>
+            <Button on onClick={() => props.dispatch({ type: 'open' })} info={last() ? 'Close the card' : 'The next page'}>
+              {last() ? 'Go on' : 'Next'}
+            </Button>
+          </Show>
+          <Button onClick={() => props.dispatch({ type: 'back' })} info="Close it">Close</Button>
+        </div>
+      </section>
+    </Show>
+  );
+}
+
+/* ---- The Move's hint line ---------------------------------------------------- */
+
+/* What the Move's footer says on this screen, every part at once: the page
+ * names the same keys in the Move's words. */
+export function MoveHint(props) {
+  const parts = () => (props.vm().hint || []);
+  return (
+    <Show when={parts().length}>
+      <p class="move-hint t-hint" aria-label="On the Move">
+        <span class="move-hint-tag">Move</span>
+        <For each={parts()}>{(part) => <span class="move-hint-part">{part}</span>}</For>
+      </p>
+    </Show>
   );
 }
 

@@ -32,7 +32,7 @@ test('the Move\'s buttons, by meaning', () => {
   assert.deepEqual(act('Space'), { type: 'practice' });
   assert.deepEqual(act('Space', { shiftKey: true }), { type: 'listen' });
   assert.deepEqual(act('Enter'), { type: 'open' });
-  assert.deepEqual(act('Enter', { shiftKey: true }), { type: 'skip' });
+  assert.deepEqual(act('Enter', { shiftKey: true }), { type: 'options' });
   assert.deepEqual(act('Escape'), { type: 'back' });
   assert.deepEqual(act('Backspace'), { type: 'back' });
   assert.deepEqual(act('ArrowDown'), { type: 'move', delta: 1 });
