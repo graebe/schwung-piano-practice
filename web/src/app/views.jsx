@@ -19,6 +19,7 @@ import { MODES } from '../../../src/generator.mjs';
 import { layoutPlaces, cellRect, MAP_X, MAP_Y, MAP_W, MAP_H } from '../../../src/pathmap/layout.mjs';
 import { createWalk, walkTo, arrived } from '../../../src/pathmap/walk.mjs';
 import { drawMap } from '../../../src/pathmap/render.mjs';
+import { compile, HOME_X, HOME_Y, R_SMALL, R_LARGE } from '../../../src/home/render.mjs';
 
 const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
 const MARK_INFO = { done: 'both stages passed', half: 'Guided passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a stage you skipped' };
@@ -119,6 +120,8 @@ export function MapView(props) {
         <p class="t-hint">
           {here() ? `${here().label} · ${here().percent}%${here().due ? ` · ${here().due} due` : ''}` : ''}
         </p>
+        <Button icon="play" info="Continue — your next step on the Path (Play on the Move)"
+                onClick={() => props.dispatch({ type: 'listen' })}>Continue</Button>
       </header>
       <svg class="map" viewBox={`${MAP_X} ${MAP_Y} ${MAP_W} ${MAP_H}`} shape-rendering="crispEdges"
            role="group" aria-label={m().world ? 'The world map: a place per stage' : 'The island: a place per unit'}>
@@ -142,6 +145,76 @@ export function MapView(props) {
               <span class="row-label">{p.label}</span>
               <span class={`row-mark state-${p.state}`}>{p.state}</span>
               <span class="row-value">{p.percent}%</span>
+            </button>
+          </li>
+        )}</For>
+      </ul>
+    </section>
+  );
+}
+
+/* ---- Home: five circles ------------------------------------------------------- */
+
+/*
+ * The Move's home screen as SVG: the same positions and radii as the panel
+ * (home/render.mjs), the icons the session sends as the engine's rows. The
+ * selected circle is filled, its icon cut out of it, and it grows — here by
+ * a CSS transition on r, there frame by frame. A click opens a circle, as
+ * the circle's pad does on the Move; the rows below are the same five, for
+ * the keyboard and a screen reader.
+ */
+const ICON_RECTS = new WeakMap();
+/* The strip the circles take, a pixel of air round the grown one; the
+ * label is the page's own text. app.css's aspect-ratio is its 128 x 29. */
+const HOME_TOP = HOME_Y - R_LARGE - 2;
+const HOME_H = 2 * R_LARGE + 5;
+function iconRects(rows) {
+  if (!rows) return [];
+  let r = ICON_RECTS.get(rows);
+  if (!r) {
+    r = compile(rows);
+    ICON_RECTS.set(rows, r);
+  }
+  return r;
+}
+
+export function HomeView(props) {
+  const home = () => props.vm().home;
+  const selected = () => home().items[home().selected];
+  return (
+    <section class="screen home-screen" aria-labelledby="home-title">
+      <header class="screen-head">
+        <h1 id="home-title" class="t-title">Piano</h1>
+        <p class="t-hint">{selected() ? selected().label : ''}</p>
+      </header>
+      {/* The picture is for the pointer; the rows below say the same to a
+        * screen reader, so it is hidden from one. */}
+      <svg class="home" viewBox={`0 ${HOME_TOP} 128 ${HOME_H}`} aria-hidden="true">
+        <For each={home().items}>{(it, i) => {
+          const on = () => i() === home().selected;
+          const rows = () => (on() ? it.large : it.small);
+          const half = () => (rows() ? rows().length >> 1 : 0);
+          return (
+            <g class="home-item" classList={{ on: on() }} data-key={it.key} data-info={`${it.label} — open it`}
+               onClick={() => props.dispatch({ type: 'homeGo', index: i() })}>
+              <circle class="home-circle" cx={HOME_X[i()] + 0.5} cy={HOME_Y + 0.5}
+                      style={{ r: `${(on() ? R_LARGE : R_SMALL) + (on() ? 0.5 : 0)}px` }} />
+              <g class="home-icon" shape-rendering="crispEdges"
+                 transform={`translate(${HOME_X[i()] - half()} ${HOME_Y - half()})`}>
+                <For each={iconRects(rows())}>{(r) => <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} />}</For>
+              </g>
+            </g>
+          );
+        }}</For>
+      </svg>
+      <ul class="rows home-rows" role="listbox" aria-label="Home">
+        <For each={home().items}>{(it, i) => (
+          <li>
+            <button class="row folder" classList={{ on: i() === home().selected }} role="option"
+                    aria-selected={i() === home().selected} data-info={`${it.label} — open it`}
+                    onClick={() => props.dispatch({ type: 'homeGo', index: i() })}>
+              <span class="row-label">{it.label}</span>
+              <span class="row-chevron" aria-hidden="true">›</span>
             </button>
           </li>
         )}</For>

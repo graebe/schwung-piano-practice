@@ -411,6 +411,32 @@ button.status-pill { cursor: pointer; }
 }
 .move-hint-part { white-space: pre; }
 
+/* ---------------------------------------------------------------- home -- */
+.home {
+  display: block;
+  width: 100%;
+  max-width: 768px; /* 6x the panel, as the map */
+  margin-inline: auto;
+  aspect-ratio: 128 / 29;
+  background: var(--bg-200);
+  border: 1px solid var(--line-100);
+}
+.home-item { cursor: pointer; }
+.home-circle {
+  fill: var(--bg-200);
+  stroke: var(--uv);
+  stroke-width: 1;
+  transition: r 160ms ease-out, fill 160ms ease-out;
+}
+.home-icon rect { fill: var(--uv); }
+.home-item.on .home-circle { fill: var(--uv); stroke: none; }
+.home-item.on .home-icon rect { fill: var(--bg-200); }
+.home-item:not(.on):hover .home-circle { fill: color-mix(in srgb, var(--uv) 18%, var(--bg-200)); }
+.home-rows { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+@media (prefers-reduced-motion: reduce) {
+  .home-circle { transition: none; }
+}
+
 /* ----------------------------------------------------------------- map -- */
 .map {
   display: block;
@@ -427,6 +453,7 @@ button.status-pill { cursor: pointer; }
 .map .place-hit { fill: transparent; cursor: pointer; }
 .map .place-hit:hover { fill: color-mix(in srgb, var(--uv) 18%, transparent); }
 .map-places { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.map-screen .screen-head > .btn { align-self: flex-start; }
 .row-mark.state-done { color: var(--uv); }
 .row-mark.state-current { color: var(--on-uv); background: var(--uv); padding: 0 var(--space-1); }
 .row-mark.state-ahead, .row-mark.state-fresh { color: var(--ink-dim); }

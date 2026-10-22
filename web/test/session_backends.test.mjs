@@ -77,8 +77,10 @@ test('the browser session starts on the list and publishes view models', () => {
   l.backend.start();
   assert.ok(l.running, 'it ticks');
   assert.equal(seen.at(-1).screen, 'menu');
-  assert.deepEqual(seen.at(-1).nav.rows.map((r) => r.label), ['Continue', 'Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
-  assert.deepEqual(seen.at(-1).hint, ['CLICK open  MENU help'], 'the hint line travels with the picture');
+  assert.deepEqual(seen.at(-1).nav.rows.map((r) => r.label), ['Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
+  assert.deepEqual(seen.at(-1).home.items.map((it) => it.key), ['program', 'basics', 'quiz', 'progress', 'settings']);
+  assert.deepEqual(seen.at(-1).hint, ['JOG choose', 'CLICK open  PAD open', 'MENU help'],
+    'the hint line travels with the picture');
   assert.equal(seen.at(-1).announcement.text, 'Piano Practice. Pick an exercise.');
   select(l, 'Practice');
   select(l, 'Songs');
