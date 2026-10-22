@@ -14,7 +14,7 @@ import { EditorFrame } from '../kit/components/EditorFrame.jsx';
 import { Button } from '../kit/components/Button.jsx';
 import { createStore } from './store.js';
 import {
-  ListView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
+  ListView, MapView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
   MoveHint, KeysPanel,
 } from './views.jsx';
 import { keyIntent, DEFAULT_OCTAVE_C } from '../input/keys.js';
@@ -235,6 +235,7 @@ export function App(props) {
         <div class="app-main">
           <Show when={vm()}>
             <Switch>
+              <Match when={vm().screen === 'menu' && vm().map}><MapView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'menu'}><ListView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'ready' || vm().screen === 'running'}>
                 <PracticeView vm={vm} store={store} dispatch={dispatch} narrow={narrow} />

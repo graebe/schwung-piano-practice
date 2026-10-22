@@ -46,6 +46,8 @@ test('the Path is five stages, each ending on its Checkpoint; Continue names the
   for (const name of ['1 Grid and staff', '2 Four chords', '3 Shapes and time', '4 Sevenths', '5 Colour']) {
     await expect(page.locator('.row', { hasText: name })).toHaveCount(1);
   }
+  /* On the map a first click walks there, a second goes in. */
+  await page.locator('.row', { hasText: '3 Shapes and time' }).click();
   await page.locator('.row', { hasText: '3 Shapes and time' }).click();
   await closeInfo(page);
   await expect(page.locator('.row').first()).toHaveText(/3\.1 Intervals II/);
@@ -58,13 +60,37 @@ test('the Path is five stages, each ending on its Checkpoint; Continue names the
   await expect(page.locator('#quiz-title')).toBeVisible();
 });
 
+test('the Path is a map: click an island to walk there, again to go in, Back to come out', async ({ page }) => {
+  await openPath(page, ['Path']);
+  await expect(page.locator('.map-screen')).toBeVisible();
+  await expect(page.locator('.map-screen .screen-head .t-hint')).toHaveText(/^1 Grid and staff · 0%/);
+  await expect(page.locator('.move-hint')).toContainText('PAD go  CLICK enter');
+  const third = page.locator('.map .place-hit').nth(2);
+  await third.click();
+  await expect(page.locator('.map-screen .screen-head .t-hint')).toHaveText(/^3 Shapes and time/);
+  await page.waitForTimeout(700);                         /* the walk, at ~90 ms a cell */
+  await page.mouse.move(0, 0);                            /* no hover in the picture */
+  await expect(page).toHaveScreenshot('map.png', { fullPage: true });
+  await third.click();
+  await expect(page.locator('#map-title')).toHaveText(/3 Shapes and time/);
+  await expect(page.locator('.map-places .row')).toHaveCount(9);
+  await expect(page.locator('.map-places .row').last()).toHaveText(/Checkpoint/);
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot('island.png', { fullPage: true });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#map-title')).toHaveText('Path');
+  await expect(page.locator('.map-places .row.on')).toHaveText(/3 Shapes and time/, { message: 'on the island it left' });
+  await page.keyboard.press('ArrowRight');
+  await expect(page.locator('.map-places .row.on')).toHaveText(/4 Sevenths/, { message: 'the arrows walk' });
+});
+
 test('the options of a row: Test out: checkpoint plays the exam Solo', async ({ page }) => {
   await openPath(page, ['Path']);
   await expect(page.locator('.row.on')).toHaveText(/1 Grid and staff/);
   await page.keyboard.press('Shift+Enter');
   await expect(page.locator('.sheet-screen')).toBeVisible();
   await expect(page.locator('.sheet-screen .row-label')).toHaveText(
-    ['I know it all: skip', 'Start the path here', 'Test out: checkpoint', 'Settings...']);
+    ['I know it all: skip', 'Start the path here', 'Test out: checkpoint', 'Show as list', 'Settings...']);
   await expect(page.locator('.move-hint')).toContainText('CLICK do it');
   await page.locator('.sheet-screen .row', { hasText: 'Test out: checkpoint' }).click();
   await closeInfo(page);
@@ -312,7 +338,10 @@ test.describe('a first visit', () => {
     await page.locator('.card-choices .row', { hasText: 'I already play' }).click();
     await expect(page.locator('.card-text p').first()).toHaveText(/^Know a stage already\?/);
     await page.getByRole('button', { name: 'Go on' }).click();
-    await expect(page.locator('#list-title')).toHaveText(/path/i);
+    /* The Path is a map, and its own tip comes the first time it is seen. */
+    await expect(page.locator('.card-text p').first()).toHaveText(/^Lit pads are places/);
+    await page.getByRole('button', { name: 'Go on' }).click();
+    await expect(page.locator('#map-title')).toHaveText('Path');
     await page.reload();
     await page.waitForSelector('.screen');
     await expect(page.locator('.card-screen')).toHaveCount(0, { message: 'welcomed once' });
@@ -378,7 +407,7 @@ function moveState() {
     now: () => 1000, wallNow: () => Date.UTC(2026, 9, 9), strike() {}, release() {}, silence() {}, announce() {},
     readText: (n) => {
       if (n === 'settings.json') return JSON.stringify({ version: 7, autoInfo: false });
-      if (n === 'progress.json') return JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz'] });
+      if (n === 'progress.json') return JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island'] });
       return n.startsWith('exercises/') && existsSync(ex + n.slice(10)) ? readFileSync(ex + n.slice(10), 'utf8') : null;
     },
     writeText: () => true, exit() {}, settingChanged() {}, reveal() {},

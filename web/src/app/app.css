@@ -410,3 +410,22 @@ button.status-pill { cursor: pointer; }
   text-transform: uppercase;
 }
 .move-hint-part { white-space: pre; }
+
+/* ----------------------------------------------------------------- map -- */
+.map {
+  width: 100%;
+  max-width: 768px;
+  aspect-ratio: 128 / 44;
+  background: var(--bg-200);
+  border: 1px solid var(--line-100);
+  image-rendering: pixelated;
+}
+.map .ink { fill: var(--uv); }
+.map .sea { fill: var(--bg-200); }
+.map .place-hit { fill: transparent; cursor: pointer; }
+.map .place-hit:hover { fill: color-mix(in srgb, var(--uv) 18%, transparent); }
+.map-places { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.row-mark.state-done { color: var(--uv); }
+.row-mark.state-current { color: var(--on-uv); background: var(--uv); padding: 0 var(--space-1); }
+.row-mark.state-ahead, .row-mark.state-fresh { color: var(--ink-dim); }
+.row-mark.state-skipped { color: var(--ink-muted); }

@@ -44,7 +44,7 @@ function local(opts = {}) {
   const storage = memoryStorage();
   storage.setItem('piano-practice:settings.json', JSON.stringify({ version: 7, autoInfo: false, quizSounds: false }));
   /* Welcomed, every tip seen: the welcome has its own test below. */
-  storage.setItem('piano-practice:progress.json', JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz'] }));
+  storage.setItem('piano-practice:progress.json', JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island'] }));
   const backend = createLocalSession({
     piano,
     storage,

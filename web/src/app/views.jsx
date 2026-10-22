@@ -16,6 +16,9 @@ import { AnswersChart, AttemptsChart, RoundsChart, TimelineChart } from './chart
 import { staffEvents, staffJudgements, staffMarkers } from './chart-view.js';
 import { keyboardRange } from './feedback.js';
 import { MODES } from '../../../src/generator.mjs';
+import { layoutPlaces, cellRect, MAP_X, MAP_Y, MAP_W, MAP_H } from '../../../src/pathmap/layout.mjs';
+import { createWalk, walkTo, arrived } from '../../../src/pathmap/walk.mjs';
+import { drawMap } from '../../../src/pathmap/render.mjs';
 
 const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
 const MARK_INFO = { done: 'both stages passed', half: 'Guided passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a stage you skipped' };
@@ -58,6 +61,87 @@ export function ListView(props) {
               </Show>
               <span class="row-value">{row.value === '>' ? '' : row.value.replace(/\s*>$/, '')}</span>
               <Show when={row.folder}><span class="row-chevron" aria-hidden="true">›</span></Show>
+            </button>
+          </li>
+        )}</For>
+      </ul>
+    </section>
+  );
+}
+
+/* ---- The Path as a map ------------------------------------------------------ */
+
+/*
+ * The Move's map, drawn by the same engine (pathmap/render.mjs) into a
+ * recording ctx whose rectangles become SVG: the page shows exactly what the
+ * panel shows, scaled. The avatar's walk is the page's own, on the same
+ * layout, set off whenever the session's avatar is bound somewhere new — so
+ * it walks the route here as it does there, whatever the session's clock.
+ */
+function mapRects(places, layout, walk, now) {
+  const rects = [];
+  drawMap({ fillRect: (x, y, w, h, v) => rects.push([x, y, w, h, v]) }, { places, layout, walk, now });
+  return rects;
+}
+
+export function MapView(props) {
+  const m = () => props.vm().map;
+  const layout = createMemo(() => layoutPlaces(m().places.length));
+  const [frame, setFrame] = createSignal(performance.now());
+  let walk = null;
+  let walkLayout = null;
+  let raf = 0;
+  const animate = () => {
+    setFrame(performance.now());
+    if (walk && !arrived(walk, performance.now())) raf = requestAnimationFrame(animate);
+    else raf = 0;
+  };
+  /* A new map stands the avatar on its place; a new place sets it walking. */
+  const avatar = createMemo(() => {
+    const l = layout();
+    const at = m().at;
+    if (!walk || walkLayout !== l) {
+      walk = createWalk(l, at);
+      walkLayout = l;
+    } else if (walk.target !== at) {
+      walkTo(walk, at, performance.now());
+      if (!raf) raf = requestAnimationFrame(animate);
+    }
+    return walk;
+  });
+  onCleanup(() => cancelAnimationFrame(raf));
+  const rects = () => mapRects(m().places, layout(), avatar(), frame());
+  const here = () => m().places[m().at];
+  return (
+    <section class="screen map-screen" aria-labelledby="map-title">
+      <header class="screen-head">
+        <h1 id="map-title" class="t-title">{m().world ? 'Path' : props.vm().nav ? props.vm().nav.title : ''}</h1>
+        <p class="t-hint">
+          {here() ? `${here().label} · ${here().percent}%${here().due ? ` · ${here().due} due` : ''}` : ''}
+        </p>
+      </header>
+      <svg class="map" viewBox={`${MAP_X} ${MAP_Y} ${MAP_W} ${MAP_H}`} shape-rendering="crispEdges"
+           role="group" aria-label={m().world ? 'The world map: a place per stage' : 'The island: a place per unit'}>
+        <For each={rects()}>{(r) => <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} class={r[4] ? 'ink' : 'sea'} />}</For>
+        <For each={m().places}>{(p, i) => {
+          const c = () => cellRect(layout().cells[i()]);
+          return (
+            <rect class="place-hit" classList={{ on: i() === m().at }} x={c().x} y={c().y} width={c().w} height={c().h}
+                  role="button" tabindex="-1" aria-label={`${p.label}, ${p.percent} percent, ${p.state}`}
+                  data-info={i() === m().at ? `${p.label} — click again to go in` : `${p.label} — walk there`}
+                  onClick={() => props.dispatch({ type: 'mapGo', index: i() })} />
+          );
+        }}</For>
+      </svg>
+      <ul class="rows map-places" aria-label="Places">
+        <For each={m().places}>{(p, i) => (
+          <li>
+            <button class="row" classList={{ on: i() === m().at }}
+                    data-info={i() === m().at ? `${p.label} — open it` : `${p.label} — walk there`}
+                    onClick={() => props.dispatch({ type: 'mapGo', index: i() })}>
+              <span class="row-label">{p.label}</span>
+              <span class={`row-mark state-${p.state}`}>{p.state}</span>
+              <span class="row-value">{p.percent}%</span>
             </button>
           </li>
         )}</For>
