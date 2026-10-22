@@ -11,7 +11,9 @@ import { STATES, KINDS, FILL_LEVELS, makePlace, fillLevel, shortOf, dueTotal } f
 
 test('the states and kinds are the spec\'s, and frozen', () => {
   assert.deepEqual([...STATES], ['done', 'current', 'started', 'fresh', 'skipped', 'ahead']);
-  assert.deepEqual([...KINDS], ['island', 'place', 'fort', 'hut', 'cove']);
+  assert.deepEqual([...KINDS], ['island', 'place', 'fort', 'hut', 'cove',
+    'sign', 'bell', 'clock', 'workshop', 'stage', 'library', 'temple', 'stairs', 'market']);
+  for (const kind of KINDS) assert.equal(makePlace({ kind }).kind, kind, 'every kind survives makePlace');
   assert.ok(Object.isFrozen(STATES) && Object.isFrozen(KINDS));
 });
 

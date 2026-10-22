@@ -16,7 +16,7 @@ import { createWalk, walkTo, posAt, walkDuration } from '../src/pathmap/walk.mjs
 import { makePlace, fillLevel } from '../src/pathmap/model.mjs';
 import {
   drawMap, glyphRows, placeGlyph, compile, rowsToRuns, runsToRects, drawWalker,
-  BODIES, AVATAR_ROWS, AVATAR_W, AVATAR_H, STAND_X, STAND_Y, GLYPH_W, GLYPH_H, GLYPH_DX,
+  BODIES, SHAPES, shapeKind, AVATAR_ROWS, AVATAR_W, AVATAR_H, STAND_X, STAND_Y, GLYPH_W, GLYPH_H, GLYPH_DX,
 } from '../src/pathmap/render.mjs';
 
 /* ---- A 128x64 1-bit screen that counts the calls made to it ------------- */
@@ -61,7 +61,7 @@ const lit = (rows) => rows.join('').split('').filter((c) => c === '#').length;
 const place = (state, percent = 0, kind = 'island', due = 0) => makePlace({ label: kind, state, percent, kind, due });
 
 /* What drawMap must have put in place i's 15x11 box. */
-const groundOf = (kind) => BODIES[kind].filter((r) => /[ox]/.test(r)).length;
+const groundOf = (kind) => SHAPES[shapeKind(kind)].filter((r) => /[ox]/.test(r)).length;
 function expectedGlyph(p, { here = false, avatar = false } = {}) {
   const look = { skipped: 'dotted', ahead: 'sparse' }[p.state] || 'solid';
   const level = look === 'solid' ? fillLevel(p.percent, groundOf(p.kind)) : 0;
@@ -205,9 +205,9 @@ test('island and place are a dome hill: rounded, symmetric, on a beach or level 
   assert.equal(BODIES.place[8], '#'.repeat(GLYPH_W), 'level ground');
 });
 
-test('island, place, fort, hut and chest are five different shapes', () => {
+test('island, place, fort and chest are four different shapes; the hut is now the signpost', () => {
   const kinds = Object.keys(BODIES);
-  assert.deepEqual(kinds, ['island', 'place', 'fort', 'hut', 'cove']);
+  assert.deepEqual(kinds, ['island', 'place', 'fort', 'cove']);
   for (const look of ['solid', 'sparse']) {
     const shapes = kinds.map((k) => glyphRows(k, look, look === 'solid' ? 5 : 0).join('|'));
     assert.equal(new Set(shapes).size, kinds.length, look);
@@ -215,9 +215,8 @@ test('island, place, fort, hut and chest are five different shapes', () => {
   const fort = glyphRows('fort', 'solid', 4);
   assert.equal(fort[5].slice(1, 10), '#.#.#.#.#', 'battlements');
   assert.equal(fort[GLYPH_H - 1][5], '.', 'a gate that stays open');
-  const hut = glyphRows('hut', 'solid', 5);
-  assert.equal(hut[3].replace(/\./g, ''), '#', 'a roof peak');
-  assert.deepEqual([hut[GLYPH_H - 2][5], hut[GLYPH_H - 1][5]], ['.', '.'], 'a door');
+  assert.equal(shapeKind('hut'), 'sign');
+  assert.deepEqual(glyphRows('hut', 'solid', 2, { flag: true }), glyphRows('sign', 'solid', 2, { flag: true }));
   assert.equal(glyphRows('volcano', 'solid', 0).join(), glyphRows('place', 'solid', 0).join(), 'unknown kinds draw as a place');
 });
 

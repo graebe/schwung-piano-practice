@@ -109,6 +109,71 @@ const MAPS = {
   ],
 };
 
+/*
+ * Island maps: the places of one stage, on one island. Same pictures, a
+ * different shape -- a loop round the island: from low on the left it
+ * climbs, runs along the top, comes down the right and back along the
+ * bottom, and from seven places on the last (the fort) stands in the middle.
+ * The four corner cells stay empty, where the coast rounds off into the sea.
+ * No island picture uses the cells of the world map with the same count.
+ */
+const ISLANDS = {
+  1: [
+    '........',
+    '........',
+    '....1...',
+    '........',
+  ],
+  2: [
+    '.>>>>v..',
+    '.^...2..',
+    '.^......',
+    '.1......',
+  ],
+  3: [
+    '.>2>>v..',
+    '.^...3..',
+    '.^......',
+    '.1......',
+  ],
+  4: [
+    '.>>>3>v.',
+    '2^....v.',
+    '^<....4.',
+    '.1......',
+  ],
+  5: [
+    '.>>3>>v.',
+    '2^....4.',
+    '^<....v.',
+    '.1...5<.',
+  ],
+  6: [
+    '.>>3>>4.',
+    '2^....>v',
+    '^<....v5',
+    '.1..6<<.',
+  ],
+  7: [
+    '.>3>>4v.',
+    '2^.7..>v',
+    '^<.^..v5',
+    '.1.^6<<.',
+  ],
+  8: [
+    '.>3>4>5.',
+    '2^.8..>v',
+    '^<.^..v6',
+    '.1.^<7<.',
+  ],
+  9: [
+    '.>3>4>5.',
+    '2^.9..>v',
+    '^<.^..v6',
+    '.1.8<7<.',
+  ],
+};
+
 const STEP = { '>': [1, 0], '<': [-1, 0], v: [0, 1], '^': [0, -1] };
 const isPlaceChar = (ch) => ch >= '1' && ch <= '9';
 
@@ -185,24 +250,31 @@ function deepFreeze(layout) {
 const memo = new Map();
 
 /*
- * The layout for n places: { n, cells, route, stops, placeAt }.
+ * The layout for n places: { n, kind, cells, route, stops, placeAt }.
+ *   kind        'world' (islands in the sea, the default) or 'island' (the
+ *               places of one stage, on one island)
  *   cells[i]    the cell of place i
  *   route       the cells the avatar walks, place 0 first, place n-1 last
  *   stops[i]    the index in route of place i (routeIndexOf)
  *   placeAt[k]  the place on grid cell k = row * 8 + col, or -1 for water
+ *
+ * Past nine places both kinds fall back to the same serpentine.
  */
-export function layoutPlaces(n) {
+export function layoutPlaces(n, { kind = 'world' } = {}) {
   if (!Number.isInteger(n) || n < 0 || n > MAX_PLACES) {
     throw new RangeError(`pathmap: ${n} places do not fit a ${COLS}x${ROWS} map`);
   }
-  const hit = memo.get(n);
+  if (kind !== 'world' && kind !== 'island') throw new RangeError(`pathmap: no ${kind} maps`);
+  const key = kind + n;
+  const hit = memo.get(key);
   if (hit) return hit;
-  const base = n === 0 ? { cells: [], route: [] } : MAPS[n] ? parseMap(MAPS[n], n) : serpentine(n);
+  const pictures = kind === 'island' ? ISLANDS : MAPS;
+  const base = n === 0 ? { cells: [], route: [] } : pictures[n] ? parseMap(pictures[n], n) : serpentine(n);
   const placeAt = new Array(MAX_PLACES).fill(-1);
   base.cells.forEach((c, i) => { placeAt[c.row * COLS + c.col] = i; });
   const stops = base.cells.map((c) => base.route.findIndex((r) => r.col === c.col && r.row === c.row));
-  const layout = deepFreeze({ n, cells: base.cells, route: base.route, stops, placeAt });
-  memo.set(n, layout);
+  const layout = deepFreeze({ n, kind, cells: base.cells, route: base.route, stops, placeAt });
+  memo.set(key, layout);
   return layout;
 }
 
@@ -228,11 +300,24 @@ export function placeOfPad(layout, note) {
   return cell ? layout.placeAt[cell.row * COLS + cell.col] : -1;
 }
 
-export function cellRect({ col, row }) {
+/*
+ * On an island map the cells sit on a slightly tighter grid, 15 x 9 px from
+ * (4, 14), so every building -- flag, roof and the avatar beside it -- stays
+ * inside the island's coast (render.mjs's COAST, 2 px inside the map area).
+ * The cells and their pads are the same; only where they are drawn moves.
+ */
+export const ISLAND_GRID = Object.freeze({ x: MAP_X + 4, y: MAP_Y + 4, w: 15, h: 9 });
+
+export function cellRect({ col, row }, kind = 'world') {
+  if (kind === 'island') {
+    const g = ISLAND_GRID;
+    return { x: g.x + col * g.w, y: g.y + row * g.h, w: g.w, h: g.h };
+  }
   return { x: MAP_X + col * CELL_W, y: MAP_Y + row * CELL_H, w: CELL_W, h: CELL_H };
 }
 
 /* Where the route crosses a cell and the avatar's feet stand on it. */
-export function cellCentre({ col, row }) {
-  return { x: MAP_X + col * CELL_W + CENTRE_DX, y: MAP_Y + row * CELL_H + CENTRE_DY };
+export function cellCentre(cell, kind = 'world') {
+  const r = cellRect(cell, kind);
+  return { x: r.x + CENTRE_DX, y: r.y + CENTRE_DY };
 }
