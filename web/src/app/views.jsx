@@ -112,6 +112,9 @@ export function MapView(props) {
   });
   onCleanup(() => cancelAnimationFrame(raf));
   const rects = () => mapRects(m().places, layout(), avatar(), frame());
+  /* While the avatar walks the picture moves: said on the element, so a
+   * test (or a screenshot) can wait for it to stand still. */
+  const walking = () => !arrived(avatar(), frame());
   const here = () => m().places[m().at];
   return (
     <section class="screen map-screen" aria-labelledby="map-title">
@@ -124,6 +127,7 @@ export function MapView(props) {
                 onClick={() => props.dispatch({ type: 'listen' })}>Continue</Button>
       </header>
       <svg class="map" viewBox={`${MAP_X} ${MAP_Y} ${MAP_W} ${MAP_H}`} shape-rendering="crispEdges"
+           data-walking={walking() ? 'yes' : 'no'}
            role="group" aria-label={m().world ? 'The world map: a place per stage' : 'The island: a place per unit'}>
         <For each={rects()}>{(r) => <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} class={r[4] ? 'ink' : 'sea'} />}</For>
         <For each={m().places}>{(p, i) => {

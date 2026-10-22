@@ -94,7 +94,7 @@ test('the Path is a map: click an island to walk there, again to go in, Back to 
   const third = page.locator('.map .place-hit').nth(2);
   await third.click();
   await expect(page.locator('.map-screen .screen-head .t-hint')).toHaveText(/^3 Shapes and time/);
-  await page.waitForTimeout(700);                         /* the walk, at ~90 ms a cell */
+  await expect(page.locator('.map')).toHaveAttribute('data-walking', 'no');   /* the walk, at ~90 ms a cell */
   await page.mouse.move(0, 0);                            /* no hover in the picture */
   await expect(page).toHaveScreenshot('map.png', { fullPage: true });
   await third.click();
