@@ -185,8 +185,18 @@ export function PracticeView(props) {
             {keyName(vm())} · {vm().chart ? vm().chart.bpm : ''} bpm · {position()}
           </p>
         </div>
+        <Show when={vm().armed && vm().armed.level && vm().armed.level.ladder}>
+          <div class="segmented levels" role="radiogroup" aria-label="Level">
+            <For each={vm().armed.level.levels}>{(lv, i) => (
+              <Button on={i() === vm().armed.level.index} info={`Level ${lv.label}${lv.learned ? ' — learned' : ''}`}
+                      onClick={() => props.dispatch({ type: 'level', index: i() })}>
+                {lv.step} {lv.name}{lv.learned ? ' ✓' : ''}
+              </Button>
+            )}</For>
+          </div>
+        </Show>
         <Show when={vm().armed}>
-          <div class="segmented" role="radiogroup" aria-label="Stage">
+          <div class="segmented" role="radiogroup" aria-label="Guided or Solo">
             <Button on={vm().armed.stage === 1} info="Guided — the next notes light on the keys and pads"
                     onClick={() => props.dispatch({ type: 'stage', stage: 1 })}>Guided</Button>
             <Button on={vm().armed.stage === 2} info="Solo — nothing lights: read it from the staff"

@@ -128,6 +128,23 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
   await expect(page.locator('.staff-badge')).toHaveText(/paused/i);
 });
 
+test('a song is one row: it opens ready, and its level is chosen there', async ({ page }) => {
+  await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+  await expect(page.locator('#piece-title')).toHaveText(/ode to joy/i);
+  const levels = page.locator('.levels .btn');
+  await expect(levels).toHaveCount(4);
+  await expect(levels.first()).toHaveClass(/on/);
+  await expect(page.locator('.move-hint')).toContainText('JOG level');
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot('ready-song.png', { fullPage: true });
+  await levels.nth(3).click();
+  await expect(page.locator('#piece-title')).toHaveText(/ode to joy l3/i);
+  await expect(levels.nth(3)).toHaveClass(/on/);
+  await page.keyboard.press('ArrowLeft');                  /* the jog: L3 Guided to L2 Solo */
+  await expect(levels.nth(2)).toHaveClass(/on/);
+  await expect(page.getByRole('button', { name: 'Solo', exact: true })).toHaveClass(/on/);
+});
+
 test('practising from the computer keyboard: a right note scores, a wrong one is counted', async ({ page }) => {
   /* Grace to a whole beat, as for a new piece: the test presses once it has
    * seen the bar start, a reaction later than the default quarter beat. */
@@ -414,7 +431,7 @@ function moveState() {
   };
   const S = createSession(fx);
   S.init();
-  for (const label of ['Practice', 'Songs', 'Classics', 'Marys Lamb', 'L1 RH melody']) {
+  for (const label of ['Practice', 'Songs', 'Classics', 'Marys Lamb']) {
     const top = S.nav[S.nav.length - 1];
     S.selectRow(top.node.children.findIndex((r) => r.label === label));
     S.activate(false);
