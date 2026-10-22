@@ -112,6 +112,31 @@ pad the one you stand on.
 this session: Review, the folder of what is due, lives in the Path's list.
 **Show as map**, or Back, returns to the map.
 
+## Levels, on the ready screen
+
+A song has up to four levels: **L1 RH melody**, **L1 LH bass**, **L2 RH
+chords** and **L3 Both hands**. A song is one row of the list: open it and
+you are on its ready screen at once, on the first level you have not
+learned yet.
+
+```
++--------------+-----------+
+| > listen     |   LEVEL   |
+| o practise   |  <  2 G > |
+| @ scrub      |           |
++--------------+-----------+
+L2 RH chords  Guided
+```
+
+The **LEVEL** box shows the level as a big digit, **G** or **S** for
+Guided or Solo beside it, arrows where the jog can go on, and a tick
+once that level is learned. **Turn the jog** to walk the levels and their
+two ways together: 1 Guided, 1 Solo, 2 Guided, 2 Solo, and so on, stopping
+at both ends. A new level starts from bar 1. The bottom line names it, and
+takes turns with the keys.
+
+A step of the Path, Continue and Review open the level they are about.
+
 ## The hint line
 
 The bottom line of every screen says which keys work there, the key in

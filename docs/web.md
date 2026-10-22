@@ -91,6 +91,14 @@ wait to the right of the hit line, and nothing moves yet.
 Each is **passed** at 90%. Pass Guided and the lesson shows ◐; pass Solo and
 it shows ✓.
 
+A song opens the same way, straight onto its ready screen, on the first
+level you have not learned. Its levels are buttons above the staff —
+**L1 RH melody**, **L1 LH bass**, **L2 RH chords**, **L3 Both hands** —
+with a ✓ on those learned; the arrow keys walk them with Guided and Solo, as
+the jog does on the Move.
+
+![A song, ready](media/web-ready-song.png)
+
 ### Playing
 
 Play from whatever you have:
