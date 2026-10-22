@@ -55,10 +55,12 @@ test('the format is KEY verb, two spaces between pairs, in the suggested words',
   assert.deepEqual(hintFor('running', { listening: true }), ['PLAY pause  BACK stop']);
   assert.deepEqual(hintFor('summary', {}), ['CLICK next  REC again']);
   assert.ok(hintFor('ready', {}).join('  ').startsWith('REC start  PLAY listen'));
+  assert.deepEqual(hintFor('anim'), ['any key: skip'], 'a scene: every key skips it, so none is named');
   for (const view of VIEWS) {
     for (const part of hintFor(view, {})) {
       for (const pair of part.split('  ')) {
-        assert.match(pair, /^((JOG|CLICK|BACK|MENU|SHIFT|PLAY|REC|PAD) |Guided: |Solo: |PAUSED$|streak )/, `${view}: "${pair}"`);
+        assert.match(pair, /^((JOG|CLICK|BACK|MENU|SHIFT|PLAY|REC|PAD) |Guided: |Solo: |PAUSED$|streak |any key: skip$)/,
+          `${view}: "${pair}"`);
       }
     }
   }

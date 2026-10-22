@@ -40,6 +40,8 @@ const CARD = 'card';
 const MAP = 'map';
 /* The top of the list drawn as five circles (src/home/). */
 const HOME = 'home';
+/* A scene of the Learning Path (scenes.mjs): any key skips it. */
+const ANIM = 'anim';
 
 /* Shift+Back leaves the module from anywhere (ui.js). */
 const QUIT = 'BACK quit';
@@ -57,6 +59,8 @@ function table(screen, s) {
       return { keys: ['JOG choose', 'CLICK open', 'PAD open', 'MENU help'], shift: ['CLICK options', QUIT] };
     case SHEET:
       return { keys: ['CLICK do it', 'BACK close'], shift: [QUIT] };
+    case ANIM:
+      return { keys: ['any key: skip'], shift: [QUIT] };
     case INFO:
       return { keys: s.scrolls ? ['JOG scroll', 'BACK close'] : ['BACK close'], shift: [QUIT] };
     case CARD:
@@ -118,6 +122,8 @@ function about(screen, s) {
       return 'The map: a lit pad is a place. Press one to walk there, again to go in; the jog walks too, CLICK goes in, PLAY continues. SHIFT+CLICK shows it as a list.';
     case SHEET:
       return 'The options of a row: what you can do with it besides opening it. Only what applies is offered.';
+    case ANIM:
+      return 'A moment on the Learning Path: a place done, the walk to the next one, a stage, a level learned. Any key or pad skips it.';
     case INFO:
       return 'Help for the screen you came from.';
     case CARD:

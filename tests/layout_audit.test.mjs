@@ -53,6 +53,16 @@ function mapScreen(c, n, kind, at, opts = {}) {
     footer: hintFor('map')[0] });
 }
 
+/* A scene (scenes.mjs) on a map at its worst, part way through. */
+function sceneScreen(c, scene, n, now) {
+  const places = Array.from({ length: n }, (_, i) => makePlace({
+    label: `3.${i + 1} Advanced pieces`, percent: 100, state: 'done', due: 12, kind: 'place' }));
+  const map = { places, layout: layoutPlaces(n) };
+  const sc = { ...scene, map, island: map, t0: 0 };
+  if (sc.kind === 'walk') sc.walk = walkTo(createWalk(map.layout, sc.from), sc.to, 0);
+  return V.drawScene(c, { scene: sc, now, footer: hintFor('anim')[0] });
+}
+
 /* Home with this module's five circles, at rest or mid-grow. */
 const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['quiz', 'Quiz', 'quiz'],
   ['progress', 'Progress', 'progress'], ['settings', 'Settings', 'settings']]
@@ -277,6 +287,8 @@ const SCREENS = {
   'map, the world': (c) => mapScreen(c, 5, 'island', 1),
   'map, the world with reviews due': (c) => mapScreen(c, 5, 'island', 2, { due: 12 }),
   'map, an island of nine, walking': (c) => mapScreen(c, 9, 'place', 0, { to: 8, now: 300 }),
+  'scene, a walk on an island of nine': (c) => sceneScreen(c, { kind: 'walk', from: 0, to: 8 }, 9, 300),
+  'scene, a zoom into an island': (c) => sceneScreen(c, { kind: 'zoom', dir: 'in', at: 2, landAt: 0 }, 9, 100),
   'card, welcome': (c) => card(c, welcomePages()[0], 0, 3, hintFor('card', { pages: 3 })[0]),
   'card, keys': (c) => card(c, welcomePages()[1], 1, 3, hintFor('card', { pages: 3 })[0]),
   'card, new to piano': (c) => card(c, welcomePages()[2], 2, 3, hintFor('card', { choice: true })[0]),
@@ -438,7 +450,7 @@ test('every footer this module can show fits across the screen', () => {
     { ear: true }, { pick: true, hintsLeft: true }, { pick: true }, { hintsLeft: true, streak: 999 },
     { streak: 999 }, { editing: true }, { action: true }];
   for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
-    'progress-detail', 'info', 'sheet', 'card', 'map', 'home']) {
+    'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim']) {
     for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
   }
   for (const f of footers) {

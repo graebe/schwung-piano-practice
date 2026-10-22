@@ -900,7 +900,9 @@ test('a stage is an island; its list, one option away, ends on its Checkpoint', 
   for (const part of ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']) assert.ok(parts.includes(part), 'the hint takes turns: ' + parts);
   assert.match(parts, /^[^|]*\| PAD go  CLICK enter \|\|/, 'a new screen opens on its first part, whatever the clock: ' + parts);
   const island = screen.frame(click);                   /* 1 Grid and staff: its island */
-  assert.match(island, /^1\.1 Find the notes 0% \|/, island);
+  assert.match(island, /^1\.1 Find the notes 0% \|.*any key: skip/, 'the zoom lands on the island: ' + island);
+  advanceMs(400);
+  assert.match(screen.frame(), /^1\.1 Find the notes 0% \| PAD go/, 'then the island itself');
   screen.frame(shiftClick);
   const sheet = screen.frame();
   assert.match(sheet, /Show as list/, sheet);
@@ -975,6 +977,7 @@ test('on the map a pad walks there, a second press goes in, and pads make no sou
   advanceMs(1000);
   assert.match(screen.frame(), /^3\.2 Inversions/);
   assert.match(screen.frame(BACK_PRESS), /^3 Shapes and time/);
+  advanceMs(400);                                       /* the zoom out */
   BACK_PRESS();
   jog(TOP.practice);
   click();
@@ -983,6 +986,24 @@ test('on the map a pad walks there, a second press goes in, and pads make no sou
   globalThis.onMidiMessageInternal([0x80, PAD, 0]);
   globalThis.tick();
   assert.ok(hostCalls.notes.length > 0, 'a pad in the list sounds');
+  screen.restore();
+  thawClock();
+});
+
+test('a scene: its own screen and hint, and a pad skips it without a sound', () => {
+  freezeClock();
+  const screen = capture();
+  globalThis.init();
+  jog(TOP.path);
+  click();                                              /* the world */
+  const zoom = screen.frame(click);                     /* into 1 Grid and staff: the zoom */
+  assert.match(zoom, /any key: skip$/, zoom);
+  hostCalls.notes.length = 0;
+  globalThis.onMidiMessageInternal([0x90, PAD + 9, 100]);
+  globalThis.onMidiMessageInternal([0x80, PAD + 9, 0]);
+  advanceMs(100);
+  assert.deepEqual(hostCalls.notes, [], 'a pad on a scene sounds nothing');
+  assert.match(screen.frame(), /^1\.1 Find the notes 0% \| PAD go/, 'skipped: the island at once');
   screen.restore();
   thawClock();
 });
@@ -1013,6 +1034,7 @@ test('Next from a result follows the unit, and Shift moves on', async () => {
   jog(TOP.path);
   click();                                              /* Path */
   click();                                              /* 1 Grid and staff */
+  advanceMs(400);                                       /* the zoom in */
   jog(2);
   click();                                              /* 1.3 Major scale */
   click();                                              /* Major up & down */

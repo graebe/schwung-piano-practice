@@ -50,7 +50,7 @@ import * as CAT from './catalog.mjs';
 import {
   createSession, OUT_TRACK, OUT_USB, OUT_INTERNAL,
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
-  SHEET_VIEW, CARD_VIEW,
+  SHEET_VIEW, CARD_VIEW, ANIM_VIEW,
 } from './session.mjs';
 import { hintPart, ROTATE_MS } from './hints.mjs';
 import { mapPadColors } from './pathmap/leds.mjs';
@@ -444,6 +444,22 @@ const padColorBuf = new Array(PAD.PAD_COUNT);
 
 function paintPads() {
   navButtons();
+  /* A scene owns the pads: its map's places as it stands (the engine's
+   * sweep and sparkle take over for a celebration), dark over a result. */
+  if (S.view === ANIM_VIEW) {
+    const scene = S.scene;
+    const on = scene ? VIEW.sceneMap(scene) : null;
+    if (on && on.map) {
+      mapPadColors({ places: on.map.places, layout: on.map.layout, walk: scene.walk || scene.stand || null,
+        now: now(), palette: PAD.MAP_PALETTE, out: padColorBuf });
+    } else {
+      padColorBuf.fill(PAD.LED_OFF);
+    }
+    for (let i = 0; i < PAD.PAD_COUNT; i++) setLED(PAD.PAD_FIRST + i, padColorBuf[i]);
+    setButtonLED(CC_PLAY, CTRL.OFF);
+    setButtonLED(CC_RECORD, CTRL.OFF);
+    return;
+  }
   /* At home the five circles' pads, and nothing else: lit means pressable.
    * Home has nothing to play or record, so those are dark. */
   const home = S.homeModel();
@@ -621,7 +637,9 @@ function draw() {
   const lastResult = S.lastResult;
   const home = view === MENU ? S.homeModel() : null;
   const m = view === MENU && !home ? S.mapModel() : null;
-  if (home) {
+  if (view === ANIM_VIEW) {
+    drawScene(lastResult);
+  } else if (home) {
     VIEW.drawHomeScreen(ctx, { title: S.listTitle().toUpperCase(), items: home.items, selected: home.selected,
       grow: home.grow, now: now(), footer: footer() });
   } else if (m) {
@@ -785,6 +803,20 @@ function draw() {
   }
 }
 
+/* A scene: on its map, or (a level learned) over the result it celebrates. */
+function drawScene(lastResult) {
+  const scene = S.scene;
+  if (!scene) return;
+  if (scene.over === 'result' && lastResult) {
+    if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, { ...lastResult, footer: footer() });
+    else VIEW.drawResultPage(ctx, { ...lastResult, footer: footer() });
+    const frame = VIEW.FRAMES[scene.kind];
+    if (frame) frame(ctx, scene, now() - scene.t0);
+    return;
+  }
+  VIEW.drawScene(ctx, { scene, now: now(), footer: footer() });
+}
+
 function drawProgressDetail() {
   const d = S.progressDetail(L.PROGRESS_PLOT.w, L.PROGRESS_PLOT.h);
   if (!d) return;
@@ -805,6 +837,12 @@ const answerPressed = {};
 const mapPressed = {};
 
 function onPadDown(pad, vel) {
+  /* Any pad skips a scene, and sounds nothing. */
+  if (S.view === ANIM_VIEW) {
+    S.skipScenes();
+    mapPressed[pad] = 1;
+    return;
+  }
   if (S.homePad(pad) || S.mapPad(pad)) {
     mapPressed[pad] = 1;
     return;

@@ -66,6 +66,7 @@ import { layoutPlaces, placeOfPad } from './pathmap/layout.mjs';
 import { createWalk, walkTo, walkStep, posAt, arrived } from './pathmap/walk.mjs';
 import { createGrow, startGrow, growing, itemOfPad } from './home/render.mjs';
 import { PRACTICE_PIANO } from './home/icons.mjs';
+import * as SC from './scenes.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -113,11 +114,14 @@ export const CARD_VIEW = 'card';
 export const MAP_SCREEN = 'map';
 /* The top of the list drawn as five circles (src/home/): MENU too. */
 export const HOME_SCREEN = 'home';
+/* A scene of the Learning Path (scenes.mjs): a walk, a flag, a zoom... Any
+ * key skips it. */
+export const ANIM_VIEW = 'anim';
 
 /* Every screen, for whoever must cover them all (hints.mjs, its test). */
 export const VIEWS = [
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
-  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN,
+  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN, ANIM_VIEW,
 ];
 
 /* What the session keeps, by name; the host decides where. */
@@ -729,12 +733,14 @@ export function createSession(fx, opts = {}) {
     lastResult.page = 0;
     saveStats();
 
+    const before = pathSnapshot(quizId(quizSpec));
     const res = PROG.recordAttempt(progress, quizId(quizSpec), {
       stage: PROG.quizStage(quiz.hintsUsed),
       score: PROG.quizScore(quiz.correct, quiz.wrong),
       at: wallNow(),
     });
     saveProgress();
+    takeStory = storyOf(before, quizId(quizSpec));
     lastResult.passed = res.passed;
     lastResult.twoNext = twoNext();
     const assumed = checkCompleted();
@@ -745,6 +751,7 @@ export function createSession(fx, opts = {}) {
     ledDirty = true;
     announce('Round done. ' + Math.round(lastResult.rate) + ' per minute.'
       + (lastResult.isBest ? ' Best yet.' : '') + passedWords(res.passed) + assumed);
+    learnedScene();
   }
 
   function passedWords(passed) {
@@ -912,8 +919,16 @@ export function createSession(fx, opts = {}) {
       view = MENU;
       dirty = true;
       ledDirty = true;
-      announce(row.label + '.');
       enterMap();
+      /* From the world into an island: the island grows out of its place. */
+      if (zoomsBetween(nav[nav.length - 2].node, row)) {
+        const world = pathMap(null);
+        const m = mapNow();
+        playScenes([{ kind: SC.ZOOM, dir: 'in', map: world, island: pathMap(row.phase),
+          at: placeOfPhase(world, row.phase), landAt: m ? m.walk.target : 0, say: row.label + '.' }], toMenu);
+        return;
+      }
+      announce(row.label + '.');
       return;
     }
     if (row.progress) {
@@ -1177,13 +1192,29 @@ export function createSession(fx, opts = {}) {
     const unit = armedUnit || PLAN.unitOf(phases, id);
     const step = unit ? PLAN.nextInUnit(progress, unit) : null;
     const next = step ? { step, unit } : continueNext();
-    if (next) {
-      openStep(next.step, next.unit);
+    /* A place or a stage just done: its scenes first, then on. */
+    const story = takeStory;
+    takeStory = null;
+    const scenes = story ? storyScenes(story, next) : [];
+    const go = () => {
+      /* The whole path done: its world map, the moment to look back. */
+      if (story && story.pathDone) {
+        goTop('program', true);
+        return;
+      }
+      if (next) {
+        openStep(next.step, next.unit);
+        return;
+      }
+      view = MENU;
+      dirty = true;
+      ledDirty = true;
+    };
+    if (scenes.length) {
+      playScenes(scenes, go);
       return;
     }
-    view = MENU;
-    dirty = true;
-    ledDirty = true;
+    go();
   }
 
   /* Shift on a result: past this one, then on to the next. */
@@ -1375,10 +1406,12 @@ export function createSession(fx, opts = {}) {
     const before = PROG.item(progress, armedId);
     const played = PROG.stagePlayed(before, stage);
     const prevBest = before ? before.stages[stage - 1].best : 0;
+    const snapshot = pathSnapshot(armedId);
     const res = PROG.recordAttempt(progress, armedId, {
       stage, score, at: wallNow(), bpm: chart.bpm,
     });
     saveProgress();
+    takeStory = storyOf(snapshot, armedId);
     lastResult = {
       kind: 'exercise',
       name: chart.name,
@@ -1399,6 +1432,7 @@ export function createSession(fx, opts = {}) {
     dirty = true;
     ledDirty = true;
     announce('Done. ' + Math.round(score * 100) + ' percent.' + passedWords(res.passed) + checkCompleted());
+    learnedScene();
   }
   /*
    * Which pitches want lighting, as three small reused arrays. led_paint turns
@@ -2358,6 +2392,7 @@ export function createSession(fx, opts = {}) {
 
   /* A circle, from a pad or a pointer: selected, and opened at once. */
   function homePick(i) {
+    skipScene();
     if (!onHome()) return;
     const top = CAT.navTop(nav);
     if (i < 0 || i >= top.node.children.length) return;
@@ -2441,6 +2476,7 @@ export function createSession(fx, opts = {}) {
   /* A place, from a pad or a pointer: walk there, or go in when the avatar
    * is already there or on its way. */
   function mapPick(i) {
+    skipScene();
     if (!onMap()) return;
     const m = mapNow();
     if (i < 0 || i >= m.places.length) return;
@@ -2503,6 +2539,191 @@ export function createSession(fx, opts = {}) {
     return { places: m.places, layout: m.layout, walk: m.walk, at: m.walk.target, place: m.places[pos.at] };
   }
 
+  /* ---- Scenes: the Learning Path in motion ------------------------------------ */
+  /*
+   * A short queue of scenes (scenes.mjs) on their own screen, ANIM: a flag
+   * when a place is done, the walk to the next place, a zoom between the
+   * world and an island, fireworks for a stage, the finale for the whole
+   * path, a star round a level learned. Each is said as it starts. Any key
+   * or pad skips the rest and goes straight on; nothing is played, scored or
+   * recorded meanwhile, and the screen redraws every frame.
+   */
+  let player = SC.createPlayer();
+  /* What the last take finished (storyOf), for its result's Next. */
+  let takeStory = null;
+
+  /* Nothing is sounding when a scene starts (a result, or the map), so it
+   * sends no silence of its own: no MIDI goes out for a picture. */
+  function playScenes(scenes, then) {
+    const first = SC.startScenes(player, scenes, () => {
+      dirty = true;
+      ledDirty = true;
+      then();
+      /* Whatever `then` did, the scene screen is not left standing. */
+      if (view === ANIM_VIEW && !SC.playing(player)) view = MENU;
+    }, now());
+    if (first) {
+      view = ANIM_VIEW;
+      announce(first.say);
+    }
+    dirty = true;
+    ledDirty = true;
+  }
+
+  function serviceScenes(t) {
+    const was = player.current;
+    const cur = SC.stepScenes(player, t);
+    if (cur && cur !== was) announce(cur.say);
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* Any key: true when it skipped a scene, so the key does nothing else. */
+  function skipScene() {
+    if (view !== ANIM_VIEW) return false;
+    if (!SC.skipScenes(player)) view = MENU;
+    dirty = true;
+    ledDirty = true;
+    return true;
+  }
+
+  function toMenu() {
+    view = MENU;
+  }
+
+  /* A map of the Learning Path as it stands: the world (no phase) or an
+   * island, its places, what each opens, and its layout. */
+  function pathMap(phase) {
+    const due = MP.dueIdsOf(progress, wallNow());
+    const built = phase ? MP.unitPlaces(progress, phases, phase, due) : MP.stagePlaces(progress, phases, due);
+    return { world: !phase, phase: phase || null, places: built.places, targets: built.targets,
+      layout: layoutPlaces(built.places.length) };
+  }
+
+  const placeOfPhase = (world, phase) => Math.max(0, world.targets.findIndex((t) => t.phase === phase));
+  const placeOfUnit = (island, unit) => island.targets.findIndex((t) => t.unit === unit);
+  const fortOf = (island) => island.targets.findIndex((t) => t.check);
+
+  /* Between the world and an island, both drawn as maps: a zoom. */
+  function zoomsBetween(world, island) {
+    return Boolean(world && island && island.phase && !world.phase && isMapNode(world) && isMapNode(island));
+  }
+
+  /*
+   * The Learning Path's places as they stand, around the item about to be
+   * recorded: the stages, the places of its stage, and whether it is
+   * learned. Null for an item off the path, which only a level learned can
+   * celebrate.
+   */
+  function pathSnapshot(id) {
+    const it = PROG.item(progress, id);
+    const learned = PROG.isFinished(it);
+    if (!id || !phases.length || !PLAN.findStep(phases, id)) return { phase: null, learned };
+    const unit = PLAN.unitOf(phases, id);
+    const phase = checkPhase || (armedUnit && armedUnit.phase) || (unit && unit.phase) || null;
+    return {
+      phase,
+      learned,
+      stages: MP.stagePlaces(progress, phases).places.map((p) => p.state),
+      places: phase ? MP.unitPlaces(progress, phases, phase).places.map((p) => p.state) : [],
+    };
+  }
+
+  /*
+   * What a take changed: a place newly done, a stage newly done (its last
+   * place, or its checkpoint passed), the whole path newly done (every stage
+   * done or assumed), an item newly learned.
+   */
+  function storyOf(before, id) {
+    const after = pathSnapshot(id);
+    const story = { phase: before.phase, place: -1, stageDone: null, pathDone: false,
+      learned: !before.learned && after.learned };
+    if (!before.phase || after.phase !== before.phase) return story;
+    const done = (st) => st === 'done';
+    const settled = (st) => st === 'done' || st === 'skipped';
+    story.place = after.places.findIndex((st, i) => done(st) && !done(before.places[i]));
+    const j = after.stages.findIndex((st, i) => done(st) && !done(before.stages[i]));
+    story.stageDone = j >= 0 ? phases[j] : null;
+    story.pathDone = after.stages.every(settled) && !before.stages.every(settled);
+    return story;
+  }
+
+  const walkScene = (map, from, to, say) => ({ kind: SC.WALK, map, from, to, say });
+
+  /*
+   * The scenes between a take that finished something and the next step:
+   *   a place done, next in another place     flag, walk there
+   *   a stage done (or a place, next on       flag with fireworks, zoom out,
+   *     another island)                       sail, zoom in, walk to the place
+   *   the whole path done                     ... zoom out, finale (then the
+   *                                           world map, not the next step)
+   * Next in the same place, or nothing done: none.
+   */
+  function storyScenes(story, next) {
+    if (!story.phase || (story.place < 0 && !story.stageDone && !story.pathDone)) return [];
+    const from = story.phase;
+    const island = pathMap(from);
+    const nextUnit = next ? next.unit : null;
+    const nextPhase = nextUnit ? nextUnit.phase : null;
+    const stage = story.stageDone === from;
+    const doneAt = stage && fortOf(island) >= 0 ? fortOf(island) : Math.max(0, story.place);
+    if (!stage && !story.pathDone && nextPhase === from && placeOfUnit(island, nextUnit) === doneAt) return [];
+    const scenes = [{
+      kind: SC.CELEBRATE, map: island, at: doneAt, fireworks: stage,
+      say: stage ? 'Stage ' + from.n + ' complete.' : 'Unit done.',
+    }];
+    if (nextPhase === from && !story.pathDone) {
+      const to = placeOfUnit(island, nextUnit);
+      if (to >= 0 && to !== doneAt) scenes.push(walkScene(island, doneAt, to, 'Walking to ' + island.places[to].label + '.'));
+      return scenes;
+    }
+    if (!nextPhase && !story.pathDone) return scenes;
+    const world = pathMap(null);
+    const fromAt = placeOfPhase(world, from);
+    scenes.push({ kind: SC.ZOOM, dir: 'out', map: world, island, at: fromAt, say: 'World map.' });
+    if (story.pathDone) {
+      scenes.push({ kind: SC.FINALE, map: world, at: fromAt, say: 'Learning Path complete.' });
+      return scenes;
+    }
+    const toAt = placeOfPhase(world, nextPhase);
+    if (toAt !== fromAt) scenes.push(walkScene(world, fromAt, toAt, 'Sailing to ' + world.places[toAt].label + '.'));
+    const there = pathMap(nextPhase);
+    scenes.push({ kind: SC.ZOOM, dir: 'in', map: world, island: there, at: toAt, landAt: 0,
+      say: world.places[toAt].label + '.' });
+    const target = placeOfUnit(there, nextUnit);
+    if (target > 0) scenes.push(walkScene(there, 0, target, 'Walking to ' + there.places[target].label + '.'));
+    return scenes;
+  }
+
+  /* A level learned on this take: a star round the score, once, over the
+   * result. */
+  function learnedScene() {
+    if (!takeStory || !takeStory.learned) return;
+    playScenes([{ kind: SC.STAR, over: 'result', say: 'Level learned.' }], () => { view = RESULT_VIEW; });
+  }
+
+  /* The scene playing, as data: its kind and how far it is, and the map it
+   * plays on in the engine's terms, for a page that draws its own. */
+  function sceneModel(t = now()) {
+    const sc = player.current;
+    if (view !== ANIM_VIEW || !sc) return null;
+    const on = sc.kind === SC.ZOOM && sc.dir === 'in' ? sc.island : sc.map;
+    return {
+      kind: sc.kind,
+      dir: sc.dir || null,
+      say: sc.say,
+      progress: SC.sceneProgress(sc, t),
+      fireworks: Boolean(sc.fireworks),
+      over: sc.over || null,
+      from: sc.kind === SC.WALK ? sc.from : null,
+      to: sc.kind === SC.WALK ? sc.to : null,
+      at: sc.kind === SC.WALK ? sc.to : sc.kind === SC.ZOOM && sc.dir === 'in' ? sc.landAt || 0 : sc.at ?? null,
+      world: on ? on.world : null,
+      zoomAt: sc.kind === SC.ZOOM ? sc.at : null,
+      places: on ? on.places : null,
+    };
+  }
+
   /* Back has somewhere to go, except at the top of the list, where it leaves. */
   function canGoBack() {
     return !(view === MENU && nav.length <= 1 && !listViews.has(CAT.navTop(nav).node));
@@ -2532,6 +2753,8 @@ export function createSession(fx, opts = {}) {
    *   null                           it only sounded
    */
   function play(pitch, vel) {
+    /* A pad skips a scene, and sounds nothing. */
+    if (skipScene()) return null;
     ledDirty = true;
     noteOn(pitch, vel);
 
@@ -2577,6 +2800,7 @@ export function createSession(fx, opts = {}) {
   /* The jog, or the arrow keys: what "next" means depends on the screen. An Info
    * page scrolls in its renderer, so it is not handled here. */
   function moveSelection(delta) {
+    if (skipScene()) return;
     if (onHome()) {
       homeJog(delta);
       return;
@@ -2670,6 +2894,7 @@ export function createSession(fx, opts = {}) {
    * modifier on a result, the row's options in the list, and settings from a
    * piece. */
   function activate(shiftHeld) {
+    if (skipScene()) return;
     if (view === INFO_VIEW) {
       closeInfo();
       return;
@@ -2727,6 +2952,7 @@ export function createSession(fx, opts = {}) {
    * Play and Record start things; on an Info page nothing is to be started.
    */
   function playButton() {
+    if (skipScene()) return;
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
     /* Home offers nothing to play. */
     if (onHome()) return;
@@ -2755,6 +2981,7 @@ export function createSession(fx, opts = {}) {
   }
 
   function recordButton() {
+    if (skipScene()) return;
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
     if (view === RESULT_VIEW) {
       if (lastResult.kind === 'quiz') startQuiz(quizSpec);
@@ -2774,6 +3001,7 @@ export function createSession(fx, opts = {}) {
   /* Menu is help, on every screen: what the thing in front of you is, its
    * words, and its keys. Press it again to go back. */
   function menuButton() {
+    if (skipScene()) return;
     if (view === INFO_VIEW) {
       closeInfo();
       return;
@@ -2786,6 +3014,7 @@ export function createSession(fx, opts = {}) {
    * get out. At the top of the list it leaves.
    */
   function back() {
+    if (skipScene()) return;
     if (view === INFO_VIEW) {
       closeInfo();
       return;
@@ -2839,9 +3068,16 @@ export function createSession(fx, opts = {}) {
       return;
     }
     /* Up one folder. The top of the tree is the only list Back leaves from. */
+    const leaving = view === MENU && nav.length > 1 ? CAT.navTop(nav).node : null;
     if (view === MENU && CAT.navPop(nav)) {
       dirty = true;
       ledDirty = true;
+      /* From an island back to the world: it shrinks into its place. */
+      if (zoomsBetween(CAT.navTop(nav).node, leaving)) {
+        const world = pathMap(null);
+        playScenes([{ kind: SC.ZOOM, dir: 'out', map: world, island: pathMap(leaving.phase),
+          at: placeOfPhase(world, leaving.phase), say: 'World map.' }], toMenu);
+      }
       return;
     }
     /* Back from a ready screen lands on the folder it was opened from — for a
@@ -2879,6 +3115,8 @@ export function createSession(fx, opts = {}) {
     listViews.clear();
     map = null;
     homeGrow = null;
+    player = SC.createPlayer();
+    takeStory = null;
     stage = 1;
     runFromTop = false;
     settingsCursor = 0;
@@ -2917,6 +3155,7 @@ export function createSession(fx, opts = {}) {
    * the reference line, and the quiz's scheduled notes.
    */
   function tick(t) {
+    if (view === ANIM_VIEW) serviceScenes(t);
     if (view === MENU) serviceMap(t);
     /* While a circle grows every frame is a new picture. */
     if (homeGrow && onHome() && growing(homeGrow, t)) {
@@ -2997,6 +3236,7 @@ export function createSession(fx, opts = {}) {
    * the row it hit rather than stepping there one jog click at a time.
    */
   function selectRow(index) {
+    skipScene();
     if (view !== MENU) return;
     const top = CAT.navTop(nav);
     if (index < 0 || index >= top.node.children.length) return;
@@ -3072,6 +3312,8 @@ export function createSession(fx, opts = {}) {
     hint,
     onMap,
     onHome,
+    skipScenes: skipScene,
+    sceneModel,
     homeModel,
     homePad,
     homePick,
@@ -3102,6 +3344,7 @@ export function createSession(fx, opts = {}) {
     soundingBuf,
     promptBuf,
     get view() { return view; },
+    get scene() { return player.current; },
     get chart() { return chart; },
     get run() { return run; },
     get songBeats() { return songBeats; },

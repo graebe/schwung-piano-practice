@@ -23,6 +23,8 @@ import { accuracySeries } from './progress.mjs';
 import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
 import { drawMap } from './pathmap/render.mjs';
+import { createWalk } from './pathmap/walk.mjs';
+import { ZOOM } from './scenes.mjs';
 import { drawHome } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
 
@@ -1250,6 +1252,38 @@ export function drawMapScreen(ctx, state) {
   });
   drawMap(ctx, { places: state.places, layout: state.layout, walk: state.walk, now: state.now || 0 });
   if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
+ * A scene of the Learning Path (scenes.mjs) on its map: the map it plays on,
+ * the avatar walking (a walk) or standing on the scene's place, and the
+ * scene's own frame drawn over it. A zoom shows where it lands: the island
+ * going in, the world coming out.
+ *
+ * The frames are the engine's (pathmap/anim.mjs): flag, fireworks, zoom,
+ * finale. FRAMES holds them by kind; a kind without one shows its map as it
+ * stands, which is also the scene's end state.
+ *
+ * state = { scene, now, footer }
+ */
+export const FRAMES = {};
+
+export function sceneMap(scene) {
+  if (scene.kind === ZOOM && scene.dir === 'in') return { map: scene.island, at: scene.landAt || 0 };
+  return { map: scene.map, at: scene.kind === 'walk' ? scene.to : scene.at };
+}
+
+export function drawScene(ctx, state) {
+  const scene = state.scene;
+  const { map, at } = sceneMap(scene);
+  if (!map) return ctx;
+  if (!scene.stand || scene.stand.layout !== map.layout) scene.stand = createWalk(map.layout, at);
+  const walk = scene.walk || scene.stand;
+  drawMapScreen(ctx, { place: map.places[at], places: map.places, layout: map.layout, walk, now: state.now,
+    footer: state.footer });
+  const frame = FRAMES[scene.kind];
+  if (frame) frame(ctx, scene, state.now - scene.t0);
   return ctx;
 }
 

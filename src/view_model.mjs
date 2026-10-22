@@ -247,6 +247,22 @@ function homeOf(S) {
   };
 }
 
+/*
+ * A scene playing (scenes.mjs): its kind, how far it is (0..1), and the map
+ * it plays on in the engine's terms, so the page draws and paces its own.
+ */
+function animOf(S, t) {
+  const a = S.sceneModel(t === null ? undefined : t);
+  if (!a) return null;
+  return {
+    kind: a.kind, dir: a.dir, say: a.say, progress: Math.round(a.progress * 1000) / 1000,
+    fireworks: a.fireworks, over: a.over, from: a.from, to: a.to, at: a.at, zoomAt: a.zoomAt, world: a.world,
+    places: a.places ? a.places.map((p) => ({
+      id: p.id, label: p.label, short: p.short, percent: p.percent, state: p.state, due: p.due, kind: p.kind,
+    })) : null,
+  };
+}
+
 /* The card on screen: its page, as paragraphs, or the question it asks. */
 function cardOf(S) {
   const card = S.card;
@@ -372,13 +388,16 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     clock: clockOf(S, t),
     cue: cueOf(S),
     quiz: view === GUESS_VIEW ? quizOf(S) : null,
-    result: view === RESULT_VIEW && S.lastResult ? JSON.parse(JSON.stringify(S.lastResult)) : null,
+    /* Also under a scene that plays over it (a level learned). */
+    result: (view === RESULT_VIEW || (S.scene && S.scene.over === 'result')) && S.lastResult
+      ? JSON.parse(JSON.stringify(S.lastResult)) : null,
     progress: progressOf(S, plotW, plotH),
     info: S.info ? { title: S.info.title, paragraphs: S.info.paragraphs.slice(), back: S.info.back } : null,
     sheet: sheetOf(S),
     card: cardOf(S),
     map: mapOf(S),
     home: homeOf(S),
+    anim: animOf(S, t),
     /* The hint line, as the Move's footer has it: its parts, which take turns. */
     hint: S.hint(),
     settings: {

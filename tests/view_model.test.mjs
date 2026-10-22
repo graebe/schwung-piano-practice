@@ -160,7 +160,15 @@ test('results and progress charts are data', () => {
     h.run(500);
   }
   let vm = viewModel(h.session);
+  assert.equal(vm.screen, 'anim', 'learned: a star over the result first');
+  assert.equal(vm.anim.kind, 'star');
+  assert.equal(vm.anim.over, 'result');
+  assert.equal(vm.result.kind, 'quiz', 'the result is there to draw under it');
+  assert.deepEqual(vm, plain(vm));
+  h.run(700);
+  vm = viewModel(h.session);
   assert.equal(vm.screen, RESULT_VIEW);
+  assert.equal(vm.anim, null);
   assert.equal(vm.result.kind, 'quiz');
   assert.equal(vm.result.n, 10);
   assert.ok(Array.isArray(vm.result.records));
@@ -336,6 +344,13 @@ test('the map is data: its places and where the avatar is bound', () => {
   vm = viewModel(h.session);
   assert.equal(vm.map.at, 2);
   h.session.mapPick(2);
+  vm = viewModel(h.session);
+  assert.equal(vm.screen, 'anim', 'in: a zoom first');
+  assert.deepEqual([vm.anim.kind, vm.anim.dir, vm.anim.zoomAt, vm.anim.world], ['zoom', 'in', 2, false]);
+  assert.equal(vm.anim.places.at(-1).kind, 'fort', 'the island it lands on');
+  assert.equal(vm.map, null);
+  assert.deepEqual(vm, plain(vm));
+  h.run(400);
   vm = viewModel(h.session);
   assert.equal(vm.map.world, false, 'in: the island');
   assert.equal(vm.map.places.at(-1).kind, 'fort');

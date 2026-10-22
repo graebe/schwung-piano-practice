@@ -714,7 +714,10 @@ test('program steps are built in C, whatever the Key and Scale settings say', ()
   openPath(h.session, ['Learning Path', '1 Grid and staff', '1.3 Major scale', 'Major up & down']);
   assert.equal(h.session.armedId, 'basics/scales/major/up-down');
   assert.equal(h.session.chart.keySig, 0, 'C major on the path: ' + h.session.chart.name);
-  for (let i = 0; i < 4; i++) h.session.back();
+  for (let i = 0; i < 4; i++) {
+    h.session.back();
+    h.run(400);                                  /* the island zooms out to the world */
+  }
   openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   assert.notEqual(h.session.chart.keySig, 0, 'Practice follows the settings');
   for (let i = 0; i < 5; i++) h.session.back();
@@ -902,10 +905,16 @@ test('the Path is a world map, a stage an island; the cursor stays a child index
   assert.ok(h.said().includes('2 Four chords, 0 percent.'), 'arriving says where');
   h.session.activate(false);
   assert.equal(h.session.nav.at(-1).node.label, '2 Four chords');
+  assert.equal(h.session.view, 'anim', 'into an island: a zoom');
+  assert.deepEqual([h.session.scene.kind, h.session.scene.dir], ['zoom', 'in']);
+  assert.ok(h.said().includes('2 Four chords.'), 'said as it starts');
+  h.run(400);
   const island = h.session.mapModel();
   assert.equal(island.places.at(-1).kind, 'fort');
   assert.equal(island.places.length, h.session.nav.at(-1).node.children.length);
   h.session.back();
+  assert.deepEqual([h.session.scene.kind, h.session.scene.dir], ['zoom', 'out'], 'out of it: the zoom back');
+  h.run(400);
   assert.equal(h.session.mapModel().at, 1, 'Back: the avatar on the island it left');
 });
 
@@ -919,6 +928,7 @@ test('a pad walks there and a second press goes in; water and lists are not the 
   assert.equal(h.session.nav.at(-1).node.label, 'Learning Path', 'walking, not in yet');
   h.session.mapPad(padOf(5, 3));
   assert.equal(h.session.nav.at(-1).node.label, '4 Sevenths');
+  h.run(400);
   const taken = new Set(layoutPlaces(h.session.mapModel().places.length).cells.map(padOfCell));
   const water = [...Array(32).keys()].map((i) => 68 + i).find((n) => !taken.has(n));
   const before = h.session.mapModel().at;
@@ -949,6 +959,7 @@ test('MENU on the map: what the map is, then the place under the avatar', () => 
   const h = fakeHost();
   h.session.init();
   openPath(h.session, ['Learning Path', '1 Grid and staff']);
+  h.run(400);
   h.session.menuButton();
   const text = h.session.info.paragraphs.map((p) => p.text);
   assert.match(text[0], /^The map: a lit pad is a place/);
@@ -966,11 +977,11 @@ test('the map and island tips show once each', () => {
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^Lit pads are places/);
   h.session.back();
   h.session.activate(false);
-  h.run(20);
+  h.run(400);                                    /* the zoom in, then the tip */
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^Each place is part of the stage/);
   h.session.back();
   h.session.back();
-  h.run(20);
+  h.run(400);                                    /* the zoom out */
   assert.equal(h.session.view, MENU, 'shown once');
   assert.equal(h.session.canGoBack(), true);
   h.session.back();
@@ -1121,4 +1132,195 @@ test('Shift + Click on home shows the five as a list for the session; Back is th
   assert.ok(h.session.onHome(), 'the circles again');
   assert.ok(h.said().includes('Home.'));
   assert.equal(h.session.canGoBack(), false);
+});
+
+/* ---- Scenes: the Learning Path in motion ------------------------------------ */
+
+import * as PLAN from '../src/program.mjs';
+
+/* Every step of `unit` learned, but `except`. */
+function learnUnit(h, unit, except = null) {
+  for (const st of PLAN.unitSteps(unit)) {
+    if (st.id === except) continue;
+    PROG.recordAttempt(h.session.progress, st.id, { stage: 1, score: 1, at: WALL0 });
+    PROG.recordAttempt(h.session.progress, st.id, { stage: 2, score: 1, at: WALL0 });
+  }
+}
+
+/* The scenes as they play out, by kind, until the screen is no scene. */
+function sceneKinds(h) {
+  const seen = [];
+  let last = null;
+  for (let i = 0; i < 400 && h.session.view === 'anim'; i++) {
+    const sc = h.session.scene;
+    if (sc !== last) seen.push(sc.kind + (sc.dir ? '-' + sc.dir : '') + (sc.fireworks ? '+fireworks' : ''));
+    last = sc;
+    h.run(50);
+  }
+  return seen;
+}
+
+const unitByKey = (h, key) => h.session.phases.flatMap((p) => p.units).find((u) => u.key === key);
+
+/* 1.3 Major scale: up & down learned, down passed Guided and armed Solo. */
+function lastStepOfUnit(h) {
+  const unit = unitByKey(h, 'major-scale');
+  learnUnit(h, unit, 'basics/scales/major/down');
+  PROG.recordAttempt(h.session.progress, 'basics/scales/major/down', { stage: 1, score: 1, at: WALL0 });
+  openPath(h.session, ['Learning Path', '1 Grid and staff', '1.3 Major scale']);
+  const rows = h.session.nav.at(-1).node.children;
+  h.session.selectRow(rows.findIndex((r) => r.step && r.step.id === 'basics/scales/major/down'));
+  h.session.activate(false);
+  assert.equal(h.session.armedId, 'basics/scales/major/down');
+  assert.equal(h.session.stage, 2);
+  return unit;
+}
+
+test('a level learned: a star over the result, once, and then the result', () => {
+  const h = fakeHost();
+  h.session.init();
+  lastStepOfUnit(h);
+  playThroughFromHere(h);
+  assert.equal(h.session.view, 'anim');
+  assert.equal(h.session.scene.kind, 'star');
+  assert.equal(h.session.scene.over, 'result');
+  assert.ok(h.said().includes('Level learned.'));
+  assert.ok(h.session.lastResult, 'the result is under it');
+  h.run(700);
+  assert.equal(h.session.view, RESULT_VIEW);
+  /* Again: learned already, no star. */
+  h.session.recordButton();
+  playThroughFromHere(h);
+  assert.equal(h.session.view, RESULT_VIEW);
+});
+
+/* The armed piece, played on time from wherever its clock is now. */
+function playThroughFromHere(h) {
+  if (h.session.view !== RUNNING) h.session.recordButton();
+  const beatMs = 60000 / h.session.chart.bpm;
+  const start = h.ms;
+  const countIn = h.session.settings.countIn;
+  for (const e of h.session.chart.events) {
+    const target = start + (countIn + e.beat) * beatMs;
+    if (target > h.ms) h.run(target - h.ms);
+    for (const p of e.pitches) h.session.play(p, 100);
+    for (const p of e.pitches) h.session.release(p);
+  }
+  for (let i = 0; i < 200 && h.session.view === RUNNING; i++) h.run(50);
+}
+
+test('a place done, Next in another place: the flag, the walk there, then the step', () => {
+  const h = fakeHost();
+  h.session.init();
+  lastStepOfUnit(h);
+  playThroughFromHere(h);
+  h.run(700);                                    /* the star */
+  assert.equal(h.session.view, RESULT_VIEW);
+  const before = h.session.progress.rev;
+  h.session.activate(false);                     /* Next */
+  assert.equal(h.session.view, 'anim');
+  assert.deepEqual(h.session.hint(), ['any key: skip']);
+  assert.equal(h.session.scene.kind, 'celebrate');
+  assert.equal(h.session.scene.map.places[h.session.scene.at].label, '1.3 Major scale');
+  assert.ok(h.said().includes('Unit done.'));
+  const strikes = h.log.filter((e) => e[0] === 'strike').length;
+  assert.deepEqual(sceneKinds(h), ['celebrate', 'walk'], 'the flag, then the walk');
+  assert.ok(h.said().some((t) => /^Walking to 1\.\d /.test(t)), h.said().slice(-3).join(' / '));
+  assert.ok(h.session.view === READY || h.session.view === GUESS_VIEW, 'then the next step: ' + h.session.view);
+  assert.equal(h.log.filter((e) => e[0] === 'strike').length, strikes);
+  assert.equal(h.session.progress.rev, before, 'nothing recorded');
+});
+
+test('any key or pad skips straight to the end: the next step, nothing sounded or recorded', () => {
+  for (const key of ['activate', 'back', 'moveSelection', 'playButton', 'recordButton', 'menuButton', 'play']) {
+    const h = fakeHost();
+    h.session.init();
+    lastStepOfUnit(h);
+    playThroughFromHere(h);
+    h.run(700);
+    h.session.activate(false);
+    assert.equal(h.session.view, 'anim', key);
+    const rev = h.session.progress.rev;
+    const strikes = h.log.filter((e) => e[0] === 'strike').length;
+    if (key === 'play') h.session.play(60, 100);
+    else if (key === 'moveSelection') h.session.moveSelection(1);
+    else h.session[key](false);
+    assert.ok(h.session.view === READY || h.session.view === GUESS_VIEW, key + ': the next step, at once: ' + h.session.view);
+    assert.equal(h.session.scene, null, key);
+    assert.equal(h.log.filter((e) => e[0] === 'strike').length, strikes, key + ': no sound');
+    assert.equal(h.session.progress.rev, rev, key + ': nothing recorded');
+  }
+});
+
+test('Next in the same place: no scene', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Learning Path', '1 Grid and staff', '1.3 Major scale', 'Major up & down']);
+  playThroughFromHere(h);                        /* Guided passed: Solo next, the same step */
+  h.session.activate(false);
+  assert.equal(h.session.view, READY);
+  assert.equal(h.session.stage, 2);
+});
+
+test('a stage done: fireworks over its fort, out to the world, the sail, into the next island', () => {
+  const h = fakeHost();
+  h.session.init();
+  const p = h.session.progress;
+  const phase = h.session.phases[0];
+  for (const u of phase.units) learnUnit(h, u, 'basics/scales/major/up-down');
+  PROG.recordAttempt(p, 'basics/scales/major/up-down', { stage: 1, score: 1, at: WALL0 });
+  openPath(h.session, ['Learning Path']);
+  sheet(h, 1, 'Test out: checkpoint');
+  assert.equal(h.session.armedId, 'basics/scales/major/up-down');
+  playThroughFromHere(h);
+  h.run(700);
+  assert.equal(h.session.view, RESULT_VIEW);
+  h.session.activate(false);
+  const kinds = sceneKinds(h);
+  assert.deepEqual(kinds.slice(0, 4), ['celebrate+fireworks', 'zoom-out', 'walk', 'zoom-in'], kinds.join(', '));
+  assert.ok(h.said().includes('Stage 1 complete.'));
+  assert.ok(h.said().includes('World map.'));
+  assert.ok(h.said().includes('Sailing to 2 Four chords.'), h.said().slice(-6).join(' / '));
+  assert.ok(h.said().includes('2 Four chords.'));
+  assert.ok(h.session.view === READY || h.session.view === GUESS_VIEW, h.session.view);
+});
+
+test('the whole Learning Path done: the finale on the world map, then the world map', () => {
+  const h = fakeHost();
+  h.session.init();
+  const p = h.session.progress;
+  const phases = h.session.phases;
+  PROG.setProgramStart(p, phases.length - 1);
+  const last = phases.at(-1);
+  const steps = PLAN.phaseSteps(last);
+  const open = steps.filter((st) => !st.quiz && st.id.startsWith('basics/')).at(-1);
+  for (const u of last.units) learnUnit(h, u, open.id);
+  PROG.recordAttempt(p, open.id, { stage: 1, score: 1, at: WALL0 });
+  const unit = PLAN.unitOf(phases, open.id);
+  openPath(h.session, ['Learning Path', last.n + ' ' + last.name, unit.num + ' ' + unit.name]);
+  h.run(400);
+  const rows = h.session.nav.at(-1).node.children;
+  const at = rows.findIndex((r) => r.step && r.step.id === open.id);
+  if (at >= 0) {
+    h.session.selectRow(at);
+    h.session.activate(false);
+  } else {
+    /* An exercise of several steps: its folder, then the step. */
+    const ex = rows.findIndex((r) => r.children && r.children.some((c) => c.step && c.step.id === open.id));
+    h.session.selectRow(ex);
+    h.session.activate(false);
+    const inner = h.session.nav.at(-1).node.children;
+    h.session.selectRow(inner.findIndex((c) => c.step && c.step.id === open.id));
+    h.session.activate(false);
+  }
+  assert.equal(h.session.armedId, open.id);
+  playThroughFromHere(h);
+  h.run(700);
+  h.session.activate(false);
+  const kinds = sceneKinds(h);
+  assert.deepEqual(kinds, ['celebrate+fireworks', 'zoom-out', 'finale'], kinds.join(', '));
+  assert.ok(h.said().includes('Learning Path complete.'));
+  assert.equal(h.session.view, MENU);
+  assert.ok(h.session.onMap(), 'the world map');
+  assert.equal(h.session.nav.at(-1).node.label, 'Learning Path');
 });

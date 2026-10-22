@@ -280,7 +280,8 @@ const SCENARIOS = {
   /* Path › 1 › 1.3 Major scale › Major up & down, guide pads on stage 1, Back
    * to the list. */
   program: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.click(); d.run(100); d.click(); d.jog(2); d.click(); d.click(); d.run(100);
+    d.click(); d.run(100); d.click(); d.run(400);   /* the world, then the island zooms in */
+    d.jog(2); d.click(); d.click(); d.run(100);
     d.press(PLAY); d.run(2500);                   /* listen a little */
     d.press(PLAY); d.press(BACK); d.run(100);     /* pause, back to the top */
     d.press(RECORD); d.follow(30000);             /* stage 1, to its result */
@@ -428,7 +429,7 @@ const SCENARIOS = {
     d.click(); d.run(300);                        /* Path: the world */
     const third = padOfCell(layoutPlaces(5).cells[2]) - PAD;
     d.pad(third, 60); d.run(800);                 /* walk to stage 3 */
-    d.pad(third, 60); d.run(300);                 /* and in: its island */
+    d.pad(third, 60); d.run(400);                 /* and in: its island zooms in */
     d.jog(1); d.run(400); d.jog(1); d.run(400);   /* walk the island */
     d.press(MENU); d.jog(3); d.press(MENU);       /* help, scrolled, closed */
     d.shiftWith(JOG_CLICK); d.jog(60); d.jog(-1); d.click(); d.run(100);   /* Show as list */

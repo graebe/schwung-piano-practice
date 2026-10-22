@@ -128,6 +128,26 @@ The pads' colours say the same: green done, pulsing white where Continue
 is going, dim yellow started, blue skipped, dim the rest, and the brightest
 pad the one you stand on.
 
+### The way moves with you
+
+The map shows where you are going as you go:
+
+- **Into an island**: a click on a stage zooms in to its island, and
+  **Back** zooms out to the world, your avatar on the island you left.
+- **A place done**: when you finish the last step of a place, **Next**
+  first raises its flag, then walks your avatar to the place of your next
+  step, and opens it.
+- **A stage done**, or its checkpoint passed: fireworks over the stage,
+  out to the world, the sail to the next island, and in to the place
+  where you go on.
+- **The whole Learning Path done**: the finale on the world map.
+- **A level learned** the first time: a star round your score on the
+  result.
+
+The bottom line says `any key: skip`: any key or pad skips the scene and
+goes straight to where it was going. Nothing is played or scored while a
+scene runs.
+
 **Show as list** (in the options) turns the map back into the list for
 this session: Review, the folder of what is due, lives in the Learning Path's list.
 **Show as map**, or Back, returns to the map.

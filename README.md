@@ -203,6 +203,12 @@ stage stay in the mix, so a slow ear never holds your hands back. When a review 
 **Review** and names it, and reviews and new steps take turns: one review, then one new step.
 **Next** on a result stays in the same unit until it is finished.
 
+**The way moves with you.** Clicking into a stage zooms in to its island, and Back zooms out. A place
+finished raises its flag and, on Next, the avatar walks to the next place; a stage finished (or its
+checkpoint passed) sets off fireworks and sails on to the next island; the whole Learning Path ends
+in a finale, and a level learned the first time gets a star round its score. Any key or pad skips a
+scene; nothing is played or scored while one runs.
+
 **The Checkpoint**, the last row of each stage but the last, is the stage's exam: its steps, played
 Solo, one after another. Pass them all and Continue starts at the next stage; the steps you skipped
 stay open, marked **◌**.

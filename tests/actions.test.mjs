@@ -176,6 +176,8 @@ test('next, retry and skip act on a result, and only there', () => {
     applyAction(h.session, { type: 'answer', index: q.choices.findIndex((c) => c.pitches.join() === q.prompt.join()) });
     h.run(500);
   }
+  assert.equal(h.session.view, 'anim', 'learned at the first go: a star over the result');
+  applyAction(h.session, { type: 'skip' });
   assert.equal(h.session.view, RESULT_VIEW);
   applyAction(h.session, { type: 'retry' });
   assert.equal(h.session.view, GUESS_VIEW, 'a fresh round');
