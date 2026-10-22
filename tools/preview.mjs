@@ -30,6 +30,8 @@
  *   npm run preview -- --view home --selected 2 --t 60          the home screen, mid-grow
  *   npm run preview -- --view map --map drums                   a drums island (7)
  *   npm run preview -- --view map --map done                    fill levels, avatar on a flag
+ *   npm run preview -- --view map --kind island --map drums|piano   one stage's island
+ *   npm run preview -- --view anim --name flag|fireworks|zoomIn|zoomOut|star|finale [--t ms]
  *   npm run preview -- --view map --places 7 --to 6 --film 0,90,400   walk there
  *
  * The list, the sheet and the cards come from a session, as on the Move, with
@@ -48,10 +50,12 @@ import { buildCatalog, navTop, nodeAt, isFolder } from '../src/catalog.mjs';
 import { createSession } from '../src/session.mjs';
 import { tipCard, TIP_KEYS, PLACEMENT } from '../src/tips.mjs';
 import { readFileSync, existsSync } from 'node:fs';
-import { layoutPlaces } from '../src/pathmap/layout.mjs';
+import { layoutPlaces, cellRect } from '../src/pathmap/layout.mjs';
+const cellRectOf = (layout, i) => cellRect(layout.cells[i], layout.kind);
 import { createWalk, walkTo, posAt } from '../src/pathmap/walk.mjs';
 import { makePlace } from '../src/pathmap/model.mjs';
 import { drawMap } from '../src/pathmap/render.mjs';
+import { ANIMS, flagRise, fireworks, zoomIn, zoomOut, starBurst, finale } from '../src/pathmap/anim.mjs';
 import { createGrow, startGrow, GROW_MS } from '../src/home/render.mjs';
 import { hintFor } from '../src/hints.mjs';
 import { PRACTICE_PIANO, PRACTICE_DRUMS } from '../src/home/icons.mjs';
@@ -150,6 +154,21 @@ function playedRun(upTo) {
  * Sample maps for --view map: every state and kind shows up somewhere, so one
  * look checks them all. [label, percent, state, due, kind]
  */
+/* Island maps (--kind island): one stage's places as buildings on its island. */
+const ISLAND_MAPS = {
+  drums: [
+    ['Lessons', 100, 'done', 0, 'sign'], ['Ear', 100, 'done', 2, 'bell'], ['Time', 50, 'current', 0, 'clock'],
+    ['Hands', 20, 'started', 0, 'workshop'], ['Grooves', 0, 'fresh', 0, 'stage'], ['Electives', 0, 'ahead', 0, 'cove'],
+    ['Checkpoint', 0, 'fresh', 0, 'fort'],
+  ],
+  piano: [
+    ['1.1 Find the notes', 100, 'done', 0, 'market'], ['1.2 Hearing basics', 100, 'done', 1, 'bell'],
+    ['1.3 Major scale', 60, 'current', 0, 'stairs'], ['1.4 Read the staff', 40, 'started', 0, 'library'],
+    ['1.5 First chords', 0, 'skipped', 0, 'temple'], ['1.6 Black keys', 0, 'fresh', 0, 'workshop'],
+    ['1.7 First melodies', 0, 'ahead', 0, 'stage'], ['Checkpoint', 0, 'fresh', 0, 'fort'],
+  ],
+};
+
 const SAMPLE_MAPS = {
   5: [
     ['Stage 1', 100, 'skipped', 0, 'island'], ['Stage 2', 100, 'done', 2, 'island'],
@@ -226,12 +245,59 @@ if (view === 'home') {
       now: now ?? GROW_MS, footer: hintFor('home')[Number(arg('part', 0))] });
     show(`home, ${HOME_ITEMS[sel].label}${now === null ? '' : ` growing @ ${now}ms`} (${c.calls} draw calls)`, c);
   }
+} else if (view === 'anim') {
+  /*
+   * An animation in the scene it plays in, as a film: --t ms for one frame,
+   * --film a,b,c for those, by default 0/25/50/75/100% of its length.
+   */
+  const name = arg('name', 'zoomIn');
+  const anim = ANIMS[name === 'zoom' ? 'zoomIn' : name];
+  if (!anim) throw new Error(`--view anim --name ${Object.keys(ANIMS).join('|')}`);
+  const at = arg('t', null);
+  const film = at !== null ? [Number(at)] : arg('film', null)
+    ? arg('film', '').split(',').map(Number) : [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(f * anim.ms));
+  const make = (rows) => rows.map(([label, percent, state, due, kind]) => makePlace({ label, percent, state, due, kind }));
+  for (const t of film) {
+    const c = createScreen();
+    c.clear();
+    if (name === 'flag' || name === 'fireworks') {
+      /* Drums' island: Ear has just been finished (flag), or the fort passed. */
+      const rows = ISLAND_MAPS.drums.map((r, i) => (i === 1 ? [r[0], 100, 'started', 0, r[4]] : r));
+      const places = make(rows);
+      const layout = layoutPlaces(places.length, { kind: 'island' });
+      R.drawChrome(c, { left: places[1].label });
+      drawMap(c, { places, layout, walk: createWalk(layout, 1), now: 0, route: name !== 'fireworks' });
+      if (name === 'flag') flagRise(c, { layout, index: 1, place: places[1] }, t);
+      else {
+        const r = cellRectOf(layout, places.length - 1);
+        fireworks(c, { x: r.x + 6, y: r.y + 2, seed: 7 }, t);
+      }
+    } else if (name === 'zoomIn' || name === 'zoom' || name === 'zoomOut') {
+      const places = make(SAMPLE_MAPS[5]);
+      const layout = layoutPlaces(5);
+      R.drawChrome(c, { left: places[2].label });
+      (name === 'zoomOut' ? zoomOut : zoomIn)(c, { cell: layout.cells[2], place: places[2] }, t);
+    } else if (name === 'star') {
+      R.drawChrome(c, { left: 'RESULT' });
+      const score = '92%';
+      c.text((128 - c.textWidth(score)) >> 1, 28, score, 1);
+      starBurst(c, { x: 64, y: 31, r: 11, seed: 3 }, t);
+    } else {
+      const places = make(SAMPLE_MAPS[7].map((r) => [r[0], 100, 'done', 0, r[4]]));
+      const layout = layoutPlaces(places.length);
+      R.drawChrome(c, { left: 'Learning Path' });
+      finale(c, { layout, places, seed: 5 }, t);
+    }
+    if (name !== 'star') V.drawFooterHint(c, 'any key: skip');
+    show(`anim ${name} @ ${t}ms of ${anim.ms} (${c.calls} draw calls)`, c);
+  }
 } else if (view === 'map') {
-  const which = arg('map', arg('places', '5'));
-  const rows = SAMPLE_MAPS[which];
-  if (!rows) throw new Error('--view map takes --places 5|7|8 or --map drums|done');
+  const island = arg('kind', 'world') === 'island';
+  const which = island ? arg('map', 'drums') : arg('map', arg('places', '5'));
+  const rows = (island ? ISLAND_MAPS : SAMPLE_MAPS)[which];
+  if (!rows) throw new Error('--view map takes --places 5|7|8, --map drums|done, or --kind island [--map drums|piano]');
   const places = rows.map(([label, percent, state, due, kind]) => makePlace({ label, percent, state, due, kind }));
-  const layout = layoutPlaces(places.length);
+  const layout = layoutPlaces(places.length, { kind: island ? 'island' : 'world' });
   /* The avatar starts where Continue would go; on 'done', on the first flag. */
   const from = which === 'done' ? 0 : places.findIndex((p) => p.state === 'current');
   const walk = createWalk(layout, Number(arg('at', from)));
@@ -241,7 +307,7 @@ if (view === 'home') {
   for (const t of film) {
     const c = createScreen();
     drawMapScreen(c, places, layout, walk, t);
-    show(`map ${which}${to === null ? '' : ` walking to ${to} @ ${t}ms`} (${c.calls} draw calls)`, c);
+    show(`map ${island ? 'island ' : ''}${which}${to === null ? '' : ` walking to ${to} @ ${t}ms`} (${c.calls} draw calls)`, c);
   }
 } else if (view === 'clef') {
   const c = createScreen();
