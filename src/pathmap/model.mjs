@@ -28,7 +28,7 @@ export const STATES = Object.freeze(['done', 'current', 'started', 'fresh', 'ski
 export const KINDS = Object.freeze(['island', 'place', 'fort', 'hut', 'cove']);
 
 /* The rows of ground an island body can fill (render.mjs's island glyph). */
-export const FILL_LEVELS = 5;
+export const FILL_LEVELS = 4;
 
 /* A short name for a pad-sized label: the first word, up to 4 characters. */
 export function shortOf(label) {

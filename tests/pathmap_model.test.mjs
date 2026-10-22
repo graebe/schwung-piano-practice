@@ -49,22 +49,22 @@ test('a missing short label comes from the first word', () => {
 });
 
 test('fillLevel: begun shows a row, only finished shows them all', () => {
-  assert.equal(FILL_LEVELS, 5);
+  assert.equal(FILL_LEVELS, 4);
   assert.equal(fillLevel(0), 0);
   assert.equal(fillLevel(undefined), 0);
   assert.equal(fillLevel(1), 1);
-  assert.equal(fillLevel(20), 1);
-  assert.equal(fillLevel(21), 2);
+  assert.equal(fillLevel(25), 1);
+  assert.equal(fillLevel(26), 2);
   assert.equal(fillLevel(99), FILL_LEVELS - 1);
   assert.equal(fillLevel(100), FILL_LEVELS);
   assert.equal(fillLevel(250), FILL_LEVELS);
-  assert.equal(fillLevel(99, 4), 3);
-  assert.equal(fillLevel(1, 4), 1);
+  assert.equal(fillLevel(99, 5), 4);
+  assert.equal(fillLevel(1, 5), 1);
 });
 
 test('0, 20, 40, 60 and 100% are five different fills on 4 or 5 rows', () => {
-  assert.deepEqual([0, 20, 40, 60, 100].map((p) => fillLevel(p)), [0, 1, 2, 3, 5]);
-  assert.deepEqual([0, 20, 40, 60, 100].map((p) => fillLevel(p, 4)), [0, 1, 2, 3, 4]);
+  assert.deepEqual([0, 20, 40, 60, 100].map((p) => fillLevel(p)), [0, 1, 2, 3, 4]);
+  assert.deepEqual([0, 20, 40, 60, 100].map((p) => fillLevel(p, 5)), [0, 1, 2, 3, 5]);
 });
 
 test('fillLevel never goes down as the percentage rises', () => {

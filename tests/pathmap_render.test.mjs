@@ -16,7 +16,7 @@ import { createWalk, walkTo, posAt, walkDuration } from '../src/pathmap/walk.mjs
 import { makePlace, fillLevel } from '../src/pathmap/model.mjs';
 import {
   drawMap, glyphRows, placeGlyph, compile, rowsToRuns, runsToRects, drawWalker,
-  BODIES, AVATAR_ROWS, AVATAR_W, AVATAR_H, STAND_X, GLYPH_W, GLYPH_H, GLYPH_DX,
+  BODIES, AVATAR_ROWS, AVATAR_W, AVATAR_H, STAND_X, STAND_Y, GLYPH_W, GLYPH_H, GLYPH_DX,
 } from '../src/pathmap/render.mjs';
 
 /* ---- A 128x64 1-bit screen that counts the calls made to it ------------- */
@@ -60,7 +60,7 @@ function screen(fill = 0) {
 const lit = (rows) => rows.join('').split('').filter((c) => c === '#').length;
 const place = (state, percent = 0, kind = 'island', due = 0) => makePlace({ label: kind, state, percent, kind, due });
 
-/* What drawMap must have put in place i's 14x11 box. */
+/* What drawMap must have put in place i's 15x11 box. */
 const groundOf = (kind) => BODIES[kind].filter((r) => /[ox]/.test(r)).length;
 function expectedGlyph(p, { here = false, avatar = false } = {}) {
   const look = { skipped: 'dotted', ahead: 'sparse' }[p.state] || 'solid';
@@ -72,7 +72,8 @@ function expectedGlyph(p, { here = false, avatar = false } = {}) {
 const groundLit = (kind, rows) => BODIES[kind].map((r, y) => [...r].some((ch, x) => ch === 'o' && rows[y][x] === '#'));
 const groundCells = (kind, rows) => BODIES[kind].map((r, y) => [...r].map((ch, x) => (/[ox]/.test(ch) ? rows[y][x] : '')).join(''));
 /* The figure's columns and rows, empty but for the figure. */
-const slotOf = (rows) => rows.slice(0, AVATAR_H).map((r) => r.slice(STAND_X, STAND_X + AVATAR_W));
+const slotOf = (rows) => rows.slice(STAND_Y, STAND_Y + AVATAR_H).map((r) => r.slice(STAND_X, STAND_X + AVATAR_W));
+const inSlot = (y) => y >= STAND_Y && y < STAND_Y + AVATAR_H;
 const glyphAt = (c, L, i) => {
   const r = cellRect(L.cells[i]);
   return c.rows(r.x + GLYPH_DX, r.y, GLYPH_W, GLYPH_H);
@@ -81,7 +82,7 @@ const glyphAt = (c, L, i) => {
  * open sky a route may cross unless the figure or the marker is in it. */
 function assertGlyph(c, L, i, want, slotToo, msg) {
   const got = glyphAt(c, L, i);
-  const mask = (rows) => rows.map((r, y) => (slotToo || y >= AVATAR_H ? r : r.slice(0, STAND_X) + '?'.repeat(AVATAR_W)));
+  const mask = (rows) => rows.map((r, y) => (slotToo || y >= STAND_Y + AVATAR_H ? r : r.slice(0, STAND_X) + '?'.repeat(AVATAR_W)));
   assert.deepEqual(mask(got), mask(want), msg);
 }
 
@@ -129,11 +130,11 @@ test('glyphs are cached per look: drawing again builds nothing new', () => {
 
 test('the ground fills from the bottom with the percentage', () => {
   const at = (percent) => groundLit('island', glyphRows('island', 'solid', fillLevel(percent, groundOf('island'))));
-  assert.deepEqual(at(0).slice(5, 10), [false, false, false, false, false]);
-  assert.deepEqual(at(20).slice(5, 10), [false, false, false, false, true], 'the bottom row of ground');
-  assert.deepEqual(at(40).slice(5, 10), [false, false, false, true, true]);
-  assert.deepEqual(at(60).slice(5, 10), [false, false, true, true, true]);
-  assert.deepEqual(at(100).slice(5, 10), [true, true, true, true, true]);
+  assert.deepEqual(at(0).slice(4, 8), [false, false, false, false]);
+  assert.deepEqual(at(20).slice(4, 8), [false, false, false, true], 'the bottom row of ground');
+  assert.deepEqual(at(40).slice(4, 8), [false, false, true, true]);
+  assert.deepEqual(at(60).slice(4, 8), [false, true, true, true]);
+  assert.deepEqual(at(100).slice(4, 8), [true, true, true, true]);
 });
 
 test('0, 20, 40, 60 and 100% stay apart with the avatar and the flag on top', () => {
@@ -152,16 +153,16 @@ test('0, 20, 40, 60 and 100% stay apart with the avatar and the flag on top', ()
   }
 });
 
-test('done flies a flag: a pole of 5-6 px on the body, a pennant at its top', () => {
+test('done flies a flag: a pole on the body\'s left shoulder, a pennant at its top', () => {
   for (const kind of Object.keys(BODIES)) {
     const plain = glyphRows(kind, 'solid', 0);
     const flag = glyphRows(kind, 'solid', 0, { flag: true });
     const added = [];
     flag.forEach((r, y) => [...r].forEach((ch, x) => ch !== plain[y][x] && added.push([x, y])));
-    const pole = added.filter(([x]) => x === 1);
-    assert.ok(pole.length >= 5 && pole.length <= 6, `${kind}: pole ${pole.length} px`);
-    assert.notEqual(BODIES[kind][pole.length][1], '.', `${kind}: the pole stands on the body`);
-    assert.deepEqual(flag.slice(0, 2).map((r) => r.slice(1, 5)), ['####', '####'], `${kind}: pennant to the right at the top`);
+    const pole = added.filter(([x]) => x === 2);
+    assert.ok(pole.length >= 4 && pole.length <= 6, `${kind}: pole ${pole.length} px`);
+    assert.notEqual(BODIES[kind][pole.length][2], '.', `${kind}: the pole stands on the body`);
+    assert.deepEqual(flag.slice(0, 2).map((r) => r.slice(2, 6)), ['####', '####'], `${kind}: pennant to the right at the top`);
     assert.ok(added.every(([x]) => x < STAND_X - 1), `${kind}: clear of the avatar's spot`);
   }
 });
@@ -169,7 +170,7 @@ test('done flies a flag: a pole of 5-6 px on the body, a pennant at its top', ()
 test('due shows a 2x2 dot; the current place a down-arrow in the avatar\'s spot', () => {
   const plain = glyphRows('place', 'solid', 0);
   const due = glyphRows('place', 'solid', 0, { due: true });
-  assert.deepEqual(due.slice(1, 3).map((r) => r.slice(6, 8)), ['##', '##']);
+  assert.deepEqual(due.slice(0, 2).map((r) => r.slice(7, 9)), ['##', '##']);
   assert.equal(lit(due) - lit(plain), 4);
   const here = glyphRows('place', 'solid', 0, { here: true });
   assert.deepEqual(slotOf(here).slice(2, 4), ['.###.', '..#..'], 'a small down-arrow');
@@ -191,6 +192,19 @@ test('skipped is dotted and hatched; ahead is dimmer still', () => {
   assert.equal(lit(glyphRows('island', 'sparse', 0)), lit(glyphRows('island', 'sparse', 5)), 'ahead shows no ground');
 });
 
+test('island and place are a dome hill: rounded, symmetric, on a beach or level ground', () => {
+  for (const kind of ['island', 'place']) {
+    const dome = BODIES[kind].slice(3, 8).map((r) => r.slice(1, 10));
+    assert.ok(dome.every((r) => r === [...r].reverse().join('')), `${kind}: symmetric`);
+    assert.equal(dome[0], '...###...', `${kind}: a rounded top`);
+    assert.equal(dome[1], '.##ooo##.', `${kind}: rounded shoulders`);
+    assert.equal(dome[2].length, 9);
+  }
+  assert.equal(BODIES.island[8], '.#############.', 'a beach under it and beside it');
+  assert.equal(BODIES.island[9], '#.............#', 'tapering into the sea at both ends');
+  assert.equal(BODIES.place[8], '#'.repeat(GLYPH_W), 'level ground');
+});
+
 test('island, place, fort, hut and chest are five different shapes', () => {
   const kinds = Object.keys(BODIES);
   assert.deepEqual(kinds, ['island', 'place', 'fort', 'hut', 'cove']);
@@ -199,22 +213,22 @@ test('island, place, fort, hut and chest are five different shapes', () => {
     assert.equal(new Set(shapes).size, kinds.length, look);
   }
   const fort = glyphRows('fort', 'solid', 4);
-  assert.equal(fort[5].slice(0, 9), '#.#.#.#.#', 'battlements');
-  assert.equal(fort[GLYPH_H - 1][4], '.', 'a gate that stays open');
+  assert.equal(fort[5].slice(1, 10), '#.#.#.#.#', 'battlements');
+  assert.equal(fort[GLYPH_H - 1][5], '.', 'a gate that stays open');
   const hut = glyphRows('hut', 'solid', 5);
   assert.equal(hut[3].replace(/\./g, ''), '#', 'a roof peak');
-  assert.deepEqual([hut[GLYPH_H - 2][4], hut[GLYPH_H - 1][4]], ['.', '.'], 'a door');
+  assert.deepEqual([hut[GLYPH_H - 2][5], hut[GLYPH_H - 1][5]], ['.', '.'], 'a door');
   assert.equal(glyphRows('volcano', 'solid', 0).join(), glyphRows('place', 'solid', 0).join(), 'unknown kinds draw as a place');
 });
 
 test('the cove is a treasure chest whose lock shows empty and full', () => {
   const empty = glyphRows('cove', 'solid', 0);
   const full = glyphRows('cove', 'solid', 5);
-  assert.equal(empty[4].slice(0, 9), '..#####..', 'a domed lid');
-  assert.equal(empty[7].slice(0, 9), '#########', 'a band, with the lock lit on an empty chest');
-  assert.equal(full[7].slice(0, 9), '###...###', 'and dark on a full one');
-  assert.equal(empty[8][4], '#');
-  assert.equal(full[8][4], '.');
+  assert.equal(empty[4].slice(1, 10), '..#####..', 'a domed lid');
+  assert.equal(empty[7].slice(1, 10), '#########', 'a band, with the lock lit on an empty chest');
+  assert.equal(full[7].slice(1, 10), '###...###', 'and dark on a full one');
+  assert.equal(empty[8][5], '#');
+  assert.equal(full[8][5], '.');
 });
 
 test('the avatar is a figure standing on top: head, arms, legs, feet on the ground', () => {
@@ -231,10 +245,12 @@ test('the avatar is a figure standing on top: head, arms, legs, feet on the grou
         const with_ = glyphRows(kind, look, level, { flag: true, due: true, avatar: true });
         assert.deepEqual(slotOf(plain), Array(AVATAR_H).fill('.....'), `${kind}: the spot is open sky`);
         assert.deepEqual(slotOf(with_), fig, `${kind} ${look} ${level}: the whole figure, untouched`);
-        assert.deepEqual(with_.slice(AVATAR_H), plain.slice(AVATAR_H), `${kind}: nothing below it changes`);
+        assert.deepEqual(with_.map((r, y) => (inSlot(y) ? r.slice(0, STAND_X) : r)),
+          plain.map((r, y) => (inSlot(y) ? r.slice(0, STAND_X) : r)), `${kind}: nothing else changes`);
       }
-      /* Feet on the ground: the row under the figure is the spit's coast. */
-      assert.equal(BODIES[kind][AVATAR_H].slice(STAND_X, STAND_X + AVATAR_W), '#####', `${kind}: a spit to stand on`);
+      /* Feet on the ground: the row under the figure is lit under both feet. */
+      const under = BODIES[kind][STAND_Y + AVATAR_H];
+      assert.deepEqual([under[STAND_X + 1], under[STAND_X + 3]], ['#', '#'], `${kind}: ground to stand on`);
     }
   }
 });
@@ -262,7 +278,7 @@ for (const [name, places] of Object.entries(MAPS)) {
       assertGlyph(c, L, i, expectedGlyph(places[i], { here: i === cur, avatar: i === cur }), i === cur, `place ${i}`);
     }
     const r = cellRect(L.cells[cur]);
-    assert.deepEqual(c.rows(r.x + GLYPH_DX + STAND_X, r.y, AVATAR_W, AVATAR_H), AVATAR_ROWS.stand, 'the figure, clean');
+    assert.deepEqual(c.rows(r.x + GLYPH_DX + STAND_X, r.y + STAND_Y, AVATAR_W, AVATAR_H), AVATAR_ROWS.stand, 'the figure, clean');
   });
 }
 

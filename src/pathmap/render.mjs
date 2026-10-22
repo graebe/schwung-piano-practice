@@ -78,14 +78,16 @@ function blit(ctx, rects, x, y, v) {
 
 /* ---- Place glyphs -------------------------------------------------------- */
 /*
- * A place is 14x11, the full height of its cell, drawn at (cell.x + 1, cell.y).
- * Its main body sits on the left (columns 0..8, top at row 4-5); on the right
- * a lower spit of ground (top at row 7) is where the avatar stands, so the
- * figure lives in the sky above it and never covers the place:
+ * A place is 15x11, the full height and all but one column of its cell,
+ * drawn at (cell.x, cell.y). Its body sits on the left (columns 1..9); the
+ * ground runs on to the right, where the avatar stands with its feet on row 8,
+ * so the figure lives in the sky beside the body and never covers it. On the
+ * world map the body is a dome hill on a beach that tapers into the sea at
+ * both ends.
  *
- *   flag (done)   pole in column 1 down to the body, pennant 3x2 to its right
- *   due dot       2x2 at columns 6..7, rows 1..2
- *   avatar        5x7 at columns 9..13, rows 0..6, feet on the spit
+ *   flag (done)   pole on the body's left shoulder, pennant 3x2 to its right
+ *   due dot       2x2 at columns 7..8, rows 0..1
+ *   avatar        5x7 at columns 10..14, rows 1..7, feet on the ground
  *   current       a down-arrow in the avatar's spot when it is elsewhere
  *
  * Body legend: '#' coast or wall, always drawn; 'o' ground that fills from the
@@ -93,89 +95,90 @@ function blit(ctx, rects, x, y, v) {
  * ground behind it, so it shows on an empty chest and a full one alike; '.'
  * never drawn (water, a gate, a door).
  */
-export const GLYPH_W = 14;
+export const GLYPH_W = 15;
 export const GLYPH_H = 11;
-export const GLYPH_DX = 1;
+export const GLYPH_DX = 0;
 
 export const BODIES = {
-  /* An island of the world map: a hill, and a beach to stand on. */
+  /* An island of the world map: a dome hill on a beach that runs into the sea
+   * at both ends. */
   island: [
-    '..............',
-    '..............',
-    '..............',
-    '..............',
-    '...###........',
-    '..#ooo#.......',
-    '.#ooooo##.....',
-    '#oooooooo#####',
-    '#oooooooooooo#',
-    '.##ooooooooo#.',
-    '...#########..',
+    '...............',
+    '...............',
+    '...............',
+    '....###........',
+    '..##ooo##......',
+    '.#ooooooo#.....',
+    '.#ooooooo#.....',
+    '.#ooooooo#.....',
+    '.#############.',
+    '#.............#',
+    '...............',
   ],
-  /* A place on an island: a square clearing with a ledge. */
+  /* A place on an island: the same hill, on level ground. */
   place: [
-    '..............',
-    '..............',
-    '..............',
-    '..............',
-    '..............',
-    '.#######......',
-    '#ooooooo#.....',
-    '#ooooooo######',
-    '#oooooooooooo#',
-    '#oooooooooooo#',
-    '.############.',
+    '...............',
+    '...............',
+    '...............',
+    '....###........',
+    '..##ooo##......',
+    '.#ooooooo#.....',
+    '.#ooooooo#.....',
+    '.#ooooooo#.....',
+    '###############',
+    '...............',
+    '...............',
   ],
   /* The checkpoint: battlements, a gate, and a rampart. */
   fort: [
-    '..............',
-    '..............',
-    '..............',
-    '..............',
-    '..............',
-    '#.#.#.#.#.....',
-    '#ooooooo#.....',
-    '#ooooooo######',
-    '#oooooooooooo#',
-    '#ooo.ooooooo#.',
-    '####.########.',
+    '...............',
+    '...............',
+    '...............',
+    '...............',
+    '...............',
+    '.#.#.#.#.#.....',
+    '.#ooooooo#.....',
+    '.#ooooooo#.....',
+    '.#ooooooo#####.',
+    '.#ooo.ooooooo#.',
+    '.####.########.',
   ],
   /* The lessons: a hut, gable and door, with a yard. */
   hut: [
-    '..............',
-    '..............',
-    '..............',
-    '....#.........',
-    '...#o#........',
-    '..#ooo#.......',
-    '.#ooooo#......',
-    '##############',
-    '.#ooooo#ooooo#',
-    '.#oo.oo#ooooo#',
-    '.###.#########',
+    '...............',
+    '...............',
+    '...............',
+    '.....#.........',
+    '....#o#........',
+    '...#ooo#.......',
+    '..#ooooo#......',
+    '.#########.....',
+    '..#ooooo######.',
+    '..#oo.oo#oooo#.',
+    '..###.########.',
   ],
   /* The electives (kind 'cove'): a treasure chest -- domed lid, band, lock --
    * beside a patch of sand. */
   cove: [
-    '..............',
-    '..............',
-    '..............',
-    '..............',
-    '..#####.......',
-    '.#ooooo#......',
-    '#ooooooo#.....',
-    '###xxx########',
-    '#oooxooo#oooo#',
-    '#ooooooo#ooo#.',
-    '#############.',
+    '...............',
+    '...............',
+    '...............',
+    '...............',
+    '...#####.......',
+    '..#ooooo#......',
+    '.#ooooooo#.....',
+    '.###xxx###.....',
+    '.#oooxooo######',
+    '.#ooooooo#oooo#',
+    '.##############',
   ],
 };
 
 /* Marker pixels, [x, y] in glyph coordinates. */
-const POLE_X = 1;
-const PENNANT = [[2, 0], [3, 0], [4, 0], [2, 1], [3, 1], [4, 1]];
-const DUE = [[6, 1], [7, 1], [6, 2], [7, 2]];
-const HERE = [[10, 2], [11, 2], [12, 2], [11, 3]];
+const POLE_X = 2;
+const PENNANT = [[3, 0], [4, 0], [5, 0], [3, 1], [4, 1], [5, 1]];
+const DUE = [[7, 0], [8, 0], [7, 1], [8, 1]];
+const HERE = [[11, 3], [12, 3], [13, 3], [12, 4]];
 
 /*
  * How a state is drawn:
@@ -194,7 +197,8 @@ function groundRows(body) {
 const GROUND_LEVELS = {};
 for (const k in BODIES) GROUND_LEVELS[k] = groundRows(BODIES[k]).length;
 
-/* The flag pole runs down column 1 to the body: 5-6 px on every kind. */
+/* The flag pole runs down column 2 to the body, standing on its left
+ * shoulder, a column in from the wall so the two never read as one line. */
 const poleEnd = (body) => {
   let y = 0;
   while (y < body.length && body[y][POLE_X] === '.') y++;
@@ -217,8 +221,10 @@ export const AVATAR_ROWS = {
   walkA: STANDING,
   walkB: ['.###.', '.###.', '..#..', '#####', '..#..', '..#..', '..#..'],
 };
-/* Where the standing figure sits in a glyph: on the spit. */
-export const STAND_X = 9;
+/* Where the standing figure sits in a glyph: on the ground right of the body,
+ * feet on row 8 (layout.mjs's CENTRE_DY). */
+export const STAND_X = 10;
+export const STAND_Y = 1;
 const AVATAR = {};
 for (const k in AVATAR_ROWS) AVATAR[k] = compile(AVATAR_ROWS[k]);
 
@@ -247,7 +253,7 @@ export function glyphRows(kind, look, level, { due = false, here = false, flag =
   }
   if (due) mark(DUE);
   if (avatar) {
-    AVATAR_ROWS.stand.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') grid[y][STAND_X + x] = true; }));
+    AVATAR_ROWS.stand.forEach((r, y) => [...r].forEach((ch, x) => { if (ch === '#') grid[STAND_Y + y][STAND_X + x] = true; }));
   } else if (here) {
     mark(HERE);
   }
@@ -299,8 +305,9 @@ const KEEP_CLEAR = (() => {
   for (let y = 0; y < GLYPH_H; y++) lit(POLE_X, y);
   return mask;
 })();
-/* The avatar's spot, cleared under the figure or the marker. */
-const SLOT = [STAND_X, 0, AVATAR_W, AVATAR_H];
+/* The avatar's spot and the sky above it, cleared under the figure or the
+ * marker so a route coming down never touches its head. */
+const SLOT = [STAND_X, 0, AVATAR_W, STAND_Y + AVATAR_H];
 
 /*
  * Per layout, computed once: the route as dots (1px every 2, on the even

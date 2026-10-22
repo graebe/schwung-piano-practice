@@ -34,11 +34,11 @@ export const MAX_PLACES = COLS * ROWS;
 
 /*
  * A cell's anchor, where the route runs and the avatar's feet stand: on the
- * ground line of a place's spit (render.mjs draws a place's main body on the
- * left of the cell and a lower spit on the right, with the avatar above it).
+ * ground line right of a place's body (render.mjs draws the body on the left
+ * of the cell and the avatar above the ground beside it).
  */
 export const CENTRE_DX = 12;
-export const CENTRE_DY = 7;
+export const CENTRE_DY = 8;
 
 /*
  * Hand-drawn maps, one per place count. Read them as the screen: four rows of
