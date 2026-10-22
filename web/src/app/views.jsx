@@ -92,9 +92,12 @@ export function MapView(props) {
   let walk = null;
   let walkLayout = null;
   let raf = 0;
+  /* One clock reading per frame: drawn and tested at the same moment, or a
+   * walk arriving between the two would stop the loop one frame short. */
   const animate = () => {
-    setFrame(performance.now());
-    if (walk && !arrived(walk, performance.now())) raf = requestAnimationFrame(animate);
+    const t = performance.now();
+    setFrame(t);
+    if (walk && !arrived(walk, t)) raf = requestAnimationFrame(animate);
     else raf = 0;
   };
   /* A new map stands the avatar on its place; a new place sets it walking. */
@@ -223,6 +226,29 @@ export function HomeView(props) {
           </li>
         )}</For>
       </ul>
+    </section>
+  );
+}
+
+/* ---- A scene of the Learning Path ------------------------------------------- */
+
+/*
+ * A moment on the Learning Path (the session's scenes): what it says, and how
+ * far it is. Any click or key skips it, as any key does on the Move.
+ */
+export function AnimView(props) {
+  const a = () => props.vm().anim;
+  return (
+    <section class="screen anim-screen" aria-labelledby="anim-title" data-kind={a().kind}
+             data-info="Any click or key skips it" onClick={() => props.dispatch({ type: 'skip' })}>
+      <header class="screen-head">
+        <h1 id="anim-title" class="t-title">{a().say}</h1>
+      </header>
+      <div class="anim-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100"
+           aria-valuenow={Math.round(a().progress * 100)}>
+        <div class="anim-progress-bar" style={{ width: `${Math.round(a().progress * 100)}%` }} />
+      </div>
+      <Button onClick={(e) => { e.stopPropagation(); props.dispatch({ type: 'skip' }); }}>Skip</Button>
     </section>
   );
 }

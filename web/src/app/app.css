@@ -437,6 +437,12 @@ button.status-pill { cursor: pointer; }
   .home-circle { transition: none; }
 }
 
+/* ---------------------------------------------------------------- anim -- */
+.anim-screen { cursor: pointer; gap: var(--space-3); }
+.anim-progress { height: 4px; background: var(--bg-200); border: 1px solid var(--line-100); }
+.anim-progress-bar { height: 100%; background: var(--uv); }
+.anim-screen > .btn { align-self: flex-start; }
+
 /* ----------------------------------------------------------------- map -- */
 .map {
   display: block;

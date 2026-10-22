@@ -14,7 +14,7 @@ import { EditorFrame } from '../kit/components/EditorFrame.jsx';
 import { Button } from '../kit/components/Button.jsx';
 import { createStore } from './store.js';
 import {
-  ListView, HomeView, MapView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
+  ListView, HomeView, MapView, AnimView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
   MoveHint, KeysPanel,
 } from './views.jsx';
 import { keyIntent, DEFAULT_OCTAVE_C } from '../input/keys.js';
@@ -36,6 +36,7 @@ const HINTS = {
   'progress-detail': [['click', 'another row'], ['esc', 'the list']],
   settings: [['−/+', 'change a row'], ['esc', 'goes back']],
   info: [['esc', 'closes'], ['I', 'closes']],
+  anim: [['any key', 'skips'], ['click', 'skips']],
 };
 
 function useMedia(query) {
@@ -236,6 +237,7 @@ export function App(props) {
         <div class="app-main">
           <Show when={vm()}>
             <Switch>
+              <Match when={vm().screen === 'anim' && vm().anim}><AnimView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'menu' && vm().home}><HomeView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'menu' && vm().map}><MapView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'menu'}><ListView vm={vm} dispatch={dispatch} /></Match>
