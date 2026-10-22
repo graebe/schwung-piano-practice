@@ -381,8 +381,9 @@ const SCENARIOS = {
    */
   welcome: { settings: QUIET, progress: null, play(d) {
     d.run(200);
-    d.click(); d.run(100);                        /* Keys */
+    d.click(); d.run(100);                        /* Lit pads can be pressed */
     d.cc(SHIFT, 127); d.tick(); d.cc(SHIFT, 0); d.tick();
+    d.jog(1); d.run(100);                         /* Keys */
     d.jog(1); d.run(100);                         /* New to piano? */
     d.jog(1); d.click(); d.run(200);              /* I already play: the Path, and a tip */
     d.press(MENU); d.press(MENU);                 /* help on the tip, and back */
