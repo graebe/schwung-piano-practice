@@ -243,7 +243,7 @@ if (view === 'map') {
   walk(S, path || [0]);
   const top = navTop(S.nav);
   const c = createScreen();
-  V.drawList(c, top.node.label.toUpperCase(), top.node.children, top.cursor, {
+  V.drawList(c, S.listTitle().toUpperCase(), top.node.children, top.cursor, {
     footer: footerOf(S), centreFooter: true, decorate: S.decorateRow,
   });
   show(top.node.label, c);
