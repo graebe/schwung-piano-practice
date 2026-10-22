@@ -1219,7 +1219,7 @@ test('a place done, Next in another place: the flag, the walk there, then the st
   const before = h.session.progress.rev;
   h.session.activate(false);                     /* Next */
   assert.equal(h.session.view, 'anim');
-  assert.deepEqual(h.session.hint(), ['any key: skip']);
+  assert.deepEqual(h.session.hint(), ['ANY KEY skip']);
   assert.equal(h.session.scene.kind, 'celebrate');
   assert.equal(h.session.scene.map.places[h.session.scene.at].label, '1.3 Major scale');
   assert.ok(h.said().includes('Unit done.'));
@@ -1323,4 +1323,25 @@ test('the whole Learning Path done: the finale on the world map, then the world 
   assert.equal(h.session.view, MENU);
   assert.ok(h.session.onMap(), 'the world map');
   assert.equal(h.session.nav.at(-1).node.label, 'Learning Path');
+});
+
+test('scenes draw nothing from the quiz\'s random stream: a quiz after a zoom asks what it would have', () => {
+  const ask = (zoom) => {
+    const h = fakeHost();
+    h.session.init();
+    openPath(h.session, ['Learning Path']);
+    if (zoom) {
+      h.session.activate(false);                 /* into the island, and back out */
+      h.run(400);
+      h.session.back();
+      h.run(400);
+    } else {
+      h.run(800);
+    }
+    assert.ok(h.session.onMap());
+    h.session.playButton();                      /* Continue: a quiz */
+    assert.equal(h.session.view, GUESS_VIEW);
+    return JSON.stringify(h.session.quiz.prompt);
+  };
+  assert.equal(ask(true), ask(false));
 });

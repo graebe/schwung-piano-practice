@@ -900,7 +900,7 @@ test('a stage is an island; its list, one option away, ends on its Checkpoint', 
   for (const part of ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']) assert.ok(parts.includes(part), 'the hint takes turns: ' + parts);
   assert.match(parts, /^[^|]*\| PAD go  CLICK enter \|\|/, 'a new screen opens on its first part, whatever the clock: ' + parts);
   const island = screen.frame(click);                   /* 1 Grid and staff: its island */
-  assert.match(island, /^1\.1 Find the notes 0% \|.*any key: skip/, 'the zoom lands on the island: ' + island);
+  assert.match(island, /^1\.1 Find the notes 0% \|.*ANY KEY skip/, 'the zoom lands on the island: ' + island);
   advanceMs(400);
   assert.match(screen.frame(), /^1\.1 Find the notes 0% \| PAD go/, 'then the island itself');
   screen.frame(shiftClick);
@@ -997,7 +997,7 @@ test('a scene: its own screen and hint, and a pad skips it without a sound', () 
   jog(TOP.path);
   click();                                              /* the world */
   const zoom = screen.frame(click);                     /* into 1 Grid and staff: the zoom */
-  assert.match(zoom, /any key: skip$/, zoom);
+  assert.match(zoom, /ANY KEY skip$/, zoom);
   hostCalls.notes.length = 0;
   globalThis.onMidiMessageInternal([0x90, PAD + 9, 100]);
   globalThis.onMidiMessageInternal([0x80, PAD + 9, 0]);

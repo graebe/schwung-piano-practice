@@ -428,7 +428,7 @@ const SCENARIOS = {
     d.run(100);
     d.click(); d.run(300);                        /* Path: the world */
     const third = padOfCell(layoutPlaces(5).cells[2]) - PAD;
-    d.pad(third, 60); d.run(800);                 /* walk to stage 3 */
+    d.pad(third, 60); d.run(700);                 /* walk to stage 3 */
     d.pad(third, 60); d.run(400);                 /* and in: its island zooms in */
     d.jog(1); d.run(400); d.jog(1); d.run(400);   /* walk the island */
     d.press(MENU); d.jog(3); d.press(MENU);       /* help, scrolled, closed */

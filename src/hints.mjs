@@ -60,7 +60,7 @@ function table(screen, s) {
     case SHEET:
       return { keys: ['CLICK do it', 'BACK close'], shift: [QUIT] };
     case ANIM:
-      return { keys: ['any key: skip'], shift: [QUIT] };
+      return { keys: ['ANY KEY skip'], shift: [QUIT] };
     case INFO:
       return { keys: s.scrolls ? ['JOG scroll', 'BACK close'] : ['BACK close'], shift: [QUIT] };
     case CARD:

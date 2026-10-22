@@ -144,7 +144,7 @@ The map shows where you are going as you go:
 - **A level learned** the first time: a star round your score on the
   result.
 
-The bottom line says `any key: skip`: any key or pad skips the scene and
+The bottom line says `ANY KEY skip`: any key or pad skips the scene and
 goes straight to where it was going. Nothing is played or scored while a
 scene runs.
 
