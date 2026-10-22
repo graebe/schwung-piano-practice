@@ -32,6 +32,7 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { padPitch } from '../src/padmap.mjs';
+import { layoutPlaces, padOfCell } from '../src/pathmap/layout.mjs';
 import { fakeDsp } from './support/fake_dsp.mjs';
 
 const SRC = new URL('../src/', import.meta.url).pathname;
@@ -230,7 +231,7 @@ function driver(host) {
 const QUIET = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false, roundSize: 10 });
 /* Welcomed, with every tip seen: the scenarios below are about what they
  * drive, not about the first-visit cards, which `welcome` and `sheet` cover. */
-const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'placement'] });
+const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
 
 /*
  * Each scenario is a session someone might actually have. They start from
@@ -393,11 +394,32 @@ const SCENARIOS = {
   } },
 
   /*
+   * The Path as a map: the world, a pad walking the avatar to stage 3 and a
+   * second press going in, the jog walking the island, MENU's help, the
+   * island as a list and back, Back up to the world, and Play as Continue.
+   * The pads light the places; nothing sounds.
+   */
+  map: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(300);              /* Path: the world */
+    const third = padOfCell(layoutPlaces(5).cells[2]) - PAD;
+    d.pad(third, 60); d.run(800);                 /* walk to stage 3 */
+    d.pad(third, 60); d.run(300);                 /* and in: its island */
+    d.jog(1); d.run(400); d.jog(1); d.run(400);   /* walk the island */
+    d.press(MENU); d.jog(3); d.press(MENU);       /* help, scrolled, closed */
+    d.shiftWith(JOG_CLICK); d.jog(60); d.jog(-1); d.click(); d.run(100);   /* Show as list */
+    d.press(BACK); d.run(100);                    /* the map again */
+    d.press(BACK); d.run(400);                    /* up to the world */
+    d.press(PLAY); d.run(600);                    /* Continue */
+    d.toTop(); d.run(200);
+  } },
+
+  /*
    * The options of a row: the sheet's tip once, Test out: checkpoint on a
    * stage, I know this on Continue and Continue then opening the step after,
    * and Settings... from a library row into Settings › Path.
    */
-  sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz'] }), play(d) {
+  sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz', 'map', 'island'] }), play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(100);              /* Path */
     d.shiftWith(JOG_CLICK); d.run(100);           /* 1 Grid and staff: its tip, over the sheet */

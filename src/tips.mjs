@@ -21,7 +21,10 @@ export const QUIZ = 'quiz';
 /* Shown once, after "I already play". */
 export const PLACEMENT = 'placement';
 
-export const TIP_KEYS = [WELCOME, SHEET, PRACTICE, QUIZ];
+export const MAP = 'map';
+export const ISLAND = 'island';
+
+export const TIP_KEYS = [WELCOME, SHEET, PRACTICE, QUIZ, MAP, ISLAND];
 
 /* The welcome's choice, page 3. */
 export const FROM_START = 0;
@@ -34,6 +37,8 @@ const TIPS = {
   [SHEET]: { title: 'Tip', paragraphs: [para('Options for this row. JOG choose, CLICK do it, BACK close.')] },
   [PRACTICE]: { title: 'Tip', paragraphs: [para('REC plays and scores it, PLAY lets you listen first. MENU: help.')] },
   [QUIZ]: { title: 'Tip', paragraphs: [para('Answer with the lit pads or the jog. MENU: help.')] },
+  [MAP]: { title: 'Tip', paragraphs: [para('Lit pads are places. Press one to walk there, again to go in. PLAY continues.')] },
+  [ISLAND]: { title: 'Tip', paragraphs: [para('Each place is part of the stage. The fort is its checkpoint.')] },
   [PLACEMENT]: {
     title: 'Tip',
     paragraphs: [para('Know a stage already? SHIFT+CLICK a stage, then Test out: checkpoint. Pass it and the path moves on.')],

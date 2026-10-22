@@ -113,6 +113,20 @@ for f in src/*.mjs; do
     *) echo "src/$mod.mjs is not in package.sh's MODULES, so it would not ship" >&2; exit 1 ;;
   esac
 done
+# And the Path map engine, which ships as a folder of its own: the same both
+# ways round.
+PATHMAP=$(sed -n 's/^PATHMAP="\(.*\)"$/\1/p' scripts/package.sh)
+test -n "$PATHMAP"
+for mod in $PATHMAP; do
+  test -f "src/pathmap/$mod.mjs" || { echo "package.sh names src/pathmap/$mod.mjs, which does not exist" >&2; exit 1; }
+done
+for f in src/pathmap/*.mjs; do
+  mod=$(basename "$f" .mjs)
+  case " $PATHMAP " in
+    *" $mod "*) ;;
+    *) echo "src/pathmap/$mod.mjs is not in package.sh's PATHMAP, so it would not ship" >&2; exit 1 ;;
+  esac
+done
 
 node --check src/ui.js
 test -f tests/ui_smoke.test.mjs   # ui.js must be executed by the suite, not only read

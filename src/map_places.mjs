@@ -126,3 +126,19 @@ export function startPlace(places) {
   const open = places.findIndex((p) => p.state !== 'done' && p.state !== 'skipped');
   return open >= 0 ? open : 0;
 }
+
+/*
+ * The title bar over a map: the place under the avatar and its percent on
+ * the left — the name cut at a word if the two do not fit `maxPx` — and its
+ * reviews due on the right, only when they fit beside it.
+ */
+export function mapTitle(place, maxPx, widthOf) {
+  if (!place) return { title: '', right: '' };
+  const pct = ` ${place.percent}%`;
+  let label = place.label;
+  while (widthOf(label + pct) > maxPx && label.indexOf(' ') > 0) label = label.slice(0, label.lastIndexOf(' '));
+  const title = label + pct;
+  const due = place.due ? `${place.due} due` : '';
+  const fits = due && widthOf(title) + 6 + widthOf(due) <= maxPx;
+  return { title, right: fits ? due : '' };
+}

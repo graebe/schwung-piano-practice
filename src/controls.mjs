@@ -137,6 +137,16 @@ export function jogClickAction(view, shiftHeld) {
   return 'menu';
 }
 
+/*
+ * Back and Menu have white LEDs, lit 0..127 (124 is the brightest that
+ * shows). Menu is always lit — it is help, everywhere — and Back while there
+ * is somewhere to go back to: at the top of the list Back closes the module.
+ */
+export const BUTTON_LIT = 124;
+export function navButtonLeds(canGoBack) {
+  return { menu: BUTTON_LIT, back: canGoBack ? BUTTON_LIT : 0 };
+}
+
 /* Whole beats still to go in the count-in, or 0 once the piece has started. */
 export function countInRemaining(songBeats) {
   if (songBeats >= 0) return 0;

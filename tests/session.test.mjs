@@ -660,7 +660,8 @@ test('the sheet offers only what applies, in its order, Settings... last', () =>
   openPath(h.session, ['Path']);
   h.session.selectRow(0);
   h.session.activate(true);
-  assert.deepEqual(labels(), ['I know it all: skip', 'Start the path here', 'Test out: checkpoint', 'Settings...']);
+  assert.deepEqual(labels(), ['I know it all: skip', 'Start the path here', 'Test out: checkpoint', 'Show as list',
+    'Settings...'], 'on the world map its list is an option');
   h.session.back();
   openPath(h.session, ['1 Grid and staff', '1.3 Major scale']);
   h.session.selectRow(0);
@@ -865,4 +866,101 @@ test('the hint line names the keys of every screen, and the Shift layer while Sh
   assert.deepEqual(h.session.hint(), ['REC pause  BACK stop']);
   h.session.recordButton();
   assert.deepEqual(h.session.hint(), ['PAUSED  REC go on', 'BACK stop']);
+});
+
+/* ---- The Path as a map ------------------------------------------------------ */
+
+import { layoutPlaces, padOfCell } from '../src/pathmap/layout.mjs';
+
+const padOf = (n, i) => padOfCell(layoutPlaces(n).cells[i]);
+
+test('the Path is a world map, a stage an island; the cursor stays a child index', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Path']);
+  assert.ok(h.session.onMap());
+  assert.equal(h.session.screenNow(), 'map');
+  const m = h.session.mapModel();
+  assert.deepEqual(m.places.map((p) => p.kind), ['island', 'island', 'island', 'island', 'island']);
+  assert.equal(m.at, 0, 'the avatar on the current stage');
+  assert.deepEqual(h.session.hint(), ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']);
+  h.session.moveSelection(1);
+  assert.equal(h.session.nav.at(-1).cursor, 1, 'the jog walks, and the cursor follows');
+  h.run(2000);
+  assert.ok(h.said().includes('2 Four chords, 0 percent.'), 'arriving says where');
+  h.session.activate(false);
+  assert.equal(h.session.nav.at(-1).node.label, '2 Four chords');
+  const island = h.session.mapModel();
+  assert.equal(island.places.at(-1).kind, 'fort');
+  assert.equal(island.places.length, h.session.nav.at(-1).node.children.length);
+  h.session.back();
+  assert.equal(h.session.mapModel().at, 1, 'Back: the avatar on the island it left');
+});
+
+test('a pad walks there and a second press goes in; water and lists are not the map', () => {
+  const h = fakeHost();
+  h.session.init();
+  assert.equal(h.session.mapPad(68), false, 'the top list is no map: the pad is a note');
+  openPath(h.session, ['Path']);
+  assert.equal(h.session.mapPad(padOf(5, 3)), true);
+  assert.equal(h.session.mapModel().at, 3);
+  assert.equal(h.session.nav.at(-1).node.label, 'Path', 'walking, not in yet');
+  h.session.mapPad(padOf(5, 3));
+  assert.equal(h.session.nav.at(-1).node.label, '4 Sevenths');
+  const taken = new Set(layoutPlaces(h.session.mapModel().places.length).cells.map(padOfCell));
+  const water = [...Array(32).keys()].map((i) => 68 + i).find((n) => !taken.has(n));
+  const before = h.session.mapModel().at;
+  assert.equal(h.session.mapPad(water), true, 'the map takes it, and makes no sound');
+  assert.equal(h.session.mapModel().at, before, 'water: nothing');
+  h.session.mapPick(99);
+  assert.equal(h.session.mapModel().at, before, 'a place that is not there: nothing');
+});
+
+test('on the map Play is Continue, and its options show it as a list for the session', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Path']);
+  h.session.activate(true);
+  assert.deepEqual(h.session.sheet.items.map((i) => i.label).slice(-2), ['Show as list', 'Settings...']);
+  h.session.pickSheet(h.session.sheet.items.length - 2);
+  assert.equal(h.session.onMap(), false, 'the list');
+  h.session.activate(true);
+  assert.deepEqual(h.session.sheet.items.map((i) => i.label).slice(-2), ['Show as map', 'Settings...']);
+  h.session.back();
+  h.session.back();
+  assert.equal(h.session.onMap(), true, 'Back from the list is the map');
+  h.session.playButton();
+  assert.equal(h.session.view, GUESS_VIEW, 'Play: Continue\'s step');
+});
+
+test('MENU on the map: what the map is, then the place under the avatar', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Path', '1 Grid and staff']);
+  h.session.menuButton();
+  const text = h.session.info.paragraphs.map((p) => p.text);
+  assert.match(text[0], /^The map: a lit pad is a place/);
+  assert.ok(text.includes('PAD go'));
+  assert.ok(text.includes('More help'));
+  assert.ok(text.some((t) => /Getting from a note's name to its pad/.test(t)), 'the unit\'s purpose');
+});
+
+test('the map and island tips show once each', () => {
+  const h = fakeHost({ progress: { tips: ['welcome'] } });
+  h.session.init();
+  openPath(h.session, ['Path']);
+  h.run(20);
+  assert.equal(h.session.view, CARD_VIEW);
+  assert.match(h.session.card.pages[0].paragraphs[0].text, /^Lit pads are places/);
+  h.session.back();
+  h.session.activate(false);
+  h.run(20);
+  assert.match(h.session.card.pages[0].paragraphs[0].text, /^Each place is part of the stage/);
+  h.session.back();
+  h.session.back();
+  h.run(20);
+  assert.equal(h.session.view, MENU, 'shown once');
+  assert.equal(h.session.canGoBack(), true);
+  h.session.back();
+  assert.equal(h.session.canGoBack(), false, 'at the top Back leaves');
 });

@@ -53,6 +53,7 @@ import {
   SHEET_VIEW, CARD_VIEW,
 } from './session.mjs';
 import { hintPart, ROTATE_MS } from './hints.mjs';
+import { mapPadColors } from './pathmap/leds.mjs';
 import { viewModel, encodeViewModel } from './view_model.mjs';
 import { applyAction } from './actions.mjs';
 import { createRemote } from './remote.mjs';
@@ -441,6 +442,18 @@ const ledWorkspace = LEDS.createLedState();
 const padColorBuf = new Array(PAD.PAD_COUNT);
 
 function paintPads() {
+  navButtons();
+  /* On the map the pads are its places: lit means you can walk there, and
+   * Play is Continue, so it is lit too. */
+  const m = S.mapModel();
+  if (m) {
+    mapPadColors({ places: m.places, layout: m.layout, walk: m.walk, now: now(), palette: PAD.MAP_PALETTE,
+      out: padColorBuf });
+    for (let i = 0; i < PAD.PAD_COUNT; i++) setLED(PAD.PAD_FIRST + i, padColorBuf[i]);
+    setButtonLED(CC_PLAY, CTRL.GREEN);
+    setButtonLED(CC_RECORD, CTRL.OFF);
+    return;
+  }
   const near = S.collectTarget();
   S.collectStuck();
   S.collectSounding();
@@ -477,6 +490,27 @@ function paintPads() {
   setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, S.listening, S.paused));
   setButtonLED(CC_RECORD, CTRL.recordLedColor(ledView, S.listening, ledPhase,
     Boolean(quiz && GUESS.hintsLeft(quiz) === 0), S.paused));
+}
+/*
+ * Back and Menu light when they do something (controls.mjs navButtonLeds):
+ * Menu always, Back while there is somewhere to go back to. Whether Move
+ * drives these LEDs for a module is still to be seen on the device; the
+ * values are cached, so asking costs nothing when nothing changed.
+ */
+let backLit = -1;
+let menuLit = -1;
+
+function navButtons() {
+  const b = CTRL.navButtonLeds(S.canGoBack());
+  if (b.back !== backLit) { backLit = b.back; setButtonLED(CC_BACK, b.back); }
+  if (b.menu !== menuLit) { menuLit = b.menu; setButtonLED(CC_MENU, b.menu); }
+}
+
+function darkenButtons() {
+  backLit = 0;
+  menuLit = 0;
+  setButtonLED(CC_BACK, 0);
+  setButtonLED(CC_MENU, 0);
 }
 /* ---- Drawing ------------------------------------------------------------ */
 /*
@@ -539,7 +573,11 @@ function draw() {
   const chart = S.chart;
   const songBeats = S.songBeats;
   const lastResult = S.lastResult;
-  if (view === MENU) {
+  const m = view === MENU ? S.mapModel() : null;
+  if (m) {
+    VIEW.drawMapScreen(ctx, { place: m.place, places: m.places, layout: m.layout, walk: m.walk, now: now(),
+      footer: footer() });
+  } else if (view === MENU) {
     const top = CAT.navTop(nav);
     VIEW.drawList(ctx, S.listTitle().toUpperCase(), top.node.children, top.cursor, {
       footer: footer(),
@@ -711,7 +749,14 @@ function drawProgressDetail() {
  */
 const answerPressed = {};
 
+/* Pads pressed on the map: places, not notes, so nothing to let go. */
+const mapPressed = {};
+
 function onPadDown(pad, vel) {
+  if (S.mapPad(pad)) {
+    mapPressed[pad] = 1;
+    return;
+  }
   /* In a multiple-choice drill the bottom of the grid is answer buttons.
    * They sound nothing: a press there is a choice, not a note. */
   if (S.answerBarActive() && AP.inAnswerBar(S.quiz.choices.length, pad)) {
@@ -744,6 +789,10 @@ function onPadDown(pad, vel) {
 }
 
 function onPadUp(pad) {
+  if (mapPressed[pad]) {
+    delete mapPressed[pad];
+    return;
+  }
   if (answerPressed[pad]) {
     delete answerPressed[pad];
     return;
@@ -856,6 +905,9 @@ globalThis.init = function init() {
   hintTurnAt = Infinity;
   for (const k in heldPads) delete heldPads[k];
   for (const k in answerPressed) delete answerPressed[k];
+  for (const k in mapPressed) delete mapPressed[k];
+  backLit = -1;
+  menuLit = -1;
   for (const k in padFlash) delete padFlash[k];
 
   S.init();
@@ -1002,6 +1054,7 @@ globalThis.onResume = function onResume() {
 
 globalThis.onUnload = function onUnload() {
   S.silence();
+  darkenButtons();
   S.flushSettings(true);
 };
 
@@ -1042,6 +1095,7 @@ function serviceExit() {
   }
   if (now() < pendingExitAt) return;   /* let the ring finish draining */
   pendingExitAt = 0;
+  darkenButtons();
   S.flushSettings(true);
   if (typeof host_exit_module === 'function') host_exit_module();
 }

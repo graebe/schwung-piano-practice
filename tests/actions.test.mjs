@@ -235,3 +235,16 @@ test('any action, in any state, in any order: nothing throws, nothing sticks', (
     assert.equal(h.sounding.size, 0, `round ${round}: still sounding ${[...h.sounding.keys()]}`);
   }
 });
+
+test('mapGo walks to a place, then goes in; off the map it does nothing', () => {
+  const h = fakeHost();
+  h.session.init();
+  applyAction(h.session, { type: 'mapGo', index: 1 });
+  assert.equal(h.session.nav.length, 1, 'no map on screen');
+  applyAction(h.session, { type: 'select', index: 1 });
+  applyAction(h.session, { type: 'open' });
+  applyAction(h.session, { type: 'mapGo', index: 4 });
+  assert.equal(h.session.mapModel().at, 4);
+  applyAction(h.session, { type: 'mapGo', index: 4 });
+  assert.equal(h.session.nav.at(-1).node.label, '5 Colour');
+});

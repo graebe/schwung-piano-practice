@@ -213,6 +213,23 @@ function sheetOf(S) {
   return { title: sheet.title, cursor: sheet.cursor, items: sheet.items.map((it) => it.label) };
 }
 
+/*
+ * The Path map on screen: its places, in the engine's own terms, and which
+ * one the avatar is bound for. The page lays them out with the same engine
+ * (layoutPlaces of their count) and walks its own avatar there.
+ */
+function mapOf(S) {
+  const m = S.view === MENU ? S.mapModel() : null;
+  if (!m) return null;
+  return {
+    world: !CAT.navTop(S.nav).node.phase,
+    at: m.at,
+    places: m.places.map((p) => ({
+      id: p.id, label: p.label, short: p.short, percent: p.percent, state: p.state, due: p.due, kind: p.kind,
+    })),
+  };
+}
+
 /* The card on screen: its page, as paragraphs, or the question it asks. */
 function cardOf(S) {
   const card = S.card;
@@ -341,6 +358,7 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     info: S.info ? { title: S.info.title, paragraphs: S.info.paragraphs.slice(), back: S.info.back } : null,
     sheet: sheetOf(S),
     card: cardOf(S),
+    map: mapOf(S),
     /* The hint line, as the Move's footer has it: its parts, which take turns. */
     hint: S.hint(),
     settings: {

@@ -61,6 +61,9 @@ import * as CAT from './catalog.mjs';
 import * as HINTS from './hints.mjs';
 import * as TIPS from './tips.mjs';
 import * as SHEET from './row_sheet.mjs';
+import * as MP from './map_places.mjs';
+import { layoutPlaces, placeOfPad } from './pathmap/layout.mjs';
+import { createWalk, walkTo, walkStep, posAt, arrived } from './pathmap/walk.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -102,10 +105,15 @@ export const SHEET_VIEW = 'sheet';
 /* A card over whatever is underneath: the welcome, a first-visit tip. */
 export const CARD_VIEW = 'card';
 
+/* A folder of the Path drawn as its map. Not a view of its own — the view
+ * stays MENU, the cursor a child index — but a screen with its own hint
+ * line and help (screenNow). */
+export const MAP_SCREEN = 'map';
+
 /* Every screen, for whoever must cover them all (hints.mjs, its test). */
 export const VIEWS = [
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
-  INFO_VIEW, SHEET_VIEW, CARD_VIEW,
+  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN,
 ];
 
 /* What the session keeps, by name; the host decides where. */
@@ -618,7 +626,7 @@ export function createSession(fx, opts = {}) {
   function goTop(key, enter) {
     nav = CAT.navStart(catalog);
     nav[0].cursor = Math.max(0, topIndex(key));
-    if (enter) CAT.navPush(nav);
+    if (enter && CAT.navPush(nav)) enterMap();
     view = MENU;
     dirty = true;
     ledDirty = true;
@@ -894,6 +902,7 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       ledDirty = true;
       announce(row.label + '.');
+      enterMap();
       return;
     }
     if (row.progress) {
@@ -1644,6 +1653,13 @@ export function createSession(fx, opts = {}) {
    * the scroll, the round's clock — so reading costs nothing.
    */
   function infoTarget() {
+    if (view === MENU && onMap()) {
+      /* The place under the avatar: a stage's promise, a unit's purpose and
+       * why, the checkpoint's exam. */
+      const row = CAT.navCurrent(nav);
+      if (row && row.checkpoint) return { kind: 'checkpoint', id: 'program/' + row.checkpoint.key };
+      return row ? { id: row.id, label: row.label } : null;
+    }
     if (view === MENU) {
       const row = CAT.navCurrent(nav) || CAT.navTop(nav).node;
       if (row.continueRow) return { kind: 'continue' };
@@ -1700,7 +1716,7 @@ export function createSession(fx, opts = {}) {
   }
 
   function openInfo(target) {
-    const screen = HINTS.screenHelp(view, hintState());
+    const screen = HINTS.screenHelp(screenNow(), hintState());
     const pageInfo = INFO.infoFor(target, infoEnv) || INFO.screenPage(screenTitle());
     leaveView();
     /* The words, not the lines: wrapping is the renderer's, and a 128px panel
@@ -1928,6 +1944,11 @@ export function createSession(fx, opts = {}) {
       return PROG.isFinished(it) || Boolean(it && it.skip);
     },
     skipped: (id) => PROG.isSkipped(PROG.item(progress, id)),
+    view: () => {
+      const node = CAT.navTop(nav).node;
+      if (view !== SHEET_VIEW && view !== MENU) return null;
+      return node.view !== 'map' ? null : listViews.has(node) ? 'list' : 'map';
+    },
     continueSkippable: () => {
       const next = continueTarget();
       return Boolean(next && !next.review);
@@ -2000,6 +2021,10 @@ export function createSession(fx, opts = {}) {
       case SHEET.TEST_OUT:
         checkPhase = null;
         openCheck(row.phase);
+        break;
+      case SHEET.LIST:
+      case SHEET.MAP:
+        showFolderAs(pick.act);
         break;
       case SHEET.SETTINGS:
         goTop('settings', true);
@@ -2154,7 +2179,7 @@ export function createSession(fx, opts = {}) {
   /* The footer's parts for this screen; `opts.shift` while Shift is held,
    * `opts.scrolls` when the renderer's help page is longer than the panel. */
   function hint(opts = {}) {
-    return HINTS.hintFor(view, hintState(opts));
+    return HINTS.hintFor(screenNow(), hintState(opts));
   }
 
   /* The list's title: the open folder, or, with the cursor on Continue,
@@ -2163,6 +2188,165 @@ export function createSession(fx, opts = {}) {
     const row = CAT.navCurrent(nav);
     const deco = row && row.continueRow ? decorateRow(row) : null;
     return deco && deco.title ? deco.title : CAT.navTop(nav).node.label;
+  }
+
+  /* ---- The Path map ---------------------------------------------------------- */
+  /*
+   * The Path and its stages are drawn as maps (map_places.mjs, pathmap/): the
+   * world, an island per stage, and on an island a place per unit and the
+   * checkpoint's fort. The nav cursor stays the child index, so Back, a
+   * restore and the tests' walk by label work as in a list; the avatar
+   * stands on the place that child is. Pads walk on the map and make no
+   * sound (the host routes them here, mapPad); in a list they are the piano.
+   * What is no place — the Path's Review — is in the folder's list, one
+   * option of the sheet away (Show as list), for the session.
+   */
+  const listViews = new Set();
+  let map = null;
+
+  function isMapNode(node) {
+    return Boolean(node && node.view === 'map' && !listViews.has(node));
+  }
+
+  function onMap() {
+    return view === MENU && isMapNode(CAT.navTop(nav).node) && Boolean(mapNow());
+  }
+
+  /* The screen the hint line and help speak for: a map is drawn on MENU. */
+  function screenNow() {
+    return onMap() ? MAP_SCREEN : view;
+  }
+
+  /* The child of `node` a place opens. */
+  function childOf(node, target) {
+    return node.children.findIndex((r) => (target.phase ? r.phase === target.phase
+      : target.unit ? r.unit === target.unit : r.checkpoint === target.check));
+  }
+
+  /*
+   * The map of the open folder: its places, worked out again when the
+   * progress or the day moves on — the avatar walks on through that — and an
+   * avatar on the place of the nav cursor. Null when there are no places.
+   */
+  function mapNow() {
+    const top = CAT.navTop(nav);
+    if (!isMapNode(top.node)) return null;
+    const day = Math.floor(wallNow() / 86400000);
+    if (map && map.node === top.node && map.rev === progress.rev && map.day === day && map.phases === phases) {
+      return map;
+    }
+    const due = MP.dueIdsOf(progress, wallNow());
+    const built = top.node.phase ? MP.unitPlaces(progress, phases, top.node.phase, due)
+      : MP.stagePlaces(progress, phases, due);
+    if (!built.places.length) return null;
+    const children = built.targets.map((t) => childOf(top.node, t));
+    const same = map && map.node === top.node && map.places.length === built.places.length;
+    const layout = same ? map.layout : layoutPlaces(built.places.length);
+    let at = children.indexOf(top.cursor);
+    if (at < 0) {
+      at = MP.startPlace(built.places);
+      top.cursor = children[at];
+    }
+    map = {
+      node: top.node, rev: progress.rev, day, phases, places: built.places, children, layout,
+      walk: same ? map.walk : createWalk(layout, at), said: same ? map.said : at,
+    };
+    return map;
+  }
+
+  /* Into a map folder: the avatar on the place Continue would choose, else
+   * the first open one. */
+  function enterMap() {
+    const top = CAT.navTop(nav);
+    if (!isMapNode(top.node)) return;
+    map = null;
+    top.cursor = -1;
+    const m = mapNow();
+    if (!m) {
+      top.cursor = 0;
+      return;
+    }
+    const at = MP.startPlace(m.places);
+    top.cursor = m.children[at];
+    m.walk = createWalk(m.layout, at);
+    m.said = at;
+  }
+
+  function mapJog(delta) {
+    const m = mapNow();
+    walkStep(m.walk, delta, m.places.length, now());
+    CAT.navTop(nav).cursor = m.children[m.walk.target];
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* A place, from a pad or a pointer: walk there, or go in when the avatar
+   * is already there or on its way. */
+  function mapPick(i) {
+    if (!onMap()) return;
+    const m = mapNow();
+    if (i < 0 || i >= m.places.length) return;
+    if (i === m.walk.target) {
+      openRow();
+      return;
+    }
+    walkTo(m.walk, i, now());
+    CAT.navTop(nav).cursor = m.children[i];
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* A pad on the map: its place, or nothing on water. True when the map
+   * took it, so the host sounds nothing. */
+  function mapPad(note) {
+    if (!onMap()) return false;
+    mapPick(placeOfPad(mapNow().layout, note));
+    return true;
+  }
+
+  /* While the avatar walks, every frame is a new picture; on arrival, the
+   * place's name and how far it is, said once. A map's first-visit tip. */
+  function serviceMap(t) {
+    if (!onMap()) return;
+    const m = mapNow();
+    if (!arrived(m.walk, t)) {
+      dirty = true;
+      ledDirty = true;
+    } else if (m.said !== m.walk.target) {
+      m.said = m.walk.target;
+      const p = m.places[m.said];
+      announce(p.label + ', ' + p.percent + ' percent' + (p.due ? ', ' + p.due + ' due' : '') + '.');
+    }
+    showTip(CAT.navTop(nav).node.phase ? TIPS.ISLAND : TIPS.MAP);
+  }
+
+  /* The sheet's Show as list / Show as map, for this folder, this session. */
+  function showFolderAs(as) {
+    const top = CAT.navTop(nav);
+    if (as === 'list') {
+      listViews.add(top.node);
+      announce('List.');
+    } else {
+      listViews.delete(top.node);
+      map = null;
+      announce('Map.');
+    }
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* What a renderer draws of the map now: places, layout, the avatar's walk
+   * and the title bar. Null when the screen is not a map. */
+  function mapModel() {
+    if (!onMap()) return null;
+    const m = mapNow();
+    const pos = posAt(m.walk, now());
+    return { places: m.places, layout: m.layout, walk: m.walk, at: m.walk.target, place: m.places[pos.at] };
+  }
+
+  /* Back has somewhere to go, except at the top of the list, where it leaves. */
+  function canGoBack() {
+    return !(view === MENU && nav.length <= 1);
   }
 
   /* ---- Input ------------------------------------------------------------ */
@@ -2234,6 +2418,10 @@ export function createSession(fx, opts = {}) {
   /* The jog, or the arrow keys: what "next" means depends on the screen. An Info
    * page scrolls in its renderer, so it is not handled here. */
   function moveSelection(delta) {
+    if (onMap()) {
+      mapJog(delta);
+      return;
+    }
     /* A round's result: the jog turns its pages — the round, right %, answers. */
     if (view === RESULT_VIEW && lastResult && lastResult.kind === 'quiz') {
       const pages = L.resultPageCount(lastResult.answers);
@@ -2381,6 +2569,12 @@ export function createSession(fx, opts = {}) {
    */
   function playButton() {
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
+    /* On the map Play is Continue: the one button. */
+    if (onMap()) {
+      checkPhase = null;
+      openContinue();
+      return;
+    }
     if (view === RESULT_VIEW) {
       if (lastResult.kind === 'quiz') startQuiz(quizSpec);
       else startRun(true);
@@ -2478,6 +2672,11 @@ export function createSession(fx, opts = {}) {
       ledDirty = true;
       return;
     }
+    /* A map folder shown as its list goes back to the map first. */
+    if (view === MENU && listViews.has(CAT.navTop(nav).node)) {
+      showFolderAs('map');
+      return;
+    }
     /* Up one folder. The top of the tree is the only list Back leaves from. */
     if (view === MENU && CAT.navPop(nav)) {
       dirty = true;
@@ -2514,6 +2713,8 @@ export function createSession(fx, opts = {}) {
     card = null;
     settingsGroup = null;
     awayAt = 0;
+    listViews.clear();
+    map = null;
     stage = 1;
     runFromTop = false;
     settingsCursor = 0;
@@ -2552,6 +2753,7 @@ export function createSession(fx, opts = {}) {
    * the reference line, and the quiz's scheduled notes.
    */
   function tick(t) {
+    if (view === MENU) serviceMap(t);
     if (view === RUNNING) {
      /*
       * Paused stops the CLOCK, not the frame. The draw gate requires `dirty`,
@@ -2629,6 +2831,10 @@ export function createSession(fx, opts = {}) {
     if (view !== MENU) return;
     const top = CAT.navTop(nav);
     if (index < 0 || index >= top.node.children.length) return;
+    /* On a map the avatar goes to the place that row is, if it is one. */
+    const m = onMap() ? mapNow() : null;
+    const at = m ? m.children.indexOf(index) : -1;
+    if (at >= 0 && at !== m.walk.target) walkTo(m.walk, at, now());
     top.cursor = index;
     dirty = true;
   }
@@ -2695,6 +2901,12 @@ export function createSession(fx, opts = {}) {
     pickCard,
     openSettingsFolder: () => goTop('settings', true),
     hint,
+    onMap,
+    mapPad,
+    mapPick,
+    mapModel,
+    canGoBack,
+    screenNow,
     listTitle,
     selectProgress,
     settingsRows,

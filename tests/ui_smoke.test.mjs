@@ -64,7 +64,7 @@ const advanceMs = (ms, step = 20) => {
 const QUIET_SETTINGS = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false });
 /* Welcomed, every tip seen: a first launch's cards would sit over every
  * screen these tests drive. The welcome has its own tests. */
-const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'placement'] });
+const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
 
 function installHostStubs() {
   const calls = { led: 0, midi: 0, writes: [], notes: [] };
@@ -872,24 +872,102 @@ test('Continue names the next step, and the options skip it', () => {
   screen.restore();
 });
 
-test('a stage lists its units, then its Checkpoint; no control rows among them', () => {
+/* ---- The Path as a map --------------------------------------------------- */
+
+/* The pad note under place `i` of a map of `n` places. */
+async function padOfPlace(n, i) {
+  const { layoutPlaces, padOfCell } = await import(new URL('../src/pathmap/layout.mjs', import.meta.url));
+  return padOfCell(layoutPlaces(n).cells[i]);
+}
+const shiftClick = () => {
+  globalThis.onMidiMessageInternal(CC(SHIFT, 127));
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.onMidiMessageInternal(CC(SHIFT, 0));
+};
+
+test('a stage is an island; its list, one option away, ends on its Checkpoint', () => {
+  freezeClock();
   const screen = capture();
   globalThis.init();
   jog(TOP.path);
-  click();                                              /* Path */
-  const stage = screen.frame(click);                    /* 1 Grid and staff */
-  assert.match(stage, /GRID AND STAFF/i);
-  assert.match(stage, /1\.1 Find the notes/);
-  assert.doesNotMatch(stage, /Check: skip phase|Start here|Skip next/);
+  const world = screen.frame(click);                    /* Path: the world map */
+  assert.match(world, /^1 Grid and staff 0% \|/, world);
+  const parts = footerParts(screen);
+  for (const part of ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']) assert.ok(parts.includes(part), 'the hint takes turns: ' + parts);
+  const island = screen.frame(click);                   /* 1 Grid and staff: its island */
+  assert.match(island, /^1\.1 Find the notes 0% \|/, island);
+  screen.frame(shiftClick);
+  const sheet = screen.frame();
+  assert.match(sheet, /Show as list/, sheet);
+  jog(60);
+  jog(-1);                                              /* Show as list */
+  const list = screen.frame(click);
+  assert.match(list, /1\.1 Find the notes/);
+  assert.doesNotMatch(list, /Check: skip phase|Start here|Skip next/);
   assert.match(screen.frame(() => jog(60)), /Checkpoint \| 0\/4 >/);
-  jog(-60);
-  jog(2);
-  const steps = screen.frame(click);                    /* 1.3 Major scale */
-  assert.match(steps, /Major up & down/);
-  screen.frame(click);
-  assert.match(footerParts(screen), /Guided: pads lit/);
+  const back = screen.frame(BACK_PRESS);
+  assert.match(back, /^Checkpoint 0%/, 'Back from the list is the map, the avatar on the row the list was on: ' + back);
   screen.restore();
+  thawClock();
 });
+
+test('on the map a pad walks there, a second press goes in, and pads make no sound', async () => {
+  freezeClock();
+  const screen = capture();
+  globalThis.init();
+  jog(TOP.path);
+  click();                                              /* the world map, on stage 1 */
+  hostCalls.notes.length = 0;
+  const third = await padOfPlace(5, 2);
+  globalThis.onMidiMessageInternal([0x90, third, 100]);
+  globalThis.onMidiMessageInternal([0x80, third, 0]);
+  advanceMs(2000);
+  assert.deepEqual(hostCalls.notes, [], 'a pad on the map sounds nothing');
+  assert.match(screen.frame(), /^3 Shapes and time/, 'the avatar walked to stage 3');
+  globalThis.onMidiMessageInternal([0x90, third, 100]);
+  globalThis.onMidiMessageInternal([0x80, third, 0]);
+  assert.match(screen.frame(), /^3\.1 Intervals II/, 'a second press goes in');
+  /* Water does nothing: a pad no place sits on. */
+  const { layoutPlaces, padOfCell, COLS, ROWS } = await import(new URL('../src/pathmap/layout.mjs', import.meta.url));
+  const taken = new Set(layoutPlaces(8).cells.map(padOfCell));
+  let water = -1;
+  for (let n = PAD; n < PAD + COLS * ROWS && water < 0; n++) if (!taken.has(n)) water = n;
+  globalThis.onMidiMessageInternal([0x90, water, 100]);
+  globalThis.onMidiMessageInternal([0x80, water, 0]);
+  assert.match(screen.frame(), /^3\.1 Intervals II/, 'water: nothing');
+  assert.deepEqual(hostCalls.notes, []);
+  /* The jog walks; Back goes up, the avatar on the island it left. */
+  jog(1);
+  advanceMs(1000);
+  assert.match(screen.frame(), /^3\.2 Inversions/);
+  assert.match(screen.frame(BACK_PRESS), /^3 Shapes and time/);
+  BACK_PRESS();
+  /* In a list the pads are the piano again. */
+  globalThis.onMidiMessageInternal([0x90, PAD, 100]);
+  globalThis.onMidiMessageInternal([0x80, PAD, 0]);
+  globalThis.tick();
+  assert.ok(hostCalls.notes.length > 0, 'a pad in the list sounds');
+  screen.restore();
+  thawClock();
+});
+
+test('on the map PLAY is Continue, MENU is its help, and Shift + click its options', () => {
+  freezeClock();
+  const screen = capture();
+  globalThis.init();
+  jog(TOP.path);
+  click();
+  const help = screen.frame(MENU_PRESS);
+  assert.match(help, /STAGE 1: THE GRI \| INFO \| The map: a lit pad/, 'the map first, then the stage: ' + help);
+  BACK_PRESS();
+  screen.frame(shiftClick);
+  assert.match(screen.frame(), /I know it all: skip.*Show as list/, 'the stage under the avatar');
+  BACK_PRESS();
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  assert.match(screen.frame(), /NOTE/, 'Play opened Continue\'s step');
+  screen.restore();
+  thawClock();
+});;
 
 test('Next from a result follows the unit, and Shift moves on', async () => {
   const chart = await scaleChart();

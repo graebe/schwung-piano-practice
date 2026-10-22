@@ -3,7 +3,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { sheetFor, LABELS, SKIP, SKIP_ALL, UNDO, START, TEST_OUT, SETTINGS } from '../src/row_sheet.mjs';
+import { sheetFor, LABELS, SKIP, SKIP_ALL, UNDO, START, TEST_OUT, SETTINGS, LIST, MAP } from '../src/row_sheet.mjs';
 import { buildProgram, programFolder, stepsUnder } from '../src/program.mjs';
 
 const phases = buildProgram();
@@ -25,7 +25,8 @@ const acts = (row, l) => sheetFor(row, l).map((it) => it.act);
 test('the labels are the shared ones, and Settings... always comes last', () => {
   assert.deepEqual(LABELS, {
     [SKIP]: 'I know this: skip', [SKIP_ALL]: 'I know it all: skip', [UNDO]: 'Undo skip',
-    [START]: 'Start the path here', [TEST_OUT]: 'Test out: checkpoint', [SETTINGS]: 'Settings...',
+    [START]: 'Start the path here', [TEST_OUT]: 'Test out: checkpoint', [LIST]: 'Show as list',
+    [MAP]: 'Show as map', [SETTINGS]: 'Settings...',
   });
   for (const row of [null, { label: 'Practice', children: [] }, step, unit, stage1, { continueRow: true }]) {
     assert.equal(acts(row, look()).at(-1), SETTINGS);
@@ -60,4 +61,11 @@ test('a unit and an exercise of several steps skip everything inside; the checkp
   assert.deepEqual(acts(multi, look()), [SKIP_ALL, SETTINGS]);
   assert.deepEqual(acts(stage1.children.at(-1), look()), [SETTINGS], 'the Checkpoint folder');
   assert.deepEqual(acts(stage1.children.at(-1).children[0], look()), [SKIP, SETTINGS], 'its steps are steps');
+});
+
+test('on a map the list is one option away, and in the list the map', () => {
+  const on = (view) => ({ ...look(), view: () => view });
+  assert.deepEqual(acts(stage1, on('map')).slice(-2), [LIST, SETTINGS]);
+  assert.deepEqual(acts(stage1, on('list')).slice(-2), [MAP, SETTINGS]);
+  assert.deepEqual(acts(stage1, on(null)).slice(-2), [TEST_OUT, SETTINGS], 'a plain list: neither');
 });

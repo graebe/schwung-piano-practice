@@ -36,6 +36,8 @@ const PROGRESS_DETAIL = 'progress-detail';
 const INFO = 'info';
 const SHEET = 'sheet';
 const CARD = 'card';
+/* A folder of the Path drawn as its map: the session's MENU, on a map. */
+const MAP = 'map';
 
 /* Shift+Back leaves the module from anywhere (ui.js). */
 const QUIT = 'BACK quit';
@@ -47,6 +49,8 @@ function table(screen, s) {
         keys: s.top ? ['CLICK open', 'MENU help'] : ['CLICK open', 'BACK up'],
         shift: ['CLICK options', QUIT],
       };
+    case MAP:
+      return { keys: ['PAD go', 'CLICK enter', 'PLAY continue', 'MENU help'], shift: ['CLICK options', QUIT] };
     case SHEET:
       return { keys: ['CLICK do it', 'BACK close'], shift: [QUIT] };
     case INFO:
@@ -101,6 +105,8 @@ function about(screen, s) {
       return s.top
         ? 'The top of the list. Continue opens your next step; the Path, the free library, the quiz, your progress and the settings are below it.'
         : 'A folder of the list. A row with > opens another folder; any other row opens what it holds.';
+    case MAP:
+      return 'The map: a lit pad is a place. Press one to walk there, again to go in; the jog walks too, CLICK goes in, PLAY continues. SHIFT+CLICK shows it as a list.';
     case SHEET:
       return 'The options of a row: what you can do with it besides opening it. Only what applies is offered.';
     case INFO:

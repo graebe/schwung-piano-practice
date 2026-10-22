@@ -19,6 +19,8 @@
  *   npm run preview -- --view welcome                           the welcome, every page
  *   npm run preview -- --view card --tip sheet                  a first-visit tip
  *   npm run preview -- --view help --path 1,0 --scroll 4        MENU's help on a row
+ *   npm run preview -- --view path                              the Path's world map, as the
+ *                                    session draws it; --stage 3: that stage's island
  *   npm run preview -- --path 0,1,4,0,3 --film 0,2              read the lesson there
  *   npm run preview -- --view map --places 5|7|8                the Path map: piano's
  *                                    world (5), drums' world (7), a piano island (8)
@@ -106,7 +108,7 @@ function walk(S, at) {
 
 const footerOf = (S) => S.hint({ shift: process.argv.includes('--shift') })[0] || '';
 const path = arg('path', null) ? arg('path', '').split(',').map(Number) : null;
-const LISTS = ['menu', 'sheet', 'welcome', 'card', 'help'];
+const LISTS = ['menu', 'sheet', 'welcome', 'card', 'help', 'path'];
 const leaf = path && !LISTS.includes(arg('view', 'reading')) ? nodeAt(bundledCatalog(), path) : null;
 if (leaf && isFolder(leaf)) throw new Error('--path ends on a folder; add the row to open, or use --view menu');
 
@@ -252,6 +254,21 @@ if (view === 'map') {
   const c = createScreen();
   V.drawList(c, S.sheet.title.toUpperCase(), S.sheet.items, S.sheet.cursor, { footer: footerOf(S), centreFooter: true });
   show('options: ' + S.sheet.title, c);
+} else if (view === 'path') {
+  const S = bundledSession();
+  walk(S, [1]);
+  S.activate(false);
+  const stage = Number(arg('stage', 0));
+  if (stage) {
+    /* Walk there unless the avatar stands there already, then go in. */
+    if (S.mapModel().at !== stage - 1) S.mapPick(stage - 1);
+    S.mapPick(stage - 1);
+  }
+  const m = S.mapModel();
+  const c = createScreen();
+  V.drawMapScreen(c, { place: m.place, places: m.places, layout: m.layout, walk: m.walk, now: 10000,
+    footer: S.hint()[0] || '' });
+  show(stage ? 'island ' + stage : 'the world', c);
 } else if (view === 'help') {
   const S = bundledSession();
   walk(S, path || [0]);

@@ -22,6 +22,8 @@ import { drillLabel, sparkline, summarise, errorFraction, successSeries } from '
 import { accuracySeries } from './progress.mjs';
 import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
+import { drawMap } from './pathmap/render.mjs';
+import { mapTitle } from './map_places.mjs';
 
 /* Every footer is a part of a hint from hints.mjs: the caller picks the part
  * showing now (hintPart) and passes it in as `footer`. */
@@ -1168,6 +1170,25 @@ export function drawCard(ctx, state) {
 export function cardLines(ctx, page) {
   if (page.lines) return page.paragraphs.map((p) => p.text);
   return wrapLines(page.paragraphs, L.INFO_TEXT_PX, (s) => ctx.textWidth(s)).map((l) => l.text);
+}
+
+/*
+ * A folder of the Path as its map (pathmap/render.mjs): the title bar — the
+ * place under the avatar, its percent, and its reviews due when they fit —
+ * the map in y 10..53, and the hint line under it.
+ *
+ * state = { place, places, layout, walk, now, footer }
+ */
+export function drawMapScreen(ctx, state) {
+  ctx.clear();
+  const head = mapTitle(state.place, L.SCREEN_W - 2, (s) => ctx.textWidth(s));
+  R.drawChrome(ctx, {
+    left: truncate(ctx, head.title, L.SCREEN_W - (head.right ? ctx.textWidth(head.right) + 6 : 2)),
+    right: head.right,
+  });
+  drawMap(ctx, { places: state.places, layout: state.layout, walk: state.walk, now: state.now || 0 });
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
 }
 
 /* The lines an Info page wraps to, measured with the panel's own font. */

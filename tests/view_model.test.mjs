@@ -322,3 +322,23 @@ test('the sheet, a card and the settings page are data too', () => {
   assert.ok(vm.settings.rows[0].index >= 0 && vm.settings.rows[1].index === -1);
   assert.deepEqual(vm, plain(vm));
 });
+
+test('the map is data: its places and where the avatar is bound', () => {
+  const h = fakeHost();
+  h.session.init();
+  assert.equal(viewModel(h.session).map, null, 'the top list is no map');
+  openPath(h.session, ['Path']);
+  let vm = viewModel(h.session);
+  assert.equal(vm.map.world, true);
+  assert.equal(vm.map.at, 0);
+  assert.deepEqual(vm.map.places.map((p) => p.state), ['current', 'ahead', 'ahead', 'ahead', 'ahead']);
+  assert.deepEqual(vm.hint, ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']);
+  h.session.mapPick(2);
+  vm = viewModel(h.session);
+  assert.equal(vm.map.at, 2);
+  h.session.mapPick(2);
+  vm = viewModel(h.session);
+  assert.equal(vm.map.world, false, 'in: the island');
+  assert.equal(vm.map.places.at(-1).kind, 'fort');
+  assert.deepEqual(vm, plain(vm));
+});

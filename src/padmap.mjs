@@ -109,3 +109,20 @@ export function padBaseColor(pad, transpose, scaleSet, rootPc) {
   if (pc === (((rootPc % 12) + 12) % 12)) return LED_ROOT;
   return scaleSet[pc] ? LED_SCALE : LED_OFF;
 }
+
+/*
+ * The Path map's pads (pathmap/leds.mjs): a lit pad is a place you can walk
+ * to, coloured by its state; water is dark. Move palette indices, the same as
+ * Drums Practice's.
+ */
+export const MAP_PALETTE = Object.freeze({
+  off: LED_OFF,
+  done: LED_HIT,          /* Green                                         */
+  current: 120,           /* White, pulsing with...                        */
+  currentDim: 118,        /* LightGrey #595959                             */
+  started: 79,            /* BrightYellow, dim #664E08                     */
+  fresh: 119,             /* DarkGrey  #1A1A1A                             */
+  ahead: 124,             /* DarkGrey2 #141414: later, drawn dimmer        */
+  skipped: 95,            /* AzureBlue, dim #134566                        */
+  avatar: 120,            /* White: where you stand                        */
+});

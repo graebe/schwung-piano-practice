@@ -291,7 +291,8 @@ function checkpointRow(phase, phases) {
 function phaseRow(phase, phases) {
   const rows = phase.units.map(unitRow);
   if (phase.check.length) rows.push(checkpointRow(phase, phases));
-  return { label: phase.n + ' ' + phase.name, value: '>', key: phase.key, phase, children: rows };
+  /* Shown as the stage's island (map_places.mjs): a place per unit, then the fort. */
+  return { label: phase.n + ' ' + phase.name, value: '>', key: phase.key, phase, view: 'map', children: rows };
 }
 
 /*
@@ -317,6 +318,8 @@ export function programFolder(phases, repetitionRows = () => []) {
     label: 'Path',
     value: '>',
     key: 'program',
+    /* Shown as the world map: an island per stage. Review is in its list. */
+    view: 'map',
     get children() {
       return repetitionRows().some((r) => !r.done) ? stages.concat([review]) : stages;
     },

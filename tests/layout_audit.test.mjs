@@ -32,6 +32,24 @@ import { createRun, expireMissed } from '../src/scoring.mjs';
 import { hintFor } from '../src/hints.mjs';
 import { welcomePages, tipCard, TIP_KEYS, PLACEMENT } from '../src/tips.mjs';
 import { sheetFor, LABELS } from '../src/row_sheet.mjs';
+import { makePlace } from '../src/pathmap/model.mjs';
+import { layoutPlaces } from '../src/pathmap/layout.mjs';
+import { createWalk, walkTo } from '../src/pathmap/walk.mjs';
+import { mapTitle } from '../src/map_places.mjs';
+
+/* A map at its worst: long names, three-digit percents, reviews due. */
+function mapScreen(c, n, kind, at, opts = {}) {
+  const places = Array.from({ length: n }, (_, i) => makePlace({
+    label: kind === 'island' ? `${i + 1} Shapes and time` : `${3}.${i + 1} Advanced pieces`, percent: 100,
+    state: ['done', 'current', 'started', 'fresh', 'skipped', 'ahead'][i % 6], due: opts.due || 0,
+    kind: i === n - 1 && kind !== 'island' ? 'fort' : kind,
+  }));
+  const layout = layoutPlaces(n);
+  const walk = createWalk(layout, at);
+  if (opts.to !== undefined) walkTo(walk, opts.to, 0);
+  return V.drawMapScreen(c, { place: places[at], places, layout, walk, now: opts.now || 0,
+    footer: hintFor('map')[0] });
+}
 
 /*
  * A ctx that draws normally and keeps a transcript of what it was asked to.
@@ -219,6 +237,9 @@ const SCREENS = {
     footer: hintFor('menu', { top: true, shift: true })[0], centreFooter: true,
     decorate: () => ({ label: 'Review', value: 'Name chords advanced', short: '' }),
   }),
+  'map, the world': (c) => mapScreen(c, 5, 'island', 1),
+  'map, the world with reviews due': (c) => mapScreen(c, 5, 'island', 2, { due: 12 }),
+  'map, an island of nine, walking': (c) => mapScreen(c, 9, 'place', 0, { to: 8, now: 300 }),
   'card, welcome': (c) => card(c, welcomePages()[0], 0, 3, hintFor('card', { pages: 3 })[0]),
   'card, keys': (c) => card(c, welcomePages()[1], 1, 3, hintFor('card', { pages: 3 })[0]),
   'card, new to piano': (c) => card(c, welcomePages()[2], 2, 3, hintFor('card', { choice: true })[0]),
@@ -424,4 +445,17 @@ test('Continue names its step, or its unit\'s number when the name does not fit'
   assert.ok(long.includes('1.1') && !long.some((t) => /Notes/.test(t)), 'never cut: ' + long);
   const c = createScreen();
   assert.equal(V.fitWords(c, 'Scarborough Fair L3 Both hands', 110), 'Scarborough L3', 'a title by whole words');
+});
+
+test('the map\'s title keeps its percent, and its reviews only when they fit', () => {
+  const c = createScreen();
+  const w = (s) => c.textWidth(s);
+  const place = makePlace({ label: '3.3 Harmony by ear', percent: 100, due: 3, kind: 'place' });
+  const t = mapTitle(place, L.SCREEN_W - 2, w);
+  assert.match(t.title, / 100%$/);
+  assert.equal(t.right, '', 'no room for 3 due beside it');
+  assert.deepEqual(mapTitle(makePlace({ label: '1 Colour', percent: 5, due: 2, kind: 'island' }), L.SCREEN_W - 2, w),
+    { title: '1 Colour 5%', right: '2 due' });
+  assert.ok(w(mapTitle(makePlace({ label: '5.8 Advanced pieces and more', percent: 100 }), L.SCREEN_W - 2, w).title) <= L.SCREEN_W - 2);
+  assert.deepEqual(mapTitle(null, 100, w), { title: '', right: '' });
 });

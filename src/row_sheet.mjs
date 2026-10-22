@@ -14,6 +14,8 @@
  *   look.settled(id)          finished or skipped
  *   look.skipped(id)          skipped, or moved on from after S1
  *   look.continueSkippable()  Continue's next step is a new step to skip
+ *   look.view()               'map' when the open folder is shown as its map,
+ *                             'list' when a map folder is shown as a list
  *
  * The session carries out the `act`.
  */
@@ -26,6 +28,8 @@ export const UNDO = 'undo';
 export const START = 'start';
 export const TEST_OUT = 'test-out';
 export const SETTINGS = 'settings';
+export const LIST = 'list';
+export const MAP = 'map';
 
 export const LABELS = {
   [SKIP]: 'I know this: skip',
@@ -33,6 +37,8 @@ export const LABELS = {
   [UNDO]: 'Undo skip',
   [START]: 'Start the path here',
   [TEST_OUT]: 'Test out: checkpoint',
+  [LIST]: 'Show as list',
+  [MAP]: 'Show as map',
   [SETTINGS]: 'Settings...',
 };
 
@@ -57,6 +63,11 @@ export function sheetFor(row, look) {
       if (row.phase.check.length) acts.push(TEST_OUT);
     }
   }
+  /* A map hides what is no place — the Path's Review — so its list is one
+   * option away, for the session, and the map one option back. */
+  const view = look.view ? look.view() : null;
+  if (view === 'map') acts.push(LIST);
+  if (view === 'list') acts.push(MAP);
   acts.push(SETTINGS);
   return acts.map((act) => ({ label: LABELS[act], act }));
 }
