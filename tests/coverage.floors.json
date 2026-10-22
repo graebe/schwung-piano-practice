@@ -2,9 +2,12 @@
   "floor": 80.0,
 
   "enforcing": true,
-  "enforcing_note": "scripts/coverage.sh fails when the total, any unit not exempted below, or the list of first-party files no test loads breaks the floor. Units are read off the path (core = src/*.mjs, device = src/ui.js, web/<dir>, dsp/<crate>), so a new one is judged from its first file. An exemption is for code that cannot be instrumented where it is tested, never for code that is merely untested, and each says why.",
+  "enforcing_note": "scripts/coverage.sh fails when the total, any unit not exempted below, or the list of first-party files no test loads breaks the floor. Units are read off the path (core = src/*.mjs, pathmap = src/pathmap/, device = src/ui.js, web/<dir>, dsp/<crate>), so a new one is judged from its first file. An exemption is for code that cannot be instrumented where it is tested, never for code that is merely untested, and each says why.",
 
-  "units": {},
+  "units": {
+    "pathmap": 90.0
+  },
+  "units_note": "pathmap is the Path map engine Drums Practice vendors byte for byte; it is pure, so it is held higher than the floor.",
 
   "exempt": {
     "dsp/piano-wasm": "Compiles only for wasm32 (#![cfg(target_arch = \"wasm32\")]), where llvm-cov cannot follow it: on the host the crate is empty. tests/wasm_piano.test.mjs drives every export of the built module and holds its render to the native engine's golden, bit for bit; the engine it adapts is counted under dsp/piano-engine."

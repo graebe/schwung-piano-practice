@@ -20,6 +20,10 @@
  *   npm run preview -- --view card --tip sheet                  a first-visit tip
  *   npm run preview -- --view help --path 1,0 --scroll 4        MENU's help on a row
  *   npm run preview -- --path 0,1,4,0,3 --film 0,2              read the lesson there
+ *   npm run preview -- --view map --places 5|7|8                the Path map: piano's
+ *                                    world (5), drums' world (7), a piano island (8)
+ *   npm run preview -- --view map --map drums                   a drums island (7)
+ *   npm run preview -- --view map --places 7 --to 6 --film 0,90,400   walk there
  *
  * The list, the sheet and the cards come from a session, as on the Move, with
  * the hint line's first part as their footer.
@@ -37,6 +41,10 @@ import { buildCatalog, navTop, nodeAt, isFolder } from '../src/catalog.mjs';
 import { createSession } from '../src/session.mjs';
 import { tipCard, TIP_KEYS, PLACEMENT } from '../src/tips.mjs';
 import { readFileSync, existsSync } from 'node:fs';
+import { layoutPlaces } from '../src/pathmap/layout.mjs';
+import { createWalk, walkTo, posAt } from '../src/pathmap/walk.mjs';
+import { makePlace } from '../src/pathmap/model.mjs';
+import { drawMap } from '../src/pathmap/render.mjs';
 
 function arg(name, fallback) {
   const i = process.argv.indexOf('--' + name);
@@ -128,7 +136,65 @@ function playedRun(upTo) {
   return run;
 }
 
-if (view === 'clef') {
+/*
+ * Sample maps for --view map: every state and kind shows up somewhere, so one
+ * look checks them all. [label, percent, state, due, kind]
+ */
+const SAMPLE_MAPS = {
+  5: [
+    ['Stage 1', 100, 'skipped', 0, 'island'], ['Stage 2', 100, 'done', 2, 'island'],
+    ['Stage 3', 40, 'current', 0, 'island'], ['Stage 4', 0, 'fresh', 0, 'island'],
+    ['Stage 5', 0, 'ahead', 0, 'island'],
+  ],
+  7: [
+    ['Stage 1', 100, 'done', 0, 'island'], ['Stage 2', 100, 'done', 1, 'island'],
+    ['Stage 3', 64, 'current', 0, 'island'], ['Stage 4', 20, 'started', 0, 'island'],
+    ['Stage 5', 0, 'skipped', 0, 'island'], ['Stage 6', 0, 'ahead', 0, 'island'],
+    ['Stage 7', 0, 'ahead', 0, 'island'],
+  ],
+  8: [
+    ['2.1 Intervals I', 100, 'done', 1, 'place'], ['2.2 I-IV-V', 100, 'done', 0, 'place'],
+    ['2.3 Left hand', 60, 'started', 0, 'place'], ['2.4 Four chords', 40, 'current', 0, 'place'],
+    ['2.5 Minor', 0, 'skipped', 0, 'place'], ['2.6 Both hands', 0, 'ahead', 0, 'place'],
+    ['2.7 First tracks', 0, 'ahead', 0, 'place'], ['Checkpoint', 0, 'fresh', 0, 'fort'],
+  ],
+  drums: [
+    ['Lessons', 100, 'done', 0, 'hut'], ['Ear', 100, 'done', 2, 'place'],
+    ['Time', 50, 'current', 0, 'place'], ['Hands', 20, 'started', 0, 'place'],
+    ['Grooves', 0, 'fresh', 0, 'place'], ['Electives', 0, 'ahead', 0, 'cove'],
+    ['Checkpoint', 0, 'fresh', 0, 'fort'],
+  ],
+};
+
+/* The map in the module's chrome: the place under the avatar on top, the
+ * hint underneath. */
+function drawMapScreen(c, places, layout, walk, now) {
+  c.clear();
+  const pos = posAt(walk, now);
+  const p = places[pos.at];
+  const due = places.reduce((n, q) => n + q.due, 0);
+  R.drawChrome(c, { left: `${p.label}  ${p.percent}%`, right: due ? `${due} due` : '' });
+  drawMap(c, { places, layout, walk, now });
+  V.drawFooterHint(c, 'PAD go  CLICK enter');
+}
+
+if (view === 'map') {
+  const which = arg('map', arg('places', '5'));
+  const rows = SAMPLE_MAPS[which];
+  if (!rows) throw new Error('--view map takes --places 5|7|8 or --map drums');
+  const places = rows.map(([label, percent, state, due, kind]) => makePlace({ label, percent, state, due, kind }));
+  const layout = layoutPlaces(places.length);
+  const from = places.findIndex((p) => p.state === 'current');
+  const walk = createWalk(layout, Number(arg('at', from)));
+  const to = arg('to', null);
+  const film = to === null ? [0] : arg('film', '0,90,180,270,2000').split(',').map(Number);
+  if (to !== null) walkTo(walk, Number(to), 0);
+  for (const t of film) {
+    const c = createScreen();
+    drawMapScreen(c, places, layout, walk, t);
+    show(`map ${which}${to === null ? '' : ` walking to ${to} @ ${t}ms`} (${c.calls} draw calls)`, c);
+  }
+} else if (view === 'clef') {
   const c = createScreen();
   c.clear();
   R.drawStaff(c);

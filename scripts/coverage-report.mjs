@@ -76,6 +76,9 @@ const unitOf = (p) => {
   let m;
   /* The Move's adapter apart from the module's portable core. */
   if (p === 'src/ui.js') return 'device';
+  /* The Path map engine, shared with Drums Practice byte for byte: judged
+   * on its own, so the module's code around it cannot carry it. */
+  if (p.startsWith('src/pathmap/')) return 'pathmap';
   if (p.startsWith('src/')) return 'core';
   if ((m = p.match(/^web\/src\/[^/]+/))) return m[0].replace('/src', '');
   if ((m = p.match(/^dsp\/[^/]+/))) return m[0];
