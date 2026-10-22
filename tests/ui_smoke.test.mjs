@@ -370,14 +370,14 @@ test('a song opens its levels, and a level arms', () => {
    * song whatever else is added above it. */
   jog(60);
 
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* open the ladder */
-  const ladder = screen();
-  for (const rung of ['RH melody', 'LH bass', 'RH chords', 'Both hands']) {
-    assert.ok(ladder.includes(rung), `the level list does not show "${rung}": ${ladder}`);
-  }
+  /* One menu level less: the song arms at once, on its first level. */
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  const ready = screen();
+  assert.match(ready, /LEVEL/, 'the ready screen, with its LEVEL box: ' + ready);
 
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));      /* down to LH bass */
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* arm it */
+  /* The jog walks the level: 1 Guided, 1 Solo, then the second level. */
+  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
   screen();
 
   /* The reading header names the chart, and a projected chart is named for its
@@ -390,15 +390,11 @@ test('a song opens its levels, and a level arms', () => {
   globalThis.tick();
   globalThis.onMidiMessageInternal(CC(BACK, 127));        /* stop the run */
   globalThis.tick();
-  globalThis.onMidiMessageInternal(CC(BACK, 127));        /* back to the ladder */
-  assert.ok(
-    screen().includes('RH melody'),
-    'Back from a song should land on its ladder, not on the song list',
-  );
+  assert.match(screen(), /LEVEL/, 'Back from a run is its ready screen');
 
   /* And each Back from there is one folder up, until the top. */
   globalThis.onMidiMessageInternal(CC(BACK, 127));
-  assert.match(screen(), /CLASSICS/, 'Back from the ladder lands on the song list');
+  assert.match(screen(), /CLASSICS/, 'Back from the ready screen lands on the song list');
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   assert.match(screen(), /SONGS/, 'then the shelves');
   globalThis.onMidiMessageInternal(CC(BACK, 127));
@@ -435,15 +431,13 @@ test('a chord lesson opens from Practice and arms at both hands', () => {
   jog(4);
   open();                        /* Sevenths */
   assert.match(screen(), /Major 7th/);
-  open();                        /* Major 7th: its ladder */
-  jog(3);
-  open();                        /* Both hands */
+  open();                        /* Major 7th: armed at its first level */
+  jog(6);                        /* to Both hands: L3 Guided */
   globalThis.onMidiMessageInternal(CC(RECORD, 127));
   assert.match(screen(), /Major 7th L3/, 'the header names the lesson and its level');
   for (let i = 0; i < 20; i++) globalThis.tick();
   globalThis.onMidiMessageInternal(CC(BACK, 127));
-  globalThis.onMidiMessageInternal(CC(BACK, 127));
-  assert.match(screen(), /Both hands/, 'Back lands on the ladder it was armed from');
+  assert.match(screen(), /LEVEL/, 'Back lands on the ready screen, on the level it was armed at');
 });
 
 /*
@@ -636,19 +630,19 @@ test('the ready screen scrubs, and Play takes it from there', () => {
   toScale();
 
   const armed = frame(() => globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127)));
-  assert.ok(armed.some((t) => t.includes('SCRUB')),
+  assert.ok(armed.some((t) => t === 'scrub'),
     'a freshly armed song offers all three rows');
 
   /* Two bars forward on the ready screen, which used to be impossible. */
   const away = frame(scrub(72, 1));
-  assert.equal(away.some((t) => t.includes('SCRUB')), false,
+  assert.equal(away.some((t) => t === 'scrub'), false,
     'scrubbing hides the box, which sits over the music being scrubbed');
   assert.equal(barBeat(away), '3.1',
     'and the header shows the position instead of the MIDI route');
 
   /* Both directions: a box that never draws would pass a one-way test. */
   const home = frame(scrub(72, 127));
-  assert.ok(home.some((t) => t.includes('SCRUB')), 'scrolling home brings it back');
+  assert.ok(home.some((t) => t === 'scrub'), 'scrolling home brings it back');
 
   /* And Play begins where you left the playhead, not at bar 1. */
   const running = frame(() => {
@@ -1222,7 +1216,7 @@ test('the first time a kind of practice is opened, its Info comes first, once', 
     const first = screen.frame(click);                  /* Up & down */
     assert.match(first, /INFO/, 'shown by itself: ' + first);
     assert.match(first, /A piece, armed/, 'the screen first');
-    assert.match(screen.frame(BACK_PRESS), /REC   practice/, 'Back lands on the ready screen');
+    assert.match(screen.frame(BACK_PRESS), /\| practise \|/, 'Back lands on the ready screen');
     BACK_PRESS();                                       /* to the list */
     jog(1);
     const second = screen.frame(click);                 /* Up: another scale drill */

@@ -32,6 +32,8 @@
  *   { type: 'answer', index }          a multiple-choice answer
  *   { type: 'next' } / { type: 'skip' } / { type: 'retry' }   on a result
  *   { type: 'stage', stage }           1 or 2, on the ready screen
+ *   { type: 'level', index }           another level of the armed piece, on
+ *                                      the ready screen, from bar 1
  *   { type: 'scrubTo', beat }          the playhead, while parked
  *   { type: 'tempo', delta }
  *   { type: 'editSetting', index, delta }
@@ -53,7 +55,7 @@ const SCRUB_UNITS_PER_BAR = 36;
 
 export const ACTIONS = [
   'noteOn', 'noteOff', 'select', 'open', 'back', 'move', 'options', 'sheet', 'sheetPick', 'cardPick', 'mapGo',
-  'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage',
+  'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'level',
   'scrubTo', 'tempo', 'editSetting', 'selectSetting', 'editRow', 'settingRow', 'progress',
 ];
 
@@ -125,6 +127,9 @@ export function applyAction(S, a) {
       if (S.view === READY && (a.stage === 1 || a.stage === 2) && a.stage !== S.stage) {
         S.moveSelection(a.stage === 2 ? 1 : -1);
       }
+      return null;
+    case 'level':
+      if (S.view === READY) S.armLevel(a.index | 0);
       return null;
     case 'scrubTo': {
       if (!S.chart || !S.scrubAllowed() || typeof a.beat !== 'number') return null;

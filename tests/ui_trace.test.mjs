@@ -367,9 +367,11 @@ const SCENARIOS = {
     dsp.closePage(); d.run(6000);
   } },
 
-  /* A song: its levels, a level armed, practised briefly; then Shift+Back. */
+  /* A song armed from its row, its level walked on the ready screen,
+   * practised briefly; then Shift+Back. */
   exit: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(2); d.click(); d.jog(4); d.click(); d.click(); d.click(); d.run(100); d.click(); d.run(100);
+    d.jog(2); d.click(); d.jog(4); d.click(); d.click(); d.click(); d.run(100);   /* a song: armed at once */
+    d.jog(1); d.jog(1); d.jog(-1); d.run(100);    /* the jog walks its levels: 1 Solo, 2 Guided, 1 Solo */
     d.press(RECORD); d.run(2500); d.pad(10); d.pad(11);
     d.shiftWith(BACK); d.run(600);
     globalThis.onUnload(); d.tick();

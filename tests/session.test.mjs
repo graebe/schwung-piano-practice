@@ -861,7 +861,8 @@ test('the hint line names the keys of every screen, and the Shift layer while Sh
   openPath(h.session, ['Practice']);
   assert.deepEqual(h.session.hint(), ['CLICK open  BACK up']);
   openPath(h.session, ['Scales', 'Major', 'Up & down']);
-  assert.deepEqual(h.session.hint(), ['REC start', 'PLAY listen', 'Guided: pads lit', 'JOG Solo']);
+  assert.deepEqual(h.session.hint(), ['JOG Solo  REC start', 'PLAY listen']);
+  assert.equal(h.session.levelInfo().name, 'Guided: pads lit', 'the bottom line names it');
   h.session.recordButton();
   assert.deepEqual(h.session.hint(), ['REC pause  BACK stop']);
   h.session.recordButton();
@@ -963,4 +964,77 @@ test('the map and island tips show once each', () => {
   assert.equal(h.session.canGoBack(), true);
   h.session.back();
   assert.equal(h.session.canGoBack(), false, 'at the top Back leaves');
+});
+
+/* ---- One menu level less: the level on the ready screen --------------------- */
+
+test('a song is one row: it arms its first level not learned, and the jog walks 1G, 1S, 2G...', () => {
+  const h = fakeHost();
+  h.session.init();
+  PROG.recordAttempt(h.session.progress, 'song:ode-to-joy/1r', { stage: 2, score: 1, at: WALL0 });
+  openPath(h.session, ['Practice', 'Songs', 'Classics']);
+  const row = h.session.nav.at(-1).node.children.find((r) => r.key === 'song:ode-to-joy');
+  assert.ok(row.levels && !('children' in row), 'no ladder folder');
+  assert.equal(h.session.decorateRow(row).mark, PROG.MARK_HALF, 'the row sums its levels');
+  h.session.selectRow(h.session.nav.at(-1).node.children.indexOf(row));
+  h.session.activate(false);
+  assert.equal(h.session.view, READY);
+  assert.equal(h.session.armedId, 'song:ode-to-joy/1l', 'L1 RH is learned: the next level');
+  let info = h.session.levelInfo();
+  assert.deepEqual([info.index, info.stage, info.ladder], [1, 1, true]);
+  assert.equal(info.name, 'L1 LH bass  Guided');
+  assert.deepEqual(info.levels.map((l) => l.learned), [true, false, false, false]);
+  const walk = [];
+  for (let i = 0; i < 9; i++) {
+    h.session.moveSelection(1);
+    walk.push(h.session.levelInfo().index + (h.session.stage === 2 ? 'S' : 'G'));
+  }
+  assert.deepEqual(walk, ['1S', '2G', '2S', '3G', '3S', '3S', '3S', '3S', '3S'], 'clamped at the last Solo');
+  assert.equal(h.session.armedId, 'song:ode-to-joy/3');
+  for (let i = 0; i < 9; i++) h.session.moveSelection(-1);
+  info = h.session.levelInfo();
+  assert.deepEqual([info.index, info.stage], [0, 1], 'clamped at the first Guided');
+  assert.ok(h.said().includes('Level L2 RH chords. Guided.'), 'a new level is said');
+});
+
+test('a level changed after a scrub starts from bar 1', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+  h.session.scrubBy(40);
+  assert.ok(h.session.songBeats > 0);
+  h.session.moveSelection(1);
+  assert.ok(h.session.songBeats > 0, 'Guided to Solo keeps the place');
+  h.session.moveSelection(1);
+  assert.ok(h.session.songBeats <= 0, 'a new level: home to bar 1');
+});
+
+test('a Path step and a review arm their own level', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Path', '2 Four chords', '2.7 First tracks']);
+  const folder = h.session.nav.at(-1).node.children[0];
+  openPath(h.session, [folder.label, 'L3 Both hands']);
+  assert.equal(h.session.view, READY);
+  assert.match(h.session.armedId, /\/3$/, 'the step\'s own level');
+  assert.equal(h.session.levelInfo().index, 3);
+  const r = fakeHost();
+  r.session.init();
+  for (const st of [1, 2]) PROG.recordAttempt(r.session.progress, 'song:twinkle/2r', { stage: st, score: 1, at: WALL0 - 10 * DAY });
+  r.session.activate(false);                     /* Path */
+  r.session.playButton();                        /* Continue: the review first */
+  assert.equal(r.session.armedId, 'song:twinkle/2r', 'Review arms the due level');
+  assert.equal(r.session.levelInfo().index, 2);
+});
+
+test('the web\'s level action arms a level, on the ready screen only', () => {
+  const h = fakeHost();
+  h.session.init();
+  h.session.armLevel(2);
+  assert.equal(h.session.view, MENU, 'nothing armed: nothing to do');
+  openPath(h.session, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+  h.session.armLevel(3);
+  assert.equal(h.session.armedId, 'song:ode-to-joy/3');
+  h.session.armLevel(9);
+  assert.equal(h.session.armedId, 'song:ode-to-joy/3', 'out of range: nothing');
 });

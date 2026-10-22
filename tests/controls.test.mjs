@@ -114,11 +114,10 @@ test('the jog does nothing outside the lists and the ready screen', () => {
   }
 });
 
-test('on the ready screen the jog picks the stage, by direction', () => {
-  /* Never the exercise: only whether the pads light. Right is stage 2, left is
-   * stage 1, so turning twice lands where you pointed rather than back. */
-  for (const delta of [1, 9]) assert.deepEqual(jogAction(READY, delta, 0, 0), { action: 'stage', index: 2 });
-  for (const delta of [-1, -9]) assert.deepEqual(jogAction(READY, delta, 0, 0), { action: 'stage', index: 1 });
+test('on the ready screen the jog walks the level and Guided or Solo, a step a detent', () => {
+  /* Never the exercise: one step through 1 Guided, 1 Solo, 2 Guided... */
+  for (const delta of [1, 9]) assert.deepEqual(jogAction(READY, delta, 0, 0), { action: 'ready', delta: 1 });
+  for (const delta of [-1, -9]) assert.deepEqual(jogAction(READY, delta, 0, 0), { action: 'ready', delta: -1 });
 });
 
 test('no call anywhere can return the old select action', () => {

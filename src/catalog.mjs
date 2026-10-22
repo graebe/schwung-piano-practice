@@ -73,20 +73,29 @@ export function isFolder(node) {
 }
 
 /*
- * A song opens its ladder. A song with only one rung — nothing to split, like a
- * melody with no left hand — arms straight away, marked 'f' for "file".
+ * A piece with a ladder is one row, not a folder: it arms straight away, and
+ * the ready screen's jog chooses the level (and Guided or Solo). Each level
+ * keeps its own entry — `levels`, never shown as rows — with its own id,
+ * build and progress, exactly as it had as a row of the ladder folder, and a
+ * way back to the piece (`piece`).
+ */
+export function ladderLeaf(label, key, levels) {
+  const node = { label, value: '', key, levels: [] };
+  node.levels = levels.map((lv) => ({ ...lv, value: '', piece: node }));
+  return node;
+}
+
+/* A rung as ladderLeaf takes it: its code leads the name. */
+const rung = (lv, build) => ({ label: lv.step + ' ' + lv.label, key: lv.id, step: lv.step, name: lv.label, build });
+
+/*
+ * A song: its ladder as one row. A song with only one rung — nothing to
+ * split, like a melody with no left hand — is a plain row.
  */
 export function songNode(song) {
   const levels = availableLevels(song);
   if (levels.length > 1) {
-    return folder(song.name, levels.map((lv) => ({
-      /* The rung's code leads the label, so the value column is free for how
-       * far you have got with it. */
-      label: lv.step + ' ' + lv.label,
-      value: '',
-      key: lv.id,
-      build: () => projectLevel(song, lv.id),
-    })), song.id);
+    return ladderLeaf(song.name, song.id, levels.map((lv) => rung(lv, () => projectLevel(song, lv.id))));
   }
   return {
     label: song.name,
@@ -106,6 +115,10 @@ export function songNode(song) {
 function generated(node) {
   if (isFolder(node)) {
     node.children.forEach(generated);
+    return node;
+  }
+  if (node.levels) {
+    node.levels.forEach(generated);
     return node;
   }
   const build = node.build;
@@ -137,6 +150,8 @@ export function slug(label) {
 function stampNode(node, parentId) {
   const key = node.key || slug(node.label);
   node.id = node.absolute ? key : (parentId ? parentId + '/' + key : key);
+  /* A ladder's levels are filed under it, as the rows of its folder were. */
+  if (node.levels) stampChildren(node.levels, node.id);
   if (!('children' in node)) return;
   /* A lazy folder stamps its own rows when they are made; asking for them
    * here would build every lesson in the tree. */
@@ -162,15 +177,10 @@ export function randomFolder(gen = {}) {
   const transpose = gen.transpose == null ? DEFAULT_TRANSPOSE : gen.transpose;
   const seed = () => (gen.newSeed ? gen.newSeed() : gen.seed || 1);
   const { lo, hi } = playableRange(transpose);
-  const chordSet = (label, pool) => generated(folder(label, LEVELS.map((lv) => ({
-    label: lv.step + ' ' + lv.label,
-    value: '',
-    key: lv.id,
-    build: () => {
-      const chart = projectLevel(randomChordSong({ seed: seed(), pool, transpose }), lv.id);
-      chart.name = label + ' ' + lv.step;
-      return chart;
-    },
+  const chordSet = (label, pool) => generated(ladderLeaf(label, slug(label), LEVELS.map((lv) => rung(lv, () => {
+    const chart = projectLevel(randomChordSong({ seed: seed(), pool, transpose }), lv.id);
+    chart.name = label + ' ' + lv.step;
+    return chart;
   }))));
   return folder('Random', [
     {
@@ -295,6 +305,11 @@ export function leafIndex(root) {
       }
       /* A program step is a pointer at a row, not the row. */
       if (!child.id || child.step || index.has(child.id)) continue;
+      /* A ladder is its levels, each under its old id and title. */
+      if (child.levels) {
+        for (const lv of child.levels) index.set(lv.id, { node: lv, title: child.label + ' ' + lv.label });
+        continue;
+      }
       index.set(child.id, { node: child, title: titleOf(child, parent, depth) });
     }
   };
@@ -391,6 +406,11 @@ export function findById(root, id) {
     for (let i = 0; i < kids.length; i++) {
       const child = kids[i];
       if (!isFolder(child)) {
+        if (child.levels) {
+          const lv = child.levels.find((l) => l.id === id);
+          if (lv) return { node: lv, title: child.label + ' ' + lv.label };
+          continue;
+        }
         if (child.id === id && !child.step) return { node: child, title: titleOf(child, node === root ? null : node, depth) };
         continue;
       }

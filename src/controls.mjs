@@ -93,10 +93,10 @@ export function recordLedColor(view, listening = false, phase = 1, hintExhausted
  * folder is open is catalog.mjs's business, not a view of its own.
  */
 export function jogAction(view, delta, index, count) {
-  /* The one exception: on the ready screen the jog picks the STAGE — right
-   * for stage 2, reading alone; left for stage 1, the pads lit. By direction,
-   * not as a toggle, so a knock that turns it twice lands where it pointed. */
-  if (view === READY) return { action: 'stage', index: delta > 0 ? 2 : 1 };
+  /* The one exception: on the ready screen the jog walks the level and the
+   * way of playing it together — 1 Guided, 1 Solo, 2 Guided... — one step a
+   * detent, clamped at both ends (the session knows the levels). */
+  if (view === READY) return { action: 'ready', delta: delta > 0 ? 1 : -1 };
   if (count <= 0) return { action: 'ignore', index };
   if (view !== MENU && view !== SETTINGS) return { action: 'ignore', index };
   const next = Math.max(0, Math.min(count - 1, index + (delta > 0 ? 1 : -1)));

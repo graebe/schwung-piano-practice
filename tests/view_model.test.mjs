@@ -41,7 +41,9 @@ test('a running drill sends its chart, judgements, markers and clock', () => {
   assert.equal(ready.chart.events.length, ready.run.notes.length);
   assert.ok(ready.run.notes.every((codes) => [...codes].every((c) => c === NOTE_PENDING)));
   assert.ok(ready.can.listen && ready.can.practice && ready.can.scrub);
-  assert.deepEqual(ready.armed, { id: h.session.armedId, stage: 1 });
+  assert.deepEqual({ id: ready.armed.id, stage: ready.armed.stage }, { id: h.session.armedId, stage: 1 });
+  assert.equal(ready.armed.level.name, 'Guided: pads lit', 'the level box\'s facts travel too');
+  assert.equal(ready.armed.level.ladder, false);
 
   h.session.recordButton();
   const beatMs = 60000 / h.session.chart.bpm;
@@ -199,25 +201,22 @@ test('every bundled song at every level fits Schwung\'s 64KB state key', () => {
     for (let s = 0; s < songs.length; s++) {
       h.session.selectRow(s);
       h.session.activate(false);
-      const levels = h.session.nav.length > 4 ? h.session.nav[4].node.children : [null];
-      for (let l = 0; l < levels.length; l++) {
-        if (levels[l]) {
-          h.session.selectRow(l);
-          h.session.activate(false);
-        }
+      /* Every level, chosen on the ready screen as the jog does. */
+      const levels = songs[s].levels ? songs[s].levels.length : 1;
+      for (let l = 0; l < levels; l++) {
+        if (songs[s].levels) h.session.armLevel(l);
         assert.equal(h.session.view, READY, `${category} ${s}/${l} armed`);
         h.session.recordButton();
         h.run(2000);
         const size = encodedSize(viewModel(h.session));
         if (size > largest.size) largest = { size, name: h.session.chart.name };
         checked++;
-        h.session.back();                         /* restart */
-        h.session.back();                         /* to the levels */
+        h.session.back();                         /* restart: the ready screen */
       }
-      if (levels[0]) h.session.back();            /* to the songs */
+      h.session.back();                           /* to the songs */
     }
   }
-  assert.ok(checked > 60, `checked ${checked}`);
+  assert.ok(checked > 150, `checked ${checked}`);
   assert.ok(largest.size < STATE_LIMIT, `${largest.name}: ${largest.size} bytes`);
 });
 

@@ -215,6 +215,27 @@ const SCREENS = {
   'info, short': (c) => V.drawInfo(c, {
     title: 'Continue', lines: [{ text: 'Opens the next step.', head: false }], scroll: 0, footer: 'BACK close',
   }),
+  /* The split box at its worst: the last level, Solo, learned (its mark), the
+   * longest level name on the bottom line beside the longest hint part. */
+  'ready, level box, the last level': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
+    level: { index: 3, stage: 2, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3', learned: true }] },
+    footerLeft: 'L3 Both hands  Solo',
+  }),
+  'ready, level box, the middle': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
+    level: { index: 1, stage: 1, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3' }] },
+    footerRight: 'JOG level  REC start',
+  }),
+  'ready, a drill: one level, its name beside the hint': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
+    level: { index: 0, stage: 1, ladder: false, levels: [{ step: 'L1' }] }, footerLeft: 'Solo', footerRight: 'JOG Guided',
+  }),
+  'ready, scrubbed, the bottom line stays': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 6, pxPerBeat: 48,
+    level: { index: 2, stage: 1, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3' }] },
+    footerLeft: 'L2 RH chords  Guided',
+  }),
   'ready, stage 2': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
     footer: hintFor('ready', { stages: true, stage: 2 }).at(-1),

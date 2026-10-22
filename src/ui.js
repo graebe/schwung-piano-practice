@@ -565,6 +565,15 @@ function footer() {
   return hintPart(parts, t);
 }
 
+/* The ready screen's bottom line (view.mjs readyLine): the level's name and
+ * the keys, or the Shift layer alone while Shift is held. */
+function readyLine(level) {
+  const parts = S.hint({ shift: shiftHeld });
+  const line = VIEW.readyLine(level && !shiftHeld ? level.name : '', parts, now(), (x) => ctx.textWidth(x));
+  hintTurnAt = line.turns > 1 ? (Math.floor(now() / ROTATE_MS) + 1) * ROTATE_MS : Infinity;
+  return line;
+}
+
 function draw() {
   const view = S.view;
   const nav = S.nav;
@@ -715,8 +724,9 @@ function draw() {
       outLabel: songBeats > 0 ? '' :
         SET.formatSetting(settings, SET.settingIndex('midiOut')) + ' ' +
         SET.formatSetting(settings, SET.settingIndex('midiCh')),
-      /* Which stage is armed, that the jog changes it, and the keys. */
-      footer: footer(),
+      /* The level, Guided or Solo, and the keys, on the bottom line. */
+      level: S.levelInfo(),
+      ...readyLine(S.levelInfo()),
     });
   } else {
     VIEW.drawReadingView(ctx, {

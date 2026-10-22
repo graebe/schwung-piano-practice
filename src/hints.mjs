@@ -60,8 +60,11 @@ function table(screen, s) {
       if (s.pages > 1) return { keys: ['JOG page', 'CLICK go on'], shift: [QUIT] };
       return { keys: s.scrolls ? ['JOG scroll', 'CLICK go on'] : ['CLICK go on', 'BACK close'], shift: [QUIT] };
     case READY: {
-      const keys = ['REC start', 'PLAY listen'];
-      if (s.stages) keys.push(s.stage === 2 ? 'Solo: pads dark' : 'Guided: pads lit', s.stage === 2 ? 'JOG Guided' : 'JOG Solo');
+      /* The level and the way it is played are named on the bottom line's
+       * left (session.levelInfo); the keys take turns on its right. */
+      const keys = [];
+      if (s.stages) keys.push(s.levels > 1 ? 'JOG level' : s.stage === 2 ? 'JOG Guided' : 'JOG Solo');
+      keys.push('REC start', 'PLAY listen');
       return { keys, shift: ['CLICK settings', QUIT] };
     }
     case RUNNING: {

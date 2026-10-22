@@ -410,6 +410,11 @@ export function isTracked(node) {
 
 function collectLeaves(node, out, seen) {
   if (!node) return;
+  /* A ladder counts as its levels. */
+  if (node.levels) {
+    for (let i = 0; i < node.levels.length; i++) collectLeaves(node.levels[i], out, seen);
+    return;
+  }
   if ('children' in node) {
     if (node.untracked) return;
     const kids = node.children;

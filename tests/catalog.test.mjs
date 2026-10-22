@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   FOLDER, folder, lazyFolder, isFolder, songNode, basics, randomFolder, buildCatalog,
-  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt,
+  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt, stampChildren,
 } from '../src/catalog.mjs';
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
 import { MODES, playableRange } from '../src/generator.mjs';
@@ -30,22 +30,29 @@ const oneNote = {
 const labels = (node) => node.children.map((c) => c.label);
 
 /* Every leaf under `node`, with the path that reaches it. */
+/* Every playable leaf, a ladder's levels each on their own. */
 function leavesOf(node, path = [], out = []) {
   node.children.forEach((child, i) => {
     if (isFolder(child)) leavesOf(child, path.concat(i), out);
+    else if (child.levels) child.levels.forEach((lv, l) => out.push({ node: lv, path: path.concat(i, l) }));
     else out.push({ node: child, path: path.concat(i) });
   });
   return out;
 }
+const levelLabels = (node) => node.levels.map((l) => l.label);
 
 /* ---- Nodes --------------------------------------------------------------- */
 
-test('a song with a ladder is a folder of its levels', () => {
+test('a song with a ladder is one row; its levels are chosen on the ready screen', () => {
   const node = songNode(twoHands);
-  assert.equal(node.value, FOLDER);
-  /* The rung's code leads the label; the value column holds your progress. */
-  assert.deepEqual(labels(node), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands']);
-  assert.equal(node.children[3].build().name, 'Song L3');
+  assert.equal(isFolder(node), false, 'no folder to open: one menu level less');
+  assert.notEqual(node.value, FOLDER);
+  assert.deepEqual(levelLabels(node), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands']);
+  assert.equal(node.levels[3].build().name, 'Song L3');
+  assert.ok(node.levels.every((lv) => lv.piece === node), 'each level knows its piece');
+  stampChildren([node], 'x');
+  assert.deepEqual(node.levels.map((l) => l.id), ['x/song/1r', 'x/song/1l', 'x/song/2r', 'x/song/3'],
+    'filed under the ids the ladder folder gave them');
 });
 
 test('a song with one rung arms straight away', () => {
@@ -85,7 +92,7 @@ test('Random has every note, notes in key, and chords from every quality', () =>
   const r = randomFolder({});
   assert.deepEqual(labels(r), ['All notes', 'In key', 'In key, fast', 'All chords', 'Triads', 'Sevenths']);
   for (const set of r.children.slice(3)) {
-    assert.deepEqual(labels(set), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands'], set.label);
+    assert.deepEqual(levelLabels(set), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands'], set.label);
   }
 });
 
@@ -106,8 +113,8 @@ test('All notes reaches the black keys and the whole page of pads', () => {
 test('a random row draws a new set each time it is opened', () => {
   let next = 1;
   const r = randomFolder({ newSeed: () => next++ });
-  const a = r.children[3].children[3].build();
-  const b = r.children[3].children[3].build();
+  const a = r.children[3].levels[3].build();
+  const b = r.children[3].levels[3].build();
   assert.notDeepEqual(a.events, b.events);
   assert.equal(a.name, 'All chords L3');
 });
@@ -125,7 +132,7 @@ test('every Basics lesson is regenerated from the settings, never fixed like a f
 });
 
 test('a progression follows the key it was built in', () => {
-  const prog = (rootPc) => basics({ rootPc }).children[2].children[0].children[3].build();
+  const prog = (rootPc) => basics({ rootPc }).children[2].children[0].levels[3].build();
   assert.notDeepEqual(prog(0).events, prog(7).events);
   assert.match(prog(7).name, /^G /);
 });

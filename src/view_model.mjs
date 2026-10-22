@@ -343,7 +343,9 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     screen: view,
     key: keyOf(settings, S.keyFifths()),
     nav: view === MENU ? navOf(S) : null,
-    armed: S.armedId ? { id: S.armedId, stage: S.stage } : null,
+    /* With the level box's facts: the piece's levels, which is armed, and
+     * the bottom line's name for it (session levelInfo). */
+    armed: S.armedId ? { id: S.armedId, stage: S.stage, level: inSong ? S.levelInfo() : null } : null,
     /* The names under the notes, as the stage and the Names setting have them;
      * a stuck note's name once it has waited long enough. */
     names: inSong ? S.namesShown() : true,

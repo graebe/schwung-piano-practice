@@ -19,6 +19,9 @@
  *   npm run preview -- --view welcome                           the welcome, every page
  *   npm run preview -- --view card --tip sheet                  a first-visit tip
  *   npm run preview -- --view help --path 1,0 --scroll 4        MENU's help on a row
+ *   npm run preview -- --view level --song ode-to-joy --jog 3 --scrub 0 --t 0
+ *                                    a song armed from the list: its ready screen, the
+ *                                    LEVEL box after `jog` detents, the bottom line at `t`
  *   npm run preview -- --view path                              the Path's world map, as the
  *                                    session draws it; --stage 3: that stage's island
  *   npm run preview -- --path 0,1,4,0,3 --film 0,2              read the lesson there
@@ -108,7 +111,7 @@ function walk(S, at) {
 
 const footerOf = (S) => S.hint({ shift: process.argv.includes('--shift') })[0] || '';
 const path = arg('path', null) ? arg('path', '').split(',').map(Number) : null;
-const LISTS = ['menu', 'sheet', 'welcome', 'card', 'help', 'path'];
+const LISTS = ['menu', 'sheet', 'welcome', 'card', 'help', 'path', 'level'];
 const leaf = path && !LISTS.includes(arg('view', 'reading')) ? nodeAt(bundledCatalog(), path) : null;
 if (leaf && isFolder(leaf)) throw new Error('--path ends on a folder; add the row to open, or use --view menu');
 
@@ -254,6 +257,28 @@ if (view === 'map') {
   const c = createScreen();
   V.drawList(c, S.sheet.title.toUpperCase(), S.sheet.items, S.sheet.cursor, { footer: footerOf(S), centreFooter: true });
   show('options: ' + S.sheet.title, c);
+} else if (view === 'level') {
+  const S = bundledSession();
+  const songs = S.catalog.children.find((r) => r.key === 'basics').children.find((r) => r.key === 'songs');
+  const shelf = songs.children.find((sh) => sh.children.some((r) => r.key === 'song:' + arg('song', 'ode-to-joy')));
+  const row = shelf.children.find((r) => r.key === 'song:' + arg('song', 'ode-to-joy'));
+  walk(S, [S.catalog.children.indexOf(S.catalog.children.find((r) => r.key === 'basics')),
+    S.catalog.children.find((r) => r.key === 'basics').children.indexOf(songs),
+    songs.children.indexOf(shelf), shelf.children.indexOf(row)]);
+  S.activate(false);
+  if (S.view !== 'ready') S.activate(false);       /* past a first-visit card */
+  const jogs = Number(arg('jog', 0));
+  for (let i = 0; i < Math.abs(jogs); i++) S.moveSelection(jogs > 0 ? 1 : -1);
+  const scrub = Number(arg('scrub', 0));
+  if (scrub) S.scrubBy(scrub);
+  const c = createScreen();
+  const level = S.levelInfo();
+  V.drawReadyView(c, {
+    chart: S.chart, run: S.run, songBeats: S.songBeats, pxPerBeat: S.settings.pxPerBeat, names: S.namesShown(),
+    outLabel: S.songBeats > 0 ? '' : 'piano all', level,
+    ...V.readyLine(level.name, S.hint(), Number(arg('t', 0)), (x) => c.textWidth(x)),
+  });
+  show(`${S.chart.name}: ${level.name}`, c);
 } else if (view === 'path') {
   const S = bundledSession();
   walk(S, [1]);

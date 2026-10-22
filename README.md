@@ -44,8 +44,8 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   exact drill you just fluffed.
 - **Teaches a piece in four steps.** Classics, electronic track studies, techno progressions and
   style pieces, each arranged for two hands on one page of pads and playable at four levels: right
-  hand alone, left hand alone, right hand with its chords, then both together. Pick the song, then
-  pick the level.
+  hand alone, left hand alone, right hand with its chords, then both together. Pick the song; the
+  jog on its ready screen picks the level.
 - **Takes hand-written exercises** as JSON, interchangeable with the generated ones.
 - **Sounds like a piano, with no setup** — the module renders its own polyphonic piano and mixes it
   into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
@@ -90,7 +90,8 @@ Progress          how far you have got, and how you got there
 Settings          Path, Practice, Sound, Pads, MIDI, Help
 ```
 
-Everything with a left and a right hand — every song, every chord lesson — opens its four levels.
+Everything with a left and a right hand — every song, every chord lesson — is one row: it opens
+on its ready screen, and the jog there chooses its level.
 
 Every row says how far you have got with it. An exercise shows its score — `87%` — with a **◐** once
 you have passed Guided and a **✓** once you have passed Solo. A folder shows the average of
@@ -103,7 +104,13 @@ each. Hold **Shift** and it shows what Shift does on that screen.
 ## Levels
 
 Every bundled tune is one file with both hands written into it, and the four levels are cut out of
-that one file. Click a song and you get its ladder:
+that one file. Click a song and it is armed at once, on the **first level you have not learned**;
+the ready screen's **LEVEL** box, on the right of its controls, shows the level as a big digit, a
+**G** or **S** beside it for Guided or Solo, arrows where the jog can go on, and a ✓ once that
+level is learned. Turn the **jog** and you walk the levels and their two ways together: 1 Guided,
+1 Solo, 2 Guided, 2 Solo... The bottom line names it — `L2 RH chords  Solo` — and takes turns with
+the keys. A new level starts again from bar 1. A step of the Path, Continue and Review arm the
+level they name.
 
 | | | |
 | --- | --- | --- |
@@ -114,8 +121,8 @@ that one file. Click a song and you get its ladder:
 
 **All four sit in the same register.** Nothing is transposed between levels, so the pads you learn
 playing the right hand at L1 are the pads you play at L3 — what you learn transfers literally rather
-than by analogy. **Back** from a song returns to its ladder rather than all the way out, because
-having just played the right hand the next thing you want is the left hand of the same piece.
+than by analogy. Having just played the right hand, the left hand of the same piece is one turn of
+the jog away. The row in the list sums all four levels.
 
 Every bundled song has all four, and `npm test` holds them to it. A file you write yourself with
 nothing to split shows only the levels it actually has, and arms straight away if that is one.
@@ -408,8 +415,8 @@ music, learned after the cadence.
 | All chords | sixteen chords, any root, any quality the module knows |
 | Triads / Sevenths | the same, from the four triads or the eight sevenths |
 
-The chord sets open the usual ladder. Each opening draws a new set, and a restart replays the one
-you just played.
+The chord sets have the usual levels, chosen on the ready screen. Each opening draws a new set, and
+a restart replays the one you just played.
 
 Generated drills follow the pads, so a low **Octave** setting puts them below the treble staff the
 Move draws. Then they are drawn an octave (or two, or three) higher, and the clef is marked with
@@ -978,8 +985,8 @@ Four beats count you in, counted down on screen.
 | --- | --- |
 | **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored. Press it again to **pause where you are**; again to carry on from wherever you have scrubbed to |
 | **Record** | **practice** — you play it, it scores you. Pauses and resumes the same way |
-| **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it picks **Guided or Solo** — right for Solo, left for Guided. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
-| **Jog click** | open the highlighted folder or arm the exercise; on a song, open its levels; in settings, edit the selected row; on a result, go on to what is next |
+| **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it walks the **level and Guided or Solo** together, one step a detent, clamped at both ends. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
+| **Jog click** | open the highlighted folder or arm the exercise (a song arms its first level not learned); in settings, edit the selected row; on a result, go on to what is next |
 | **Menu** | **help**: what the screen is, its keys, then what the thing in front of you is and its terms. Again to close |
 | **Shift + jog click** | in the list, the highlighted row's **options**; on a piece, settings; on a result, move on past it |
 | **Shift** (held) | the hint line shows what Shift does on this screen |

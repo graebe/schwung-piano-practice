@@ -465,6 +465,10 @@ export function createSession(fx, opts = {}) {
   /* The armed exercise's id, which is also where its progress is filed — and
    * how it is found again in a tree rebuilt for a new key. */
   let armedId = null;
+  /* The piece whose level is armed (a ladder: catalog.mjs ladderLeaf) and
+   * which of its levels; null and 0 for anything else. */
+  let armedPiece = null;
+  let armedLevel = 0;
   /* The program unit it was opened from, so Next carries on in that unit. */
   let armedUnit = null;
   /* The stage whose checkpoint is being played (Test out: checkpoint, or a
@@ -939,6 +943,10 @@ export function createSession(fx, opts = {}) {
       startQuiz(settingsQuiz(row));
       return;
     }
+    if (row.levels) {
+      armLeaf(row.levels[firstOpenLevel(row)]);
+      return;
+    }
     armLeaf(row);
   }
 
@@ -1032,19 +1040,85 @@ export function createSession(fx, opts = {}) {
   /* Arm a playable row on the first stage you have not yet passed, or on the
    * stage a check asks for. */
   function armLeaf(node, forceStage) {
+    if (!armNode(node, forceStage)) return;
+    announce(chart.name + '. ' + (stage === 2 ? 'Solo' : 'Guided') + '. Press play to start.');
+    autoInfo({ id: armedId, label: chart.name });
+    showTip(TIPS.PRACTICE);
+  }
+
+  /* The chart of a row (or of one level of a piece) on the ready screen, at
+   * its first stage not passed or the one asked for. */
+  function armNode(node, forceStage) {
     const built = node.build ? node.build() : null;
-    if (!built) return;
+    if (!built) return false;
     armedId = node.id || null;
+    armedPiece = node.piece || null;
+    armedLevel = armedPiece ? armedPiece.levels.indexOf(node) : 0;
     chart = built;
     if (chart.source !== 'file') chart.bpm = settings.bpm;
     stage = forceStage || PROG.recommendedStage(PROG.item(progress, armedId));
     armRun();
     view = READY;
-    announce(chart.name + '. ' + (stage === 2 ? 'Solo' : 'Guided') + '. Press play to start.');
     dirty = true;
     ledDirty = true;
-    autoInfo({ id: armedId, label: chart.name });
-    showTip(TIPS.PRACTICE);
+    return true;
+  }
+
+  /* ---- The level, on the ready screen ---------------------------------------- */
+  /*
+   * A piece with a ladder is one row; opening it arms its first level not yet
+   * learned, and the jog on the ready screen walks its levels and their two
+   * ways together — 1 Guided, 1 Solo, 2 Guided, 2 Solo... — clamped. A step
+   * of the Path, Continue and Review arm the level they name.
+   */
+  function firstOpenLevel(piece) {
+    const at = piece.levels.findIndex((lv) => !PROG.isFinished(PROG.item(progress, lv.id)));
+    return at >= 0 ? at : piece.levels.length - 1;
+  }
+
+  function readyJog(sign) {
+    const count = armedPiece ? armedPiece.levels.length : 1;
+    const pos = armedLevel * 2 + stage - 1;
+    const next = clamp(pos + sign, 0, count * 2 - 1);
+    if (next === pos) return;
+    const level = next >> 1;
+    const to = (next & 1) + 1;
+    if (level !== armedLevel) {
+      armLevel(level, to);
+      return;
+    }
+    stage = to;
+    dirty = true;
+    ledDirty = true;
+    announce(stage === 2 ? 'Solo. The pads stay dark.' : 'Guided. The pads light up.');
+  }
+
+  /* Another level of the armed piece, from bar 1, at `toStage` (default: its
+   * first not passed). */
+  function armLevel(index, toStage) {
+    if (!armedPiece || view !== READY || index < 0 || index >= armedPiece.levels.length) return;
+    const lv = armedPiece.levels[index];
+    if (!armNode(lv, toStage)) return;
+    announce('Level ' + lv.label + '. ' + (stage === 2 ? 'Solo' : 'Guided') + '.');
+  }
+
+  /* What the ready screen's LEVEL box shows: the levels (one, for a piece
+   * without a ladder), which is armed, and how far each is learned. */
+  function levelInfo() {
+    if ((view !== READY && view !== RUNNING) || !chart || !armedId) return null;
+    const levels = armedPiece ? armedPiece.levels : [{ id: armedId, label: '', step: 'L1', name: '' }];
+    return {
+      index: armedLevel,
+      stage,
+      ladder: Boolean(armedPiece),
+      levels: levels.map((lv) => ({
+        id: lv.id, label: lv.label, step: lv.step, name: lv.name || '',
+        learned: PROG.isFinished(PROG.item(progress, lv.id)),
+      })),
+      /* The bottom line's name for it: the level and the way it is played. */
+      name: armedPiece ? levels[armedLevel].label + '  ' + (stage === 2 ? 'Solo' : 'Guided')
+        : (stage === 2 ? 'Solo: pads dark' : 'Guided: pads lit'),
+    };
   }
 
   /*
@@ -1617,6 +1691,12 @@ export function createSession(fx, opts = {}) {
       const sum = PROG.folderSummary(agg, progress, row);
       return { value: sum.percent > 0 ? sum.percent + '% >' : '>', mark: programMark(row) };
     }
+    /* A piece with a ladder: its levels summed, marked done when all are. */
+    if (row.levels) {
+      const sum = PROG.summariseIds(progress, row.levels.map((lv) => lv.id));
+      const mark = sum.done === sum.count ? PROG.MARK_DONE : sum.done || sum.half ? PROG.MARK_HALF : null;
+      return { value: sum.percent > 0 ? sum.percent + '%' : '', mark };
+    }
     const id = row.itemId || (PROG.isTracked(row) ? row.id : null);
     if (!id) return null;
     const it = PROG.item(progress, id);
@@ -2149,6 +2229,7 @@ export function createSession(fx, opts = {}) {
     if (view === READY) {
       st.stages = Boolean(armedId);
       st.stage = stage;
+      st.levels = armedPiece ? armedPiece.levels.length : 1;
     }
     if (view === RUNNING) {
       st.listening = listening;
@@ -2467,14 +2548,10 @@ export function createSession(fx, opts = {}) {
      * run. jogAction ignores it everywhere but the lists. */
     const top = CAT.navTop(nav);
     const next = CTRL.jogAction(view, delta, top.cursor, top.node.children.length);
-    /* On the ready screen the jog picks the stage — never the exercise. */
-    if (next.action === 'stage' && armedId) {
-      if (next.index !== stage) {
-        stage = next.index;
-        dirty = true;
-        ledDirty = true;
-        announce(stage === 2 ? 'Solo. The pads stay dark.' : 'Guided. The pads light up.');
-      }
+    /* On the ready screen the jog walks the level and Guided or Solo —
+     * never the exercise. */
+    if (next.action === 'ready' && armedId) {
+      readyJog(next.delta);
       return;
     }
     if (next.action !== 'cursor') return;
@@ -2706,6 +2783,8 @@ export function createSession(fx, opts = {}) {
     listening = false;
     nav = [];
     armedId = null;
+    armedPiece = null;
+    armedLevel = 0;
     armedUnit = null;
     checkPhase = null;
     reviewNext = true;
@@ -2908,6 +2987,8 @@ export function createSession(fx, opts = {}) {
     canGoBack,
     screenNow,
     listTitle,
+    levelInfo,
+    armLevel,
     selectProgress,
     settingsRows,
     decorateRow,

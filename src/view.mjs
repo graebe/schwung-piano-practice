@@ -257,6 +257,72 @@ export function drawReadingView(ctx, state) {
  */
 export const READY_BOX = { x: 12, y: 15, w: 104, h: 32 };
 
+/*
+ * The ready screen's box, split: the three controls on the left, the LEVEL
+ * on the right — a big digit, the arrows where the jog can go on, a G or S
+ * beside it for Guided or Solo, and the done mark when that level is learned.
+ *
+ * state.level = { index, stage, levels: [{ step, learned }] } (session
+ * levelInfo); without one the right half is left empty.
+ */
+export const READY_SPLIT_X = READY_BOX.x + 64;
+
+function drawLevelBox(ctx, level) {
+  const b = READY_BOX;
+  const x0 = READY_SPLIT_X + 1;
+  const w = b.x + b.w - x0 - 1;
+  ctx.fillRect(READY_SPLIT_X, b.y + 1, 1, b.h - 2, 1);
+  ctx.text(x0 + 1, b.y + 3, 'LEVEL', 1);
+  const lv = level.levels[level.index];
+  if (lv && lv.learned) R.drawMark(ctx, b.x + b.w - 2 - R.MARK_W, b.y + 2, 'done', 1);
+  const digit = String((lv && lv.step ? lv.step.replace(/\D/g, '') : '') || level.index + 1);
+  const dw = R.bigTextWidth(digit, LEVEL_SCALE);
+  const dx = x0 + ((w - dw) >> 1);
+  const dy = b.y + 12;
+  R.drawBigText(ctx, dx, dy, digit, LEVEL_SCALE);
+  const tagY = dy + R.bigDigitHeight(LEVEL_SCALE) - L.TEXT_H + 1;
+  ctx.text(dx + dw + 2, tagY, level.stage === 2 ? 'S' : 'G', 1);
+  const pos = level.index * 2 + level.stage - 1;
+  const ay = dy + ((R.bigDigitHeight(LEVEL_SCALE) - L.TEXT_H) >> 1);
+  if (pos > 0) ctx.text(x0 + 2, ay, '<', 1);
+  if (pos < level.levels.length * 2 - 1) ctx.text(b.x + b.w - 3 - ctx.textWidth('>'), ay, '>', 1);
+}
+
+const LEVEL_SCALE = 3;
+
+/*
+ * The bottom line of the ready screen: the level's name on the left, the
+ * key hint on the right. When the two do not fit side by side the caller
+ * passes one of them at a time (they take turns): `left`, `right`, or both.
+ */
+function drawReadyLine(ctx, state) {
+  ctx.fillRect(0, L.FOOTER_Y - 3, L.SCREEN_W, L.SCREEN_H - L.FOOTER_Y + 3, 0);
+  const y = L.FOOTER_Y - 2;
+  if (state.footerLeft) ctx.text(1, y, truncate(ctx, state.footerLeft, L.TEXT_MAX_PX), 1);
+  if (state.footerRight) {
+    const r = truncate(ctx, state.footerRight, L.TEXT_MAX_PX);
+    ctx.text(L.SCREEN_W - 1 - ctx.textWidth(r), y, r, 1);
+  }
+  if (!state.footerLeft && !state.footerRight && state.footer) drawFooterHint(ctx, state.footer);
+}
+
+/*
+ * Which of the bottom line goes where, now: the name on the left and the
+ * key hint's part on the right when every part fits beside it; otherwise the
+ * name takes a turn of its own among the parts (3 s each, as hints do).
+ * Returns { footerLeft, footerRight } or { footer }, and how many turns.
+ */
+export const READY_TURN_MS = 3000;
+
+export function readyLine(name, parts, now, widthOf) {
+  const fits = Boolean(name) && parts.every((p) => widthOf(name) + 6 + widthOf(p) <= L.TEXT_MAX_PX);
+  const turns = name && !fits ? [null].concat(parts) : parts;
+  const part = turns.length ? turns[Math.floor(Math.max(0, now) / READY_TURN_MS) % turns.length] : '';
+  if (!name) return { footer: part || '', turns: turns.length };
+  if (fits) return { footerLeft: name, footerRight: part, turns: turns.length };
+  return part === null ? { footerLeft: name, turns: turns.length } : { footerRight: part, turns: turns.length };
+}
+
 export function drawReadyView(ctx, state) {
   drawReadingView(ctx, {
     ...state,
@@ -270,40 +336,34 @@ export function drawReadyView(ctx, state) {
    * THE BOX GETS OUT OF THE WAY ONCE YOU LEAVE THE START. It is an overlay
    * across the middle of the staff, so it covers exactly the music you are
    * scrubbing through; keeping it up would defeat the scrubbing. It comes back
-   * when you scroll home, which is also the only way to find it again.
+   * when you scroll home, which is also the only way to find it again. The
+   * bottom line stays: the level, and the keys.
    */
-  if ((state.songBeats || 0) > 0) return ctx;
+  if ((state.songBeats || 0) <= 0) {
+    const b = READY_BOX;
+    ctx.fillRect(b.x, b.y, b.w, b.h, 0);
+    ctx.drawRect(b.x, b.y, b.w, b.h, 1);
 
-  const b = READY_BOX;
-  ctx.fillRect(b.x, b.y, b.w, b.h, 0);
-  ctx.drawRect(b.x, b.y, b.w, b.h, 1);
+    /* Three controls, three symbols, three words, in the left 64 px. Which
+     * one does what is the thing that has to be readable without being
+     * learned — and the knob was the one you could only find by turning it. */
+    const gh = 7;
+    const gx = b.x + 3;
+    const tx = gx + 11;
+    R.drawPlayGlyph(ctx, gx, b.y + 4, gh);
+    ctx.text(tx, b.y + 4, state.playLabel || 'listen', 1);
+    R.drawRecordGlyph(ctx, gx, b.y + 13, gh);
+    ctx.text(tx, b.y + 13, state.recLabel || 'practise', 1);
+    R.drawScrubGlyph(ctx, gx, b.y + 22);
+    ctx.text(tx, b.y + 22, state.scrubLabel || 'scrub', 1);
 
-  /* Three controls, three symbols, three words. Which one does what is the
-   * thing that has to be readable without being learned — and the knob was the
-   * one you could only find by turning it. */
-  const gh = 7;
-  const gx = b.x + 6;
-  const tx = gx + 12;
-
-  R.drawPlayGlyph(ctx, gx, b.y + 4, gh);
-  ctx.text(tx, b.y + 4, state.playLabel || 'PLAY  listen', 1);
-
-  R.drawRecordGlyph(ctx, gx, b.y + 13, gh);
-  ctx.text(tx, b.y + 13, state.recLabel || 'REC   practice', 1);
-
-  R.drawScrubGlyph(ctx, gx, b.y + 22);
-  ctx.text(tx, b.y + 22, state.scrubLabel || 'SCRUB view', 1);
+    if (state.level) drawLevelBox(ctx, state.level);
+  }
 
   /* Where the notes are going is in the header (rightLabel, above), on the one
    * screen you always pass through: a silent channel mismatch is otherwise
    * indistinguishable from broken. */
-
-  /* Replace the progress bar with the one thing here you cannot discover by
-   * trying it: turning the jog swaps exercise and shows you it did, but
-   * nothing hints that Shift is involved in anything. 21 characters at the
-   * 6px advance is 125px, so it just fits the width. */
-  ctx.fillRect(0, L.FOOTER_Y - 3, L.SCREEN_W, L.SCREEN_H - L.FOOTER_Y + 3, 0);
-  if (state.footer) drawFooterHint(ctx, state.footer);
+  drawReadyLine(ctx, state);
   return ctx;
 }
 

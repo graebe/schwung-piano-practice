@@ -521,8 +521,8 @@ test('the ready prompt names both modes, with a symbol for each', () => {
 
   /* A triangle on the first line and a disc on the second, each in the glyph
    * column, so the two buttons are told apart before any word is read. */
-  assert.ok(countOn(c, b.x + 4, b.y + 3, 10, 9) > 12, 'no play symbol');
-  assert.ok(countOn(c, b.x + 4, b.y + 14, 10, 9) > 12, 'no record symbol');
+  assert.ok(countOn(c, b.x + 2, b.y + 3, 10, 9) > 12, 'no play symbol');
+  assert.ok(countOn(c, b.x + 2, b.y + 14, 10, 9) > 12, 'no record symbol');
   /* Both lines carry a label. */
   assert.ok(countOn(c, b.x + 16, b.y + 3, 80, 8) > 30, 'no label on the play line');
   assert.ok(countOn(c, b.x + 16, b.y + 14, 80, 8) > 30, 'no label on the record line');
@@ -1570,18 +1570,56 @@ test('a list row carries its mark, and the mark inverts with the highlight', () 
   assert.ok(countOn(c, 90, 10, 38, 8) < countOn(plain, 90, 10, 38, 8), 'mark not inverted');
 });
 
-test('the ready screen names the stage, and only when asked to', () => {
+const LEVELS4 = {
+  index: 1, stage: 2, ladder: true, name: 'L1 LH bass  Solo',
+  levels: [{ step: 'L1', learned: true }, { step: 'L1', learned: true }, { step: 'L2' }, { step: 'L3' }],
+};
+
+test('the ready screen\'s bottom line: the level on the left, the keys on the right', () => {
   const run = createRun(chart);
-  const part = READY_HINT.find((p) => /Guided: pads lit/.test(p));
-  const staged = createScreen();
-  V.drawReadyView(staged, { chart, run, songBeats: 0, pxPerBeat: 24, footer: part });
-  const expected = blank();
-  V.drawFooterHint(expected, part);
-  for (let y = L.FOOTER_Y - 2; y < H; y++) {
-    for (let x = 0; x < W; x++) assert.equal(isOn(staged, x, y), isOn(expected, x, y), `${x},${y}`);
-  }
-  assert.notDeepEqual(hintFor('ready', { stages: true, stage: 1 }), hintFor('ready', { stages: true, stage: 2 }));
-  assert.ok(!hintFor('ready', { stages: false }).some((p) => /Guided/.test(p)));
+  const w = (s) => createScreen().textWidth(s);
+  const both = V.readyLine('Solo', ['JOG Guided'], 0, w);
+  assert.deepEqual(both, { footerLeft: 'Solo', footerRight: 'JOG Guided', turns: 1 });
+  const turns = V.readyLine('L2 RH chords  Solo', ['JOG level', 'REC start'], 0, w);
+  assert.deepEqual(turns, { footerLeft: 'L2 RH chords  Solo', turns: 3 }, 'too long for both: the name takes a turn');
+  assert.deepEqual(V.readyLine('L2 RH chords  Solo', ['JOG level', 'REC start'], 3000, w), { footerRight: 'JOG level', turns: 3 });
+  assert.deepEqual(V.readyLine('', ['SHIFT: BACK quit'], 0, w), { footer: 'SHIFT: BACK quit', turns: 1 });
+  const c = createScreen();
+  V.drawReadyView(c, { chart, run, songBeats: 0, pxPerBeat: 24, ...both });
+  assert.ok(countOn(c, 0, L.FOOTER_Y - 2, 30, 8) > 10, 'the name, on the left');
+  assert.ok(countOn(c, 80, L.FOOTER_Y - 2, 48, 8) > 10, 'the keys, on the right');
+});
+
+test('the LEVEL box: a big digit, its G or S, arrows only where the jog goes on, a mark when learned', () => {
+  const run = createRun(chart);
+  const draw = (level) => {
+    const c = createScreen();
+    V.drawReadyView(c, { chart, run, songBeats: 0, pxPerBeat: 24, level });
+    return c;
+  };
+  const b = V.READY_BOX;
+  const right = (c) => countOn(c, V.READY_SPLIT_X + 1, b.y + 1, b.x + b.w - V.READY_SPLIT_X - 2, b.h - 2);
+  const mid = draw(LEVELS4);
+  const first = draw({ ...LEVELS4, index: 0, stage: 1 });
+  const last = draw({ ...LEVELS4, index: 3, stage: 2 });
+  assert.ok(right(mid) > 60, 'LEVEL, the digit, the tag');
+  const leftArrow = (c) => countOn(c, V.READY_SPLIT_X + 2, b.y + 15, 6, 8);
+  const rightArrow = (c) => countOn(c, b.x + b.w - 9, b.y + 15, 6, 8);
+  assert.ok(leftArrow(mid) > 0 && rightArrow(mid) > 0, 'both ways open in the middle');
+  assert.equal(leftArrow(first), 0, 'nothing before 1 Guided');
+  assert.equal(rightArrow(last), 0, 'nothing after the last Solo');
+  const mark = (c) => countOn(c, b.x + b.w - 7, b.y + 2, 5, 5);
+  assert.ok(mark(mid) > 0, 'a learned level is marked');
+  assert.equal(mark(last), 0);
+  /* The music stays in view above and below the box. */
+  assert.ok(countOn(mid, 0, L.STAFF_TOP_Y, b.x, L.STAFF_BOTTOM_Y - L.STAFF_TOP_Y) > 0, 'the staff left of the box');
+  /* Scrubbed away, the box steps aside; the bottom line stays. */
+  const scrubbed = createScreen();
+  V.drawReadyView(scrubbed, { chart, run, songBeats: 4, pxPerBeat: 24, level: LEVELS4, footerLeft: 'L1 LH bass  Solo' });
+  const split = (c) => countOn(c, V.READY_SPLIT_X, b.y + 1, 1, b.h - 2);
+  assert.equal(split(mid), b.h - 2, 'the box splits at 64 px');
+  assert.ok(split(scrubbed) < 10, 'gone once scrubbed: only the staff lines cross there');
+  assert.ok(countOn(scrubbed, 0, L.FOOTER_Y - 2, 100, 8) > 20);
 });
 
 test('four answers or fewer list each with the colour of its pad', () => {
