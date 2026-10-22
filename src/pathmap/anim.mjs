@@ -13,13 +13,15 @@
  * preview.
  *
  *   flagRise   400 ms  over the map: the place's flag climbs its pole
- *   fireworks  900 ms  over the map: three bursts round a point
+ *   fireworks  900 ms  over the map: three bold bursts round a point
  *   zoomIn     350 ms  the whole map area: an island grows from its cell to
  *   zoomOut            the map in whole-pixel scales 1, 2, 3, in a frame
  *                      that opens to 128x44 (zoomOut is the same, backwards)
  *   starBurst  600 ms  over any screen: rays round a point (a big score)
- *   finale    2500 ms  the whole map: every flag waves, fireworks over
- *                      every island in turn
+ *   finale    2500 ms  the whole map: every flag waves, bursts climb over
+ *                      every island and the sky between
+ *   banner    1200 ms  over the map: a strip with a few words slides in,
+ *                      holds, and slides out
  *
  * Overlays clip to the map area (starBurst to the screen), so none draws over
  * the title bar or the hint line it was not given. Every frame stays well
@@ -88,37 +90,76 @@ export function flagRise(ctx, { layout, index, place }, t) {
 }
 
 /* ---- Fireworks ----------------------------------------------------------- */
+/*
+ * A burst, bold enough to read as a celebration at 1 bit: a solid flash at
+ * its centre, then eight rays -- solid 3 px streaks -- flying out to r 13,
+ * then sparks falling from where the rays ended, twinkling as they go.
+ * Horizontal and vertical streaks are one rect each, diagonals one line.
+ */
+const BURST_MS = 450;
+const BURSTS = [0, 220, 440];
+const BURST_R = 13;
+const DIRS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
 
-const BURST_MS = 400;
-const BURSTS = [0, 250, 500];
-
-/* One burst of twelve rays from (bx, by), `u` of its way through. */
-function burst(ctx, bx, by, u, turn, t) {
-  const r = 1 + 9 * easeOut(u);
-  for (let k = 0; k < 12; k++) {
-    const a = (k / 12 + turn) * Math.PI * 2;
-    const cx = Math.cos(a);
-    const cy = Math.sin(a);
-    /* Late in the burst the tips twinkle, every other ray in turn. */
-    if (u < 0.6 || (k + Math.floor(t / 60)) % 2 === 0) dot(ctx, bx + Math.round(cx * r), by + Math.round(cy * r));
-    if (u < 0.7) dot(ctx, bx + Math.round(cx * r * 0.5), by + Math.round(cy * r * 0.5));
+function streak(ctx, x0, y0, x1, y1) {
+  if (x0 === x1 || y0 === y1) {
+    ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0) + 1, Math.abs(y1 - y0) + 1, 1);
+  } else {
+    ctx.line(x0, y0, x1, y1, 1);
   }
 }
 
-/* Keep a burst's 10 px of rays inside the map area. */
+/* One burst at (bx, by), `u` of its way through. */
+function burst(ctx, bx, by, u, t) {
+  if (u < 0.18) {
+    /* The flash: a bright star that swells, then gives way to the rays. */
+    const k = u < 0.09 ? 2 : 3;
+    ctx.fillRect(bx - k, by, 2 * k + 1, 1, 1);
+    ctx.fillRect(bx, by - k, 1, 2 * k + 1, 1);
+    ctx.fillRect(bx - 1, by - 1, 3, 3, 1);
+    if (k === 3) for (const [dx, dy] of DIRS) if (dx && dy) dot(ctx, bx + dx * 2, by + dy * 2);
+    return;
+  }
+  if (u < 0.72) {
+    const v = easeOut((u - 0.18) / 0.54);
+    const outer = Math.round(4 + (BURST_R - 4) * v);
+    for (const [dx, dy] of DIRS) {
+      /* Diagonals step one pixel per axis, so they reach as far by eye. */
+      const diag = dx && dy;
+      const d = diag ? Math.round(outer * 0.72) : outer;
+      const len = diag ? 3 : 4;
+      const from = Math.max(1, d - len + 1);
+      streak(ctx, bx + dx * from, by + dy * from, bx + dx * d, by + dy * d);
+      /* A spark trailing the streak. */
+      if (from > 2) dot(ctx, bx + dx * (from - 2), by + dy * (from - 2));
+    }
+    return;
+  }
+  /* Sparks fall from the tips, every other one lit in turn. */
+  const fall = Math.round(((u - 0.72) / 0.28) * 5);
+  for (let i = 0; i < DIRS.length; i++) {
+    if ((i + Math.floor(t / 70)) % 2) continue;
+    const [dx, dy] = DIRS[i];
+    const d = dx && dy ? Math.round(BURST_R * 0.72) : BURST_R;
+    dot(ctx, bx + dx * d, by + dy * d + fall);
+    dot(ctx, bx + dx * d, by + dy * d + fall + 2);
+  }
+}
+
+/* Keep a burst's rays inside the map area (its falling sparks are clipped). */
 const fit = (x, y) => [
-  Math.min(MAP_X + MAP_W - 11, Math.max(MAP_X + 10, x)),
-  Math.min(MAP_Y + MAP_H - 11, Math.max(MAP_Y + 10, y)),
+  Math.min(MAP_X + MAP_W - BURST_R - 2, Math.max(MAP_X + BURST_R + 1, x)),
+  Math.min(MAP_Y + MAP_H - BURST_R - 2, Math.max(MAP_Y + BURST_R + 1, y)),
 ];
 
-/* args = { x, y, seed }: three bursts in turn, scattered round (x, y). */
+/* args = { x, y, seed }: three bursts in turn, scattered round (x, y). Draw
+ * the map under them with { route: false }. */
 export function fireworks(ctx, { x, y, seed = 1 }, t) {
   const rand = rng(seed);
   for (let i = 0; i < BURSTS.length; i++) {
-    const [bx, by] = fit(x + Math.round(rand() * 16 - 8), y - 4 + Math.round(rand() * 6 - 3));
-    const turn = rand() < 0.5 ? 0 : 1 / 24;
+    const [bx, by] = fit(x + Math.round(rand() * 24 - 12), y + Math.round(rand() * 8 - 4));
     const u = (t - BURSTS[i]) / BURST_MS;
-    if (u >= 0 && u <= 1) burst(ctx, bx, by, u, turn, t);
+    if (u >= 0 && u <= 1) burst(ctx, bx, by, u, t);
   }
 }
 
@@ -203,13 +244,31 @@ export function starBurst(ctx, { x, y, r, seed = 1 }, t) {
 /* ---- Finale -------------------------------------------------------------- */
 
 const WAVE_MS = 150;
-const FINALE_FIRST = 600;
-const FINALE_STEP = 220;
+const FINALE_FIRST = 400;
 
 /*
- * args = { layout, places, seed }: the world map, every flag waving, and a
- * burst of fireworks over each island in turn. Draws the whole map (without
- * the route) itself.
+ * A pennant's flapping frame: its tip dropped a row and stretched a pixel,
+ * so against the still frame the flag visibly waves.
+ */
+function flap(ctx, f, x, y) {
+  const xs = f.pennant.map(([px]) => px);
+  const px = Math.min(...xs);
+  const right = px > f.x;
+  ctx.fillRect(x + px, y, 3, 2, 0);
+  if (right) {
+    ctx.fillRect(x + px, y, 2, 1, 1);
+    ctx.fillRect(x + px + 1, y + 1, 3, 1, 1);
+  } else {
+    ctx.fillRect(x + px + 1, y, 2, 1, 1);
+    ctx.fillRect(x + px - 1, y + 1, 3, 1, 1);
+  }
+}
+
+/*
+ * args = { layout, places, seed }: the whole sky goes up. Every flag waves,
+ * and bold bursts climb across the map -- one over each island in turn and
+ * one between, somewhere in the open sky. Draws the map (without the
+ * route) itself.
  */
 export function finale(ctx, { layout, places, seed = 1 }, t) {
   const tt = Math.min(FINALE_MS, Math.max(0, t));
@@ -217,26 +276,84 @@ export function finale(ctx, { layout, places, seed = 1 }, t) {
   const island = layout.kind === 'island';
   const flutter = Math.floor(tt / WAVE_MS) % 2 === 1;
   const n = Math.min(places.length, layout.cells.length);
-  const rand = rng(seed);
-  for (let i = 0; i < n; i++) {
-    const r = cellRect(layout.cells[i], layout.kind);
-    const turn = rand() < 0.5 ? 0 : 1 / 24;
-    if (places[i].state === 'done' && flutter) {
-      /* The pennant's other shape: its tip dipping, then lifting again. */
-      const f = flagOf(places[i].kind, island);
-      const xs = f.pennant.map(([x]) => x);
-      const px = Math.min(...xs);
-      const right = px > f.x;
-      ctx.fillRect(r.x + px, r.y, 3, 2, 0);
-      ctx.fillRect(r.x + px + (right ? 0 : 1), r.y, 2, 1, 1);
-      ctx.fillRect(r.x + px + (right ? 1 : 0), r.y + 1, 2, 1, 1);
-    }
-    const u = (tt - FINALE_FIRST - i * FINALE_STEP) / BURST_MS;
-    if (u >= 0 && u <= 1) {
-      const [bx, by] = fit(r.x + 6, r.y + 2);
-      burst(ctx, bx, by, u, turn, tt);
+  if (flutter) {
+    for (let i = 0; i < n; i++) {
+      if (places[i].state !== 'done') continue;
+      const r = cellRect(layout.cells[i], layout.kind);
+      flap(ctx, flagOf(places[i].kind, island), r.x, r.y);
     }
   }
+  const rand = rng(seed);
+  const bursts = 2 * n;
+  for (let k = 0; k < bursts; k++) {
+    const sky = k % 2 === 1;
+    const i = k >> 1;
+    let bx;
+    let by;
+    if (sky) {
+      bx = MAP_X + Math.round(rand() * MAP_W);
+      by = MAP_Y + Math.round(rand() * MAP_H);
+    } else {
+      const r = cellRect(layout.cells[i], layout.kind);
+      bx = r.x + 7;
+      by = r.y + 2;
+    }
+    /* Evenly in turn, the last one done as the finale ends. */
+    const start = FINALE_FIRST + (bursts > 1 ? (k * (FINALE_MS - BURST_MS - FINALE_FIRST)) / (bursts - 1) : 0);
+    const u = (tt - start) / BURST_MS;
+    if (u >= 0 && u <= 1) {
+      const [fx, fy] = fit(bx, by);
+      burst(ctx, fx, fy, u, tt);
+    }
+  }
+}
+
+/* ---- Banner -------------------------------------------------------------- */
+
+export const BANNER_MS = 1200;
+const BANNER_SLIDE = 260;
+
+/* The text in one line if it fits, else in two, split at the space nearest
+ * the middle. */
+function bannerLines(ctx, text) {
+  if (ctx.textWidth(text) <= MAP_W - 6) return [text];
+  const mid = text.length / 2;
+  let at = -1;
+  for (let i = 0; i < text.length; i++) if (text[i] === ' ' && (at < 0 || Math.abs(i - mid) < Math.abs(at - mid))) at = i;
+  return at < 0 ? [text] : [text.slice(0, at), text.slice(at + 1)];
+}
+
+/*
+ * args = { text }: a strip across the middle of the map area, lit, the text
+ * cut out of it ("STAGE COMPLETE", "CHECKPOINT PASSED", "LEARNING PATH
+ * COMPLETE"). It slides in from the left, holds, and slides out to the right.
+ * 11 px high, 19 for a text that needs two lines.
+ */
+export function banner(ctx, { text }, t) {
+  const tt = Math.min(BANNER_MS, Math.max(0, t));
+  let x;
+  if (tt < BANNER_SLIDE) x = -MAP_W + Math.round(MAP_W * easeOut(tt / BANNER_SLIDE));
+  else if (tt > BANNER_MS - BANNER_SLIDE) {
+    const u = (tt - (BANNER_MS - BANNER_SLIDE)) / BANNER_SLIDE;
+    x = Math.round(MAP_W * u * u);
+  } else x = 0;
+  if (x <= -MAP_W || x >= MAP_W) return;
+  const lines = bannerLines(ctx, String(text || ''));
+  const h = lines.length === 1 ? 11 : 19;
+  const y = MAP_Y + ((MAP_H - h) >> 1);
+  const left = Math.max(MAP_X, MAP_X + x);
+  const right = Math.min(MAP_X + MAP_W, MAP_X + x + MAP_W);
+  /* The strip, and a rule a pixel above and below it, like a ribbon. */
+  ctx.fillRect(left, y - 2, right - left, 1, 1);
+  ctx.fillRect(left, y - 1, right - left, h + 2, 0);
+  ctx.fillRect(left, y, right - left, h, 1);
+  ctx.fillRect(left, y + h + 1, right - left, 1, 1);
+  lines.forEach((line, k) => {
+    const w = ctx.textWidth(line);
+    const tx = MAP_X + x + ((MAP_W - w) >> 1);
+    /* The words ride the strip, shown once they are wholly on screen. */
+    if (tx >= MAP_X && tx + w <= MAP_X + MAP_W) ctx.text(tx, y + 2 + k * 8, line, 0);
+  });
 }
 
 /* ---- Registry ------------------------------------------------------------ */
@@ -249,6 +366,7 @@ export const ANIMS = Object.freeze({
   zoomOut: Object.freeze({ ms: ZOOM_MS, draw: zoomOut }),
   star: Object.freeze({ ms: STAR_MS, draw: starBurst }),
   finale: Object.freeze({ ms: FINALE_MS, draw: finale }),
+  banner: Object.freeze({ ms: BANNER_MS, draw: banner }),
 });
 
 /* ---- LEDs ---------------------------------------------------------------- */

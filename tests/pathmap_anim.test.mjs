@@ -12,8 +12,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  ANIMS, FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS, SWEEP_MS,
-  flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, sweepColors, sparkleColors, rng,
+  ANIMS, FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS, SWEEP_MS, BANNER_MS,
+  flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, banner, sweepColors, sparkleColors, rng,
 } from '../src/pathmap/anim.mjs';
 import { layoutPlaces, cellRect, MAP_X, MAP_Y, MAP_W, MAP_H } from '../src/pathmap/layout.mjs';
 import { drawMap, placeGlyph, GLYPH_W, GLYPH_H } from '../src/pathmap/render.mjs';
@@ -54,7 +54,12 @@ function screen(fill = 0) {
         if (e2 <= dx) { err += dx; y0 += sy; }
       }
     },
-    text() { this.calls++; },
+    text(x, y, s, v) {
+      this.calls++;
+      (this.texts = this.texts || []).push({ x, y, s, v });
+      /* A 5x7 block per character stands in for the font. */
+      for (let i = 0; i < s.length; i++) for (let yy = 0; yy < 7; yy++) for (let xx = 0; xx < 5; xx++) set(x + i * 6 + xx, y + yy, v);
+    },
     textWidth(s) { return s.length * 6 - 1; },
     on(x, y) { return x >= 0 && y >= 0 && x < 128 && y < 64 && px[y * 128 + x] === 1; },
     count() { return px.reduce((a, b) => a + b, 0); },
@@ -84,12 +89,13 @@ const CASES = {
   zoomOut: (t, c) => zoomOut(c, { cell: WL.cells[0], place: worldPlaces()[0] }, t),
   star: (t, c) => starBurst(c, { x: 64, y: 31, r: 11, seed: 2 }, t),
   finale: (t, c) => finale(c, { layout: WL, places: worldPlaces(), seed: 4 }, t),
+  banner: (t, c) => banner(c, { text: 'STAGE COMPLETE' }, t),
 };
 
 test('every animation has its length, and the registry names them all', () => {
-  assert.deepEqual([FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS], [400, 900, 350, 600, 2500]);
-  assert.deepEqual(Object.keys(ANIMS), ['flag', 'fireworks', 'zoomIn', 'zoomOut', 'star', 'finale']);
-  assert.deepEqual(Object.values(ANIMS).map((a) => a.ms), [400, 900, 350, 350, 600, 2500]);
+  assert.deepEqual([FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS, BANNER_MS], [400, 900, 350, 600, 2500, 1200]);
+  assert.deepEqual(Object.keys(ANIMS), ['flag', 'fireworks', 'zoomIn', 'zoomOut', 'star', 'finale', 'banner']);
+  assert.deepEqual(Object.values(ANIMS).map((a) => a.ms), [400, 900, 350, 350, 600, 2500, 1200]);
   for (const a of Object.values(ANIMS)) assert.equal(typeof a.draw, 'function');
   assert.ok(Object.isFrozen(ANIMS));
 });
@@ -256,27 +262,92 @@ test('the star: rays out and back, sparks between, none at the ends', () => {
   assert.ok(!edge.outside(0, 0, 128, 64));
 });
 
-test('the finale: every flag waves, and fireworks go up over each island in turn', () => {
+test('the finale: every flag waves, and bold bursts go up over every island and the sky', () => {
   const at = (t) => {
     const c = screen();
     finale(c, { layout: WL, places: worldPlaces(), seed: 4 }, t);
     return c;
   };
-  assert.notEqual(at(0).key(), at(150).key(), 'the flags flutter');
-  assert.equal(at(0).key(), at(300).key(), 'and flutter back');
-  /* Island i's burst is near island i, at its turn. */
-  for (const i of [0, 3, 6]) {
-    const t = 600 + i * 220 + 200;
-    const c = at(t);
-    const base = at(Math.floor(t / 300) * 300 + (Math.floor(t / 150) % 2 ? 150 : 0));
+  const still = at(0);
+  const flapping = at(150);
+  assert.notEqual(still.key(), flapping.key(), 'the flags flap');
+  assert.equal(still.key(), at(300).key(), 'and flap back');
+  /* The flapping frame differs at every flag, not just one. */
+  for (const cell of WL.cells) {
+    const r = cellRect(cell);
+    let diff = 0;
+    for (let y = r.y; y < r.y + 3; y++) for (let x = r.x; x < r.x + 9; x++) diff += still.on(x, y) !== flapping.on(x, y) ? 1 : 0;
+    assert.ok(diff >= 2, `flag at ${cell.col},${cell.row} waves`);
+  }
+  /* Over the finale every island gets a burst near it. */
+  const base = (t) => at(Math.floor(t / 150) % 2 ? 150 : 0);
+  for (let i = 0; i < WL.cells.length; i++) {
     const r = cellRect(WL.cells[i]);
     let near = 0;
-    for (let y = r.y - 12; y < r.y + 14; y++) {
-      for (let x = r.x - 6; x < r.x + 22; x++) if (c.on(x, y) && !base.on(x, y)) near++;
+    for (let t = 0; t <= FINALE_MS && !near; t += 25) {
+      const c = at(t);
+      const b = base(t);
+      for (let y = r.y - 14; y < r.y + 16; y++) {
+        for (let x = r.x - 10; x < r.x + 26; x++) if (c.on(x, y) && !b.on(x, y)) near++;
+      }
     }
-    assert.ok(near > 0, `fireworks over island ${i}`);
+    assert.ok(near > 0, `a burst over island ${i}`);
   }
+  /* Bold: at its widest a burst lights solid streaks, not single dots. */
+  const c = screen();
+  fireworks(c, { x: 64, y: 31, seed: 1 }, 270);
+  let streaks = 0;
+  for (let y = 10; y < 54; y++) for (let x = 0; x < 127; x++) if (c.on(x, y) && c.on(x + 1, y) && c.on(x + 2, y)) streaks++;
+  assert.ok(streaks >= 2, 'horizontal streaks of three pixels or more');
   assert.equal(at(FINALE_MS).key(), at(FINALE_MS + 1000).key());
+  /* On an island its buildings' flags -- some flying left -- wave too, in bounds. */
+  const isle = (t) => {
+    const c = screen();
+    finale(c, { layout: IL, places: islePlaces(), seed: 2 }, t);
+    return c;
+  };
+  assert.notEqual(isle(0).key(), isle(150).key());
+  assert.ok(!isle(150).outside(MAP_X, MAP_Y, MAP_X + MAP_W, MAP_Y + MAP_H));
+});
+
+test('the banner slides in, holds its words, and slides out', () => {
+  const at = (t, text = 'STAGE COMPLETE') => {
+    const c = screen();
+    banner(c, { text }, t);
+    return c;
+  };
+  assert.equal(at(0).count(), 0, 'not yet on screen');
+  assert.equal(at(BANNER_MS).count(), 0, 'gone at the end');
+  /* Sliding in from the left: its right edge moves right. */
+  const edge = (c) => {
+    let x = -1;
+    for (let i = 0; i < 128; i++) if (c.on(i, 31)) x = i;
+    return x;
+  };
+  assert.ok(edge(at(60)) < edge(at(150)), 'sliding in');
+  /* Held: a lit strip across the map, 11 px high, the words cut out of it, centred. */
+  const held = at(BANNER_MS / 2);
+  assert.ok(!held.outside(MAP_X, MAP_Y, MAP_X + MAP_W, MAP_Y + MAP_H));
+  let rows = 0;
+  for (let y = MAP_Y; y < MAP_Y + MAP_H; y++) if (held.on(0, y) && held.on(127, y)) rows++;
+  assert.equal(rows, 11 + 2, 'the strip and its two rules');
+  const [line] = held.texts;
+  assert.equal(line.v, 0, 'the words are cut out of the strip');
+  assert.equal(line.x, (128 - (line.s.length * 6 - 1)) >> 1, 'centred');
+  /* Sliding out to the right: the left edge moves right. */
+  const leftEdge = (c) => {
+    for (let i = 0; i < 128; i++) if (c.on(i, 31)) return i;
+    return 128;
+  };
+  assert.ok(leftEdge(at(1050)) > leftEdge(at(980)), 'sliding out');
+  /* Words too wide for one line take two, and the strip grows to fit. */
+  const long = at(600, 'LEARNING PATH COMPLETE');
+  assert.deepEqual(long.texts.map((t) => t.s), ['LEARNING PATH', 'COMPLETE']);
+  let tall = 0;
+  for (let y = MAP_Y; y < MAP_Y + MAP_H; y++) if (long.on(0, y) && long.on(127, y)) tall++;
+  assert.equal(tall, 19 + 2);
+  assert.deepEqual(at(600, 'ONEVERYLONGWORDWITHNOSPACESATALL').texts?.length ?? 0, 0, 'no space to split: no words that would not fit');
+  assert.equal(at(600, '').texts.length, 1);
 });
 
 test('LEDs: a wave sweeps left to right; sparkles are seeded', () => {
