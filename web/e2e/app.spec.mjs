@@ -58,7 +58,7 @@ test('the Path is five stages, each ending on its Checkpoint; Continue names the
   await expect(page.locator('#quiz-title')).toBeVisible();
 });
 
-test('the options of a row: Test out: checkpoint plays the exam at stage 2', async ({ page }) => {
+test('the options of a row: Test out: checkpoint plays the exam Solo', async ({ page }) => {
   await openPath(page, ['Path']);
   await expect(page.locator('.row.on')).toHaveText(/1 Grid and staff/);
   await page.keyboard.press('Shift+Enter');
@@ -69,7 +69,7 @@ test('the options of a row: Test out: checkpoint plays the exam at stage 2', asy
   await page.locator('.sheet-screen .row', { hasText: 'Test out: checkpoint' }).click();
   await closeInfo(page);
   await expect(page.locator('#piece-title')).toHaveText(/C Major/i);
-  await expect(page.getByRole('button', { name: 'Stage 2 · read' })).toHaveClass(/on/);
+  await expect(page.getByRole('button', { name: 'Solo', exact: true })).toHaveClass(/on/);
 });
 
 test('the Options button opens the sheet for the highlighted row; Close leaves it', async ({ page }) => {
@@ -92,9 +92,9 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
   await openPath(page, SCALE);
   await expect(page.locator('#piece-title')).toHaveText(/C Major/i);
   await expect(page.locator('.staff-wrap svg')).toBeVisible();
-  await page.getByRole('button', { name: 'Stage 2 · read' }).click();
-  await expect(page.getByRole('button', { name: 'Stage 2 · read' })).toHaveClass(/on/);
-  await page.getByRole('button', { name: 'Stage 1 · lit' }).click();
+  await page.getByRole('button', { name: 'Solo', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Solo', exact: true })).toHaveClass(/on/);
+  await page.getByRole('button', { name: 'Guided', exact: true }).click();
   await page.getByRole('button', { name: 'Listen' }).click();
   await expect(page.locator('.count-in')).toBeVisible();
   await expect(page.locator('.kb-key.lit')).toHaveCount(1, { timeout: 6000 });
@@ -304,6 +304,8 @@ test.describe('a first visit', () => {
     await expect(page.locator('#card-title')).toHaveText('Welcome');
     await expect(page.locator('.card-text p').first()).toHaveText(/Piano Practice takes you from your first note to pro/);
     await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.locator('.card-text p').first()).toHaveText('Lit pads can be pressed.');
+    await page.getByRole('button', { name: 'Next' }).click();
     await expect(page.locator('#card-title')).toHaveText('Keys');
     await page.keyboard.press('ArrowDown');
     await expect(page.locator('#card-title')).toHaveText('New to piano?');
@@ -317,8 +319,7 @@ test.describe('a first visit', () => {
   });
 
   test('"From the start" lands on Continue; a first piece shows its tip once', async ({ page }) => {
-    await page.keyboard.press('ArrowDown');
-    await page.keyboard.press('ArrowDown');
+    for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowDown');
     await page.locator('.card-choices .row', { hasText: 'From the start' }).click();
     await expect(page.locator('.row.on')).toHaveText(/^Continue/);
     await openPath(page, SCALE);

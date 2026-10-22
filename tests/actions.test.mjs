@@ -83,8 +83,7 @@ test('options: the sheet, its picks, and the welcome answered from a page', () =
   applyAction(h.session, { type: 'back' });
   const w = fakeHost({ progress: null });
   w.session.init();
-  applyAction(w.session, { type: 'move', delta: 1 });
-  applyAction(w.session, { type: 'move', delta: 1 });
+  for (let i = 0; i < 3; i++) applyAction(w.session, { type: 'move', delta: 1 });
   applyAction(w.session, { type: 'cardPick', index: 0 });
   assert.equal(w.session.view, MENU);
   assert.equal(w.session.nav[0].cursor, 0);

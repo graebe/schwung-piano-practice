@@ -10,13 +10,13 @@ Inside a stage the units run in the order a lesson does: find your way, hear it,
 
 Nothing is locked. Each stage ends with its Checkpoint. SHIFT+CLICK on a stage offers Test out: checkpoint, to show you know it already, and Start the path here, to begin anywhere.
 
-Every playing exercise runs twice: at S1 the pads you need are lit, at S2 you read the staff alone. A quiz has the same two steps: with hints, then without. An exercise is finished when you pass both at 90% or more, and comes back for review after 1, 3, 7, 14 and 30 days.
+Every playing exercise runs twice: Guided, with the pads you need lit, then Solo, reading the staff alone. A quiz has the same two: with hints, then without. An exercise is finished when you pass both at 90% or more, and comes back for review after 1, 3, 7, 14 and 30 days.
 
 ## How the path follows you
 
 Continue, at the top of the list, names and opens the next step of the unit whose skill you practised longest ago, among the units that are ready in your stage. Your stage is the earliest one you have neither finished nor passed the checkpoint of; units left over from an earlier stage stay in the mix. When a review is due, Continue alternates: one review, then one new step.
 
-Test out: checkpoint plays the stage's checkpoint steps at S2. Pass them all and Continue starts at the next stage; the steps you skipped stay open, marked as assumed. Passing the same steps in ordinary practice moves you on too, but keeps the rest of the stage in the mix.
+Test out: checkpoint plays the stage's checkpoint steps Solo. Pass them all and Continue starts at the next stage; the steps you skipped stay open, marked as assumed. Passing the same steps in ordinary practice moves you on too, but keeps the rest of the stage in the mix.
 
 ## Strands
 
@@ -118,7 +118,7 @@ Every unit trains one strand:
 | When the Saints | 104 bpm, but only 19 notes, with long notes and rests. It leaps up to a fifth. | Your first leaps inside a tune, and your first rests: you learn to count through silence instead of rushing on. |
 | Amazing Grace | 3/4, 76 bpm, 16 notes, all white keys. | A first taste of three beats to the bar, slow enough to feel the lilt. Its leaps are the ones you just read. |
 
-**Checkpoint.** Major up & down, Random in key, Ode to Joy, Notes by staff, each passed at S2.
+**Checkpoint.** Major up & down, Random in key, Ode to Joy, Notes by staff, each passed Solo.
 
 ---
 
@@ -206,7 +206,7 @@ Every unit trains one strand:
 | Teardrop | Massive Attack, 77 bpm, a chord every two beats, in A: chords, then both hands. | A track you know, slow and even. Its chords keep A on the bottom while the bass moves A, G, D: voicings Stage 3 explains. |
 | Porcelain | Moby, 95 bpm, half-note chords in three flats: chords, then both hands. | The first track in a flat key. The chords are long and calm, so the key is the only new thing. |
 
-**Checkpoint.** I-V-vi-IV, Ode to Joy, Minor up & down, Name 3rds, each passed at S2.
+**Checkpoint.** I-V-vi-IV, Ode to Joy, Minor up & down, Name 3rds, each passed Solo.
 
 ---
 
@@ -313,7 +313,7 @@ Every unit trains one strand:
 | Brahms' Lullaby | 3/4, G major, 16 bars, leaps of up to an octave: melody, then both hands. | Your longest melody and widest leaps; on the grid an octave is two rows up and two pads right. |
 | Greensleeves | 6/8, A minor with the raised G#: melody, then both hands. | 6/8 is felt in two big beats, each split in three: a new pulse, not just a new number. |
 
-**Checkpoint.** Major inversions, Greensleeves, Random in key, fast, Name to the 5th, each passed at S2.
+**Checkpoint.** Major inversions, Greensleeves, Random in key, fast, Name to the 5th, each passed Solo.
 
 ---
 
@@ -404,7 +404,7 @@ Every unit trains one strand:
 | Digital Love | Daft Punk, 125 bpm, voicings with added and suspended notes: chords, then both hands. | Chords beyond the plain triad in a real track: the bridge to Stage 5's colours. |
 | Blue Monday | New Order, 130 bpm, 64 eighth notes in the left hand. | The left hand as a sequencer: endurance at tempo, and a classic. |
 
-**Checkpoint.** ii-V-I, Minuet in G, Name to the 8ve, 7ths: four types, each passed at S2.
+**Checkpoint.** ii-V-I, Minuet in G, Name to the 8ve, 7ths: four types, each passed Solo.
 
 ---
 

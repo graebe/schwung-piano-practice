@@ -86,8 +86,8 @@ export function AttemptsChart(props) {
     <figure class="chart">
       <figcaption class="t-label">Every attempt</figcaption>
       <div class="chart-legend t-hint" aria-hidden="true">
-        <span><svg width="10" height="10"><circle cx="5" cy="5" r="3.5" class="mark-hollow" /></svg> stage 1, pads lit</span>
-        <span><svg width="10" height="10"><circle cx="5" cy="5" r="4" class="mark-solid" /></svg> stage 2, reading</span>
+        <span><svg width="10" height="10"><circle cx="5" cy="5" r="3.5" class="mark-hollow" /></svg> Guided, pads lit</span>
+        <span><svg width="10" height="10"><circle cx="5" cy="5" r="4" class="mark-solid" /></svg> Solo, reading</span>
         <span><svg width="16" height="10"><line x1="0" x2="16" y1="5" y2="5" class="chart-pass" /></svg> 90% passes</span>
       </div>
       <div class="chart-plot">

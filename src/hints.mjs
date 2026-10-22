@@ -57,7 +57,7 @@ function table(screen, s) {
       return { keys: s.scrolls ? ['JOG scroll', 'CLICK go on'] : ['CLICK go on', 'BACK close'], shift: [QUIT] };
     case READY: {
       const keys = ['REC start', 'PLAY listen'];
-      if (s.stages) keys.push(s.stage === 2 ? 'S2 pads dark' : 'S1 pads lit', s.stage === 2 ? 'JOG S1' : 'JOG S2');
+      if (s.stages) keys.push(s.stage === 2 ? 'Solo: pads dark' : 'Guided: pads lit', s.stage === 2 ? 'JOG Guided' : 'JOG Solo');
       return { keys, shift: ['CLICK settings', QUIT] };
     }
     case RUNNING: {
@@ -67,7 +67,7 @@ function table(screen, s) {
       return { keys: [own + ' pause', 'BACK stop'], shift: ['CLICK settings', QUIT] };
     }
     case SUMMARY: {
-      const keys = [s.twoNext ? 'CLICK S2' : 'CLICK next', 'REC again'];
+      const keys = [s.twoNext ? 'CLICK Solo' : 'CLICK next', 'REC again'];
       if (s.quiz) keys.push('JOG page');
       return { keys, shift: ['CLICK skip', QUIT] };
     }
@@ -110,7 +110,7 @@ function about(screen, s) {
         ? 'A question: pick the answer that fits you. You can change your mind in the settings.'
         : 'A card, shown once. Settings > Help shows the tips and the welcome again.';
     case READY:
-      return 'A piece, armed and waiting. REC plays it and scores you; PLAY lets you listen first. The jog picks S1, with the pads lit, or S2, reading alone.';
+      return 'A piece, armed and waiting. REC plays it and scores you; PLAY lets you listen first. The jog picks Guided, with the pads lit, or Solo, reading alone.';
     case RUNNING:
       return 'The piece is running. Play each note as it reaches the line.';
     case SUMMARY:

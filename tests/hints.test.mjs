@@ -58,7 +58,7 @@ test('the format is KEY verb, two spaces between pairs, in the suggested words',
   for (const view of VIEWS) {
     for (const part of hintFor(view, {})) {
       for (const pair of part.split('  ')) {
-        assert.match(pair, /^((JOG|CLICK|BACK|MENU|SHIFT|PLAY|REC|PAD) |S[12] |PAUSED$|streak )/, `${view}: "${pair}"`);
+        assert.match(pair, /^((JOG|CLICK|BACK|MENU|SHIFT|PLAY|REC|PAD) |Guided: |Solo: |PAUSED$|streak )/, `${view}: "${pair}"`);
       }
     }
   }
@@ -88,6 +88,6 @@ test('parts take turns every three seconds, by the clock', () => {
 test('the help page lists the keys, MENU, and the Shift layer', () => {
   assert.deepEqual(keyLines('menu', { top: true }), ['CLICK open', 'MENU help', 'SHIFT+CLICK options', 'SHIFT+BACK quit']);
   assert.deepEqual(keyLines('info', {}), ['BACK close', 'MENU close', 'SHIFT+BACK quit']);
-  assert.ok(!keyLines('ready', { stages: true }).some((l) => /^S[12] /.test(l)), 'a status is not a key');
+  assert.ok(!keyLines('ready', { stages: true }).some((l) => /^(Guided|Solo):/.test(l)), 'a status is not a key');
   assert.deepEqual(keyLines('nowhere'), []);
 });

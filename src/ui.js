@@ -541,7 +541,7 @@ function draw() {
   const lastResult = S.lastResult;
   if (view === MENU) {
     const top = CAT.navTop(nav);
-    VIEW.drawList(ctx, top.node.label.toUpperCase(), top.node.children, top.cursor, {
+    VIEW.drawList(ctx, S.listTitle().toUpperCase(), top.node.children, top.cursor, {
       footer: footer(),
       centreFooter: true,
       decorate: S.decorateRow,

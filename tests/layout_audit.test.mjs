@@ -213,11 +213,11 @@ const SCREENS = {
   ], 0, {
     footer: hintFor('menu', { top: true })[0], centreFooter: true,
     decorate: (r) => (r.label === 'Continue'
-      ? { label: 'Continue', value: 'Scarborough Fair L3 Both hands', fit: true } : { value: '100% >', mark: 'half' }),
+      ? { label: 'Continue', value: 'Scarborough Fair L3 Both hands', short: '4.5' } : { value: '100% >', mark: 'half' }),
   }),
   'top list, a review due': (c) => V.drawList(c, 'EXERCISE', [{ label: 'Continue' }], 0, {
     footer: hintFor('menu', { top: true, shift: true })[0], centreFooter: true,
-    decorate: () => ({ label: 'Review', value: 'Name chords advanced', fit: true }),
+    decorate: () => ({ label: 'Review', value: 'Name chords advanced', short: '' }),
   }),
   'card, welcome': (c) => card(c, welcomePages()[0], 0, 3, hintFor('card', { pages: 3 })[0]),
   'card, keys': (c) => card(c, welcomePages()[1], 1, 3, hintFor('card', { pages: 3 })[0]),
@@ -413,18 +413,15 @@ test('every option of the sheet fits its row', () => {
   }
 });
 
-test('Continue names its step by whole words, keeping its level', () => {
+test('Continue names its step, or its unit\'s number when the name does not fit', () => {
+  const draw = (value, short) => {
+    const c = probe();
+    V.drawList(c, 'PIANO', [{ label: 'Continue' }], 0, { decorate: () => ({ label: 'Continue', value, short }) });
+    return c.transcript().texts.map((t) => t.s);
+  };
+  assert.ok(draw('Ode to Joy', '1.8').includes('Ode to Joy'), 'whole when it fits');
+  const long = draw('Notes by alphabet', '1.1');
+  assert.ok(long.includes('1.1') && !long.some((t) => /Notes/.test(t)), 'never cut: ' + long);
   const c = createScreen();
-  const room = L.SCREEN_W - 4 - c.textWidth('Continue') - 6;
-  assert.equal(V.fitWords(c, 'Scarborough Fair L3 Both hands', 110), 'Scarborough L3');
-  assert.equal(V.fitWords(c, 'Bach Prelude L3', room), 'Bach L3');
-  assert.equal(V.fitWords(c, 'Notes by alphabet', room), 'Notes by');
-  assert.equal(V.fitWords(c, 'Compare 6ths', room), 'Compare 6ths');
-  assert.equal(V.fitWords(c, 'Greensleeves L3', room), 'Greensleeves', 'no room for both: the name');
-  assert.equal(V.fitWords(c, 'Supercalifragilistic', room).length, 12, 'one word too wide is all that is ever cut');
-  const top = probe();
-  V.drawList(top, 'EXERCISE', [{ label: 'Continue' }], 0, {
-    decorate: () => ({ label: 'Continue', value: 'Ode to Joy melody', fit: true }),
-  });
-  assert.ok(top.transcript().texts.some((t) => t.s === 'Ode to Joy'));
+  assert.equal(V.fitWords(c, 'Scarborough Fair L3 Both hands', 110), 'Scarborough L3', 'a title by whole words');
 });

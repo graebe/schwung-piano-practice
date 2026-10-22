@@ -721,7 +721,11 @@ test('Continue names its step; when a review is due it alternates, review first'
   const h = fakeHost();
   h.session.init();
   const cont = () => h.session.decorateRow(h.session.nav[0].node.children[0]);
-  assert.deepEqual(cont(), { label: 'Continue', value: 'Notes by alphabet', fit: true });
+  assert.deepEqual(cont(), { label: 'Continue', value: 'Notes by alphabet', short: '1.1', title: 'Notes by alphabet' });
+  assert.equal(h.session.listTitle(), 'Notes by alphabet', 'the title spells out what Continue opens');
+  h.session.selectRow(1);
+  assert.equal(h.session.listTitle(), 'Piano', 'elsewhere it is the folder');
+  h.session.selectRow(0);
   assert.deepEqual(h.session.nav[0].node.children[1].children.map((r) => r.label).slice(-1), ['5 Colour'],
     'no Review folder while nothing is due');
   PROG.recordAttempt(h.session.progress, 'song:twinkle/1r', { stage: 1, score: 1, at: WALL0 - 10 * DAY });
@@ -754,6 +758,8 @@ test('the welcome runs on a first launch: From the start lands on Continue', () 
   assert.equal(h.session.card.pages[0].title, 'Welcome');
   assert.deepEqual(h.session.hint(), ['JOG page  CLICK go on']);
   h.session.activate(false);
+  assert.equal(h.session.card.pages[h.session.card.page].title, 'Welcome', 'Lit pads can be pressed');
+  h.session.moveSelection(1);
   assert.equal(h.session.card.pages[h.session.card.page].title, 'Keys');
   h.session.moveSelection(1);
   assert.equal(h.session.card.pages[h.session.card.page].title, 'New to piano?');
@@ -774,8 +780,7 @@ test('I already play opens the Path with a tip on testing out', () => {
   h.session.init();
   h.session.pickCard(1);                         /* not on the choice page yet */
   assert.equal(h.session.card.page, 0);
-  h.session.moveSelection(1);
-  h.session.moveSelection(1);
+  for (let i = 0; i < 3; i++) h.session.moveSelection(1);
   h.session.pickCard(1);
   assert.equal(h.session.view, CARD_VIEW);
   assert.equal(h.session.card.kind, 'tip');
@@ -855,7 +860,7 @@ test('the hint line names the keys of every screen, and the Shift layer while Sh
   openPath(h.session, ['Practice']);
   assert.deepEqual(h.session.hint(), ['CLICK open  BACK up']);
   openPath(h.session, ['Scales', 'Major', 'Up & down']);
-  assert.deepEqual(h.session.hint(), ['REC start', 'PLAY listen', 'S1 pads lit  JOG S2']);
+  assert.deepEqual(h.session.hint(), ['REC start', 'PLAY listen', 'Guided: pads lit', 'JOG Solo']);
   h.session.recordButton();
   assert.deepEqual(h.session.hint(), ['REC pause  BACK stop']);
   h.session.recordButton();

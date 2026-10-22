@@ -81,15 +81,15 @@ wait to the right of the hit line, and nothing moves yet.
   scroll towards the hit line and you play each one as it arrives.
 - **Restart** (Escape while it runs) goes back to the top.
 
-Two stages decide how much help you get:
+**Guided** and **Solo** decide how much help you get:
 
 | | |
 | --- | --- |
-| **Stage 1 · lit** | the next note lights on the keys (an outline) before you need it |
-| **Stage 2 · read** | nothing lights — you read the staff |
+| **Guided** | the next note lights on the keys (an outline) before you need it |
+| **Solo** | nothing lights — you read the staff |
 
-A stage is **passed** at 90%. Pass stage 1 and the lesson shows ◐; pass stage
-2 and it shows ✓.
+Each is **passed** at 90%. Pass Guided and the lesson shows ◐; pass Solo and
+it shows ✓.
 
 ### Playing
 
@@ -130,16 +130,16 @@ tempo it was written at.
 ![A result](media/web-result.png)
 
 A whole run ends on its result: your score, and **every attempt** you have made
-at this piece on a fixed 0–100% scale — hollow points are stage 1, solid points
-stage 2, and the dashed line is the 90% that passes. Hover a point for its
+at this piece on a fixed 0–100% scale — hollow points are Guided, solid points
+Solo, and the dashed line is the 90% that passes. Hover a point for its
 date and tempo; *The numbers* opens them as a table.
 
 | | |
 | --- | --- |
 | **Again** | the same stage again |
 | **Listen** | hear it |
-| **Next** | stage 2 if you have just passed stage 1, otherwise the next step of the Path |
-| **Move on** | count stage 1 as enough (or skip), and go on |
+| **Next** | Solo if you have just passed Guided, otherwise the next step of the Path |
+| **Move on** | count Guided as enough (or skip), and go on |
 
 ## Quizzes
 

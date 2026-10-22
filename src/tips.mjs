@@ -55,10 +55,14 @@ export function welcomePages(name = 'Piano Practice', what = 'piano', first = 'n
     {
       key: WELCOME,
       title: 'Welcome',
-      paragraphs: [
-        para(name + ' takes you from your first ' + first + ' to pro, one step a day.'),
-        para('Lit pads can be pressed.'),
-      ],
+      paragraphs: [para(name + ' takes you from your first ' + first + ' to pro, one step a day.')],
+    },
+    /* A page of its own: a welcome page never scrolls, and the two together
+     * are six lines. */
+    {
+      key: WELCOME,
+      title: 'Welcome',
+      paragraphs: [para('Lit pads can be pressed.')],
     },
     {
       key: WELCOME,

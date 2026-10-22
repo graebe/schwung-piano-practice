@@ -23,7 +23,7 @@ test('the list arrives decorated, with its path and cursor', () => {
   const vm = viewModel(h.session);
   assert.equal(vm.v, VM_VERSION);
   assert.equal(vm.screen, MENU);
-  assert.deepEqual(vm.nav.path, ['Exercise', 'Practice'].slice(-vm.nav.path.length));
+  assert.deepEqual(vm.nav.path, ['Piano', 'Practice'].slice(-vm.nav.path.length));
   assert.equal(vm.nav.title, 'Practice');
   assert.deepEqual(vm.nav.rows.map((r) => r.label), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
   assert.deepEqual(vm.hint, ['CLICK open  BACK up'], 'the footer the Move shows');
@@ -299,8 +299,8 @@ test('the sheet, a card and the settings page are data too', () => {
   assert.equal(vm.screen, 'card');
   assert.deepEqual(vm.card, {
     kind: 'welcome', title: 'Welcome',
-    paragraphs: ['Piano Practice takes you from your first note to pro, one step a day.', 'Lit pads can be pressed.'],
-    lines: false, choices: null, choice: 0, page: 0, pages: 3,
+    paragraphs: ['Piano Practice takes you from your first note to pro, one step a day.'],
+    lines: false, choices: null, choice: 0, page: 0, pages: 4,
   });
   assert.deepEqual(vm.hint, ['JOG page  CLICK go on']);
   h.session.back();

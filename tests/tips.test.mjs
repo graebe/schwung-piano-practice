@@ -10,17 +10,19 @@ import { emptyProgress, tipSeen, markTipSeen, clearTips, parseProgress, serialis
 
 const words = (page) => page.paragraphs.map((p) => p.text).join(' ');
 
-test('the welcome is three pages, in the shared words', () => {
-  const [one, two, three] = welcomePages();
+test('the welcome is four pages, in the shared words', () => {
+  const [one, lit, two, three] = welcomePages();
   assert.equal(one.title, 'Welcome');
-  assert.equal(words(one), 'Piano Practice takes you from your first note to pro, one step a day. Lit pads can be pressed.');
+  assert.equal(words(one), 'Piano Practice takes you from your first note to pro, one step a day.');
+  assert.equal(lit.title, 'Welcome');
+  assert.equal(words(lit), 'Lit pads can be pressed.', 'a page of its own: a welcome page never scrolls');
   assert.equal(two.title, 'Keys');
   assert.ok(two.lines, 'a table: its lines are kept');
   assert.deepEqual(two.paragraphs.map((p) => p.text),
     ['JOG   move', 'CLICK open', 'BACK  up one level', 'MENU  help, anywhere', 'SHIFT+CLICK  options']);
   assert.equal(three.title, 'New to piano?');
   assert.deepEqual(three.choices, ['From the start', 'I already play']);
-  assert.equal(welcomePages('Drums Practice', 'drums', 'beat')[2].title, 'New to drums?');
+  assert.equal(welcomePages('Drums Practice', 'drums', 'beat')[3].title, 'New to drums?');
   assert.match(words(welcomePages('Drums Practice', 'drums', 'beat')[0]), /from your first beat to pro/);
 });
 

@@ -8,12 +8,13 @@ Drums Practice works the same way, so what you learn here carries over.
 ## The first time: the welcome
 
 The first time you open Piano Practice, before you have played anything,
-three short pages greet you. Turn the **jog** to page through them, or
+four short pages greet you. Turn the **jog** to page through them, or
 **click** to go on.
 
 1. **Welcome.** *Piano Practice takes you from your first note to pro,
-   one step a day. Lit pads can be pressed.*
-2. **Keys.** The five things to remember:
+   one step a day.*
+2. **Welcome.** *Lit pads can be pressed.*
+3. **Keys.** The five things to remember:
 
    | Key | Does |
    | --- | --- |
@@ -23,7 +24,7 @@ three short pages greet you. Turn the **jog** to page through them, or
    | **MENU** | help, anywhere |
    | **SHIFT+CLICK** | options |
 
-3. **New to piano?** Turn the jog to your answer and click:
+4. **New to piano?** Turn the jog to your answer and click:
    - **From the start**: the list opens with the cursor on **Continue**,
      which opens your very first step.
    - **I already play**: the **Path** opens, with a tip: *Know a stage
@@ -38,7 +39,8 @@ welcome is skipped.
 ## The top of the list
 
 ```
-Continue   Notes by     your next step, named
+PIANO                   the top of the list
+Continue   1.1          your next step
 Path       >            five stages, a few weeks each
 Practice   >            the free library
 Quiz       >            Ear, Reading, Keys
@@ -51,6 +53,8 @@ opens straight away. **Back** goes up one folder; Back at the top leaves
 the module.
 
 - **Continue** names the step it will open, and opens it with one click.
+  A name too long for the row shows as its unit's number (`1.1`); with
+  the cursor on Continue, the title bar spells it out, `NOTES BY ALPHABET`.
   When a review is due, the row reads **Review** and names the piece that
   is due. Reviews and new steps take turns: one review, then one new step.
 - **Path** is the course, in five stages. Each stage lists its units in
@@ -70,9 +74,10 @@ the module.
   **Practice**, **Sound**, **Pads**, **MIDI**, **Help**. Open a group to
   change its rows: click a row, turn the jog, click again.
 
-A word on *stage*: the Path has five stages, a few weeks each. Every
-exercise also has two steps of its own, **S1** with the pads lit and
-**S2** reading alone. The ready screen shows which one is armed.
+The Path has five **stages**, a few weeks each. Every exercise is played
+two ways: **Guided**, the pad you need lights up, and **Solo**, nothing
+lights up and you read it from the staff. The ready screen shows which one
+is armed; the jog changes it.
 
 ## The hint line
 
@@ -85,7 +90,7 @@ CLICK open  MENU help
 
 When a hint is longer than the line it shows in parts that take turns
 every three seconds, for example `REC start`, then `PLAY listen`, then
-`S1 pads lit  JOG S2` on the ready screen.
+`Guided: pads lit  JOG Solo` on the ready screen.
 
 **Hold SHIFT** and the line shows what Shift does on this screen instead:
 `SHIFT: CLICK options` in the list, `SHIFT: CLICK settings` on a piece,
@@ -113,11 +118,11 @@ that fit the row are offered, always in this order:
 
 | Option | Offered on | Does |
 | --- | --- | --- |
-| **I know this: skip** | a step, or Continue | passes it by; Continue moves on to the step after. After S1 it counts the step as finished at S1 |
+| **I know this: skip** | a step, or Continue | passes it by; Continue moves on to the step after. After Guided it counts the step as finished at Guided |
 | **I know it all: skip** | a stage, a unit, an exercise of several steps | skips everything inside |
 | **Undo skip** | a skipped step, or a folder with skipped steps | takes the skips back |
 | **Start the path here** | a stage | Continue starts at this stage; the stages before it count as known |
-| **Test out: checkpoint** | a stage with a checkpoint | plays its exam at S2. Pass every step and the path moves on to the next stage |
+| **Test out: checkpoint** | a stage with a checkpoint | plays its exam Solo. Pass every step and the path moves on to the next stage |
 | **Settings...** | every row | opens Settings |
 
 **Turn the jog** to choose, **click** to do it, **Back** to close the
@@ -127,7 +132,7 @@ options without doing anything.
 
 1. Open **Path**. The cursor is on **1 Grid and staff**.
 2. **SHIFT + CLICK**, turn to **Test out: checkpoint**, click.
-3. The first checkpoint step opens at S2. Play it through; each pass
+3. The first checkpoint step opens Solo. Play it through; each pass
    opens the next one.
 4. Pass them all and the screen says *Checkpoint 1 passed. The path moves
    on.* Continue now starts in stage 2. The steps you skipped stay open,

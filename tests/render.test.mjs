@@ -692,7 +692,7 @@ test('a card: title, wrapped lines, page count, or a choice', () => {
 test('a value that names something gives way to its label', () => {
   const c = createScreen();
   V.drawList(c, 'X', [{ label: 'Continue' }], 1, {
-    decorate: () => ({ label: 'Continue', value: 'Scarborough Fair L3 Both hands', fit: true }),
+    decorate: () => ({ label: 'Continue', value: 'Scarborough Fair L3 Both hands', short: '4.5' }),
   });
   /* The label stays whole: its first letters are where they always are. */
   const plain = createScreen();
@@ -1572,7 +1572,7 @@ test('a list row carries its mark, and the mark inverts with the highlight', () 
 
 test('the ready screen names the stage, and only when asked to', () => {
   const run = createRun(chart);
-  const part = READY_HINT.find((p) => /S1 pads lit/.test(p));
+  const part = READY_HINT.find((p) => /Guided: pads lit/.test(p));
   const staged = createScreen();
   V.drawReadyView(staged, { chart, run, songBeats: 0, pxPerBeat: 24, footer: part });
   const expected = blank();
@@ -1581,7 +1581,7 @@ test('the ready screen names the stage, and only when asked to', () => {
     for (let x = 0; x < W; x++) assert.equal(isOn(staged, x, y), isOn(expected, x, y), `${x},${y}`);
   }
   assert.notDeepEqual(hintFor('ready', { stages: true, stage: 1 }), hintFor('ready', { stages: true, stage: 2 }));
-  assert.ok(!hintFor('ready', { stages: false }).some((p) => /S1/.test(p)));
+  assert.ok(!hintFor('ready', { stages: false }).some((p) => /Guided/.test(p)));
 });
 
 test('four answers or fewer list each with the colour of its pad', () => {

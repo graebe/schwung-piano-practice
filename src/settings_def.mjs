@@ -86,11 +86,11 @@ export const SETTINGS_DEF = [
    */
   {
     key: 'reference', label: 'Reference', type: 'enum',
-    values: ['stage1', 'on', 'off'], labels: ['stage 1', 'on', 'off'],
+    values: ['stage1', 'on', 'off'], labels: ['guided', 'on', 'off'],
   },
   {
     key: 'names', label: 'Names', type: 'enum',
-    values: ['stage1', 'always', 'off'], labels: ['stage 1', 'always', 'off'],
+    values: ['stage1', 'always', 'off'], labels: ['guided', 'always', 'off'],
   },
   { key: 'refVel', label: 'Ref vol', type: 'int', min: 0, max: 127 },
   {

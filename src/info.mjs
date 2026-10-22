@@ -71,8 +71,9 @@ export const TERMS = {
   slash: ['Slash chord', 'A chord over a bass note that is not its root: D/F# is D major over F#.'],
   hands: ['RH, LH', 'Right hand plays the melody and chords, left hand the bass.'],
   level: ['Level', 'How much of a song you play: L1 one hand\'s line, L2 the chords, L3 both hands.'],
-  stage: ['Stage', 'Two meanings. An exercise has two stages: S1 lights each pad as its note comes, S2 lights nothing and you read. The Path has five stages, each a few weeks of work.'],
-  score: ['Score', 'Notes hit, over the notes in the piece plus wrong presses. 90% passes a stage.'],
+  stage: ['Stage', 'One of the five stages of the Path, a few weeks of work each, ending with its checkpoint.'],
+  guided: ['Guided, Solo', 'Every exercise is played twice. Guided lights the pad you need as its note comes; Solo lights nothing, and you read it from the staff.'],
+  score: ['Score', 'Notes hit, over the notes in the piece plus wrong presses. 90% passes Guided or Solo.'],
   hint: ['Hint', 'REC helps, two presses deep. A hinted answer still counts, and is noted.'],
 };
 
@@ -165,7 +166,7 @@ function scalePage(mode, drill, label) {
   if (drill && SCALE_DRILLS[drill]) sections.push(sec('', SCALE_DRILLS[drill]));
   sections.push(sec(name, (MODE_FEEL[mode] || 'One of Move\'s scales.') +
     ' Steps: ' + stepPattern(intervals) + '. The Key setting picks the root.'));
-  return page('scales', label || name, sections, ['scale', 'tone', 'semitone', 'root', 'stage']);
+  return page('scales', label || name, sections, ['scale', 'tone', 'semitone', 'root', 'guided']);
 }
 
 const FAMILY_TEXT = {
@@ -407,8 +408,8 @@ function songPage(songId, level, env, label) {
   }
   const lv = levelLine(level);
   if (lv) sections.push(lv);
-  sections.push(sec('', 'Every level sits on the same pads, so what you learn at L1 carries to L3. Stage 1 lights the pads, stage 2 is reading alone.'));
-  return page('songs', label || (chart ? chart.name : 'Song'), sections, ['level', 'hands', 'stage', 'score']);
+  sections.push(sec('', 'Every level sits on the same pads, so what you learn at L1 carries to L3. Guided lights the pads, Solo is reading alone.'));
+  return page('songs', label || (chart ? chart.name : 'Song'), sections, ['level', 'hands', 'guided', 'score']);
 }
 
 const FOLDERS = {
@@ -437,9 +438,9 @@ const FOLDERS = {
 
 const KIND_PAGES = {
   continue: ['Continue', 'Names and opens your next step: the next step of the ready unit whose skill you practised longest ago, in your stage. When a review is due it reads Review, and Continue alternates: one review, then one new step.', ['stage']],
-  checkpoint: ['Checkpoint', 'The stage\'s exam: its check steps, played at S2; steps already passed there count. Pass them all and Continue starts at the next stage. The steps you skipped stay open, marked as assumed.', ['stage']],
-  progress: ['Progress', 'Overall and per stage: steps passed over time. Then everything you have played, with a chart of each attempt.', ['stage', 'score']],
-  result: ['Result', 'Your score, and every recent attempt on a fixed 0-100% scale. Hollow points are S1, solid ones S2; the dotted line is 90%. REC again, BACK to the start, CLICK for next.', ['score', 'stage']],
+  checkpoint: ['Checkpoint', 'The stage\'s exam: its check steps, played Solo; steps already passed there count. Pass them all and Continue starts at the next stage. The steps you skipped stay open, marked as assumed.', ['stage']],
+  progress: ['Progress', 'Overall and per stage: steps passed over time. Then everything you have played, with a chart of each attempt.', ['stage', 'guided', 'score']],
+  result: ['Result', 'Your score, and every recent attempt on a fixed 0-100% scale. Hollow points are Guided, solid ones Solo; the dotted line is 90%. REC again, BACK to the start, CLICK for next.', ['score', 'guided']],
   sheet: ['Options', 'What you can do with this row besides opening it: skip what you know, undo a skip, start the path at a stage, test out of a stage at its checkpoint, or go to the settings. Only what applies to the row is offered.', []],
   welcome: ['Welcome', 'The first pages of Piano Practice. BACK skips them; Settings > Help > Welcome again shows them again.', []],
   tip: ['Tip', 'A tip shown the first time this kind of screen appears. Settings > Help > Show tips again shows them all again.', []],
@@ -472,8 +473,8 @@ function programPage(parts, env) {
   if (parts.length === 1) {
     return page('folder:program', 'Path',
       [sec('', PATH_TEXT.intro), sec('', PATH_TEXT.order), sec('', PATH_TEXT.free),
-        sec('Continue', PATH_TEXT.continue), sec('S1 and S2', PATH_TEXT.stages)],
-      ['stage', 'score']);
+        sec('Continue', PATH_TEXT.continue), sec('Guided and Solo', PATH_TEXT.stages)],
+      ['stage', 'guided', 'score']);
   }
   const phase = path(env).find((p) => p.key === parts[1]);
   if (!phase) return null;

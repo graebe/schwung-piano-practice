@@ -404,7 +404,7 @@ test('a song opens its levels, and a level arms', () => {
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   const top = screen();
-  assert.match(top, /EXERCISE/, 'the top of the tree is the exercise list');
+  assert.match(top, /CLICK open  MENU help/, 'the top of the tree: its own hint line');
   for (const row of ['Continue', 'Path', 'Practice']) {
     assert.ok(top.includes(row), `the top list does not show "${row}": ${top}`);
   }
@@ -791,13 +791,13 @@ test('a whole run ends on its result, is saved, and Back starts it again', async
   const result = screen.frame();
   assert.match(result, new RegExp(chart.events.length + ' of ' + chart.events.length + ' hit'),
     'the result names what you hit: ' + result);
-  assert.match(result, /S1 DONE/, 'a perfect stage 1 run passes stage 1');
-  assert.match(result, /CLICK S2  REC again/, 'and offers stage 2 next');
+  assert.match(result, /GUIDED DONE/, 'a perfect Guided run passes Guided');
+  assert.match(result, /CLICK Solo  REC again/, 'and offers Solo next');
   assert.ok(hostCalls.writes.some((p) => p.endsWith('/progress.json')), 'the attempt is saved');
 
   /* Back is another go from the start — now at stage 2 — not the list. */
   screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
-  assert.match(footerParts(screen), /S2 pads dark/, 'Back lands on the ready screen, on the stage you have not passed');
+  assert.match(footerParts(screen), /Solo: pads dark/, 'Back lands on the ready screen, on Solo, not yet passed');
   const list = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
   assert.match(list, /MAJOR/, 'and the press after that is the list');
   assert.match(list, /Up & down/);
@@ -856,7 +856,7 @@ test('Continue names the next step, and the options skip it', () => {
   const screen = capture();
   globalThis.init();
   const top = screen.frame();
-  assert.match(top, /Continue \| Notes by \|/, 'a fresh start begins with 1.1 Find the notes, by whole words: ' + top);
+  assert.match(top, /^NOTES BY ALPHABET \| 1\/6 \| Continue \| 1\.1 \|/, 'a fresh start begins with 1.1 Find the notes: ' + top);
 
   /* Shift + click: the row's options. */
   globalThis.onMidiMessageInternal(CC(SHIFT, 127));
@@ -865,7 +865,7 @@ test('Continue names the next step, and the options skip it', () => {
   assert.match(sheet, /CONTINUE \| 1\/2 \| I know this: skip \| Settings\.\.\./, sheet);
   /* A skip is not practice, so the strand keeps its turn: the step after. */
   const skipped = screen.frame(click);
-  assert.match(skipped, /Continue \| Name notes/, 'the step after the skipped one: ' + skipped);
+  assert.match(skipped, /NAME NOTES \| 1\/6 \| Continue \| Name notes/, 'the step after the skipped one: ' + skipped);
 
   const quiz = screen.frame(click);                     /* Continue */
   assert.match(quiz, /NAME NOTE/, 'the step opens directly: ' + quiz);
@@ -887,7 +887,7 @@ test('a stage lists its units, then its Checkpoint; no control rows among them',
   const steps = screen.frame(click);                    /* 1.3 Major scale */
   assert.match(steps, /Major up & down/);
   screen.frame(click);
-  assert.match(footerParts(screen), /S1 pads lit/);
+  assert.match(footerParts(screen), /Guided: pads lit/);
   screen.restore();
 });
 
@@ -909,7 +909,7 @@ test('Next from a result follows the unit, and Shift moves on', async () => {
   globalThis.onMidiMessageInternal(CC(SHIFT, 0));
   const next = screen.frame();
   assert.match(next, /Major down|C Major/, 'the next step, armed: ' + next);
-  assert.match(footerParts(screen), /S1 pads lit/);
+  assert.match(footerParts(screen), /Guided: pads lit/);
   /* The unit now points past it. */
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   const list = screen.frame();
@@ -935,7 +935,7 @@ test('the progress list opens charts, and the jog walks them', () => {
   const back = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
   assert.match(back, /PROGRESS/);
   const top = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
-  assert.match(top, /EXERCISE/);
+  assert.match(top, /CLICK open  MENU help/);
   screen.restore();
 });
 
@@ -952,7 +952,7 @@ test('Back from a quiz result is a fresh round', () => {
     advanceMs(600);
   }
   const screen = capture();
-  assert.match(footerParts(screen), /CLICK (next|S2)  REC again/, 'the round should be over');
+  assert.match(footerParts(screen), /CLICK (next|Solo)  REC again/, 'the round should be over');
   const after = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
   assert.match(after, /NOTE/, 'a new round of the same drill: ' + after);
   assert.match(after, /0\/20/);
@@ -1086,9 +1086,9 @@ test('Menu opens Info for the highlighted row, and closes back to it', () => {
   const page = screen.frame(MENU_PRESS);
   assert.match(page, /PRACTICE \| INFO/, page);
   assert.match(page, /The top of the/, 'help opens with the screen it was opened on: ' + page);
-  assert.match(screen.frame(MENU_PRESS), /EXERCISE/, 'Menu again closes it');
+  assert.match(screen.frame(MENU_PRESS), /PIANO \| 3\//, 'Menu again closes it');
   screen.frame(MENU_PRESS);
-  assert.match(screen.frame(BACK_PRESS), /EXERCISE \| 3\//, 'so does Back, on the same row');
+  assert.match(screen.frame(BACK_PRESS), /PIANO \| 3\//, 'so does Back, on the same row');
   /* Play and Record start nothing from an Info page. */
   screen.frame(MENU_PRESS);
   globalThis.onMidiMessageInternal(CC(PLAY, 127));

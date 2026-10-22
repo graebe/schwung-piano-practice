@@ -18,7 +18,7 @@ import { keyboardRange } from './feedback.js';
 import { MODES } from '../../../src/generator.mjs';
 
 const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
-const MARK_INFO = { done: 'both stages passed', half: 'stage 1 passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a stage you skipped' };
+const MARK_INFO = { done: 'both stages passed', half: 'Guided passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a stage you skipped' };
 
 /* The playhead, every animation frame while the music moves; still otherwise. */
 function createFrameClock(store) {
@@ -103,10 +103,10 @@ export function PracticeView(props) {
         </div>
         <Show when={vm().armed}>
           <div class="segmented" role="radiogroup" aria-label="Stage">
-            <Button on={vm().armed.stage === 1} info="Stage 1 — the next notes light on the keys and pads"
-                    onClick={() => props.dispatch({ type: 'stage', stage: 1 })}>Stage 1 · lit</Button>
-            <Button on={vm().armed.stage === 2} info="Stage 2 — nothing lights: reading alone"
-                    onClick={() => props.dispatch({ type: 'stage', stage: 2 })}>Stage 2 · read</Button>
+            <Button on={vm().armed.stage === 1} info="Guided — the next notes light on the keys and pads"
+                    onClick={() => props.dispatch({ type: 'stage', stage: 1 })}>Guided</Button>
+            <Button on={vm().armed.stage === 2} info="Solo — nothing lights: read it from the staff"
+                    onClick={() => props.dispatch({ type: 'stage', stage: 2 })}>Solo</Button>
           </div>
         </Show>
       </header>
@@ -129,7 +129,7 @@ export function PracticeView(props) {
           <div class="staff-badge t-label">Paused</div>
         </Show>
         <Show when={vm().clock.blocked}>
-          {/* Stage 1 lights it; stage 2 names it only once it has waited. */}
+          {/* Guided lights it; Solo names it only once it has waited. */}
           <div class="staff-badge t-label">
             {vm().armed && vm().armed.stage === 2
               ? (vm().stuckName ? `Waiting for ${vm().stuckName}` : 'Waiting')
@@ -309,7 +309,7 @@ export function QuizView(props) {
 
 export function ResultView(props) {
   const r = () => props.vm().result;
-  const passed = () => (r().passed === 2 ? 'Finished ✓' : r().passed === 1 ? 'Stage 1 passed ◐' : '');
+  const passed = () => (r().passed === 2 ? 'Finished ✓' : r().passed === 1 ? 'Guided passed ◐' : '');
   return (
     <Show when={r()}>
       <section class="screen result-screen" aria-labelledby="result-title">
@@ -360,8 +360,8 @@ export function ResultView(props) {
             <Show when={r().kind === 'exercise'}>
               <Button icon="play" info="Listen to it" onClick={() => props.dispatch({ type: 'listen' })}>Listen</Button>
             </Show>
-            <Button on info="Next — stage 2 if stage 1 is just passed, else the next step" onClick={() => props.dispatch({ type: 'next' })}>Next</Button>
-            <Button info="Move on — count stage 1 as enough, or skip" onClick={() => props.dispatch({ type: 'skip' })}>Move on</Button>
+            <Button on info="Next — Solo if Guided is just passed, else the next step" onClick={() => props.dispatch({ type: 'next' })}>Next</Button>
+            <Button info="Move on — count Guided as enough, or skip" onClick={() => props.dispatch({ type: 'skip' })}>Move on</Button>
           </div>
         </div>
       </section>

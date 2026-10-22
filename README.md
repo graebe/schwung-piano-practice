@@ -51,12 +51,12 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
   computer is there if you want it.
 - **Rescues you when you are stuck.** Miss a note and the scroll stops, names it large on screen,
-  and — at stage 1 — pulses the pad you need. The missed note itself stays pinned by the hit line
+  and — when Guided — pulses the pad you need. The missed note itself stays pinned by the hit line
   whatever your read-ahead, so you can always see what you are being asked for.
-- **Teaches in two stages.** Every exercise is played first with the pads lighting the way, then
+- **Teaches Guided, then Solo.** Every exercise is played first with the pads lighting the way, then
   read from the staff alone. You can go straight to the second whenever you like.
-- **Remembers how far you got.** Every exercise keeps its own score, a ◐ for stage 1 and a ✓ for
-  stage 2, and a chart of every attempt. Folders add up what is inside them.
+- **Remembers how far you got.** Every exercise keeps its own score, a ◐ for Guided and a ✓ for
+  Solo, and a chart of every attempt. Folders add up what is inside them.
 - **Tells you what to do next.** The Path is five stages, written for adults who are new to the
   piano and to the Move, and Continue, at the top of the list, names the next step. A checkpoint
   lets you test out of a stage you already know, and nothing is locked: follow it, or don't.
@@ -93,7 +93,7 @@ Settings          Path, Practice, Sound, Pads, MIDI, Help
 Everything with a left and a right hand — every song, every chord lesson — opens its four levels.
 
 Every row says how far you have got with it. An exercise shows its score — `87%` — with a **◐** once
-you have passed stage 1 and a **✓** once you have passed stage 2. A folder shows the average of
+you have passed Guided and a **✓** once you have passed Solo. A folder shows the average of
 everything inside it, so `Classics 25%` is a quarter of the way through the classics.
 
 Every screen's bottom line is its **hint line**: the keys that work there, in capitals, each with
@@ -120,41 +120,41 @@ having just played the right hand the next thing you want is the left hand of th
 Every bundled song has all four, and `npm test` holds them to it. A file you write yourself with
 nothing to split shows only the levels it actually has, and arms straight away if that is one.
 
-## Stages
+## Guided and Solo
 
-Levels decide *what* you play. Stages decide *how much help* you get playing it, and every exercise
-has two:
+Levels decide *what* you play. **Guided** and **Solo** decide *how much help* you get playing it, and
+every exercise is played both ways:
 
 | | |
 | --- | --- |
-| **Stage 1** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. The names are printed under the notes and the line sounds as it passes (the Reference). You learn the shape |
-| **Stage 2** | nothing lights, no names, no reference sound. You read it off the staff. When the scroll has waited two beats on a note, its name appears: a hint for the stuck, not the answer for the hesitant |
+| **Guided** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. The names are printed under the notes and the line sounds as it passes (the Reference). You learn the shape |
+| **Solo** | nothing lights, no names, no reference sound. You read it off the staff. When the scroll has waited two beats on a note, its name appears: a hint for the stuck, not the answer for the hesitant |
 
 The help fades because it should: a name under every note is read as letters, not as a staff,
 and a line you can hear is played by ear. **Names** and **Reference** in settings keep either one on
-(or off) at both stages if you want.
+(or off) in Solo too if you want.
 
-**Passing a stage takes 90% or better**, at any tempo. Passing stage 1 earns a **◐**, passing stage 2 a **✓**. Passing stage 2 also
-counts as stage 1: if you can read it unaided, you can read it with help.
+**Passing takes 90% or better**, at any tempo. Passing Guided earns a **◐**, passing Solo a **✓**.
+Passing Solo also counts as Guided: if you can read it unaided, you can read it with help.
 
-An exercise opens on the **first stage you have not yet passed**, and the ready screen says which:
-`S1 pads lit  JOG S2`. Turn the jog to change it — right for stage 2, left for stage 1. Nothing
-forces you through stage 1 first.
+An exercise opens on the **first of the two you have not yet passed**, and the ready screen says
+which: `Guided: pads lit  JOG Solo`. Turn the jog to change it — right for Solo, left for Guided.
+Nothing forces you through Guided first.
 
 **How a run is scored:** the notes you hit, over the notes in the piece **plus any wrong presses**,
 so sweeping the pads under every note cannot score full marks. A row shows your **latest** run,
-because that is where you are now — but once a stage is passed its score **never drops** again.
-Practising something you have finished should never feel like losing it.
+because that is where you are now — but once Guided or Solo is passed its score **never drops**
+again. Practising something you have finished should never feel like losing it.
 
 **Only a whole run counts.** A run you start from the top is recorded; one started from a scrubbed
 bar is passage practice and is not, and neither is Listen.
 
 ### A first session
 
-1. Open **Practice › Scales › Major › Up & down**. The ready screen says `S1 pads lit`.
+1. Open **Practice › Scales › Major › Up & down**. The ready screen says `Guided: pads lit`.
 2. Press **Record**. The pads show you each note as it arrives; play along.
-3. At the end you see your score and a chart. 93%: stage 1 is passed, the row will show ◐.
-4. **Click** for stage 2. The pads stay dark now; read it from the staff.
+3. At the end you see your score and a chart. 93%: Guided is passed, the row will show ◐.
+4. **Click** for Solo. The pads stay dark now; read it from the staff.
 5. Press **Back** after a result to try the same thing again from the top. Back once more for the
    list, where the row now reads `97% ✓`.
 
@@ -184,21 +184,21 @@ play Ode to Joy from Practice › Songs › Classics and its step on the path is
 built in C, whatever the Key setting says; Practice follows the settings.
 
 **Continue**, the first row of the list, names the step it will open: the next step of the ready
-unit whose strand you practised longest ago, in your stage, on the stage it needs. Your stage is the
+unit whose strand you practised longest ago, in your stage, Guided or Solo as it needs. Your stage is the
 earliest you have neither finished nor passed the checkpoint of; units left over from an earlier
 stage stay in the mix, so a slow ear never holds your hands back. When a review is due the row reads
 **Review** and names it, and reviews and new steps take turns: one review, then one new step.
 **Next** on a result stays in the same unit until it is finished.
 
 **The Checkpoint**, the last row of each stage but the last, is the stage's exam: its steps, played
-at S2, one after another. Pass them all and Continue starts at the next stage; the steps you skipped
+Solo, one after another. Pass them all and Continue starts at the next stage; the steps you skipped
 stay open, marked **◌**.
 
 **The options of a row** (Shift + click) hold what used to be rows of their own:
 
 | Option | On | |
 | --- | --- | --- |
-| **I know this: skip** | a step, or Continue | passes it by. It is marked `»` and stays where it was — open it any time and the skip is forgotten. After S1 it moves on instead: S1 is enough for now, and the step counts as finished at ◐ |
+| **I know this: skip** | a step, or Continue | passes it by. It is marked `»` and stays where it was — open it any time and the skip is forgotten. After Guided it moves on instead: Guided is enough for now, and the step counts as finished at ◐ |
 | **I know it all: skip** | a stage, a unit, an exercise of several steps | skips everything inside |
 | **Undo skip** | a skipped step, or a folder holding one | takes the skips back |
 | **Start the path here** | a stage | Continue starts there; the stages before it count as assumed until you play them. Also **Settings › Path › Start at** |
@@ -206,12 +206,12 @@ stay open, marked **◌**.
 | **Settings...** | any row | the settings |
 
 **Nothing is locked.** Open any stage, unit and step, play anything in the list, go straight to
-S2 — the path only ever recommends. The stage you are in, the unit Continue will open and each
+Solo — the path only ever recommends. The stage you are in, the unit Continue will open and each
 unit's next step are marked **▸**. The nursery songs (Twinkle, Mary, Frère Jacques, London Bridge,
 Jingle Bells) stay in Classics but off the path.
 
-In a quiz there are no pads to light, so the two steps are the hints: **S1 is a round at 90% or
-better with hints, S2 one without any**.
+In a quiz there are no pads to light, so Guided and Solo are the hints: **Guided is a round at 90%
+or better with hints, Solo one without any**.
 
 ### Review
 
@@ -288,8 +288,9 @@ shows under Piano Practice › Terms:
 | **Slash chord** | A chord over a bass note that is not its root: D/F# is D major over F#. |
 | **RH, LH** | Right hand plays the melody and chords, left hand the bass. |
 | **Level** | How much of a song you play: L1 one hand's line, L2 the chords, L3 both hands. |
-| **Stage** | Two meanings. An exercise has two stages: S1 lights each pad as its note comes, S2 lights nothing and you read. The Path has five stages, each a few weeks of work. |
-| **Score** | Notes hit, over the notes in the piece plus wrong presses. 90% passes a stage. |
+| **Stage** | One of the five stages of the Path, a few weeks of work each, ending with its checkpoint. |
+| **Guided, Solo** | Every exercise is played twice. Guided lights the pad you need as its note comes; Solo lights nothing, and you read it from the staff. |
+| **Score** | Notes hit, over the notes in the piece plus wrong presses. 90% passes Guided or Solo. |
 | **Hint** | REC helps, two presses deep. A hinted answer still counts, and is noted. |
 <!-- glossary:end -->
 
@@ -799,15 +800,15 @@ The headline is the share you got right. Then **how the notes you hit sat on the
 on average. That is the first thing a teacher tells you after the notes. The page gives the whole split
 (in time, early, late) and the average in ms. Under it is **every recent attempt at this exercise**, on a
 fixed 0–100% scale so a chart looks the same each time you come back to it: **hollow points are
-stage 1, solid ones stage 2**, and the dotted line is the 90% you need to pass.
+Guided, solid ones Solo**, and the dotted line is the 90% you need to pass.
 
 | On a result | |
 | --- | --- |
 | **Record** | play it again, same stage |
 | **Play** | listen to it |
-| **Back** | back to the **start** of the exercise, on the stage it needs, to try again. Back once more for the list |
-| **Click** | **next**: stage 2 of the same exercise if you have just passed stage 1, otherwise the next step of the unit you came from (or Continue's, if you came from the list) |
-| **Shift + click** | **move on** with stage 1 counted as enough, or **skip** — then on to the next step |
+| **Back** | back to the **start** of the exercise, Guided or Solo as it needs, to try again. Back once more for the list |
+| **Click** | **next**: Solo of the same exercise if you have just passed Guided, otherwise the next step of the unit you came from (or Continue's, if you came from the list) |
+| **Shift + click** | **move on** with Guided counted as enough, or **skip** — then on to the next step |
 
 ### After a quiz round
 
@@ -869,7 +870,7 @@ to the lesson list.
 
 ### Where it is kept
 
-Everything is kept beside the module: `progress.json` holds every exercise's two stages, skips and
+Everything is kept beside the module: `progress.json` holds every exercise's Guided and Solo, skips and
 repetition schedule, and its last 24 attempts; `stats.json` holds the last 200 quiz rounds for the
 rate charts. `scripts/install.sh` carries both across updates. A damaged file reads as a fresh start
 rather than stopping the module from opening.
@@ -961,7 +962,7 @@ the one signal you should never have to read.
 | dark | out of key |
 | dim purple | in key — background, deliberately the dimmest lit value |
 | pale lavender | the root; also the lit prompt in **Pick**, and the pulse when a note is missed |
-| purple | at **stage 1**, the note is coming |
+| purple | when **Guided**, the note is coming |
 | bright violet | it is now — and the notes **Play** is sounding |
 | yellow | your finger is on it |
 | green / red | you got it / you missed it |
@@ -977,7 +978,7 @@ Four beats count you in, counted down on screen.
 | --- | --- |
 | **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored. Press it again to **pause where you are**; again to carry on from wherever you have scrubbed to |
 | **Record** | **practice** — you play it, it scores you. Pauses and resumes the same way |
-| **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it picks the **stage** — right for stage 2, left for stage 1. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
+| **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it picks **Guided or Solo** — right for Solo, left for Guided. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
 | **Jog click** | open the highlighted folder or arm the exercise; on a song, open its levels; in settings, edit the selected row; on a result, go on to what is next |
 | **Menu** | **help**: what the screen is, its keys, then what the thing in front of you is and its terms. Again to close |
 | **Shift + jog click** | in the list, the highlighted row's **options**; on a piece, settings; on a result, move on past it |
@@ -1031,8 +1032,8 @@ on a piece opens every setting at once.
 | Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
 | Scale | **Major** | all 22 of Move's own scales, taken from the device's firmware so the pads light the way Move would |
 | Click | on | MIDI metronome (see the caveat above) |
-| Reference | **stage 1** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — at stage 1. `on` keeps it at stage 2, `off` never plays it. Listen plays the piece first whatever this says |
-| Names | **stage 1** | the note names under the notes, at stage 1. `always` keeps them at stage 2, `off` hides them at both |
+| Reference | **guided** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — when Guided. `on` keeps it in Solo, `off` never plays it. Listen plays the piece first whatever this says |
+| Names | **guided** | the note names under the notes, when Guided. `always` keeps them in Solo, `off` hides them in both |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
 | Grace | **1/4** | how late you may play a note and still be scored a hit, in beats, so the tolerance scales with tempo. A quarter beat is 190 ms at 80bpm — in time. Raise it to 1, 2 or 4 while a piece is new and finding the pad is the work. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself (Wait). Play later than Grace and the scroll still releases — it just scores a miss |
 | Count in | 4 | beats before the first note |

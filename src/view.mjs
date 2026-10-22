@@ -634,7 +634,8 @@ export function drawRoundResult(ctx, state) {
   R.drawChrome(ctx, {
     /* The status replaces the title rather than joining it: beside a
      * three-digit best, "ROUND  S1 DONE" ran into it. */
-    left: state.passed === 2 ? 'DONE' : state.passed === 1 ? 'S1 DONE' : 'ROUND',
+    /* G for Guided: beside a three-digit best there is no room for the word. */
+    left: state.passed === 2 ? 'DONE' : state.passed === 1 ? 'G DONE' : 'ROUND',
     right: state.isBest ? 'BEST YET' : 'best ' + Math.round(state.best) + '/min',
   });
 
@@ -788,8 +789,8 @@ export function drawAccuracyPlot(ctx, box, history) {
 export function drawExerciseResult(ctx, state) {
   ctx.clear();
   const status = state.passed === 2 ? 'DONE'
-    : state.passed === 1 ? 'S1 DONE'
-      : state.isBest ? 'BEST YET' : 'stage ' + state.stage;
+    : state.passed === 1 ? 'GUIDED DONE'
+      : state.isBest ? 'BEST YET' : state.stage === 2 ? 'solo' : 'guided';
   const mark = state.passed === 2 ? 'done' : state.passed === 1 ? 'half' : null;
   const statusW = ctx.textWidth(status) + (mark ? R.MARK_W + 2 : 0);
   R.drawChrome(ctx, {
@@ -807,7 +808,7 @@ export function drawExerciseResult(ctx, state) {
   const minX = L.RESULT_LEFT_X + w + 3 + ctx.textWidth('%') + 4;
   rightText(ctx, L.RESULT_SIDE_A_Y, state.hits + ' of ' + state.total + ' hit', minX);
   rightText(ctx, L.RESULT_SIDE_B_Y,
-    state.wrong ? state.wrong + ' wrong' : 'stage ' + state.stage, minX);
+    state.wrong ? state.wrong + ' wrong' : state.stage === 2 ? 'solo' : 'guided', minX);
 
   /* How the notes you hit sat on the beat — and, when the run leaned one
    * way, which: the first thing a teacher would tell you after the notes. */
@@ -873,7 +874,7 @@ export function drawItemProgress(ctx, state) {
   });
   ctx.text(2, L.PROGRESS_TITLE_Y, truncate(ctx, state.title || '', L.TEXT_MAX_PX), 1);
   drawAccuracyPlot(ctx, L.PROGRESS_PLOT, history);
-  const stage = state.mark === 'done' ? 'finished' : state.mark === 'half' ? 'S1 done'
+  const stage = state.mark === 'done' ? 'finished' : state.mark === 'half' ? 'Guided done'
     : state.mark === 'skip' ? 'skipped' : '';
   twoCell(ctx, L.PROGRESS_ROW_Y, 'now ' + Math.round(state.percent) + '%', stage, 2, L.SCREEN_W - 2);
   drawFooterHint(ctx, state.count > 1
@@ -915,7 +916,7 @@ export function drawOverview(ctx, state) {
     }
     ctx.line(prevX, prevY, box.x + box.w - 1, prevY, 1);
   }
-  twoCell(ctx, L.PROGRESS_ROW_Y, 'stages passed',
+  twoCell(ctx, L.PROGRESS_ROW_Y, 'passes',
     String(state.timeline ? state.timeline.total : 0), 2, L.SCREEN_W - 2);
   drawFooterHint(ctx, state.total > 1 ? 'JOG ' + (state.index + 1) + '/' + state.total + '  BACK list' : 'BACK list');
   return ctx;
@@ -1186,7 +1187,7 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
    * '2/4' in the corner. */
   const count = rows.length ? cursor + 1 + '/' + rows.length : '';
   R.drawChrome(ctx, {
-    left: truncate(ctx, title, L.SCREEN_W - ctx.textWidth(count) - 4),
+    left: fitWords(ctx, title, L.SCREEN_W - ctx.textWidth(count) - 4),
     right: count,
   });
   const first = Math.max(0, Math.min(cursor - (perPage >> 1), rows.length - perPage));
@@ -1204,9 +1205,11 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
     let value = deco && deco.value !== undefined ? deco.value
       : typeof row === 'string' ? '' : row.value || '';
     const mark = deco ? deco.mark : null;
-    /* A value that names something (Continue's next step) gives way to the
-     * label instead: it is cut to what the label leaves. */
-    if (deco && deco.fit && value) value = fitWords(ctx, value, L.SCREEN_W - 4 - ctx.textWidth(label) - 6);
+    /* A value that names something (Continue's next step) and does not fit
+     * beside its label gives way to its short form (the unit's number). */
+    if (deco && deco.short !== undefined && value && ctx.textWidth(value) > L.SCREEN_W - 4 - ctx.textWidth(label) - 6) {
+      value = deco.short;
+    }
     /* Brackets mark the row the jog is currently changing, so "turn to change"
      * has something to point at. */
     if (value && selected && opts.editing) value = '[' + value + ']';

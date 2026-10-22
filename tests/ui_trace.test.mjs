@@ -222,7 +222,7 @@ function driver(host) {
   /* Back up to the top of the lesson list, and no further: one Back more
    * would close the module. */
   const toTop = () => {
-    for (let i = 0; i < 8 && !host.screen().startsWith('EXERCISE'); i++) press(BACK);
+    for (let i = 0; i < 8 && !host.screen().endsWith('CLICK open  MENU help'); i++) press(BACK);
   };
   return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, toTop, host };
 }

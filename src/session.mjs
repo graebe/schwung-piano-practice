@@ -730,7 +730,7 @@ export function createSession(fx, opts = {}) {
 
   function passedWords(passed) {
     if (passed === 2) return ' Finished.';
-    if (passed === 1) return ' Stage one done.';
+    if (passed === 1) return ' Guided done.';
     return '';
   }
 
@@ -1031,7 +1031,7 @@ export function createSession(fx, opts = {}) {
     stage = forceStage || PROG.recommendedStage(PROG.item(progress, armedId));
     armRun();
     view = READY;
-    announce(chart.name + '. Stage ' + stage + '. Press play to start.');
+    announce(chart.name + '. ' + (stage === 2 ? 'Solo' : 'Guided') + '. Press play to start.');
     dirty = true;
     ledDirty = true;
     autoInfo({ id: armedId, label: chart.name });
@@ -1070,7 +1070,7 @@ export function createSession(fx, opts = {}) {
         stage = 2;
         armRun();
         view = READY;
-        announce('Stage two. The pads stay dark.');
+        announce('Solo. The pads stay dark.');
       }
       dirty = true;
       ledDirty = true;
@@ -1114,7 +1114,7 @@ export function createSession(fx, opts = {}) {
     view = READY;
     dirty = true;
     ledDirty = true;
-    announce('Back to the start. Stage ' + stage + '.');
+    announce('Back to the start. ' + (stage === 2 ? 'Solo' : 'Guided') + '.');
   }
 
   function armRun() {
@@ -1574,14 +1574,15 @@ export function createSession(fx, opts = {}) {
    * get better at something.
    */
   function decorateRow(row) {
-    /* Continue names what it opens; the renderer fits the name into what
-     * the label leaves (`fit`), since a step's title is longer than a row. */
+    /* Continue names what it opens. A name too long for the row gives way
+     * to its unit's number (`short`), and the whole name goes to the title
+     * bar while the cursor is on the row (`title`). */
     if (row.continueRow) {
       const next = continueTarget();
       if (!next) return { label: 'Continue', value: 'all done', mark: PROG.MARK_DONE };
-      return next.review
-        ? { label: 'Review', value: itemTitle(next.review), fit: true }
-        : { label: 'Continue', value: PLAN.stepTitle(next.step), fit: true };
+      const name = next.review ? itemTitle(next.review) : PLAN.stepTitle(next.step);
+      const unit = next.review ? PLAN.unitOf(phases, next.review) : next.unit;
+      return { label: next.review ? 'Review' : 'Continue', value: name, short: unit ? unit.num : '', title: name };
     }
     if (row.checkpoint) {
       const passed = row.checkpoint.check.filter((id) => PROG.stagePassed(PROG.item(progress, id), 2)).length;
@@ -2156,6 +2157,14 @@ export function createSession(fx, opts = {}) {
     return HINTS.hintFor(view, hintState(opts));
   }
 
+  /* The list's title: the open folder, or, with the cursor on Continue,
+   * the whole name of what it opens. */
+  function listTitle() {
+    const row = CAT.navCurrent(nav);
+    const deco = row && row.continueRow ? decorateRow(row) : null;
+    return deco && deco.title ? deco.title : CAT.navTop(nav).node.label;
+  }
+
   /* ---- Input ------------------------------------------------------------ */
   /*
    * An answer given on its own pad (the Hear drills' answer bar). Nothing
@@ -2276,7 +2285,7 @@ export function createSession(fx, opts = {}) {
         stage = next.index;
         dirty = true;
         ledDirty = true;
-        announce(stage === 2 ? 'Stage two. The pads stay dark.' : 'Stage one. The pads light up.');
+        announce(stage === 2 ? 'Solo. The pads stay dark.' : 'Guided. The pads light up.');
       }
       return;
     }
@@ -2686,6 +2695,7 @@ export function createSession(fx, opts = {}) {
     pickCard,
     openSettingsFolder: () => goTop('settings', true),
     hint,
+    listTitle,
     selectProgress,
     settingsRows,
     decorateRow,

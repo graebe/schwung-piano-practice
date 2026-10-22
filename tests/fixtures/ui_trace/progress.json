@@ -1,12 +1,12 @@
 [["write","/data/UserData/schwung/modules/tools/piano-practice/progress.bak.json","{\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"placement\"]}"],
 ["announce","Piano Practice. Pick an exercise."],
-["tick",0,"0e68153da0c8","b87a1db22f63"],
-["tick",1,"47b04777de49","5e88855ed025"],
+["tick",0,"ba5ec001b61d","b87a1db22f63"],
+["tick",1,"6078219b0878","5e88855ed025"],
 ["announce","Progress."],
 ["tick",2,"a31c99be9f2d","5e88855ed025"],
 ["tick",9,"1b2765f47b58","-"],
-["tick",10,"588b7098b2c1","-"],
-["tick",12,"7f0de7627825","-"],
-["tick",13,"d36e8affb4ed","-"],
+["tick",10,"0cd8ce937e3d","-"],
+["tick",12,"d5e13d12b7cf","-"],
+["tick",13,"0ce6dbe2252b","-"],
 ["tick",14,"5f8c7419d1fa","-"],
-["tick",16,"47b04777de49","5e88855ed025"]]
+["tick",16,"6078219b0878","5e88855ed025"]]

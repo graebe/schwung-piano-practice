@@ -106,7 +106,7 @@ export function curriculumMarkdown(phases) {
         for (const u of p.units) for (const e of u.exercises) if (e.steps.some((s) => s.id === id)) return e.label;
         return id;
       });
-      out.push('', '**Checkpoint.** ' + names.join(', ') + ', each passed at S2.');
+      out.push('', '**Checkpoint.** ' + names.join(', ') + ', each passed Solo.');
     }
   }
   out.push('', '---', '', '## Off the path', '', PATH_TEXT.offPath, '');

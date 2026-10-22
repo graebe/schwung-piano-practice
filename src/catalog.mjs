@@ -266,7 +266,8 @@ export function buildCatalog({
   if (other.length) shelves.push(folder('Other', other, 'other'));
   const more = shelves.length ? [folder('Songs', shelves, 'songs')] : [];
   const children = lead.concat([basics(gen, more)], after);
-  const root = folder('Exercise', children.concat(tail));
+  /* The top of the list, named for the instrument as Drums Practice names its. */
+  const root = folder('Piano', children.concat(tail));
   /* Its rows are stamped without a prefix; its own id only names it to a cache. */
   root.id = '~';
   stampChildren(root.children, '');
