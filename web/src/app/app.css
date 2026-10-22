@@ -413,8 +413,10 @@ button.status-pill { cursor: pointer; }
 
 /* ----------------------------------------------------------------- map -- */
 .map {
+  display: block;
   width: 100%;
-  max-width: 768px;
+  max-width: 768px; /* 6x the panel: whole pixels stay crisp */
+  margin-inline: auto;
   aspect-ratio: 128 / 44;
   background: var(--bg-200);
   border: 1px solid var(--line-100);
