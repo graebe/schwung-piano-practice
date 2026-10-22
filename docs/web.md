@@ -176,6 +176,16 @@ put it. Progress shows the same bars for a drill between rounds.
 
 ## The Path and Progress
 
+**Path** is a map, as on the Move: an island for each stage, and on an
+island a place for each unit and a fort for the checkpoint, drawn from the
+same pixels. Click a place and your avatar walks there along the dotted
+route; click it again to go in. The arrow keys walk, Enter goes in, Escape
+goes back up, and Shift+Space is Continue. Under the map every place is
+listed with its state and percent, and clicking one does the same.
+**Options** offers **Show as list**, where Review lives.
+
+![The world map](media/web-map.png)
+
 **Continue**, at the top of the list, names and opens the next step of a path
 in five stages, from the grid and the staff to extended harmony, with nothing
 locked. When a review is due it reads **Review**, and reviews and new steps take

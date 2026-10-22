@@ -79,6 +79,39 @@ two ways: **Guided**, the pad you need lights up, and **Solo**, nothing
 lights up and you read it from the staff. The ready screen shows which one
 is armed; the jog changes it.
 
+## The map
+
+**Path** opens as a map: the world, an island for each of the five
+stages. Open a stage and you are on its island: a place for each unit, in
+the order the lessons run, and at the end a **fort**, the stage's
+checkpoint. Your avatar stands where Continue would take you.
+
+The pads are the map: each **lit pad is a place**, right under where it
+is drawn, and dark pads are water. On a map the pads make no sound.
+
+| Key | On the map |
+| --- | --- |
+| **PAD** | walk there; press it again to go in |
+| **JOG** | walk to the next place, or back |
+| **CLICK** | go in |
+| **BACK** | up a level: from an island to the world, the avatar on the island you left |
+| **PLAY** | Continue: your next step, from wherever you stand |
+| **MENU** | help: the map, then the place under the avatar (a stage's promise, a unit's purpose) |
+| **SHIFT + CLICK** | the place's options, and **Show as list** |
+
+The title bar says where you stand and how far you have got there, for
+example `1.3 Major scale 40%`, and the reviews due there when they fit.
+A place fills as you go; a flag means done, a dotted outline skipped or
+not yet ready (it still opens: nothing is locked).
+
+The pads' colours say the same: green done, pulsing white where Continue
+is going, dim yellow started, blue skipped, dim the rest, and the brightest
+pad the one you stand on.
+
+**Show as list** (in the options) turns the map back into the list for
+this session: Review, the folder of what is due, lives in the Path's list.
+**Show as map**, or Back, returns to the map.
+
 ## The hint line
 
 The bottom line of every screen says which keys work there, the key in
