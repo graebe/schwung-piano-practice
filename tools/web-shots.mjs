@@ -29,10 +29,17 @@ async function open(viewport) {
 }
 const row = (page, label) => page.locator('.row', { hasText: new RegExp(`^${label}`) }).first().click();
 
-/* The list. */
-let page = await open({ width: 1280, height: 760 });
+/* Home, then the Path's map. */
+let page = await open({ width: 1280, height: 640 });
 await page.mouse.move(1, 1);
-await page.screenshot({ path: OUT + 'web-list.png' });
+await page.screenshot({ path: OUT + 'web-home.png' });
+await page.keyboard.press('Enter');
+await page.waitForSelector('.map-screen');
+await page.waitForTimeout(300);
+await page.mouse.move(1, 1);
+await page.screenshot({ path: OUT + 'web-map.png' });
+await page.close();
+page = await open({ width: 1280, height: 760 });
 
 /* Listening to a drill: the staff scrolls and the keys light. */
 for (const l of ['Basics', 'Scales', 'Major', 'Up & down']) await row(page, l);

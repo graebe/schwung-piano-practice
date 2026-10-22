@@ -4,7 +4,7 @@ Piano Practice runs on the Ableton Move, and the same practice runs in a web
 browser: the same lessons, the same Path, the same scoring, and the
 same piano. This page walks through it from the first click.
 
-![The lesson list](media/web-list.png)
+![Home](media/web-home.png)
 
 ## What it is, and what it is not
 
@@ -47,15 +47,18 @@ The window has four parts:
 
 | | |
 | --- | --- |
-| **The top bar** | Back (‹), where you are, the sound and MIDI status, **Info** and, on the list, **Options** and **Settings** |
-| **The screen** | the list, a piece, a quiz, a result — whatever the session is on. Under it, marked *Move*, the line the Move shows at the bottom of its screen: the Move's keys for this screen |
+| **The top bar** | Back (‹), where you are, the sound and MIDI status, **Info** and, on home and the list, **Options** and **Settings** |
+| **The screen** | home, the list, a piece, a quiz, a result — whatever the session is on. Under it, marked *Move*, the line the Move shows at the bottom of its screen: the Move's keys for this screen |
 | **The keys** | a piano keyboard, or the Move's pads (the switch at their top right) |
 | **The hint bar** | what the keys do on this screen, what the thing under the pointer does, and what just happened |
 
-The list is a tree: click a folder to open it, **Back** (or Escape) to go up.
-Its top is the same as on the Move: **Continue**, **Path**, **Practice**,
-**Quiz**, **Progress**, **Settings**. [Finding your way](finding-your-way.md)
-walks through it.
+The page opens on **home**, as the Move does: five circles, **Path**,
+**Practice**, **Quiz**, **Progress** and **Settings**, drawn from the Move's
+own pictures. Click a circle, or its row below, to open it; the arrow keys
+choose (the chosen circle grows) and Enter opens. Behind each circle the list
+is a tree: click a folder to open it, **Back** (or Escape) to go up, and Back
+from a section returns home with its circle chosen.
+[Finding your way](finding-your-way.md) walks through it.
 
 **Info** (or I) is the Move's Menu: help for whatever is in front of you —
 what the screen is and its keys first, then the highlighted lesson, the piece
@@ -188,16 +191,16 @@ put it. Progress shows the same bars for a drill between rounds.
 island a place for each unit and a fort for the checkpoint, drawn from the
 same pixels. Click a place and your avatar walks there along the dotted
 route; click it again to go in. The arrow keys walk, Enter goes in, Escape
-goes back up, and Shift+Space is Continue. Under the map every place is
-listed with its state and percent, and clicking one does the same.
-**Options** offers **Show as list**, where Review lives.
+goes back up, and **Continue** above the map (or Shift+Space, the Move's
+Play) opens your next step. Under the map every place is listed with its
+state and percent, and clicking one does the same. **Options** offers
+**Show as list**, where Continue is the first row and Review lives.
 
 ![The world map](media/web-map.png)
 
-**Continue**, at the top of the list, names and opens the next step of a path
-in five stages, from the grid and the staff to extended harmony, with nothing
-locked. When a review is due it reads **Review**, and reviews and new steps take
-turns. Each stage ends with its **Checkpoint**; **Options** on a stage offers
+**Continue** opens the next step of a path in five stages, from the grid and
+the staff to extended harmony, with nothing locked. When a review is due it
+opens the **Review** instead, and reviews and new steps take turns. Each stage ends with its **Checkpoint**; **Options** on a stage offers
 **Test out: checkpoint** and **Start the path here**. Every exercise is
 described in [the curriculum](curriculum.md). **Path › Review** lists the
 finished lessons that are due again.
@@ -250,7 +253,7 @@ nothing is kept in the browser in this mode.
 
 Some things stay with the Move's own buttons:
 
-- **Closing the tool.** Back at the top of the list closes Piano Practice on
+- **Closing the tool.** Back at home closes Piano Practice on
   the Move. From the page it does nothing, so a click cannot end your session.
 - **Timing.** The page draws the scrolling staff from the Move's clock, and
   shows changes within a fraction of a second. For practice, play on the pads

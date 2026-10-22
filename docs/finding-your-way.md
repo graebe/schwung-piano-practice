@@ -1,9 +1,10 @@
 # Finding your way
 
-Piano Practice has one list, six rows at its top, and four keys you need
-to get around: the jog, its click, Back and Menu. This page walks through
-them in the order you meet them, from the first time you open the module.
-Drums Practice works the same way, so what you learn here carries over.
+Piano Practice opens on **home**, five circles, and behind each circle is
+a list of folders. Four keys get you around: the jog, its click, Back and
+Menu. This page walks through them in the order you meet them, from the
+first time you open the module. Drums Practice works the same way, so what
+you learn here carries over.
 
 ## The first time: the welcome
 
@@ -25,8 +26,8 @@ four short pages greet you. Turn the **jog** to page through them, or
    | **SHIFT+CLICK** | options |
 
 4. **New to piano?** Turn the jog to your answer and click:
-   - **From the start**: the list opens with the cursor on **Continue**,
-     which opens your very first step.
+   - **From the start**: the **Path** opens, as its map, your avatar on
+     the first stage. **PLAY** opens your very first step.
    - **I already play**: the **Path** opens, with a tip: *Know a stage
      already? SHIFT+CLICK a stage, then Test out: checkpoint. Pass it and
      the path moves on.* See [The options of a row](#the-options-of-a-row).
@@ -36,32 +37,51 @@ four short pages greet you. Turn the **jog** to page through them, or
 used Piano Practice before this version, your progress is kept and the
 welcome is skipped.
 
-## The top of the list
+## Home
 
 ```
-PIANO                   the top of the list
-Continue   1.1          your next step
-Path       >            five stages, a few weeks each
-Practice   >            the free library
-Quiz       >            Ear, Reading, Keys
-Progress   12%          how far you have got
-Settings   >            in groups
+PIANO
+   (o)  (o)  (O)  (o)  (o)       Path  Practice  Quiz  Progress  Settings
+             Quiz
+JOG choose  CLICK open
 ```
 
-**Click** opens a row: a folder (`>`) shows what is inside, anything else
-opens straight away. **Back** goes up one folder; Back at the top leaves
-the module.
+Home is five circles, each with its picture: an island for the **Path**,
+keys for **Practice**, a question mark for **Quiz**, bars for **Progress**
+and a cog for **Settings**. The chosen one is filled and grown, its name
+underneath.
 
-- **Continue** names the step it will open, and opens it with one click.
-  A name too long for the row shows as its unit's number (`1.1`); with
-  the cursor on Continue, the title bar spells it out, `NOTES BY ALPHABET`.
-  When a review is due, the row reads **Review** and names the piece that
-  is due. Reviews and new steps take turns: one review, then one new step.
-- **Path** is the course, in five stages. Each stage lists its units in
-  the order a lesson runs (find your way, hear it, learn the pattern, use
-  it, show it in a piece) and ends with its **Checkpoint**, the stage's
-  exam. Below the stages sits **Review** while anything is due. Every
-  exercise on the path is in [the curriculum](curriculum.md).
+| Key | At home |
+| --- | --- |
+| **JOG** | choose: the next circle grows, the one you left shrinks |
+| **CLICK** | open the chosen circle |
+| **PAD** | open a circle straight away: the five lit pads of the bottom row, left to right |
+| **MENU** | help: home, then what the chosen circle holds |
+| **BACK** | leave the module |
+| **SHIFT + CLICK** | options, and **Show as list** |
+
+The pads make no sound at home: lit means *press me*, and the chosen
+circle's pad pulses. Back from a section lands on home with its circle
+chosen, so you are where you left. **Show as list** shows the five as an
+ordinary list for this session; Back turns it into circles again.
+
+Behind each circle, **click** opens a row: a folder (`>`) shows what is
+inside, anything else opens straight away. **Back** goes up one folder,
+and from the top of a section to home.
+
+- **Path** is the course, in five stages, drawn as [a map](#the-map). Each
+  stage lists its units in the order a lesson runs (find your way, hear it,
+  learn the pattern, use it, show it in a piece) and ends with its
+  **Checkpoint**, the stage's exam. Every exercise on the path is in
+  [the curriculum](curriculum.md).
+- **Continue** opens your next step: **PLAY** on the Path's map, from
+  wherever you stand. Shown as a list (**Show as list** in the options), the
+  Path starts with a **Continue** row that names the step: a name too long
+  for the row shows as its unit's number (`1.1`), and with the cursor on it
+  the title bar spells it out, `NOTES BY ALPHABET`. When a review is due,
+  the row reads **Review** and names the piece that is due. Reviews and new
+  steps take turns: one review, then one new step. Below the stages sits
+  **Review** while anything is due.
 - **Practice** is everything to play freely: Scales, Chords,
   Progressions, Random, and **Songs** (Classics, Electronic, Techno,
   Styles, and Other for files you added).
@@ -181,6 +201,8 @@ that fit the row are offered, always in this order:
 | **Undo skip** | a skipped step, or a folder with skipped steps | takes the skips back |
 | **Start the path here** | a stage | Continue starts at this stage; the stages before it count as known |
 | **Test out: checkpoint** | a stage with a checkpoint | plays its exam Solo. Pass every step and the path moves on to the next stage |
+| **Show as list** | home, or a map | the same rows as an ordinary list, for this session |
+| **Show as map** | a map shown as a list | the map again (Back does the same) |
 | **Settings...** | every row | opens Settings |
 
 **Turn the jog** to choose, **click** to do it, **Back** to close the

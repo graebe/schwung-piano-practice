@@ -58,21 +58,27 @@ Piano Practice is an independent module for Schwung. It is not made or supported
 - **Remembers how far you got.** Every exercise keeps its own score, a ◐ for Guided and a ✓ for
   Solo, and a chart of every attempt. Folders add up what is inside them.
 - **Tells you what to do next.** The Path is five stages, written for adults who are new to the
-  piano and to the Move, and Continue, at the top of the list, names the next step. A checkpoint
+  piano and to the Move, and Continue (Play on its map) opens the next step. A checkpoint
   lets you test out of a stage you already know, and nothing is locked: follow it, or don't.
 - **Always says what to press.** The bottom line of every screen names its keys, Shift shows what
   Shift does there, and **Menu** is help on every screen. New here? Start with
   [Finding your way](docs/finding-your-way.md).
 
-## The lesson list
+## Home and the lesson list
 
-The list is a tree. **Click** opens a folder, **Back** goes up one, and Back at the top leaves.
-**Shift + click** on a row opens its options; **Menu** explains whatever you are looking at. The
-walk-through is [Finding your way](docs/finding-your-way.md).
+The module opens on **home**: five circles, **Path**, **Practice**, **Quiz**, **Progress** and
+**Settings**, each with its picture. The jog chooses (the chosen circle is filled and grows), a
+click opens it, and so does its pad: the five lit pads of the bottom row, left to right, which make
+no sound here. Back from a section comes home with its circle chosen; Back at home leaves.
+
+Behind each circle the list is a tree. **Click** opens a folder, **Back** goes up one.
+**Shift + click** on a row opens its options (home and the maps offer **Show as list** there);
+**Menu** explains whatever you are looking at. The walk-through is
+[Finding your way](docs/finding-your-way.md).
 
 ```
-Continue          the next step, named; or Review, when one is due
-Path              1 Grid and staff   the grid, note names, reading, first melodies
+Path              Continue           the next step, named; or Review, when one is due (Play on the map)
+                  1 Grid and staff   the grid, note names, reading, first melodies
                   2 Four chords      I-IV-V, the four-chord loop, tracks, both hands
                   3 Shapes and time  inversions, 3/4 and 6/8, intervals to the 5th, modes
                   4 Sevenths         ii-V-I, real pieces, dance tracks, function by ear
@@ -190,8 +196,8 @@ just before the stage's **Checkpoint**. A unit can come after others: *Both hand
 play Ode to Joy from Practice › Songs › Classics and its step on the path is done too. The path is
 built in C, whatever the Key setting says; Practice follows the settings.
 
-**Continue**, the first row of the list, names the step it will open: the next step of the ready
-unit whose strand you practised longest ago, in your stage, Guided or Solo as it needs. Your stage is the
+**Continue** — Play on the Path's map, the first row of the Path as a list — opens the next step of the ready
+unit whose strand you practised longest ago, in your stage, Guided or Solo as it needs, and the row names it. Your stage is the
 earliest you have neither finished nor passed the checkpoint of; units left over from an earlier
 stage stay in the mix, so a slow ear never holds your hands back. When a review is due the row reads
 **Review** and names it, and reviews and new steps take turns: one review, then one new step.
@@ -210,6 +216,7 @@ stay open, marked **◌**.
 | **Undo skip** | a skipped step, or a folder holding one | takes the skips back |
 | **Start the path here** | a stage | Continue starts there; the stages before it count as assumed until you play them. Also **Settings › Path › Start at** |
 | **Test out: checkpoint** | a stage with a checkpoint | plays the checkpoint, as above |
+| **Show as list** / **Show as map** | home, a map | the same rows as a list for the session, and back |
 | **Settings...** | any row | the settings |
 
 **Nothing is locked.** Open any stage, unit and step, play anything in the list, go straight to
@@ -1024,7 +1031,7 @@ A3–G5 under your hands — untransposed it sits almost entirely below the treb
 
 ### Settings
 
-**Settings**, the last row of the list, is a folder of groups: **Path** (Start at: the stage
+**Settings**, the last circle of home, is a folder of groups: **Path** (Start at: the stage
 Continue starts from), **Practice**, **Sound**, **Pads** (the octave), **MIDI**, and **Help** (Auto
 info, Show tips again, Welcome again). Open a group, click a row to edit it, turn the jog to change
 the value, click again when done — knobs 1–4 are shortcuts to the four rows on screen. Shift + click
