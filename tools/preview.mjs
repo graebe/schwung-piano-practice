@@ -23,6 +23,7 @@
  *   npm run preview -- --view map --places 5|7|8                the Path map: piano's
  *                                    world (5), drums' world (7), a piano island (8)
  *   npm run preview -- --view map --map drums                   a drums island (7)
+ *   npm run preview -- --view map --map done                    fill levels, avatar on a flag
  *   npm run preview -- --view map --places 7 --to 6 --film 0,90,400   walk there
  *
  * The list, the sheet and the cards come from a session, as on the Move, with
@@ -158,6 +159,14 @@ const SAMPLE_MAPS = {
     ['2.5 Minor', 0, 'skipped', 0, 'place'], ['2.6 Both hands', 0, 'ahead', 0, 'place'],
     ['2.7 First tracks', 0, 'ahead', 0, 'place'], ['Checkpoint', 0, 'fresh', 0, 'fort'],
   ],
+  /* Fill levels 0..100 side by side, the avatar on a done place under its
+   * flag: nothing it carries may hide how far a place has got. */
+  done: [
+    ['3.1 Intervals II', 100, 'done', 1, 'place'], ['3.2 Inversions', 0, 'fresh', 0, 'place'],
+    ['3.3 Harmony by ear', 20, 'started', 0, 'place'], ['3.4 Sus and power', 40, 'started', 0, 'place'],
+    ['3.5 Modes I', 60, 'current', 0, 'place'], ['3.6 Progressions', 100, 'done', 0, 'place'],
+    ['3.7 Faster reading', 100, 'done', 0, 'cove'], ['Checkpoint', 20, 'started', 0, 'fort'],
+  ],
   drums: [
     ['Lessons', 100, 'done', 0, 'hut'], ['Ear', 100, 'done', 2, 'place'],
     ['Time', 50, 'current', 0, 'place'], ['Hands', 20, 'started', 0, 'place'],
@@ -181,10 +190,11 @@ function drawMapScreen(c, places, layout, walk, now) {
 if (view === 'map') {
   const which = arg('map', arg('places', '5'));
   const rows = SAMPLE_MAPS[which];
-  if (!rows) throw new Error('--view map takes --places 5|7|8 or --map drums');
+  if (!rows) throw new Error('--view map takes --places 5|7|8 or --map drums|done');
   const places = rows.map(([label, percent, state, due, kind]) => makePlace({ label, percent, state, due, kind }));
   const layout = layoutPlaces(places.length);
-  const from = places.findIndex((p) => p.state === 'current');
+  /* The avatar starts where Continue would go; on 'done', on the first flag. */
+  const from = which === 'done' ? 0 : places.findIndex((p) => p.state === 'current');
   const walk = createWalk(layout, Number(arg('at', from)));
   const to = arg('to', null);
   const film = to === null ? [0] : arg('film', '0,90,180,270,2000').split(',').map(Number);
