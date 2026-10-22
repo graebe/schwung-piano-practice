@@ -161,7 +161,7 @@
 ["usb",11,176,64,0],
 ["announce","Back to the start."],
 ["tick",149,"3dcdb66f8b92","ff5c41f15196"],
-["tick",150,"516b00fb6f99","43853d57b728"],
+["tick",150,"-","43853d57b728"],
 ["announce","Go."],
 ["tick",156,"48e0b03a680e","de8971275334"],
 ["tick",157,"48e0b03a680e","de8971275334"],
@@ -1068,7 +1068,7 @@
 ["tick",1625,"-","ff5c41f15196"],
 ["tick",1650,"-","43853d57b728"],
 ["announce","C Major. Guided. Press play to start."],
-["tick",1658,"f15e9de8114b","43853d57b728"],
+["tick",1658,"3dcdb66f8b92","43853d57b728"],
 ["dsp","panic","1"],
 ["track",43,176,120,0],
 ["track",43,176,123,0],
@@ -1078,6 +1078,6 @@
 ["usb",11,176,64,0],
 ["tick",1675,"7d210a3134de","5e88855ed025"],
 ["announce","1.3 Major scale, 7 percent."],
-["tick",1677,"bc8e7d3de810","bcc827cc47da"],
-["tick",1679,"c436c8dbfc03","1b3791718c7b"],
-["tick",1681,"d67d2d6a7d62","e05a4619f8b7"]]
+["tick",1677,"249afd1466ea","bcc827cc47da"],
+["tick",1679,"cef30065a53d","1b3791718c7b"],
+["tick",1681,"2933471bd485","e05a4619f8b7"]]

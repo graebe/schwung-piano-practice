@@ -87,8 +87,8 @@
 ["tick",138,"bb083fa9a629","5e88855ed025"],
 ["announce","Map."],
 ["tick",145,"3e4f8bdcca84","bf1cfafbd45a"],
-["tick",150,"7d826c8ee7d1","bf1cfafbd45a"],
-["tick",152,"5b8f6b07be7b","3bd0e2ea26ac"],
+["tick",150,"-","bf1cfafbd45a"],
+["tick",152,"b7c4b778e13a","3bd0e2ea26ac"],
 ["dsp","panic","1"],
 ["track",43,176,120,0],
 ["track",43,176,123,0],
@@ -97,7 +97,7 @@
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
 ["announce","Note guesser. Play F."],
-["tick",174,"3fe2558e7a31","ff5c41f15196"],
+["tick",174,"84aa6f33169d","ff5c41f15196"],
 ["tick",175,"-","ff5c41f15196"],
 ["tick",200,"-","ff5c41f15196"],
 ["dsp","panic","1"],
@@ -107,5 +107,5 @@
 ["usb",11,176,120,0],
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
-["tick",206,"5b8f6b07be7b","3bd0e2ea26ac"],
-["tick",208,"1b3343e76914","e05a4619f8b7"]]
+["tick",206,"b7c4b778e13a","3bd0e2ea26ac"],
+["tick",208,"2933471bd485","e05a4619f8b7"]]

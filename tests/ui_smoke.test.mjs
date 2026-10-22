@@ -739,6 +739,9 @@ async function playPerfectly(chart, { wrong = 0 } = {}) {
  * string, so a test can ask for any of them. On a clock that is not frozen
  * it freezes it for the look, and thawing jumps it back: use it last, or
  * freeze the clock for the whole test. */
+/* The hint line's parts, one per turn: its turns run from when the hint
+ * first showed (ui.js), so four frames a turn (3 s) apart each land in the
+ * next turn, whatever the clock's phase. */
 function footerParts(screen) {
   const wasFrozen = clockFrozen;
   if (!wasFrozen) freezeClock();
@@ -761,12 +764,16 @@ function capture() {
     frame(act) {
       printed.length = 0;
       (act || globalThis.onResume)();
-      /* The draw is throttled on the clock: spin until a frame lands. */
+      /* The draw is throttled on the clock: spin until a frame lands. On the
+       * frozen clock the bound is the injected clock (100 frames, 4 s), so
+       * how fast the machine runs cannot move it; on the real one, 500 ms. */
       const until = Date.now() + 500;
+      let frames = 0;
       do {
         clock += 40;
         globalThis.tick();
-      } while (!printed.length && Date.now() < until);
+        frames++;
+      } while (!printed.length && (clockFrozen ? frames < 100 : Date.now() < until));
       return printed.join(' | ');
     },
     restore() { globalThis.print = real; },
@@ -891,6 +898,7 @@ test('a stage is an island; its list, one option away, ends on its Checkpoint', 
   assert.match(world, /^1 Grid and staff 0% \|/, world);
   const parts = footerParts(screen);
   for (const part of ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']) assert.ok(parts.includes(part), 'the hint takes turns: ' + parts);
+  assert.match(parts, /^[^|]*\| PAD go  CLICK enter \|\|/, 'a new screen opens on its first part, whatever the clock: ' + parts);
   const island = screen.frame(click);                   /* 1 Grid and staff: its island */
   assert.match(island, /^1\.1 Find the notes 0% \|/, island);
   screen.frame(shiftClick);

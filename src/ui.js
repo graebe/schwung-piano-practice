@@ -567,22 +567,47 @@ function pageScrolls() {
  * is held, what Shift does here. Parts that do not fit one row take turns;
  * the frame loop only has to compare the clock with when the next turn is
  * due, so nothing is built per tick.
+ *
+ * The turns are counted from when this hint first showed, not from the
+ * clock's zero: a new screen (or Shift) always opens on its first part and
+ * gives each its full turn. Counted from zero, which part you met depended on
+ * the time of day, and a turn could be cut to a single frame.
  */
 let hintTurnAt = Infinity;
+let hintKey = null;
+let hintSince = 0;
+
+/* The time since this set of parts first showed; a new set starts it again. */
+function hintElapsed(key, t) {
+  if (key !== hintKey) {
+    hintKey = key;
+    hintSince = t;
+  }
+  return t - hintSince;
+}
+
+function nextTurn(turns, elapsed, t, turnMs) {
+  return turns > 1 ? t + (Math.floor(elapsed / turnMs) + 1) * turnMs - elapsed : Infinity;
+}
 
 function footer() {
   const parts = S.hint({ shift: shiftHeld, scrolls: pageScrolls() });
   const t = now();
-  hintTurnAt = parts.length > 1 ? (Math.floor(t / ROTATE_MS) + 1) * ROTATE_MS : Infinity;
-  return hintPart(parts, t);
+  const e = hintElapsed(parts.join('\n'), t);
+  hintTurnAt = nextTurn(parts.length, e, t, ROTATE_MS);
+  return hintPart(parts, e);
 }
 
 /* The ready screen's bottom line (view.mjs readyLine): the level's name and
- * the keys, or the Shift layer alone while Shift is held. */
+ * the keys, or the Shift layer alone while Shift is held. The name joins the
+ * turns only when it does not fit beside them, so it is part of the key. */
 function readyLine(level) {
   const parts = S.hint({ shift: shiftHeld });
-  const line = VIEW.readyLine(level && !shiftHeld ? level.name : '', parts, now(), (x) => ctx.textWidth(x));
-  hintTurnAt = line.turns > 1 ? (Math.floor(now() / ROTATE_MS) + 1) * ROTATE_MS : Infinity;
+  const name = level && !shiftHeld ? level.name : '';
+  const t = now();
+  const e = hintElapsed('ready\n' + name + '\n' + parts.join('\n'), t);
+  const line = VIEW.readyLine(name, parts, e, (x) => ctx.textWidth(x));
+  hintTurnAt = nextTurn(line.turns, e, t, VIEW.READY_TURN_MS);
   return line;
 }
 
@@ -930,6 +955,7 @@ globalThis.init = function init() {
   infoShown = null;
   cardShown = null;
   hintTurnAt = Infinity;
+  hintKey = null;
   for (const k in heldPads) delete heldPads[k];
   for (const k in answerPressed) delete answerPressed[k];
   for (const k in mapPressed) delete mapPressed[k];
