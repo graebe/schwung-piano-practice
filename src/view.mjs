@@ -24,7 +24,9 @@ import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
 import { drawMap } from './pathmap/render.mjs';
 import { createWalk } from './pathmap/walk.mjs';
-import { ZOOM } from './scenes.mjs';
+import { cellCentre } from './pathmap/layout.mjs';
+import { flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, FLAG_MS } from './pathmap/anim.mjs';
+import { ZOOM, CELEBRATE, FINALE } from './scenes.mjs';
 import { drawHome } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
 
@@ -1250,25 +1252,28 @@ export function drawMapScreen(ctx, state) {
     left: truncate(ctx, head.title, L.SCREEN_W - (head.right ? ctx.textWidth(head.right) + 6 : 2)),
     right: head.right,
   });
-  drawMap(ctx, { places: state.places, layout: state.layout, walk: state.walk, now: state.now || 0 });
+  drawMap(ctx, { places: state.places, layout: state.layout, walk: state.walk, now: state.now || 0,
+    route: state.route !== false });
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
 }
 
 /*
- * A scene of the Learning Path (scenes.mjs) on its map: the map it plays on,
- * the avatar walking (a walk) or standing on the scene's place, and the
- * scene's own frame drawn over it. A zoom shows where it lands: the island
- * going in, the world coming out.
+ * A scene of the Learning Path (scenes.mjs), drawn with the engine's
+ * frames (pathmap/anim.mjs) on the scene's map, under its title bar and the
+ * hint line:
  *
- * The frames are the engine's (pathmap/anim.mjs): flag, fireworks, zoom,
- * finale. FRAMES holds them by kind; a kind without one shows its map as it
- * stands, which is also the scene's end state.
+ *   walk       the map, the avatar walking it at the story pace
+ *   celebrate  the place as it was, its flag climbing (400 ms); for a stage
+ *              then the map without its route and fireworks over the place
+ *   zoom       the world's island growing to fill the map (in), or shrinking
+ *              back into its cell (out); the title names the island
+ *   finale     the world, every flag waving, fireworks over every island
+ *
+ * At its end each frame is its map as it stands: what a skip lands on.
  *
  * state = { scene, now, footer }
  */
-export const FRAMES = {};
-
 export function sceneMap(scene) {
   if (scene.kind === ZOOM && scene.dir === 'in') return { map: scene.island, at: scene.landAt || 0 };
   return { map: scene.map, at: scene.kind === 'walk' ? scene.to : scene.at };
@@ -1276,14 +1281,52 @@ export function sceneMap(scene) {
 
 export function drawScene(ctx, state) {
   const scene = state.scene;
+  const t = state.now - scene.t0;
   const { map, at } = sceneMap(scene);
   if (!map) return ctx;
   if (!scene.stand || scene.stand.layout !== map.layout) scene.stand = createWalk(map.layout, at);
-  const walk = scene.walk || scene.stand;
-  drawMapScreen(ctx, { place: map.places[at], places: map.places, layout: map.layout, walk, now: state.now,
-    footer: state.footer });
-  const frame = FRAMES[scene.kind];
-  if (frame) frame(ctx, scene, state.now - scene.t0);
+  const base = { place: map.places[at], places: map.places, layout: map.layout, walk: scene.walk || scene.stand,
+    now: state.now, footer: state.footer };
+  if (scene.kind === CELEBRATE && t < FLAG_MS) {
+    const places = map.places.slice();
+    places[at] = { ...places[at], state: scene.was || 'started' };
+    drawMapScreen(ctx, { ...base, places });
+    flagRise(ctx, { layout: map.layout, index: at, place: map.places[at] }, t);
+  } else if (scene.kind === CELEBRATE && scene.fireworks) {
+    drawMapScreen(ctx, { ...base, route: false });
+    const c = cellCentre(map.layout.cells[at], map.layout.kind);
+    fireworks(ctx, { x: c.x, y: c.y, seed: at + 1 }, t - FLAG_MS);
+  } else if (scene.kind === ZOOM) {
+    const world = scene.map;
+    drawMapScreen(ctx, { ...base, place: world.places[scene.at] });
+    const args = { cell: world.layout.cells[scene.at], place: world.places[scene.at] };
+    if (scene.dir === 'in') zoomIn(ctx, args, t);
+    else zoomOut(ctx, args, t);
+  } else if (scene.kind === FINALE) {
+    drawMapScreen(ctx, base);
+    finale(ctx, { layout: map.layout, places: map.places, seed: 7 }, t);
+  } else {
+    drawMapScreen(ctx, base);
+  }
+  return ctx;
+}
+
+/*
+ * The big score of a result (drawExerciseResult, drawRoundResult and the
+ * round's right-% page): where it sits and how far round it a star goes.
+ */
+export function resultScore(result) {
+  const page = result.kind === 'quiz' ? result.page || 0 : 0;
+  const value = result.kind === 'exercise' ? result.percent : page === 1 ? result.success : result.rate;
+  const w = R.bigTextWidth(String(Math.round(value || 0)), L.RESULT_BIG_SCALE);
+  const h = R.bigDigitHeight(L.RESULT_BIG_SCALE);
+  return { x: L.RESULT_LEFT_X + (w >> 1), y: L.RESULT_BIG_Y + (h >> 1), r: Math.max(w, h) >> 1 };
+}
+
+/* A level learned: the star round the result's big score, `t` ms in. */
+export function drawStar(ctx, result, t) {
+  const at = resultScore(result);
+  starBurst(ctx, { ...at, seed: 3 }, t);
   return ctx;
 }
 

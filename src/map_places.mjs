@@ -42,6 +42,18 @@ function anyPlayed(progress, ids) {
   return false;
 }
 
+/*
+ * On an island every place is a building, by what its unit trains (its
+ * strand): the market for the grid, the bell tower for the ear, the stairs
+ * for scales, the library for reading, the temple for chords, the workshop
+ * for the hands, the stage for pieces; the checkpoint is the fort.
+ */
+export const KIND_OF_STRAND = Object.freeze({
+  grid: 'market', ear: 'bell', scales: 'stairs', read: 'library',
+  chords: 'temple', hands: 'workshop', pieces: 'stage',
+});
+export const kindOfUnit = (unit) => KIND_OF_STRAND[unit.strand] || 'place';
+
 /* Units with nothing installed have no place on the map, as in the list. */
 export function shownUnits(phase) {
   return phase.units.filter((u) => PLAN.unitSteps(u).length > 0);
@@ -103,7 +115,7 @@ export function unitPlaces(progress, phases, phase, dueIds = new Set()) {
     else state = 'fresh';
     places.push(makePlace({
       id: unit.key, label: `${unit.num} ${unit.name}`, percent: sum.percent, state,
-      due: countIn(ids, dueIds), kind: 'place',
+      due: countIn(ids, dueIds), kind: kindOfUnit(unit),
     }));
     targets.push({ unit });
   }

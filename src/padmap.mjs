@@ -128,6 +128,17 @@ export const MAP_PALETTE = Object.freeze({
 });
 
 /*
+ * A scene's pads (pathmap/anim.mjs): a green wave across them when a place
+ * is done, white sparkles for fireworks, the finale and a level learned.
+ */
+export const ANIM_PALETTE = Object.freeze({
+  off: LED_OFF,
+  sweep: LED_HIT,         /* Green                                         */
+  sweepDim: 85,           /* NeonGreen dim #144D08                         */
+  sparkle: 120,           /* White                                         */
+});
+
+/*
  * The home screen's pads (home/leds.mjs): the five circles' pads, 69..73,
  * dim, the selected one bright and pulsing; the rest dark.
  */

@@ -9,7 +9,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as SC from '../src/scenes.mjs';
 import { layoutPlaces } from '../src/pathmap/layout.mjs';
-import { walkDuration } from '../src/pathmap/walk.mjs';
+import { walkDuration, STORY_MS_PER_CELL } from '../src/pathmap/walk.mjs';
 
 const map = { layout: layoutPlaces(5) };
 
@@ -57,7 +57,7 @@ test('a walk sets off when it starts, and lasts until the avatar arrives and is 
   const walk = SC.stepScenes(p, SC.SCENE_MS.celebrate);
   assert.equal(walk.kind, SC.WALK);
   assert.equal(walk.walk.target, 3);
-  const ms = walkDuration(Math.abs(walk.walk.to - walk.walk.from)) + SC.WALK_HOLD_MS;
+  const ms = walkDuration(Math.abs(walk.walk.to - walk.walk.from), STORY_MS_PER_CELL) + SC.WALK_HOLD_MS;
   assert.ok(SC.stepScenes(p, walk.t0 + ms - 1), 'still walking');
   assert.equal(SC.stepScenes(p, walk.t0 + ms), null);
   assert.equal(SC.sceneProgress(walk, walk.t0 + ms), 1);

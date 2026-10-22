@@ -87,7 +87,7 @@ function mapRects(places, layout, walk, now) {
 
 export function MapView(props) {
   const m = () => props.vm().map;
-  const layout = createMemo(() => layoutPlaces(m().places.length));
+  const layout = createMemo(() => layoutPlaces(m().places.length, { kind: m().world ? 'world' : 'island' }));
   const [frame, setFrame] = createSignal(performance.now());
   let walk = null;
   let walkLayout = null;
@@ -134,7 +134,7 @@ export function MapView(props) {
            role="group" aria-label={m().world ? 'The world map: a place per stage' : 'The island: a place per unit'}>
         <For each={rects()}>{(r) => <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} class={r[4] ? 'ink' : 'sea'} />}</For>
         <For each={m().places}>{(p, i) => {
-          const c = () => cellRect(layout().cells[i()]);
+          const c = () => cellRect(layout().cells[i()], layout().kind);
           return (
             <rect class="place-hit" classList={{ on: i() === m().at }} x={c().x} y={c().y} width={c().w} height={c().h}
                   role="button" tabindex="-1" aria-label={`${p.label}, ${p.percent} percent, ${p.state}`}

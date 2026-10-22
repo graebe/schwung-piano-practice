@@ -900,7 +900,7 @@ test('a stage is an island; its list, one option away, ends on its Checkpoint', 
   for (const part of ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']) assert.ok(parts.includes(part), 'the hint takes turns: ' + parts);
   assert.match(parts, /^[^|]*\| PAD go  CLICK enter \|\|/, 'a new screen opens on its first part, whatever the clock: ' + parts);
   const island = screen.frame(click);                   /* 1 Grid and staff: its island */
-  assert.match(island, /^1\.1 Find the notes 0% \|.*ANY KEY skip/, 'the zoom lands on the island: ' + island);
+  assert.match(island, /^1 Grid and staff 0% \|.*ANY KEY skip/, 'the zoom, under the island\'s name: ' + island);
   advanceMs(400);
   assert.match(screen.frame(), /^1\.1 Find the notes 0% \| PAD go/, 'then the island itself');
   screen.frame(shiftClick);
@@ -962,10 +962,12 @@ test('on the map a pad walks there, a second press goes in, and pads make no sou
   assert.match(screen.frame(), /^3 Shapes and time/, 'the avatar walked to stage 3');
   globalThis.onMidiMessageInternal([0x90, third, 100]);
   globalThis.onMidiMessageInternal([0x80, third, 0]);
-  assert.match(screen.frame(), /^3\.1 Intervals II/, 'a second press goes in');
+  assert.match(screen.frame(), /^3 Shapes and time 0% \| ANY KEY skip/, 'a second press goes in: the zoom');
+  advanceMs(400);
+  assert.match(screen.frame(), /^3\.1 Intervals II/, 'and the island');
   /* Water does nothing: a pad no place sits on. */
   const { layoutPlaces, padOfCell, COLS, ROWS } = await import(new URL('../src/pathmap/layout.mjs', import.meta.url));
-  const taken = new Set(layoutPlaces(8).cells.map(padOfCell));
+  const taken = new Set(layoutPlaces(8, { kind: 'island' }).cells.map(padOfCell));
   let water = -1;
   for (let n = PAD; n < PAD + COLS * ROWS && water < 0; n++) if (!taken.has(n)) water = n;
   globalThis.onMidiMessageInternal([0x90, water, 100]);

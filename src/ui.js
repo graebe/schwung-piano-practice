@@ -54,6 +54,7 @@ import {
 } from './session.mjs';
 import { hintPart, ROTATE_MS } from './hints.mjs';
 import { mapPadColors } from './pathmap/leds.mjs';
+import { sweepColors, sparkleColors, SWEEP_MS } from './pathmap/anim.mjs';
 import { homePadColors } from './home/leds.mjs';
 import { viewModel, encodeViewModel } from './view_model.mjs';
 import { applyAction } from './actions.mjs';
@@ -444,12 +445,19 @@ const padColorBuf = new Array(PAD.PAD_COUNT);
 
 function paintPads() {
   navButtons();
-  /* A scene owns the pads: its map's places as it stands (the engine's
-   * sweep and sparkle take over for a celebration), dark over a result. */
+  /* A scene owns the pads: a green wave as a flag goes up, sparkles for
+   * fireworks, the finale and a level learned, and otherwise its map's
+   * places as they stand. */
   if (S.view === ANIM_VIEW) {
     const scene = S.scene;
+    const t = scene ? now() - scene.t0 : 0;
     const on = scene ? VIEW.sceneMap(scene) : null;
-    if (on && on.map) {
+    const kind = scene ? scene.kind : null;
+    if (kind === 'celebrate' && t < SWEEP_MS) {
+      sweepColors({ t, palette: PAD.ANIM_PALETTE, out: padColorBuf });
+    } else if ((kind === 'celebrate' && scene.fireworks) || kind === 'finale' || kind === 'star') {
+      sparkleColors({ t, seed: 5, palette: PAD.ANIM_PALETTE, out: padColorBuf });
+    } else if (on && on.map) {
       mapPadColors({ places: on.map.places, layout: on.map.layout, walk: scene.walk || scene.stand || null,
         now: now(), palette: PAD.MAP_PALETTE, out: padColorBuf });
     } else {
@@ -810,8 +818,7 @@ function drawScene(lastResult) {
   if (scene.over === 'result' && lastResult) {
     if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, { ...lastResult, footer: footer() });
     else VIEW.drawResultPage(ctx, { ...lastResult, footer: footer() });
-    const frame = VIEW.FRAMES[scene.kind];
-    if (frame) frame(ctx, scene, now() - scene.t0);
+    VIEW.drawStar(ctx, lastResult, now() - scene.t0);
     return;
   }
   VIEW.drawScene(ctx, { scene, now: now(), footer: footer() });

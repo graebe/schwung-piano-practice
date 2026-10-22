@@ -929,7 +929,7 @@ test('a pad walks there and a second press goes in; water and lists are not the 
   h.session.mapPad(padOf(5, 3));
   assert.equal(h.session.nav.at(-1).node.label, '4 Sevenths');
   h.run(400);
-  const taken = new Set(layoutPlaces(h.session.mapModel().places.length).cells.map(padOfCell));
+  const taken = new Set(layoutPlaces(h.session.mapModel().places.length, { kind: 'island' }).cells.map(padOfCell));
   const water = [...Array(32).keys()].map((i) => 68 + i).find((n) => !taken.has(n));
   const before = h.session.mapModel().at;
   assert.equal(h.session.mapPad(water), true, 'the map takes it, and makes no sound');

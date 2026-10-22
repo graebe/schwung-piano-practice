@@ -20,7 +20,8 @@
  * view.mjs's (drawScene), what it says the session's (announce).
  */
 
-import { createWalk, walkTo, walkDuration } from './pathmap/walk.mjs';
+import { createWalk, walkTo, walkDuration, STORY_MS_PER_CELL } from './pathmap/walk.mjs';
+import { FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS } from './pathmap/anim.mjs';
 
 export const WALK = 'walk';
 export const CELEBRATE = 'celebrate';
@@ -30,17 +31,18 @@ export const FINALE = 'finale';
 export const KINDS = Object.freeze([WALK, CELEBRATE, ZOOM, STAR, FINALE]);
 
 /*
- * How long each kind runs, in ms. The engine's frames (pathmap/anim.mjs) set
- * these once they land: flag 400 + fireworks 900, zoom 350, star 600,
- * finale ~2.5 s. A walk runs until the avatar arrives, then holds a moment
- * so the place it reached is seen.
+ * How long each kind runs, in ms: the engine's own lengths (pathmap/anim.mjs).
+ * A celebration is the flag going up, then for a stage its fireworks. A walk
+ * runs at the story pace (STORY_MS_PER_CELL, slower than the jog's, so the
+ * way can be followed) until the avatar arrives, then holds a moment so the
+ * place it reached is seen.
  */
 export const SCENE_MS = Object.freeze({
-  [CELEBRATE]: 400,
-  fireworks: 1300,
-  [ZOOM]: 350,
-  [STAR]: 600,
-  [FINALE]: 2500,
+  [CELEBRATE]: FLAG_MS,
+  fireworks: FLAG_MS + FIREWORKS_MS,
+  [ZOOM]: ZOOM_MS,
+  [STAR]: STAR_MS,
+  [FINALE]: FINALE_MS,
 });
 export const WALK_HOLD_MS = 250;
 
@@ -61,7 +63,7 @@ export function sceneMs(scene) {
 function begin(p, scene, t) {
   scene.t0 = t;
   if (scene.kind === WALK) {
-    scene.walk = createWalk(scene.map.layout, scene.from);
+    scene.walk = createWalk(scene.map.layout, scene.from, { msPerCell: STORY_MS_PER_CELL });
     walkTo(scene.walk, scene.to, t);
   }
   p.current = scene;
@@ -91,7 +93,7 @@ export function sceneOver(scene, t) {
 /* A walk's time: the engine's own, for the cells between, and the hold. */
 function runMs(scene) {
   if (scene.kind !== WALK) return sceneMs(scene);
-  return walkDuration(Math.abs(scene.walk.to - scene.walk.from)) + WALK_HOLD_MS;
+  return walkDuration(Math.abs(scene.walk.to - scene.walk.from), STORY_MS_PER_CELL) + WALK_HOLD_MS;
 }
 
 /* 0..1, for a renderer that draws by progress (the web page). */

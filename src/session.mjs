@@ -2434,7 +2434,8 @@ export function createSession(fx, opts = {}) {
     if (!built.places.length) return null;
     const children = built.targets.map((t) => childOf(top.node, t));
     const same = map && map.node === top.node && map.places.length === built.places.length;
-    const layout = same ? map.layout : layoutPlaces(built.places.length);
+    const layout = same ? map.layout
+      : layoutPlaces(built.places.length, { kind: top.node.phase ? 'island' : 'world' });
     let at = children.indexOf(top.cursor);
     if (at < 0) {
       at = MP.startPlace(built.places);
@@ -2597,7 +2598,7 @@ export function createSession(fx, opts = {}) {
     const due = MP.dueIdsOf(progress, wallNow());
     const built = phase ? MP.unitPlaces(progress, phases, phase, due) : MP.stagePlaces(progress, phases, due);
     return { world: !phase, phase: phase || null, places: built.places, targets: built.targets,
-      layout: layoutPlaces(built.places.length) };
+      layout: layoutPlaces(built.places.length, { kind: phase ? 'island' : 'world' }) };
   }
 
   const placeOfPhase = (world, phase) => Math.max(0, world.targets.findIndex((t) => t.phase === phase));
@@ -2637,7 +2638,7 @@ export function createSession(fx, opts = {}) {
   function storyOf(before, id) {
     const after = pathSnapshot(id);
     const story = { phase: before.phase, place: -1, stageDone: null, pathDone: false,
-      learned: !before.learned && after.learned };
+      learned: !before.learned && after.learned, was: before.places || [] };
     if (!before.phase || after.phase !== before.phase) return story;
     const done = (st) => st === 'done';
     const settled = (st) => st === 'done' || st === 'skipped';
@@ -2669,7 +2670,7 @@ export function createSession(fx, opts = {}) {
     const doneAt = stage && fortOf(island) >= 0 ? fortOf(island) : Math.max(0, story.place);
     if (!stage && !story.pathDone && nextPhase === from && placeOfUnit(island, nextUnit) === doneAt) return [];
     const scenes = [{
-      kind: SC.CELEBRATE, map: island, at: doneAt, fireworks: stage,
+      kind: SC.CELEBRATE, map: island, at: doneAt, fireworks: stage, was: story.was[doneAt] || 'started',
       say: stage ? 'Stage ' + from.n + ' complete.' : 'Unit done.',
     }];
     if (nextPhase === from && !story.pathDone) {
