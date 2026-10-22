@@ -13,7 +13,11 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # The recorded piano and claves are Git LFS objects: without them the
+      # tests read pointer files and package.sh refuses to ship one.
       - uses: actions/checkout@v4
+        with:
+          lfs: true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -28,7 +32,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # The recorded piano and claves are Git LFS objects: without them the
+      # tests read pointer files and package.sh refuses to ship one.
       - uses: actions/checkout@v4
+        with:
+          lfs: true
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
