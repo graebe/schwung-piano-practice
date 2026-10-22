@@ -79,6 +79,8 @@ const unitOf = (p) => {
   /* The Path map engine, shared with Drums Practice byte for byte: judged
    * on its own, so the module's code around it cannot carry it. */
   if (p.startsWith('src/pathmap/')) return 'pathmap';
+  /* The home screen engine, shared the same way. */
+  if (p.startsWith('src/home/')) return 'home';
   if (p.startsWith('src/')) return 'core';
   if ((m = p.match(/^web\/src\/[^/]+/))) return m[0].replace('/src', '');
   if ((m = p.match(/^dsp\/[^/]+/))) return m[0];
