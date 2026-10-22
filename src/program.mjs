@@ -1,337 +1,222 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Torben Gräber
 /*
- * program.mjs — the Learning Program: what to practise next. Pure.
+ * program.mjs — the Learning Program: following the path. Pure.
  *
- * Four tracks run side by side, because reading, harmony, repertoire and ear
- * are different skills and a session that mixes them beats one that grinds a
- * single list:
+ * curriculum.mjs says WHAT the path is: five phases of units of exercises.
+ * This module says how a learner moves along it, from nothing but their
+ * progress, so there is no second record to keep in step:
  *
- *   Reading   scales, intervals and random lines, then the first tunes
- *   Chords    triads to altered dominants, and the progressions they make
- *   Songs     every bundled piece, rung by rung, easy to hard
- *   Hearing   name what you hear: pitch, intervals, chords, keys
+ *   A unit is FINISHED when every step is finished or skipped, and READY when
+ *   every unit it comes after is finished or sits in an assumed phase.
  *
- * A track is units of steps, and a step is only a pointer at a row of the
- * lesson tree, by the same id progress.mjs files its results under. That is
- * what keeps the program from being a second, parallel record: play Ode to Joy
- * from Classics and its step in the program is done too.
+ *   A phase is ASSUMED when it lies before the learner's start — set by Start
+ *   here, or by passing the phase's check through "Check: skip phase". It is
+ *   PASSED when its check steps are passed at stage 2 however that happened,
+ *   and DONE when every unit is finished.
  *
- * Nothing is ever locked. The program only recommends: a track's next step is
- * its first one not finished and not explicitly skipped, and Continue picks
- * the track you have left longest.
+ *   The learner's phase is the earliest from the start that is neither done
+ *   nor passed. Continue offers the next step of a ready unit from the start
+ *   up to that phase — so units left over from a passed phase stay in the mix
+ *   while the hands move on — choosing the unit whose strand was practised
+ *   longest ago, so a session mixes reading, harmony, ear and pieces.
+ *
+ * The only thing stored is the start (progress.program.start): a choice the
+ * learner made. Everything else follows from the results.
+ *
+ * Nothing is ever locked. The program only recommends.
  */
 
-import { drillId, drillLabel } from './stats.mjs';
-import { availableLevels } from './levels.mjs';
-import { item, isFinished } from './progress.mjs';
+import { item, isFinished, stagePassed, programStart } from './progress.mjs';
 import { EXERCISES, TOPICS, exerciseByKey, isNaming, resolveLegacy } from './ear.mjs';
 import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
-import { folder } from './catalog.mjs';
-
-const SCALES = 'basics/scales/';
-const CHORDS = 'basics/chords/';
-const PROGS = 'basics/progressions/';
-const RANDOM = 'basics/random/';
-
-const scale = (mode, drill, label) => ({ id: SCALES + mode + '/' + drill, label });
-const chord = (family, lesson, level, label) => ({
-  id: CHORDS + family + '/' + lesson + '/' + level, label,
-});
-const prog = (id, level, label) => ({ id: PROGS + id + '/' + level, label });
-const random = (row, label) => ({ id: RANDOM + row, label });
-const tune = (song, level, label) => ({ id: 'song:' + song + '/' + level, label });
-
-/* A quiz step pins its options for the round, whatever the settings say, so
- * the step asks the same thing for everyone who reaches it. */
-function quiz(opts) {
-  const q = opts.kind === EAR ? {
-    kind: EAR, exercise: opts.exercise, level: opts.level, hear: true, pick: true,
-  } : {
-    kind: opts.kind,
-    hear: Boolean(opts.hear),
-    pick: Boolean(opts.pick),
-    halfTones: Boolean(opts.halfTones),
-    chordSet: opts.chordSet || 'triads',
-  };
-  const id = 'quiz:' + drillId(q);
-  return { id, label: drillLabel(drillId(q)), quiz: q };
-}
-
-const N = 'notes';
-const C = 'chords';
-const EAR = 'ear';
-
-const READING = [
-  { name: 'First notes', steps: [
-    scale('major', 'up-down', 'Major up & down'),
-    scale('major', 'up', 'Major up'),
-    scale('major', 'down', 'Major down'),
-  ] },
-  { name: 'Leaps', steps: [
-    scale('major', 'thirds', 'Major thirds'),
-    scale('major', 'fifths', 'Major fifths'),
-    random('in-key', 'Random in key'),
-  ] },
-  /* Finding a pitch on the grid, and naming a lit pad: reading the
-   * instrument rather than the staff. */
-  { name: 'Find the note', steps: [
-    quiz({ kind: N }), quiz({ kind: N, pick: true }),
-  ] },
-  { name: 'First tunes', steps: [
-    tune('mary-had-a-lamb', '1r', 'Marys Lamb melody'),
-    tune('ode-to-joy', '1r', 'Ode to Joy melody'),
-    tune('twinkle', '1r', 'Twinkle melody'),
-    tune('frere-jacques', '1r', 'Frere Jacques melody'),
-  ] },
-  { name: 'Minor and modes', steps: [
-    scale('minor', 'up-down', 'Minor up & down'),
-    scale('minor', 'thirds', 'Minor thirds'),
-    scale('dorian', 'up-down', 'Dorian up & down'),
-    scale('mixolydian', 'up-down', 'Mixolydian up & down'),
-  ] },
-  { name: 'Faster', steps: [
-    random('in-key-fast', 'Random in key, fast'),
-    scale('majorPent', 'up-down', 'Maj pentatonic'),
-    scale('minorPent', 'up-down', 'Min pentatonic'),
-    scale('minorBlues', 'up-down', 'Minor blues'),
-  ] },
-  { name: 'Every note', steps: [
-    scale('harmonicMinor', 'up-down', 'Harmonic minor'),
-    scale('chromatic', 'up-down', 'Chromatic'),
-    random('all-notes', 'Random, all notes'),
-    quiz({ kind: N, halfTones: true }), quiz({ kind: N, halfTones: true, pick: true }),
-  ] },
-];
-
-/* `2r` is the shapes in the right hand; `3` is the shapes over their roots. */
-const CHORD_TRACK = [
-  { name: 'Triads', steps: [
-    chord('triads', 'chord-maj', '2r', 'Major triad'),
-    chord('triads', 'chord-min', '2r', 'Minor triad'),
-    /* Hearing the difference belongs next to playing it: the Hearing track's
-     * Major or minor chord, block chords, is the same item here. */
-    { ...quiz({ kind: EAR, exercise: 'triads', level: 'block' }), label: 'Hear major or minor' },
-    chord('triads', 'chord-maj', '3', 'Major, both hands'),
-    chord('triads', 'chord-min', '3', 'Minor, both hands'),
-    chord('triads', 'chord-dim', '2r', 'Diminished triad'),
-    chord('triads', 'chord-aug', '2r', 'Augmented triad'),
-  ] },
-  { name: 'Inversions and sus', steps: [
-    chord('inversions', 'inversions-maj', '2r', 'Major inversions'),
-    chord('inversions', 'inversions-min', '2r', 'Minor inversions'),
-    chord('sus-power', 'chord-sus2', '2r', 'Sus2'),
-    chord('sus-power', 'chord-sus4', '2r', 'Sus4'),
-    chord('sus-power', 'chord-5', '3', 'Power chords'),
-  ] },
-  { name: 'Progressions', steps: [
-    prog('I-IV-V-I', '2r', 'I-IV-V-I shapes'),
-    prog('I-IV-V-I', '3', 'I-IV-V-I both hands'),
-    prog('I-V-vi-IV', '3', 'I-V-vi-IV'),
-    prog('vi-IV-I-V', '3', 'vi-IV-I-V'),
-    prog('i-iv-V-i', '3', 'i-iv-V-i'),
-    random('triads/2r', 'Random triads'),
-  ] },
-  { name: 'Sevenths', steps: [
-    chord('sevenths', 'chord-maj7', '2r', 'Major 7th'),
-    chord('sevenths', 'chord-7', '2r', 'Dominant 7th'),
-    chord('sevenths', 'chord-m7', '2r', 'Minor 7th'),
-    chord('sevenths', 'chord-m7b5', '2r', 'Half-dim 7th'),
-    prog('ii-V-I', '3', 'ii-V-I'),
-    random('sevenths/2r', 'Random sevenths'),
-  ] },
-  { name: 'Name the chord', steps: [
-    quiz({ kind: C }), quiz({ kind: C, pick: true }),
-    quiz({ kind: C, chordSet: 'types' }), quiz({ kind: C, chordSet: 'types', pick: true }),
-  ] },
-  { name: 'Colours', steps: [
-    chord('sixths', 'chord-6', '2r', 'Major 6th'),
-    chord('added-tones', 'chord-add9', '2r', 'Add 9'),
-    chord('ninths', 'chord-m9', '2r', 'Minor 9th'),
-    prog('vi-ii-V-I', '3', 'vi-ii-V-I'),
-    prog('12-bar-blues', '3', '12-bar blues'),
-  ] },
-  { name: 'Advanced', steps: [
-    chord('suspended-7ths', 'chord-7sus4', '2r', '7sus4'),
-    chord('elevenths', 'chord-m11', '2r', 'Minor 11th'),
-    chord('thirteenths', 'chord-13', '2r', 'Thirteenth'),
-    chord('lydian', 'chord-maj7#11', '2r', 'Lydian maj7'),
-    chord('altered', 'chord-7alt', '2r', 'Altered 7th'),
-    chord('slash-chords', 'slash-chords', '3', 'Slash chords'),
-    prog('ii-V-i-minor', '3', 'ii-V-i minor'),
-    random('all-chords/3', 'Random chords'),
-    quiz({ kind: C, chordSet: 'advanced' }), quiz({ kind: C, chordSet: 'advanced', pick: true }),
-  ] },
-];
+import { folder, slug } from './catalog.mjs';
+import { buildPhases, levelSteps, N, C, EAR } from './curriculum.mjs';
 
 /*
- * A level of a hearing or reading exercise, as a step. Inside its unit's
- * folder the path already says which drill it is, so the row is the level
- * alone — "up", "fix down" — or, where heard and read sit side by side, the
- * medium and the level: "Hear up", "Read up". The full drill label is its
- * title, for Continue, Skip and Progress, where it stands on its own.
+ * What the program's generated steps are built with, whatever the settings
+ * say: the curriculum teaches in C, and "Random in key" must not turn Dorian
+ * because Basics was last used in Dorian. The ids are the same as Basics', so
+ * a drill played there in another key still counts for the step.
  */
-function levelStep(ex, lv, medium) {
-  const step = quiz(isNaming(ex) ? { kind: EAR, exercise: ex.key, level: lv.key } : lv.quiz);
-  return { ...step, title: step.label, label: medium ? medium + ' ' + lv.name : lv.name };
-}
+export const PROGRAM_GEN = { rootPc: 0, mode: 'major' };
 
-const levelSteps = (ex, medium) => ex.levels.map((lv) => levelStep(ex, lv, medium));
-
-/* Hearing: the exercises of ear.mjs in their order, easiest first, one unit
- * each and one step per level. */
-const HEARING = EXERCISES.map((ex, i) => ({ name: (i + 1) + ' ' + ex.name, exercise: ex.key, steps: levelSteps(ex) }));
-
-/*
- * The courses, heard and read: one unit per course unit, its heard levels and
- * then the same levels read, so one skill is trained from both sides in one
- * place. A unit read is its Hear twin with "rd-" in front.
- */
-const twinOf = (ex) => exerciseByKey('rd-' + ex.key);
-const pairedSteps = (ex) => levelSteps(ex, 'Hear').concat(levelSteps(twinOf(ex), 'Read'));
-const courseUnit = (key) => COURSES.flatMap((c) => c.exercises).find((e) => e.key === key);
-
-/*
- * Intervals: identifying and comparing, interleaved by size — a pair of
- * intervals is named, then compared, before the next ones come in; the
- * compound intervals are compared once both of a pair have been named.
- */
-const INTERVAL_ORDER = [
-  'id-2nds', 'cmp-2nds', 'id-3rds', 'cmp-3rds', 'id-2-3', 'cmp-M2-m3',
-  'id-4-5-8', 'cmp-4-5', 'cmp-4-TT', 'cmp-5-TT', 'cmp-4-TT-5', 'id-to-5', 'cmp-to-5',
-  'id-6ths', 'cmp-6ths', 'id-7ths', 'cmp-7ths', 'cmp-M6-m7', 'id-6-7-8', 'cmp-6-7',
-  'id-to-8', 'cmp-to-8',
-  'id-8-M9-M10', 'id-8-m9-M10-11-12', 'cmp-9ths', 'id-8-m9-m10', 'cmp-10ths', 'cmp-M9-m10',
-  'id-8-m9-m10-11-12', 'cmp-11-12', 'id-11-d12-12', 'id-8-12',
-  'id-M13-M14-15', 'id-m13-m14-15', 'id-13-15',
-];
-
-export { INTERVAL_ORDER };
-
-const INTERVALS_TRACK = INTERVAL_ORDER.map((key, i) => {
-  const ex = courseUnit(key);
-  const name = key.indexOf('cmp-') === 0 ? 'Compare ' + ex.short : ex.name;
-  return { name: (i + 1) + ' ' + name, exercise: ex.key, steps: pairedSteps(ex) };
-});
-
-const SCALES_TRACK = COURSES.find((c) => c.key === 'scales').exercises
-  .map((ex, i) => ({ name: (i + 1) + ' ' + ex.name, exercise: ex.key, steps: pairedSteps(ex) }));
-
-/* What the songs track calls a rung, short enough to follow a song's name. */
-const RUNG = { '1r': 'L1 RH', '1l': 'L1 LH', '2r': 'L2', '3': 'L3' };
-
-/*
- * The songs track is made from the files rather than written out, so a song
- * added to the manifest joins the program in its category's place. Categories
- * run in the order given — easy material first — and songs in manifest order,
- * which within a category is already easy to hard.
- */
-function songUnits(songs, categoryOrder) {
-  const units = [];
-  for (let c = 0; c < categoryOrder.length; c++) {
-    for (let i = 0; i < songs.length; i++) {
-      const s = songs[i];
-      if (s.category !== categoryOrder[c]) continue;
-      const levels = availableLevels(s.chart);
-      const steps = levels.length > 1
-        ? levels.map((lv) => ({
-          id: 'song:' + s.chart.id + '/' + lv.id,
-          label: lv.step + ' ' + lv.label,
-          title: s.chart.name + ' ' + RUNG[lv.id],
-        }))
-        : [{ id: 'song:' + s.chart.id, label: s.chart.name }];
-      units.push({ name: s.chart.name, steps });
+/* The whole path, numbered: phases 1-5, units "2.3". */
+export function buildProgram({ songs = [] } = {}) {
+  const phases = buildPhases({ songs });
+  for (let p = 0; p < phases.length; p++) {
+    const ph = phases[p];
+    ph.index = p;
+    ph.n = p + 1;
+    for (let u = 0; u < ph.units.length; u++) {
+      ph.units[u].num = ph.n + '.' + (u + 1);
+      ph.units[u].phase = ph;
     }
   }
-  return units;
+  return phases;
 }
 
-export const SONG_ORDER = ['classics', 'styles', 'electronic', 'techno'];
+/* ---- Steps ----------------------------------------------------------------- */
 
-/* The whole program. `songs` is [{ chart, category }], as catalog.mjs takes it. */
-export function buildProgram({ songs = [], categoryOrder = SONG_ORDER } = {}) {
-  return [
-    { key: 'reading', name: 'Reading', units: READING },
-    { key: 'chords', name: 'Chords', units: CHORD_TRACK },
-    { key: 'songs', name: 'Songs', units: songUnits(songs, categoryOrder) },
-    { key: 'hearing', name: 'Hearing', units: HEARING },
-    { key: 'intervals', name: 'Intervals', units: INTERVALS_TRACK },
-    { key: 'scales', name: 'Scales', units: SCALES_TRACK },
-  ];
-}
-
-/* ---- Following it --------------------------------------------------------- */
-
-export function trackSteps(track) {
+export function unitSteps(unit) {
   const out = [];
-  for (let u = 0; u < track.units.length; u++) {
-    for (let s = 0; s < track.units[u].steps.length; s++) out.push(track.units[u].steps[s]);
+  for (let e = 0; e < unit.exercises.length; e++) {
+    const steps = unit.exercises[e].steps;
+    for (let s = 0; s < steps.length; s++) out.push(steps[s]);
   }
   return out;
 }
 
-/* What a step is called on its own, outside its unit's folder. */
+export function phaseSteps(phase) {
+  let out = [];
+  for (let u = 0; u < phase.units.length; u++) out = out.concat(unitSteps(phase.units[u]));
+  return out;
+}
+
+export function allSteps(phases) {
+  let out = [];
+  for (let p = 0; p < phases.length; p++) out = out.concat(phaseSteps(phases[p]));
+  return out;
+}
+
+/* What a step is called on its own, outside its folder. */
 export function stepTitle(step) {
   return step.title || step.label;
 }
 
-/* The first step neither finished nor skipped, or null when the track is done. */
-export function nextStep(progress, track) {
-  const steps = trackSteps(track);
-  for (let i = 0; i < steps.length; i++) {
-    const it = item(progress, steps[i].id);
-    if (isFinished(it)) continue;
-    if (it && it.skip) continue;
-    return steps[i];
+/* The unit (and its phase) a step id belongs to. */
+export function unitOf(phases, id) {
+  for (let p = 0; p < phases.length; p++) {
+    for (let u = 0; u < phases[p].units.length; u++) {
+      const unit = phases[p].units[u];
+      if (unitSteps(unit).some((s) => s.id === id)) return unit;
+    }
   }
   return null;
 }
 
-/* When the track was last practised, by any of its steps, in unix seconds. */
-export function trackActivity(progress, track) {
-  const steps = trackSteps(track);
-  let latest = 0;
-  for (let i = 0; i < steps.length; i++) {
-    const it = item(progress, steps[i].id);
-    if (it && it.t > latest) latest = it.t;
+export function findStep(phases, id) {
+  const unit = unitOf(phases, id);
+  return unit ? unitSteps(unit).find((s) => s.id === id) : null;
+}
+
+/* The exercise a step belongs to, for its description. */
+export function exerciseOf(phases, id) {
+  const unit = unitOf(phases, id);
+  return unit ? unit.exercises.find((e) => e.steps.some((s) => s.id === id)) : null;
+}
+
+/* ---- State, from progress -------------------------------------------------- */
+
+const settled = (progress, step) => {
+  const it = item(progress, step.id);
+  return isFinished(it) || Boolean(it && it.skip);
+};
+
+/* The first step neither finished nor skipped, or null when the unit is done. */
+export function nextInUnit(progress, unit) {
+  const steps = unitSteps(unit);
+  for (let i = 0; i < steps.length; i++) if (!settled(progress, steps[i])) return steps[i];
+  return null;
+}
+
+export function unitFinished(progress, unit) {
+  return nextInUnit(progress, unit) === null;
+}
+
+export function phaseDone(progress, phase) {
+  return phase.units.every((u) => unitFinished(progress, u));
+}
+
+/* Its check steps, each passed at stage 2 — however it came about. */
+export function checkPassed(progress, phase) {
+  return phase.check.length > 0 && phase.check.every((id) => stagePassed(item(progress, id), 2));
+}
+
+/* The phase Continue starts from: 0, or where the learner put it. */
+export function startIndex(progress, phases) {
+  return Math.max(0, Math.min(phases.length - 1, programStart(progress)));
+}
+
+export function isAssumed(progress, phases, phase) {
+  return phase.index < startIndex(progress, phases);
+}
+
+/* The learner's phase, or null when every phase from the start is through. */
+export function currentPhase(progress, phases) {
+  for (let p = startIndex(progress, phases); p < phases.length; p++) {
+    if (!phaseDone(progress, phases[p]) && !checkPassed(progress, phases[p])) return phases[p];
+  }
+  return null;
+}
+
+function unitByKey(phases, key) {
+  for (let p = 0; p < phases.length; p++) {
+    const u = phases[p].units.find((x) => x.key === key);
+    if (u) return u;
+  }
+  return null;
+}
+
+export function unitReady(progress, phases, unit) {
+  return unit.after.every((key) => {
+    const before = unitByKey(phases, key);
+    return !before || unitFinished(progress, before) || isAssumed(progress, phases, before.phase);
+  });
+}
+
+/* When each strand was last practised, by any of its steps, in unix seconds:
+ * { grid: t, read: t, ... }, in one pass over the path. */
+export function strandActivity(progress, phases) {
+  const latest = {};
+  for (let p = 0; p < phases.length; p++) {
+    for (let u = 0; u < phases[p].units.length; u++) {
+      const unit = phases[p].units[u];
+      const steps = unitSteps(unit);
+      let t = latest[unit.strand] || 0;
+      for (let s = 0; s < steps.length; s++) {
+        const it = item(progress, steps[s].id);
+        if (it && it.t > t) t = it.t;
+      }
+      latest[unit.strand] = t;
+    }
   }
   return latest;
 }
 
 /*
- * Continue: the next step of the track left longest. Ties go to the earlier
- * track, so on a fresh start it is Reading first — and the first session
- * then walks Reading, Chords, Songs, Hearing in turn.
+ * Continue: among the ready units with something left, from the start up to
+ * the learner's phase, the one whose strand was practised longest ago; ties
+ * go to the earlier unit, so a fresh start opens 1.1 and the first session
+ * walks the strands in turn. Past every phase, whatever is left anywhere.
  */
-export function continueStep(progress, tracks) {
+export function continueStep(progress, phases) {
+  const cur = currentPhase(progress, phases);
+  const from = cur ? startIndex(progress, phases) : 0;
+  const to = cur ? cur.index : phases.length - 1;
+  const activity = strandActivity(progress, phases);
   let best = null;
   let bestAt = Infinity;
-  for (let i = 0; i < tracks.length; i++) {
-    const step = nextStep(progress, tracks[i]);
-    if (!step) continue;
-    const at = trackActivity(progress, tracks[i]);
-    if (at < bestAt) {
-      best = { track: tracks[i], step };
-      bestAt = at;
+  for (let p = from; p <= to; p++) {
+    for (let u = 0; u < phases[p].units.length; u++) {
+      const unit = phases[p].units[u];
+      const step = nextInUnit(progress, unit);
+      if (!step || !unitReady(progress, phases, unit)) continue;
+      const at = activity[unit.strand] || 0;
+      if (at < bestAt) {
+        best = { phase: phases[p], unit, step };
+        bestAt = at;
+      }
     }
   }
   return best;
 }
 
-/* The first track a step id belongs to — a tune can sit in two. */
-export function trackOf(tracks, id) {
-  for (let i = 0; i < tracks.length; i++) {
-    const steps = trackSteps(tracks[i]);
-    for (let s = 0; s < steps.length; s++) if (steps[s].id === id) return tracks[i];
-  }
-  return null;
-}
-
-export function findStep(tracks, id) {
-  for (let i = 0; i < tracks.length; i++) {
-    const steps = trackSteps(tracks[i]);
-    for (let s = 0; s < steps.length; s++) if (steps[s].id === id) return steps[s];
+/* A check's next step: the first not yet passed at stage 2. */
+export function nextCheckStep(progress, phases, phase) {
+  for (let i = 0; i < phase.check.length; i++) {
+    if (!stagePassed(item(progress, phase.check[i]), 2)) return findStep(phases, phase.check[i]);
   }
   return null;
 }
@@ -364,51 +249,36 @@ export function quizFromId(id) {
 
 /* ---- As rows of the lesson list ------------------------------------------- */
 
-/*
- * The Learning Program folder. Steps are leaves carrying their own id, so the
- * folder sums the same items the rest of the tree does. Continue, Skip and
- * Repetition are rows ui.js gives meaning to; Repetition's rows depend on the
- * day, so the caller supplies them as a function and the folder sums leave
- * them out.
- */
 /* A step as a row of a list: a leaf under its own id, so it is summed and
  * marked wherever it appears. */
 export function stepRow(step) {
   return { label: step.label, value: '', key: step.id, absolute: true, step };
 }
 
-/* ---- Quiz › Hear and Quiz › Read ----------------------------------------- */
-
-/* An exercise in a list: a folder of its levels, or — with one level — the
- * level itself, named as the exercise. */
-function exerciseRow(ex, name = ex.name) {
-  const steps = levelSteps(ex);
-  if (steps.length === 1) return stepRow({ ...steps[0], label: name });
-  return folder(name, steps.map(stepRow), ex.key);
+/* An exercise in a unit: its step, or a folder of its steps. */
+function exerciseRow(ex) {
+  if (ex.steps.length === 1) return stepRow(ex.steps[0]);
+  return folder(ex.label, ex.steps.map(stepRow), slug(ex.label));
 }
 
-/* A course: its units, numbered, since a course is a sequence. */
-function courseFolder(course) {
-  return folder(course.name, course.exercises.map((ex, i) => exerciseRow(ex, (i + 1) + ' ' + ex.name)), course.key);
+function unitRow(unit) {
+  return { label: unit.num + ' ' + unit.name, value: '>', key: unit.key, unit, children: unit.exercises.map(exerciseRow) };
+}
+
+function phaseRow(phase) {
+  const rows = [];
+  if (phase.check.length) rows.push({ label: 'Check: skip phase', value: '', checkRow: true, phase });
+  rows.push({ label: 'Start here', value: '', startRow: true, phase });
+  return { label: phase.n + ' ' + phase.name, value: '>', key: phase.key, phase, children: rows.concat(phase.units.map(unitRow)) };
 }
 
 /*
- * Quiz › Hear, by topic — pitch and melody, intervals, chords, scales and
- * keys — each with its courses first and then its exercises, easiest first.
+ * The Learning Program folder: Continue, Skip next, the five phases and
+ * Repetition. Continue, Skip, the check and Start here are rows ui.js gives
+ * meaning to; Repetition's rows depend on the day, so the caller supplies
+ * them as a function and the folder sums leave them out.
  */
-export function hearMenu() {
-  return folder('Hear', TOPICS.map((t) => folder(t.name,
-    COURSES.filter((c) => c.topic === t.key).map(courseFolder)
-      .concat(EXERCISES.filter((e) => e.topic === t.key).map((e) => exerciseRow(e))),
-    t.key)), 'hear');
-}
-
-/* Quiz › Read: the courses again, on the staff, under the same names. */
-export function readMenu() {
-  return folder('Read', READ_COURSES.map(courseFolder), 'read');
-}
-
-export function programFolder(tracks, repetitionRows = () => []) {
+export function programFolder(phases, repetitionRows = () => []) {
   return {
     label: 'Learning Program',
     value: '>',
@@ -416,17 +286,7 @@ export function programFolder(tracks, repetitionRows = () => []) {
     children: [
       { label: 'Continue', value: '', continueRow: true },
       { label: 'Skip next', value: '', skipRow: true },
-      ...tracks.map((t) => ({
-        label: t.name,
-        value: '>',
-        key: t.key,
-        track: t,
-        /* A unit of one step is that step, named as the unit: a folder of
-         * one row is a click that shows nothing new. */
-        children: t.units.map((u) => (u.steps.length === 1
-          ? stepRow({ ...u.steps[0], label: u.name })
-          : { label: u.name, value: '>', children: u.steps.map(stepRow) })),
-      })),
+      ...phases.map(phaseRow),
       {
         label: 'Repetition',
         value: '>',
@@ -437,4 +297,35 @@ export function programFolder(tracks, repetitionRows = () => []) {
       },
     ],
   };
+}
+
+/* ---- Quiz › Hear and Quiz › Read ----------------------------------------- */
+
+/* An exercise in a list: a folder of its levels, or, with one level, the
+ * level itself, named as the exercise. */
+function levelsRow(ex, name = ex.name) {
+  const steps = levelSteps(ex);
+  if (steps.length === 1) return stepRow({ ...steps[0], label: name });
+  return folder(name, steps.map(stepRow), ex.key);
+}
+
+/* A course: its units, numbered, since a course is a sequence. */
+function courseFolder(course) {
+  return folder(course.name, course.exercises.map((ex, i) => levelsRow(ex, (i + 1) + ' ' + ex.name)), course.key);
+}
+
+/*
+ * Quiz › Hear, by topic: pitch and melody, intervals, chords, scales and
+ * keys, each with its courses first and then its exercises, easiest first.
+ */
+export function hearMenu() {
+  return folder('Hear', TOPICS.map((t) => folder(t.name,
+    COURSES.filter((c) => c.topic === t.key).map(courseFolder)
+      .concat(EXERCISES.filter((e) => e.topic === t.key).map((e) => levelsRow(e))),
+    t.key)), 'hear');
+}
+
+/* Quiz › Read: the courses again, on the staff, under the same names. */
+export function readMenu() {
+  return folder('Read', READ_COURSES.map(courseFolder), 'read');
 }

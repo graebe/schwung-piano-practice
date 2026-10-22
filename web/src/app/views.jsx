@@ -17,8 +17,8 @@ import { staffEvents, staffJudgements, staffMarkers } from './chart-view.js';
 import { keyboardRange } from './feedback.js';
 import { MODES } from '../../../src/generator.mjs';
 
-const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next' };
-const MARK_INFO = { done: 'both stages passed', half: 'stage 1 passed', skip: 'skipped', next: 'the next step' };
+const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
+const MARK_INFO = { done: 'both stages passed', half: 'stage 1 passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a phase you skipped' };
 
 /* The playhead, every animation frame while the music moves; still otherwise. */
 function createFrameClock(store) {

@@ -14,6 +14,7 @@ import {
   OUT_INTERNAL,
 } from '../src/session.mjs';
 import * as GUESS from '../src/guess.mjs';
+import * as PROG from '../src/progress.mjs';
 
 function armScale(h) {
   h.session.init();
@@ -435,4 +436,144 @@ test('settings saved before v8 move on: reference on is stage 1, off stays off, 
   assert.equal(load({ version: 7, graceBeats: 1 }).graceBeats, 1 / 4);
   assert.equal(load({ version: 7, graceBeats: 2 }).graceBeats, 2, 'chosen on purpose, kept');
   assert.equal(load({ version: 8, graceBeats: 1 }).graceBeats, 1, 'a choice made since, kept');
+});
+
+/* ---- Records survive a damaged file --------------------------------------- */
+
+const GOOD_PROGRESS = JSON.stringify({ version: 1, items: { 'basics/scales/major/up-down': { stages: [{ best: 1, passedAt: 5 }, {}], plays: 1, t: 5 } } });
+
+test('a progress file that parses is kept as the last good copy', () => {
+  const h = fakeHost();
+  h.files.set('progress.json', GOOD_PROGRESS);
+  h.session.init();
+  assert.equal(h.files.get('progress.bak.json'), GOOD_PROGRESS);
+  assert.ok(h.session.progress.items['basics/scales/major/up-down']);
+});
+
+test('a truncated progress file is set aside and the last good copy is read instead', () => {
+  const h = fakeHost();
+  const broken = GOOD_PROGRESS.slice(0, 40);
+  h.files.set('progress.json', broken);
+  h.files.set('progress.bak.json', GOOD_PROGRESS);
+  h.session.init();
+  assert.equal(h.files.get('progress.corrupt.json'), broken, 'the damaged file is kept for recovery');
+  assert.ok(h.session.progress.items['basics/scales/major/up-down'], 'the record comes back from the copy');
+  assert.equal(h.files.get('progress.bak.json'), GOOD_PROGRESS, 'the good copy is not overwritten by the damage');
+});
+
+test('a damaged stats file with no copy starts empty but is not lost', () => {
+  const h = fakeHost();
+  h.files.set('stats.json', '{"records": [');
+  h.session.init();
+  assert.equal(h.files.get('stats.corrupt.json'), '{"records": [');
+  assert.equal(h.files.has('stats.bak.json'), false);
+});
+
+/* ---- The learning path ------------------------------------------------------ */
+
+
+const DAY = 86400000;
+const WALL0 = Date.UTC(2026, 9, 9);
+
+/* Every note of the armed chart, on time, through to its result. */
+function playThrough(h) {
+  h.session.recordButton();
+  const beatMs = 60000 / h.session.chart.bpm;
+  const start = h.ms;
+  const countIn = h.session.settings.countIn;
+  for (const e of h.session.chart.events) {
+    const target = start + (countIn + e.beat) * beatMs;
+    if (target > h.ms) h.run(target - h.ms);
+    for (const p of e.pitches) h.session.play(p, 100);
+    for (const p of e.pitches) h.session.release(p);
+  }
+  h.run(8 * beatMs);
+}
+
+test('Check: skip phase plays the check at stage 2, and passing it moves the start on', () => {
+  const h = fakeHost();
+  h.session.init();
+  const p = h.session.progress;
+  for (const id of ['basics/random/in-key', 'song:ode-to-joy/1r', 'quiz:staff:notes:key']) {
+    PROG.recordAttempt(p, id, { stage: 2, score: 1, at: WALL0 });
+  }
+  openPath(h.session, ['Learning Program', '1 Grid and staff', 'Check: skip phase']);
+  assert.equal(h.session.view, READY);
+  assert.equal(h.session.armedId, 'basics/scales/major/up-down', 'the one check step not yet passed');
+  assert.equal(h.session.stage, 2, 'a check is played without the pads');
+  playThrough(h);
+  assert.equal(h.session.view, RESULT_VIEW);
+  assert.ok(h.said().some((t) => /Phase 1 assumed/.test(t)), h.said().slice(-2).join(' / '));
+  assert.equal(PROG.programStart(h.session.progress), 1);
+});
+
+test('the same steps passed in practice move the phase on without skipping its rest', () => {
+  const h = fakeHost();
+  h.session.init();
+  const p = h.session.progress;
+  for (const id of ['basics/random/in-key', 'song:ode-to-joy/1r', 'quiz:staff:notes:key']) {
+    PROG.recordAttempt(p, id, { stage: 2, score: 1, at: WALL0 });
+  }
+  PROG.recordAttempt(p, 'basics/scales/major/up-down', { stage: 1, score: 1, at: WALL0 });
+  openPath(h.session, ['Learning Program', '1 Grid and staff', '1.1 Major scale', 'Major up & down']);
+  assert.equal(h.session.stage, 2);
+  playThrough(h);
+  assert.ok(PROG.stagePassed(PROG.item(p, 'basics/scales/major/up-down'), 2));
+  assert.equal(PROG.programStart(p), 0, 'not a check: nothing is assumed');
+  assert.ok(!h.said().some((t) => /assumed/.test(t)));
+});
+
+test('Start here moves where Continue begins', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Learning Program', '3 Shapes and time', 'Start here']);
+  assert.equal(PROG.programStart(h.session.progress), 2);
+  assert.ok(h.said().some((t) => /Continue starts at phase 3/.test(t)));
+  h.session.back();
+  h.session.selectRow(0);
+  h.session.activate(false);                     /* Continue */
+  assert.ok(h.session.armedId || h.session.quiz, 'Continue opened a step');
+  const unit = h.session.phases.flatMap((ph) => ph.units).find((u) =>
+    u.exercises.some((e) => e.steps.some((s) => s.id === (h.session.armedId || ''))));
+  if (unit) assert.equal(unit.phase.n, 3);
+});
+
+test('program steps are built in C, whatever the Key and Scale settings say', () => {
+  const h = fakeHost({ settings: { ...QUIET, rootPc: 6, mode: 'dorian' } });
+  h.session.init();
+  openPath(h.session, ['Learning Program', 'Continue']);
+  assert.equal(h.session.armedId, 'basics/scales/major/up-down');
+  assert.equal(h.session.chart.keySig, 0, 'C major on the path: ' + h.session.chart.name);
+  h.session.back();
+  h.session.back();
+  h.session.back();
+  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  assert.notEqual(h.session.chart.keySig, 0, 'Basics follows the settings');
+  h.session.back();
+  h.session.back();
+  h.session.back();
+  h.session.back();
+  h.session.back();
+  openPath(h.session, ['Learning Program', '1 Grid and staff', '1.2 Find the notes', 'Notes by alphabet']);
+  assert.equal(h.session.view, GUESS_VIEW);
+  assert.equal(h.session.keyFifths().fifths, 0, 'a quiz step asks in C too');
+});
+
+test('every fourth Continue is a review, when one is due', () => {
+  const h = fakeHost();
+  h.session.init();
+  PROG.recordAttempt(h.session.progress, 'song:twinkle/1r', { stage: 1, score: 1, at: WALL0 - 10 * DAY });
+  PROG.recordAttempt(h.session.progress, 'song:twinkle/1r', { stage: 2, score: 1, at: WALL0 - 10 * DAY });
+  openPath(h.session, ['Learning Program']);
+  const opened = [];
+  for (let i = 0; i < 4; i++) {
+    h.session.selectRow(0);
+    if (i === 3) assert.match(h.session.decorateRow(h.session.nav.at(-1).node.children[0]).label, /^Review: /);
+    h.session.activate(false);
+    opened.push(h.session.armedId || (h.session.quiz && 'quiz'));
+    h.session.back();
+    if (h.session.view !== MENU) h.session.back();
+  }
+  assert.equal(opened[3], 'song:twinkle/1r', opened.join(' '));
+  assert.ok(!opened.slice(0, 3).includes('song:twinkle/1r'));
 });

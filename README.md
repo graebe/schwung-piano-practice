@@ -57,9 +57,9 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   read from the staff alone. You can go straight to the second whenever you like.
 - **Remembers how far you got.** Every exercise keeps its own score, a ◐ for stage 1 and a ✓ for
   stage 2, and a chart of every attempt. Folders add up what is inside them.
-- **Tells you what to do next.** The Learning Program runs six tracks — reading, chords, songs,
-  hearing, intervals and scales — and Continue always knows the next step. Nothing is locked: follow
-  it, or don't.
+- **Tells you what to do next.** The Learning Program is a path in five phases, written for adults
+  who are new to the piano and to the Move, and Continue always knows the next step. A check lets you
+  skip a phase you already know, and nothing is locked: follow it, or don't.
 
 ## The lesson list
 
@@ -68,12 +68,11 @@ The list is a tree. **Click** opens a folder, **Back** goes up one, and Back at 
 ```
 Learning Program  Continue      the next step, one click away
                   Skip next     pass it by
-                  Reading       scales, lines and first tunes
-                  Chords        triads to altered dominants, and progressions
-                  Songs         every bundled piece, rung by rung
-                  Hearing       ear training, easiest first
-                  Intervals     name and compare intervals, heard and read
-                  Scales        name scales, heard and read
+                  1 Grid and staff   the scale, note names, reading, first melodies
+                  2 Four chords      I-IV-V, the four-chord loop, tracks, both hands
+                  3 Shapes and time  inversions, 3/4 and 6/8, intervals to the 5th, modes
+                  4 Sevenths         ii-V-I, real pieces, dance tracks, function by ear
+                  5 Colour           extended chords, compound intervals, every scale
                   Repetition    finished exercises that are due again
 Basics            Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
                   Chords        thirteen families, one lesson per chord quality
@@ -156,34 +155,42 @@ bar is passage practice and is not, and neither is Listen.
 
 ## The Learning Program
 
-The lesson list holds everything; the **Learning Program** is a path through it. Six tracks run
-side by side, because reading, harmony, repertoire and ear are different skills and a session that
-mixes them beats one that grinds a single list:
+The lesson list holds everything; the **Learning Program** is a path through it, in five phases.
+Each phase takes a few weeks and promises one thing you will be able to do at its end:
 
-| Track | What it walks you through |
+| Phase | Its promise |
 | --- | --- |
-| **Reading** | major scales up, down, in thirds and fifths; random lines in key; the first tunes' melodies; minor and the modes; pentatonics and blues; then every note |
-| **Chords** | major and minor triads, alone then over their roots; diminished and augmented; inversions and sus chords; four progressions; sevenths and ii–V–I; sixths, add9 and ninths; the 12-bar blues; then the advanced chords |
-| **Songs** | every bundled piece in turn — classics, then styles, electronic and techno — each rung by rung: L1 RH, L1 LH, L2, L3 |
-| **Hearing** | the ear-training exercises, easiest first: higher or lower, steps and leaps, the shape of a line, chords, keys, degrees |
-| **Intervals** | naming intervals and comparing them, 2nds up to two octaves, interleaved so a pair is named before it is compared |
-| **Scales** | naming scales: major and minor, then the modes, the pentatonics, whole tone and diminished |
+| **1 Grid and staff** | you find any note on the grid, read C major from the staff, and play Ode to Joy from the score |
+| **2 Four chords** | the four chords behind half of pop music, the chords of a track you know, and a melody with both hands |
+| **3 Shapes and time** | chords voiced smoothly, pieces in 3/4 and 6/8, and an ear for where a tune is going |
+| **4 Sevenths** | ii–V–I, a classical minuet with both hands, and hearing what a chord does in its key |
+| **5 Colour** | extended harmony, compound intervals, the colours of every scale, and sight-reading at speed |
 
-In **Intervals** and **Scales** every unit has both sides of one skill: its levels **heard**
-(`Hear up`, `Hear down`, `Hear tog`), then the same levels **read** off the staff (`Read up` …). A
-unit with a single step, such as *Step or leap*, is a row of its own rather than a folder of one.
+Every exercise on the path, what it asks and why it is there, is in
+[the curriculum](docs/curriculum.md), which is written out from the same data the Move follows.
 
-Each track is in units, and each unit is a few steps. A step is simply a row of the lesson list, so
-**it counts however you get there**: play Ode to Joy from Classics and its step in the program is
-done too.
+A phase is units, numbered `2.3`, and each unit trains one **strand**: the grid, reading, chords,
+the ear, pieces, two hands, or scales. A phase mixes them all, so ten minutes still touch reading,
+harmony, ear and a piece. A unit can come after others: *Both hands* waits for *Left hand*. A step
+is simply a row of the lesson list, so **it counts however you get there**: play Ode to Joy from
+Classics and its step on the path is done too. The path is built in C, whatever the Key setting
+says; Basics follows the settings.
 
-**Continue** opens the next step of the track you have left longest, on the stage it needs. A
-track's next step is its first one that is neither finished nor skipped. Finished means stage 2
-passed — or stage 1 passed and then *moved on* from (below). So clicking Continue session after
-session walks all the tracks in turn, and you always know what to do next.
+**Continue** opens the next step of the ready unit whose strand you practised longest ago, in your
+phase, on the stage it needs. Your phase is the earliest you have neither finished nor passed the
+check of; units left over from an earlier phase stay in the mix, so a slow ear never holds your
+hands back. Every fourth Continue is a review, when one is due. **Next** on a result stays in the
+same unit until it is finished.
 
-**Nothing is locked.** Open any track and any step in it, play anything in the list, go straight to
-stage 2 — the program only ever recommends. The step Continue will open is marked **▸**.
+**Check: skip phase**, the first row of each phase, plays that phase's check steps one after another
+at stage 2. Pass them all and Continue starts at the next phase; the steps you skipped stay open,
+marked **◌**. **Start here** makes Continue begin at that phase; the phases before it count as
+assumed until you play them.
+
+**Nothing is locked.** Open any phase, unit and step, play anything in the list, go straight to
+stage 2 — the program only ever recommends. The phase you are in, the unit Continue will open and
+each unit's next step are marked **▸**. The nursery songs (Twinkle, Mary, Frère Jacques, London
+Bridge, Jingle Bells) stay in Classics but off the path.
 
 **Skip next** passes the step Continue would open. It is marked `»` and stays where it was — open
 it any time and play it, and the skip is forgotten. If you have already passed its stage 1, Skip
@@ -560,8 +567,8 @@ answer. The only pad feedback here is what you press — green when right, red w
 
 The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
 what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
-Find them in **Quiz › Hear**, grouped by topic, or work through them in order as the **Hearing** track
-of the Learning Program:
+Find them in **Quiz › Hear**, grouped by topic; the Learning Program takes them in the **Ear** units
+of its phases:
 
 ```
 Hear  Pitch & melody   Higher or lower · Play it back · Step or leap · Melody shape
@@ -627,9 +634,10 @@ ids still open the matching course level, so nothing recorded under them is lost
 
 Three courses sit in their topics in **Quiz › Hear**: **Identify intervals** and **Compare intervals**
 under Intervals, **Identify scales** under Scales & keys. Each is a numbered list of units that adds
-a little at a time. In the Learning Program they are the **Intervals** track (identify and compare,
-interleaved) and the **Scales** track, each unit heard and then read. Answering works as in every
-Hear exercise: the answer pads, or the jog and a click.
+a little at a time. In the Learning Program they are the **Intervals** units and the scale quizzes of
+the Scales units: an Identify unit heard up, down and together and then read once, a Compare unit
+heard once easy and once in full. Every other level stays in the Quiz menus. Answering works as in
+every Hear exercise: the answer pads, or the jog and a click.
 
 **Identify intervals.** One interval; name it. Each unit offers only its own intervals, usually two
 to five, and has three levels: **up**, **down** and **tog** (together).
@@ -780,7 +788,7 @@ stage 1, solid ones stage 2**, and the dotted line is the 90% you need to pass.
 | **Record** | play it again, same stage |
 | **Play** | listen to it |
 | **Back** | back to the **start** of the exercise, on the stage it needs, to try again. Back once more for the list |
-| **Click** | **next**: stage 2 of the same exercise if you have just passed stage 1, otherwise the next step of the track you came from (or Continue's, if you came from the list) |
+| **Click** | **next**: stage 2 of the same exercise if you have just passed stage 1, otherwise the next step of the unit you came from (or Continue's, if you came from the list) |
 | **Shift + click** | **move on** with stage 1 counted as enough, or **skip** — then on to the next step |
 
 ### After a quiz round
@@ -835,7 +843,7 @@ overall percentage:
 | Row | Its chart |
 | --- | --- |
 | **Overall** | every stage you have passed, as a line rising by one at each pass, along real time. Flat stretches are time off; steep ones are where it clicked |
-| **Reading track** … **Ear track** | the same, for one track of the program |
+| **Phase 1** … **Phase 5** | the same, for one phase of the program |
 | then everything you have played, newest first | an exercise: its attempts, as on the result screen. A quiz drill: its rate as a line and its error rate as bars growing under it — a full bar is 50% wrong, a fixed ceiling so two visits are comparable |
 
 Click a row for its chart; the jog walks to the next one. Back returns to the list, and Back again

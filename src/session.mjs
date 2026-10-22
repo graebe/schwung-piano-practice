@@ -99,6 +99,20 @@ const SETTINGS_FILE = 'settings.json';
 const STATS_FILE = 'stats.json';
 const PROGRESS_FILE = 'progress.json';
 
+export const backupName = (name) => name.replace(/\.json$/, '.bak.json');
+
+/* Whether a record file is whole: JSON, and an object. A truncated write is
+ * neither. */
+export function isRecordText(text) {
+  if (!text) return false;
+  try {
+    const obj = JSON.parse(text);
+    return Boolean(obj) && typeof obj === 'object';
+  } catch (e) {
+    return false;
+  }
+}
+
 /*
  * opts.keepMarkersBeats: how far behind the playhead the marks of your presses
  * are kept. By default, to the panel's left edge — on a 128px screen that is
@@ -315,8 +329,26 @@ export function createSession(fx, opts = {}) {
     settingsDirty = true;
   }
 
+  /*
+   * A record file — the stats, the progress — read so that a damaged one can
+   * never cost the record. A file that parses is copied to its backup twin; one
+   * that does not (a write cut short by a power cut or a full disk) is kept
+   * aside as .corrupt and the twin is read instead. Without this the parser's
+   * empty store would be the next thing saved, over everything, silently.
+   */
+  function loadRecord(name) {
+    const text = readText(name);
+    if (isRecordText(text)) {
+      writeText(backupName(name), text);
+      return text;
+    }
+    if (text) writeText(name.replace(/\.json$/, '.corrupt.json'), text);
+    const backup = readText(backupName(name));
+    return isRecordText(backup) ? backup : null;
+  }
+
   function loadStats() {
-    stats = STATS.parseStats(readText(STATS_FILE));
+    stats = STATS.parseStats(loadRecord(STATS_FILE));
   }
 
   /* One write per finished round — small, and rare enough not to need pacing. */
@@ -325,7 +357,7 @@ export function createSession(fx, opts = {}) {
   }
 
   function loadProgress() {
-    progress = PROG.parseProgress(readText(PROGRESS_FILE));
+    progress = PROG.parseProgress(loadRecord(PROGRESS_FILE));
   }
 
   /* One write per finished attempt or skip, like the stats. */
@@ -384,8 +416,8 @@ export function createSession(fx, opts = {}) {
   let lastResult = null;       /* the attempt just finished, for the result screen */
   let progress = PROG.emptyProgress();
   const agg = PROG.createAggregator();
-  let tracks = [];             /* the Learning Program (program.mjs) */
-  let progressRows = [];       /* the Progress list: overview, tracks, recent items */
+  let phases = [];             /* the Learning Program (program.mjs) */
+  let progressRows = [];       /* the Progress list: overview, phases, recent items */
   let progressCursor = 0;
   /* The Info page open: { title, lines, scroll, back }. `back` is the view
    * it came from, which Back and Menu return to exactly as it was. */
@@ -412,8 +444,16 @@ export function createSession(fx, opts = {}) {
   /* The armed exercise's id, which is also where its progress is filed — and
    * how it is found again in a tree rebuilt for a new key. */
   let armedId = null;
-  /* The track it was opened from, so Next carries on along that track. */
-  let armedTrack = null;
+  /* The program unit it was opened from, so Next carries on in that unit. */
+  let armedUnit = null;
+  /* The phase whose check is being played, from "Check: skip phase". */
+  let checkPhase = null;
+  /* Continues opened this session: every fourth is a review, when one is due.
+   * Kept in memory on purpose — it paces a sitting, it is not a record. */
+  let continueTurns = 0;
+  /* Basics built the way the program teaches it (PLAN.PROGRAM_GEN), whatever
+   * the settings say; program steps open from here. */
+  let programTree = null;
   /* 1: the target pads light as the notes arrive. 2: they do not. */
   let stage = 1;
   /* Only a run started from the top is a whole attempt; one started from a
@@ -455,9 +495,9 @@ export function createSession(fx, opts = {}) {
     }
   }
 
-  /* The program's song track is made from the files, so it follows them. */
+  /* The path's whole-category units are made from the files, so they follow them. */
   function buildTracks() {
-    tracks = PLAN.buildProgram({ songs: fileSongs });
+    phases = PLAN.buildProgram({ songs: fileSongs });
     infoEnv = { songs: {} };
     for (let i = 0; i < fileSongs.length; i++) infoEnv.songs[fileSongs[i].chart.id] = fileSongs[i].chart;
   }
@@ -527,11 +567,23 @@ export function createSession(fx, opts = {}) {
       categories: fileCategories,
       gen: generatorOptions(),
       /* The guided way in leads; the quiz sits straight after Basics. */
-      lead: [PLAN.programFolder(tracks, repetitionRows)],
+      lead: [PLAN.programFolder(phases, repetitionRows)],
       after: [CAT.folder('Quiz', quizFolders, 'quiz')],
       tail: [{ label: 'Progress', progress: true, value: '~' }],
     });
     nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
+    const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN });
+    CAT.stampChildren([pinned], '');
+    programTree = { children: [pinned] };
+  }
+
+  /* A program step's row: generated ones from the pinned Basics. */
+  function findProgramLeaf(id) {
+    if (programTree && id.indexOf('basics/') === 0) {
+      const hit = CAT.findById(programTree, id);
+      if (hit) return hit.node;
+    }
+    return findLeaf(id);
   }
 
   /* A row by id, wherever it sits in the tree. */
@@ -543,7 +595,7 @@ export function createSession(fx, opts = {}) {
   /* What an item is called on its own, outside the folder it sits in. */
   function itemTitle(id) {
     if (id.indexOf('quiz:') === 0) return STATS.drillLabel(id.slice(5));
-    const step = PLAN.findStep(tracks, id);
+    const step = PLAN.findStep(phases, id);
     if (step) return PLAN.stepTitle(step);
     const hit = CAT.findById(catalog, id);
     return hit ? hit.title : id;
@@ -619,13 +671,14 @@ export function createSession(fx, opts = {}) {
     saveProgress();
     lastResult.passed = res.passed;
     lastResult.footer = resultFooter();
+    const assumed = checkCompleted();
 
     allNotesOff();
     view = RESULT_VIEW;
     dirty = true;
     ledDirty = true;
     announce('Round done. ' + Math.round(lastResult.rate) + ' per minute.'
-      + (lastResult.isBest ? ' Best yet.' : '') + passedWords(res.passed));
+      + (lastResult.isBest ? ' Best yet.' : '') + passedWords(res.passed) + assumed);
   }
 
   function passedWords(passed) {
@@ -652,6 +705,11 @@ export function createSession(fx, opts = {}) {
     return lastResult.kind === 'quiz' ? 'PLAY again CLICK next' : 'REC again  CLICK next';
   }
 
+  /* The key a quiz asks in: a program step's own, or the settings'. */
+  function quizKey() {
+    return quizSpec && quizSpec.gen ? quizSpec.gen : settings;
+  }
+
   function startQuiz(spec) {
     allNotesOff();
     quizSpec = spec;
@@ -659,8 +717,8 @@ export function createSession(fx, opts = {}) {
     quizPick = Boolean(spec.pick);
     quiz = GUESS.createQuiz({
       kind: spec.kind,
-      rootPc: settings.rootPc,
-      mode: settings.mode,
+      rootPc: quizKey().rootPc,
+      mode: quizKey().mode,
       transpose: settings.transpose,
       halfTones: spec.halfTones,
       chordSet: spec.chordSet,
@@ -754,7 +812,24 @@ export function createSession(fx, opts = {}) {
 
   /* The Key and Scale settings' key, to spell in: C minor's Eb, not D#. */
   function keyFifths() {
-    return GEN.keyForScale(settings.rootPc, settings.mode);
+    return GEN.keyForScale(quizKey().rootPc, quizKey().mode);
+  }
+
+  /*
+   * The check just played through is complete: every check step passed at
+   * stage 2. Continue now starts at the next phase. Passing the same steps in
+   * ordinary practice moves the learner on too (currentPhase), but only the
+   * check skips the rest of the phase, because only the check asked to.
+   */
+  function checkCompleted() {
+    if (!checkPhase || !PLAN.checkPassed(progress, checkPhase)) return '';
+    const done = checkPhase;
+    checkPhase = null;
+    if (PROG.programStart(progress) <= done.index) {
+      PROG.setProgramStart(progress, Math.min(done.index + 1, phases.length - 1));
+      saveProgress();
+    }
+    return ' Phase ' + done.n + ' assumed.';
   }
 
   /*
@@ -779,69 +854,134 @@ export function createSession(fx, opts = {}) {
       openProgress();
       return;
     }
+    checkPhase = null;
     if (row.continueRow) {
-      const next = PLAN.continueStep(progress, tracks);
-      if (next) openStep(next.step, next.track);
+      openContinue();
       return;
     }
     if (row.skipRow) {
       skipContinue();
       return;
     }
-    if (row.step) {
-      openStep(row.step, openTrack());
+    if (row.checkRow) {
+      openCheck(row.phase);
       return;
     }
+    if (row.startRow) {
+      startHere(row.phase);
+      return;
+    }
+    if (row.step) {
+      openStep(row.step, openUnit());
+      return;
+    }
+    armedUnit = null;
     if (row.repId) {
-      armedTrack = null;
       openItem(row.repId);
       return;
     }
     if (row.guess) {
-      armedTrack = null;
       startQuiz(settingsQuiz(row));
       return;
     }
-    armedTrack = null;
     armLeaf(row);
   }
 
-  /* The track whose folder the list is in, if it is in one. */
-  function openTrack() {
-    for (let i = nav.length - 1; i >= 0; i--) if (nav[i].node.track) return nav[i].node.track;
+  /* The program unit whose folder the list is in, if it is in one. */
+  function openUnit() {
+    for (let i = nav.length - 1; i >= 0; i--) if (nav[i].node.unit) return nav[i].node.unit;
     return null;
   }
 
-  /* A program step: a pointer at a row, or a quiz with its options pinned. */
-  function openStep(step, track) {
-    armedTrack = track || PLAN.trackOf(tracks, step.id);
-    if (step.quiz) {
-      startQuiz({ ...step.quiz, pinned: true });
+  /*
+   * What Continue opens: every fourth time a review, when one is due, so a
+   * sitting of new work still brings old work back; otherwise the program's
+   * next step.
+   */
+  /* The program's next step, worked out once per change of progress: the list
+   * asks for it on every row it draws. */
+  let nextCache = { progress: null, phases: null, rev: -1, value: null };
+
+  function continueNext() {
+    const c = nextCache;
+    if (c.progress !== progress || c.phases !== phases || c.rev !== progress.rev) {
+      nextCache = { progress, phases, rev: progress.rev, value: PLAN.continueStep(progress, phases) };
+    }
+    return nextCache.value;
+  }
+
+  function continueTarget() {
+    if (continueTurns % 4 === 3) {
+      const due = repetitionRows().find((r) => !r.done);
+      if (due) return { review: due.repId };
+    }
+    return continueNext();
+  }
+
+  function openContinue() {
+    const next = continueTarget();
+    if (!next) return;
+    continueTurns++;
+    if (next.review) {
+      armedUnit = null;
+      openItem(next.review);
       return;
     }
-    const node = findLeaf(step.id);
-    if (node) armLeaf(node);
+    openStep(next.step, next.unit);
+  }
+
+  /* A program step: a pointer at a row, or a quiz with its options pinned. */
+  function openStep(step, unit, forceStage) {
+    armedUnit = unit || PLAN.unitOf(phases, step.id);
+    if (step.quiz) {
+      startQuiz({ ...step.quiz, pinned: true, gen: PLAN.PROGRAM_GEN });
+      return;
+    }
+    const node = findProgramLeaf(step.id);
+    if (node) armLeaf(node, forceStage);
+  }
+
+  /* Check: skip phase. Its steps one after another at stage 2; the ones
+   * already passed there count without being played again. */
+  function openCheck(phase) {
+    checkPhase = phase;
+    const step = PLAN.nextCheckStep(progress, phases, phase);
+    if (!step) {
+      announce('Check passed.' + checkCompleted());
+      dirty = true;
+      return;
+    }
+    openStep(step, null, 2);
+  }
+
+  function startHere(phase) {
+    PROG.setProgramStart(progress, phase.index);
+    saveProgress();
+    announce('Continue starts at phase ' + phase.n + '.' + (phase.index ? ' The phases before it count as assumed.' : ''));
+    dirty = true;
   }
 
   /* Anything by its id: a repetition, or what Next lands on. */
   function openItem(id) {
+    const inProgram = Boolean(PLAN.findStep(phases, id));
     if (id.indexOf('quiz:') === 0) {
       const spec = PLAN.quizFromId(id);
-      if (spec) startQuiz({ ...spec, pinned: true });
+      if (spec) startQuiz({ ...spec, pinned: true, gen: inProgram ? PLAN.PROGRAM_GEN : null });
       return;
     }
-    const node = findLeaf(id);
+    const node = inProgram ? findProgramLeaf(id) : findLeaf(id);
     if (node) armLeaf(node);
   }
 
-  /* Arm a playable row on the first stage you have not yet passed. */
-  function armLeaf(node) {
+  /* Arm a playable row on the first stage you have not yet passed, or on the
+   * stage a check asks for. */
+  function armLeaf(node, forceStage) {
     const built = node.build ? node.build() : null;
     if (!built) return;
     armedId = node.id || null;
     chart = built;
     if (chart.source !== 'file') chart.bpm = settings.bpm;
-    stage = PROG.recommendedStage(PROG.item(progress, armedId));
+    stage = forceStage || PROG.recommendedStage(PROG.item(progress, armedId));
     armRun();
     view = READY;
     announce(chart.name + '. Stage ' + stage + '. Press play to start.');
@@ -855,10 +995,10 @@ export function createSession(fx, opts = {}) {
    * moved on from — counted finished at stage 1 — rather than skipped.
    */
   function skipContinue() {
-    const next = PLAN.continueStep(progress, tracks);
+    const next = continueNext();
     if (!next) return;
     passOver(next.step.id);
-    announce('Skipped. Next: ' + itemTitle((PLAN.continueStep(progress, tracks) || next).step.id) + '.');
+    announce('Skipped. Next: ' + itemTitle((continueNext() || next).step.id) + '.');
     dirty = true;
   }
 
@@ -869,8 +1009,8 @@ export function createSession(fx, opts = {}) {
 
   /*
    * Next, from a result: stage 2 of the same piece if stage 1 has just been
-   * passed, otherwise the next step of the track you came from — or, outside
-   * the program, wherever Continue would send you.
+   * passed; in a check, its next step; otherwise the next step of the unit you
+   * came from, or wherever Continue would send you.
    */
   function goNext() {
     const id = currentItemId();
@@ -888,11 +1028,19 @@ export function createSession(fx, opts = {}) {
       ledDirty = true;
       return;
     }
-    const track = armedTrack || PLAN.trackOf(tracks, id);
-    const step = track ? PLAN.nextStep(progress, track) : null;
-    const next = step ? { step, track } : PLAN.continueStep(progress, tracks);
+    if (checkPhase) {
+      const step = PLAN.nextCheckStep(progress, phases, checkPhase);
+      if (step) {
+        openStep(step, null, 2);
+        return;
+      }
+      checkPhase = null;
+    }
+    const unit = armedUnit || PLAN.unitOf(phases, id);
+    const step = unit ? PLAN.nextInUnit(progress, unit) : null;
+    const next = step ? { step, unit } : continueNext();
     if (next) {
-      openStep(next.step, next.track);
+      openStep(next.step, next.unit);
       return;
     }
     view = MENU;
@@ -1112,7 +1260,7 @@ export function createSession(fx, opts = {}) {
     view = RESULT_VIEW;
     dirty = true;
     ledDirty = true;
-    announce('Done. ' + Math.round(score * 100) + ' percent.' + passedWords(res.passed));
+    announce('Done. ' + Math.round(score * 100) + ' percent.' + passedWords(res.passed) + checkCompleted());
   }
   /*
    * Which pitches want lighting, as three small reused arrays. led_paint turns
@@ -1379,16 +1527,24 @@ export function createSession(fx, opts = {}) {
    */
   function decorateRow(row) {
     if (row.continueRow) {
-      const next = PLAN.continueStep(progress, tracks);
+      const next = continueTarget();
       if (!next) return { label: 'Continue: all done', value: '', mark: PROG.MARK_DONE };
+      const id = next.review || next.step.id;
       return {
-        label: 'Next: ' + PLAN.stepTitle(next.step),
-        value: 'S' + PROG.recommendedStage(PROG.item(progress, next.step.id)),
+        label: next.review ? 'Review: ' + itemTitle(id) : 'Next: ' + PLAN.stepTitle(next.step),
+        value: 'S' + PROG.recommendedStage(PROG.item(progress, id)),
         mark: 'next',
       };
     }
+    if (row.checkRow) {
+      const passed = row.phase.check.filter((id) => PROG.stagePassed(PROG.item(progress, id), 2)).length;
+      return { value: passed + '/' + row.phase.check.length };
+    }
+    if (row.startRow) {
+      return PLAN.startIndex(progress, phases) === row.phase.index ? { value: 'start', mark: 'next' } : { value: '' };
+    }
     if (row.skipRow) {
-      const next = PLAN.continueStep(progress, tracks);
+      const next = continueNext();
       if (!next) return { label: 'Skip: nothing left', value: '' };
       const it = PROG.item(progress, next.step.id);
       return { label: (PROG.stagePassed(it, 1) ? 'Move on: ' : 'Skip: ') + PLAN.stepTitle(next.step), value: '' };
@@ -1402,24 +1558,40 @@ export function createSession(fx, opts = {}) {
     if (row.overview) {
       const sum = row.overview === 'all'
         ? PROG.folderSummary(agg, progress, catalog)
-        : PROG.summariseIds(progress, PLAN.trackSteps(row.track).map((st) => st.id));
+        : PROG.summariseIds(progress, PLAN.phaseSteps(row.phase).map((st) => st.id));
       return { value: sum.percent + '%' };
     }
     if ('children' in row) {
       if (row.untracked) return null;
       const sum = PROG.folderSummary(agg, progress, row);
-      return { value: sum.percent > 0 ? sum.percent + '% >' : '>' };
+      return { value: sum.percent > 0 ? sum.percent + '% >' : '>', mark: programMark(row) };
     }
     const id = row.itemId || (PROG.isTracked(row) ? row.id : null);
     if (!id) return null;
     const it = PROG.item(progress, id);
     let mark = PROG.itemMark(it);
-    if (!mark && row.step) {
-      const track = openTrack();
-      const next = track ? PLAN.nextStep(progress, track) : null;
+    /* Only inside the program: the same step in Quiz › Hear is just a drill. */
+    const unit = !mark && row.step ? openUnit() : null;
+    if (unit) {
+      const next = PLAN.nextInUnit(progress, unit);
       if (next && next.id === id) mark = 'next';
+      else if (PLAN.isAssumed(progress, phases, unit.phase)) mark = PROG.MARK_ASSUMED;
     }
     return { value: it && it.plays ? PROG.itemPercent(it) + '%' : '', mark };
+  }
+
+  /* A phase or unit folder of the program: where you are, or skipped past. */
+  function programMark(row) {
+    if (row.phase && !row.checkRow) {
+      if (PLAN.isAssumed(progress, phases, row.phase)) return PROG.MARK_ASSUMED;
+      const cur = PLAN.currentPhase(progress, phases);
+      return cur === row.phase ? 'next' : null;
+    }
+    if (row.unit) {
+      const next = continueNext();
+      return next && next.unit === row.unit ? 'next' : null;
+    }
+    return null;
   }
   /* ---- Info -------------------------------------------------------------------- */
   /*
@@ -1432,6 +1604,12 @@ export function createSession(fx, opts = {}) {
       const row = CAT.navCurrent(nav) || CAT.navTop(nav).node;
       if (row.continueRow) return { kind: 'continue' };
       if (row.skipRow) return { kind: 'skip' };
+      if (row.checkRow) return { kind: 'check', id: 'program/' + row.phase.key };
+      if (row.startRow) return { kind: 'start', id: 'program/' + row.phase.key };
+      if (row.step) {
+        const ex = PLAN.exerciseOf(phases, row.step.id);
+        if (ex) return { id: row.id, label: row.label, about: ex.about, why: ex.why, exercise: ex.label };
+      }
       if (row.progress) return { kind: 'progress' };
       return { id: row.repId || row.id, label: row.label };
     }
@@ -1499,8 +1677,8 @@ export function createSession(fx, opts = {}) {
 
   function openProgress() {
     const rows = [{ label: 'Overall', overview: 'all' }];
-    for (let i = 0; i < tracks.length; i++) {
-      rows.push({ label: tracks[i].name + ' track', overview: tracks[i].key, track: tracks[i] });
+    for (let i = 0; i < phases.length; i++) {
+      rows.push({ label: 'Phase ' + phases[i].n, overview: phases[i].key, phase: phases[i] });
     }
     const recent = PROG.recentIds(progress).slice(0, PROGRESS_RECENT);
     for (let i = 0; i < recent.length; i++) rows.push({ label: itemTitle(recent[i]), itemId: recent[i] });
@@ -1529,11 +1707,11 @@ export function createSession(fx, opts = {}) {
     if (row.overview) {
       const ids = row.overview === 'all'
         ? PROG.leafIds(agg, catalog)
-        : PLAN.trackSteps(row.track).map((st) => st.id);
+        : PLAN.phaseSteps(row.phase).map((st) => st.id);
       const sum = PROG.summariseIds(progress, ids);
       return {
         kind: 'overview',
-        title: row.overview === 'all' ? 'Overall' : row.track.name,
+        title: row.overview === 'all' ? 'Overall' : 'Phase ' + row.phase.n + ' ' + row.phase.name,
         percent: sum.percent, done: sum.done, half: sum.half, count: sum.count,
         timeline: PROG.passTimeline(progress, ids, plotW, plotH, wallNow()),
         index, total,
@@ -1932,7 +2110,9 @@ export function createSession(fx, opts = {}) {
     listening = false;
     nav = [];
     armedId = null;
-    armedTrack = null;
+    armedUnit = null;
+    checkPhase = null;
+    continueTurns = 0;
     stage = 1;
     runFromTop = false;
     settingsCursor = 0;
@@ -2119,7 +2299,7 @@ export function createSession(fx, opts = {}) {
     get catalog() { return catalog; },
     get progress() { return progress; },
     get agg() { return agg; },
-    get tracks() { return tracks; },
+    get phases() { return phases; },
     get quiz() { return quiz; },
     get quizPick() { return quizPick; },
     get quizHear() { return quizHear; },

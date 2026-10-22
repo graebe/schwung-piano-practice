@@ -39,8 +39,9 @@ export const REP_SESSION = 5;
 export function emptyProgress() {
   /* `rev` is not saved: it moves on every change, so a cache can tell whether
    * what it holds is still true without comparing the whole store. `seen`
-   * is which Info pages have been shown, by page key. */
-  return { version: PROGRESS_VERSION, items: {}, seen: {}, rev: 0 };
+   * is which Info pages have been shown, by page key. `program` is what the
+   * learner chose on the Learning Program: the phase Continue starts from. */
+  return { version: PROGRESS_VERSION, items: {}, seen: {}, program: { start: 0 }, rev: 0 };
 }
 
 function emptyStage() {
@@ -93,6 +94,9 @@ export function parseProgress(text) {
   if (obj && typeof obj === 'object' && obj.seen && typeof obj.seen === 'object') {
     for (const k in obj.seen) if (typeof obj.seen[k] === 'number') out.seen[k] = obj.seen[k];
   }
+  if (obj && typeof obj === 'object' && obj.program && typeof obj.program === 'object') {
+    out.program.start = Math.max(0, Math.floor(num(obj.program.start)));
+  }
   if (!obj || typeof obj !== 'object' || !obj.items || typeof obj.items !== 'object') return out;
   for (const id in obj.items) {
     const src = obj.items[id];
@@ -117,7 +121,20 @@ export function parseProgress(text) {
 }
 
 export function serialiseProgress(progress) {
-  return JSON.stringify({ version: PROGRESS_VERSION, items: progress.items, seen: progress.seen });
+  return JSON.stringify({ version: PROGRESS_VERSION, items: progress.items, seen: progress.seen, program: progress.program });
+}
+
+/* ---- The Learning Program's one stored choice ------------------------------ */
+
+/* The phase index Continue starts from: 0 unless the learner moved it. */
+export function programStart(progress) {
+  return (progress && progress.program && progress.program.start) || 0;
+}
+
+export function setProgramStart(progress, index) {
+  if (!progress.program) progress.program = { start: 0 };
+  progress.program.start = Math.max(0, Math.floor(index));
+  progress.rev++;
 }
 
 /* ---- Info pages seen ------------------------------------------------------- */
@@ -229,6 +246,8 @@ export function itemPercent(it) {
 export const MARK_DONE = 'done';
 export const MARK_HALF = 'half';
 export const MARK_SKIP = 'skip';
+/* Not played, but in a phase the learner skipped past: known, not shown done. */
+export const MARK_ASSUMED = 'assumed';
 
 export function itemMark(it) {
   if (!it) return null;
