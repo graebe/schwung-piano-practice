@@ -31,7 +31,8 @@
  *   npm run preview -- --view map --map drums                   a drums island (7)
  *   npm run preview -- --view map --map done                    fill levels, avatar on a flag
  *   npm run preview -- --view map --kind island --map drums|piano   one stage's island
- *   npm run preview -- --view anim --name flag|fireworks|zoomIn|zoomOut|star|finale [--t ms]
+ *   npm run preview -- --view anim --name flag|fireworks|zoomIn|zoomOut|star|finale|banner [--t ms]
+ *                                    (--text 'CHECKPOINT PASSED' for the banner)
  *   npm run preview -- --view map --places 7 --to 6 --film 0,90,400   walk there
  *
  * The list, the sheet and the cards come from a session, as on the Move, with
@@ -55,7 +56,7 @@ const cellRectOf = (layout, i) => cellRect(layout.cells[i], layout.kind);
 import { createWalk, walkTo, posAt } from '../src/pathmap/walk.mjs';
 import { makePlace } from '../src/pathmap/model.mjs';
 import { drawMap } from '../src/pathmap/render.mjs';
-import { ANIMS, flagRise, fireworks, zoomIn, zoomOut, starBurst, finale } from '../src/pathmap/anim.mjs';
+import { ANIMS, flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, banner } from '../src/pathmap/anim.mjs';
 import { createGrow, startGrow, GROW_MS } from '../src/home/render.mjs';
 import { hintFor } from '../src/hints.mjs';
 import { PRACTICE_PIANO, PRACTICE_DRUMS } from '../src/home/icons.mjs';
@@ -277,6 +278,12 @@ if (view === 'home') {
       const layout = layoutPlaces(5);
       R.drawChrome(c, { left: places[2].label });
       (name === 'zoomOut' ? zoomOut : zoomIn)(c, { cell: layout.cells[2], place: places[2] }, t);
+    } else if (name === 'banner') {
+      const places = make(SAMPLE_MAPS[7].map((r) => [r[0], 100, 'done', 0, r[4]]));
+      const layout = layoutPlaces(places.length);
+      R.drawChrome(c, { left: 'Stage 3' });
+      drawMap(c, { places, layout, route: false });
+      banner(c, { text: arg('text', 'STAGE COMPLETE') }, t);
     } else if (name === 'star') {
       R.drawChrome(c, { left: 'RESULT' });
       const score = '92%';
