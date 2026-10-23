@@ -498,6 +498,30 @@ const SCENARIOS = {
   } },
 
   /*
+   * Practice and Quiz as rings: Practice's five circles grown in turn, MENU's
+   * help for the ring, Songs opened by its pad and Back finding its circle,
+   * the ring as a list and back, home again on Practice; Quiz's three on
+   * pads 70..72, Keys by its pad, and Back twice to home.
+   */
+  rings: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);              /* the Practice ring */
+    for (let i = 0; i < 4; i++) { d.jog(1); d.run(60); }
+    d.jog(-4); d.run(200);                        /* back to Scales */
+    d.press(MENU); d.press(MENU);                 /* its help, closed */
+    d.pad(5, 60); d.run(200);                     /* pad 73: Songs, silent */
+    d.press(BACK); d.run(200);                    /* the ring, on Songs */
+    d.shiftWith(JOG_CLICK); d.click(); d.run(100);   /* Show as list */
+    d.jog(-1); d.run(100);
+    d.press(BACK); d.run(200);                    /* the circles again */
+    d.press(BACK); d.run(200);                    /* home, on Practice */
+    d.jog(1); d.click(); d.run(200);              /* the Quiz ring: three */
+    d.pad(1, 60); d.run(200);                     /* pad 69: no circle of three */
+    d.pad(4, 60); d.run(200);                     /* pad 72: Keys */
+    d.press(BACK); d.press(BACK); d.run(200);     /* the ring on Keys, home on Quiz */
+  } },
+
+  /*
    * Into an island and out: the zoom in (frames on the way), Back's zoom out,
    * and a zoom skipped by the jog, which only skips.
    */

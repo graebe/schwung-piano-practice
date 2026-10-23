@@ -71,6 +71,10 @@ The module opens on **home**: five circles, **Learning Path**, **Practice**, **Q
 click opens it, and so does its pad: the five lit pads of the bottom row, left to right, which make
 no sound here. Back from a section comes home with its circle chosen; Back at home leaves.
 
+**Practice** and **Quiz** are rings too: Practice's Scales, Chords, Progressions, Random and Songs,
+and Quiz's Ear, Reading and Keys (on the middle three pads), each with its icon. Back goes home on the
+circle you left; deeper folders are lists.
+
 Behind each circle the list is a tree. **Click** opens a folder, **Back** goes up one.
 **Shift + click** on a row opens its options (home and the maps offer **Show as list** there);
 **Menu** explains whatever you are looking at. The walk-through is

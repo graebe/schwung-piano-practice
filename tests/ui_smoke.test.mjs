@@ -458,7 +458,8 @@ test('a second source on the same pitch is heard, and does not cut the first', a
 
   globalThis.init();
   jog(TOP.practice);
-  click();                                              /* a list: the pads are the piano */
+  click();                                              /* the Practice ring */
+  click();                                              /* Scales, a list: the pads are the piano */
   globalThis.tick();
   const struck = () => { const n = hostCalls.notes.slice(); hostCalls.notes.length = 0; return n; };
   struck();
@@ -983,6 +984,7 @@ test('on the map a pad walks there, a second press goes in, and pads make no sou
   BACK_PRESS();
   jog(TOP.practice);
   click();
+  click();                                              /* Practice › Scales */
   /* In a list the pads are the piano again. */
   globalThis.onMidiMessageInternal([0x90, PAD, 100]);
   globalThis.onMidiMessageInternal([0x80, PAD, 0]);
@@ -1103,7 +1105,7 @@ test('the Quiz folder is Ear, Reading and Keys, and each opens its drills', () =
   globalThis.init();
   jog(TOP.quiz);
   const quiz = screen.frame(click);
-  assert.match(quiz, /QUIZ \| 1\/3 \| Ear .*\| Reading .*\| Keys /, quiz);
+  assert.match(quiz, /^QUIZ \| Ear \| JOG choose/, 'Quiz is a ring of three: ' + quiz);
   const ear = screen.frame(click);
   assert.match(ear, /EAR \| 1\/4 \| Pitch & melody .*\| Intervals .*\| Chords .*\| Scales & keys/, 'Ear is by topic: ' + ear);
   globalThis.onMidiMessageInternal(CC(BACK, 127));

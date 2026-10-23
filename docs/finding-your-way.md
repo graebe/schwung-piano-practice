@@ -65,6 +65,18 @@ circle's pad pulses. Back from a section lands on home with its circle
 chosen, so you are where you left. **Show as list** shows the five as an
 ordinary list for this session; Back turns it into circles again.
 
+**Practice** and **Quiz** open as rings of their own, the same keys and
+the same pads:
+
+| Ring | Circles |
+| --- | --- |
+| **Practice** | Scales (stairs), Chords (a chord), Progressions (blocks and arrows), Random (a die), Songs (a note) |
+| **Quiz** | Ear (an ear), Reading (a staff), Keys (a key with its letter), on the middle three pads |
+
+The title bar names the ring, MENU explains it, **Show as list** works
+there too, and **Back** goes home with that circle chosen. Deeper folders,
+such as Practice › Songs or Quiz › Ear, are lists.
+
 Behind each circle, **click** opens a row: a folder (`>`) shows what is
 inside, anything else opens straight away. **Back** goes up one folder,
 and from the top of a section to home.

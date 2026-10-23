@@ -70,9 +70,14 @@ const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice',
 function homeScreen(c, selected, opts = {}) {
   const grow = createGrow(opts.from === undefined ? selected : opts.from);
   if (opts.from !== undefined) startGrow(grow, selected, 0);
-  return V.drawHomeScreen(c, { title: 'PIANO', items: HOME_ITEMS, selected, grow, now: opts.now || 0,
-    footer: hintFor('home')[opts.part || 0] });
+  return V.drawHomeScreen(c, { title: opts.title || 'PIANO', items: opts.items || HOME_ITEMS, selected, grow,
+    now: opts.now || 0, footer: hintFor('home')[opts.part || 0] });
 }
+/* The rings one level down, as the session builds them. */
+const ring = (rows) => rows.map(([label, icon]) => ({ key: label, label, icon }));
+const PRACTICE_RING = ring([['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression'],
+  ['Random', 'dice'], ['Songs', 'song']]);
+const QUIZ_RING = ring([['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']]);
 
 /*
  * A ctx that draws normally and keeps a transcript of what it was asked to.
@@ -282,6 +287,8 @@ const SCREENS = {
     decorate: () => ({ label: 'Review', value: 'Name chords advanced', short: '' }),
   }),
   'home, Path selected': (c) => homeScreen(c, 0),
+  'ring, Practice on its longest name': (c) => homeScreen(c, 2, { title: 'PRACTICE', items: PRACTICE_RING, part: 1 }),
+  'ring, Quiz of three, mid-grow': (c) => homeScreen(c, 2, { title: 'QUIZ', items: QUIZ_RING, from: 1, now: 80 }),
   'home, Settings selected, its longest hint part': (c) => homeScreen(c, 4, { part: 1 }),
   'home, mid-grow from Practice to Progress': (c) => homeScreen(c, 3, { from: 1, now: 80 }),
   'map, the world': (c) => mapScreen(c, 5, 'island', 1),

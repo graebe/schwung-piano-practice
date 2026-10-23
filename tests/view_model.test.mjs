@@ -26,7 +26,9 @@ test('the list arrives decorated, with its path and cursor', () => {
   assert.deepEqual(vm.nav.path, ['Piano', 'Practice'].slice(-vm.nav.path.length));
   assert.equal(vm.nav.title, 'Practice');
   assert.deepEqual(vm.nav.rows.map((r) => r.label), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
-  assert.deepEqual(vm.hint, ['CLICK open  BACK up'], 'the footer the Move shows');
+  assert.deepEqual(vm.home.items.map((it) => it.label), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs'],
+    'Practice is a ring: its circles');
+  assert.deepEqual(vm.hint, ['JOG choose', 'CLICK open  PAD open', 'MENU help'], 'the footer the Move shows');
   assert.ok(vm.nav.rows.every((r) => r.folder));
   assert.deepEqual(vm, plain(vm), 'plain JSON');
 });

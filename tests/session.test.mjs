@@ -873,8 +873,10 @@ test('the hint line names the keys of every screen, and the Shift layer while Sh
   assert.deepEqual(h.session.hint(), ['JOG choose', 'CLICK open  PAD open', 'MENU help']);
   assert.deepEqual(h.session.hint({ shift: true }), ['SHIFT: CLICK options', 'SHIFT: BACK quit']);
   openPath(h.session, ['Practice']);
+  assert.deepEqual(h.session.hint(), ['JOG choose', 'CLICK open  PAD open', 'MENU help'], 'a ring');
+  openPath(h.session, ['Scales']);
   assert.deepEqual(h.session.hint(), ['CLICK open  BACK up']);
-  openPath(h.session, ['Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Major', 'Up & down']);
   assert.deepEqual(h.session.hint(), ['JOG Solo  REC start', 'PLAY listen']);
   assert.equal(h.session.levelInfo().name, 'Guided: pads lit', 'the bottom line names it');
   h.session.recordButton();
@@ -1111,7 +1113,11 @@ test('a click or a circle\'s pad opens it, silently; Back finds its circle selec
   h.session.selectRow(2);
   h.session.activate(false);
   assert.equal(h.session.nav.at(-1).node.label, 'Quiz', 'Click opens the selected one');
-  assert.equal(h.session.homePad(69), false, 'off home a pad is a note');
+  assert.equal(h.session.homePad(69), true, 'the Quiz ring takes every pad');
+  assert.equal(h.session.nav.at(-1).node.label, 'Quiz', 'but 69 is no circle of three');
+  h.session.homePad(70);
+  assert.equal(h.session.nav.at(-1).node.label, 'Ear', 'its first circle is pad 70');
+  assert.equal(h.session.homePad(70), false, 'in a list a pad is a note');
 });
 
 test('Shift + Click on home shows the five as a list for the session; Back is the circles again', () => {
@@ -1349,4 +1355,74 @@ test('scenes draw nothing from the quiz\'s random stream: a quiz after a zoom as
     return JSON.stringify(h.session.quiz.prompt);
   };
   assert.equal(ask(true), ask(false));
+});
+
+/* ---- Rings: Practice and Quiz as circles ------------------------------------ */
+
+import { homePads } from '../src/home/render.mjs';
+
+test('Practice is a ring of five with its icons; Quiz a ring of three on pads 70..72', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Practice']);
+  assert.ok(h.session.onHome(), 'a ring, drawn as home is');
+  let m = h.session.homeModel();
+  assert.deepEqual(m.items.map((it) => [it.label, it.icon]), [['Scales', 'stairs'], ['Chords', 'chord'],
+    ['Progressions', 'progression'], ['Random', 'dice'], ['Songs', 'song']]);
+  assert.equal(h.session.listTitle(), 'Practice', 'the title bar names the ring');
+  h.session.moveSelection(1);
+  assert.equal(h.session.homeModel().selected, 1);
+  assert.ok(growing(h.session.homeModel().grow, h.ms), 'the jog grows the next circle');
+  h.session.back();
+  h.session.back();
+  assert.equal(h.session.nav.length, 1);
+  assert.equal(h.session.homeModel().selected, 1, 'home, Practice selected');
+  openPath(h.session, ['Quiz']);
+  m = h.session.homeModel();
+  assert.deepEqual(m.items.map((it) => [it.label, it.icon]), [['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']]);
+  assert.deepEqual(homePads(3), [70, 71, 72]);
+  assert.equal(h.session.homePad(73), true, 'a pad off the ring: taken, and nothing');
+  assert.equal(h.session.nav.at(-1).node.label, 'Quiz');
+  h.session.homePad(71);
+  assert.equal(h.session.nav.at(-1).node.label, 'Reading', 'pad 71: the middle circle');
+  assert.ok(!h.log.some((e) => e[0] === 'strike'), 'nothing sounded');
+  h.session.back();
+  assert.equal(h.session.homeModel().selected, 1, 'the ring again, on Reading');
+});
+
+test('a ring\'s help says which ring it is, and Shift + Click shows it as a list', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Practice']);
+  h.session.menuButton();
+  assert.match(h.session.info.paragraphs[0].text, /^Practice: the free library, as circles/);
+  h.session.back();
+  openPath(h.session, ['Songs']);
+  assert.equal(h.session.onHome(), false, 'deeper levels stay lists');
+  h.session.back();
+  h.session.back();
+  openPath(h.session, ['Quiz']);
+  h.session.menuButton();
+  assert.match(h.session.info.paragraphs[0].text, /^Quiz: short rounds, as circles/);
+  h.session.back();
+  h.session.activate(true);
+  h.session.pickSheet(h.session.sheet.items.findIndex((it) => it.label === 'Show as list'));
+  assert.equal(h.session.onHome(), false, 'the list');
+  assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => r.label), ['Ear', 'Reading', 'Keys']);
+  h.session.back();
+  assert.ok(h.session.onHome(), 'Back: the circles again');
+  assert.ok(h.said().includes('Quiz.'));
+});
+
+test('a ring of more than five is drawn as its list', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Practice']);
+  const node = h.session.nav.at(-1).node;
+  const extra = node.children.slice();
+  node.children.push({ label: 'Other', value: '>', children: [] });
+  assert.equal(h.session.onHome(), false, 'six: a list');
+  assert.equal(h.session.homeModel(), null);
+  node.children.length = extra.length;
+  assert.ok(h.session.onHome(), 'five again: a ring');
 });

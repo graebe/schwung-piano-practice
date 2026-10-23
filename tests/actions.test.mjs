@@ -239,13 +239,16 @@ test('any action, in any state, in any order: nothing throws, nothing sticks', (
   }
 });
 
-test('homeGo opens a circle; off home it does nothing', () => {
+test('homeGo opens a circle of the ring on screen; off a ring it does nothing', () => {
   const h = fakeHost();
   h.session.init();
   applyAction(h.session, { type: 'homeGo', index: 2 });
   assert.equal(h.session.nav.at(-1).node.label, 'Quiz');
+  applyAction(h.session, { type: 'homeGo', index: 2 });
+  assert.equal(h.session.nav.at(-1).node.label, 'Keys', 'Quiz is a ring too: its third circle');
   applyAction(h.session, { type: 'homeGo', index: 0 });
-  assert.equal(h.session.nav.at(-1).node.label, 'Quiz', 'not on home: nothing');
+  assert.equal(h.session.nav.at(-1).node.label, 'Keys', 'a list: nothing');
+  applyAction(h.session, { type: 'back' });
   applyAction(h.session, { type: 'back' });
   assert.equal(h.session.nav[0].cursor, 2, 'back on home, the circle it left selected');
   applyAction(h.session, { type: 'homeGo', index: 9 });

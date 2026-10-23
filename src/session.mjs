@@ -64,7 +64,7 @@ import * as SHEET from './row_sheet.mjs';
 import * as MP from './map_places.mjs';
 import { layoutPlaces, placeOfPad } from './pathmap/layout.mjs';
 import { createWalk, walkTo, walkStep, posAt, arrived } from './pathmap/walk.mjs';
-import { createGrow, startGrow, growing, itemOfPad } from './home/render.mjs';
+import { createGrow, startGrow, growing, itemOfPad, HOME_MAX } from './home/render.mjs';
 import { PRACTICE_PIANO } from './home/icons.mjs';
 import * as SC from './scenes.mjs';
 
@@ -623,8 +623,11 @@ export function createSession(fx, opts = {}) {
       after: [CAT.folder('Quiz', quizFolders, 'quiz')],
       tail: [{ label: 'Progress', progress: true, value: '~' }, settingsFolder()],
     });
-    /* The top of the list is the home screen: five circles. */
-    catalog.view = 'home';
+    /* The top of the list is the home screen: five circles; Practice and
+     * Quiz are rings of their own. */
+    ringOf(catalog, HOME_ICONS);
+    ringOf(catalog.children.find((r) => r.key === 'basics'), PRACTICE_ICONS);
+    ringOf(catalog.children.find((r) => r.key === 'quiz'), QUIZ_ICONS);
     nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
     const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN });
     CAT.stampChildren([pinned], '');
@@ -2272,7 +2275,11 @@ export function createSession(fx, opts = {}) {
   /* What hints.mjs needs to know about the screen beyond its name. */
   function hintState(extra = {}) {
     const st = { ...extra };
-    if (view === MENU) st.top = nav.length <= 1;
+    if (view === MENU) {
+      st.top = nav.length <= 1;
+      /* Which ring the circles are: home, Practice or Quiz (its help). */
+      st.ring = nav.length <= 1 ? 'home' : CAT.navTop(nav).node.key || '';
+    }
     if (view === READY) {
       st.stages = Boolean(armedId);
       st.stage = stage;
@@ -2356,23 +2363,48 @@ export function createSession(fx, opts = {}) {
    * options can show the five as a list for the session.
    */
   let homeGrow = null;
+  let homeGrowNode = null;
 
-  function onHome() {
-    const top = CAT.navTop(nav);
-    return view === MENU && nav.length === 1 && top.node.view === 'home' && !listViews.has(top.node);
+  /*
+   * Rings: home, and one level down Practice and Quiz, drawn as circles
+   * with an icon each (home/icons.mjs), by the same hooks. A folder is a
+   * ring with view 'home' and 2 to 5 rows; with more it is a list, which
+   * only grown content could cause. Icons are keyed by the row's key, or
+   * its label where it has none.
+   */
+  const HOME_ICONS = { program: 'path', basics: PRACTICE_PIANO, quiz: 'quiz', progress: 'progress', settings: 'settings' };
+  const PRACTICE_ICONS = { Scales: 'stairs', Chords: 'chord', Progressions: 'progression', Random: 'dice', Songs: 'song' };
+  const QUIZ_ICONS = { hear: 'ear', read: 'staff', keys: 'keyletter' };
+
+  const rowKey = (r) => r.key || (r.progress ? 'progress' : r.label);
+
+  function ringOf(node, icons) {
+    if (!node) return;
+    node.view = 'home';
+    for (const r of node.children) {
+      const icon = icons[rowKey(r)] || icons[r.label];
+      if (icon) r.icon = icon;
+    }
   }
 
-  const HOME_ICONS = { program: 'path', basics: PRACTICE_PIANO, quiz: 'quiz', progress: 'progress', settings: 'settings' };
+  const isRing = (node) => Boolean(node && node.view === 'home' && !listViews.has(node)
+    && node.children.length >= 2 && node.children.length <= HOME_MAX);
 
-  /* The five, as the engine takes them, and the grow of the selection. */
+  function onHome() {
+    return view === MENU && isRing(CAT.navTop(nav).node);
+  }
+
+  /* The ring's circles, as the engine takes them, and the grow of the
+   * selection: one grow per ring, made again on coming back to it. */
   function homeModel() {
     if (!onHome()) return null;
     const top = CAT.navTop(nav);
-    if (!homeGrow) homeGrow = createGrow(top.cursor);
-    if (homeGrow.to !== top.cursor) homeGrow = createGrow(top.cursor);
+    if (!homeGrow || homeGrowNode !== top.node || homeGrow.to !== top.cursor) {
+      homeGrow = createGrow(top.cursor);
+      homeGrowNode = top.node;
+    }
     return {
-      items: top.node.children.map((r) => ({ key: r.key || (r.progress ? 'progress' : ''), label: r.label,
-        icon: HOME_ICONS[r.key || (r.progress ? 'progress' : '')] || null })),
+      items: top.node.children.map((r) => ({ key: rowKey(r), label: r.label, icon: r.icon || null })),
       selected: top.cursor,
       grow: homeGrow,
     };
@@ -2406,7 +2438,7 @@ export function createSession(fx, opts = {}) {
    * host sounds nothing. */
   function homePad(note) {
     if (!onHome()) return false;
-    homePick(itemOfPad(note));
+    homePick(itemOfPad(note, CAT.navTop(nav).node.children.length));
     return true;
   }
 
@@ -2525,7 +2557,7 @@ export function createSession(fx, opts = {}) {
       listViews.delete(top.node);
       map = null;
       homeGrow = null;
-      announce(top.node.view === 'home' ? 'Home.' : 'Map.');
+      announce(top.node.view !== 'home' ? 'Map.' : nav.length === 1 ? 'Home.' : top.node.label + '.');
     }
     dirty = true;
     ledDirty = true;
