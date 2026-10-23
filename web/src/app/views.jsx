@@ -19,6 +19,7 @@ import { MODES } from '../../../src/generator.mjs';
 import { layoutPlaces, cellRect, MAP_X, MAP_Y, MAP_W, MAP_H } from '../../../src/pathmap/layout.mjs';
 import { createWalk, walkTo, arrived } from '../../../src/pathmap/walk.mjs';
 import { drawMap } from '../../../src/pathmap/render.mjs';
+import { tempoRow } from '../../../src/view.mjs';
 import { compile, homeLayout, HOME_Y, R_SMALL, R_LARGE } from '../../../src/home/render.mjs';
 
 const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
@@ -336,13 +337,13 @@ export function PracticeView(props) {
                  disabled={!vm().can.scrub} aria-label="Start position in beats"
                  onInput={(e) => props.dispatch({ type: 'scrubTo', beat: Number(e.currentTarget.value) })} />
         </label>
-        <div class="tempo" data-info="Tempo — for generated drills; a song keeps its own">
+        <div class="tempo" data-info="Tempo — knob 8 on the Move: a drill's setting, or a song's own tempo for the session">
           <Button title="Slower" ariaLabel="Slower" onClick={() => props.dispatch({ type: 'tempo', delta: -5 })}>−</Button>
           <span class="pp-value">{vm().chart ? vm().chart.bpm : ''}</span>
           <Button title="Faster" ariaLabel="Faster" onClick={() => props.dispatch({ type: 'tempo', delta: 5 })}>+</Button>
           {/* As the Move's ready box says it: the knob that sets the tempo. */}
           <Show when={vm().screen === 'ready' && vm().chart}>
-            <span class="t-hint tempo-knob" data-info="On the Move, knob 8 sets the tempo">Knob 8: {vm().chart.bpm} bpm</span>
+            <span class="t-hint tempo-knob" data-info="On the Move, knob 8 sets the tempo">{tempoRow(vm().chart.bpm)}</span>
           </Show>
         </div>
         <Show when={stats() && running() && !listening()}>
