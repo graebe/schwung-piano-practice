@@ -481,12 +481,12 @@ const SCREENS = {
     keyText: 'in F# minor', footer: hintFor('guess', { hintsLeft: true, streak: 999 })[0],
   }),
   'chord row, jazz, solved': (c) => V.drawChordRow(c, {
-    title: 'PROGS HEAR', score: '20/20', solved: true, hidden: true,
+    title: 'PROGS HEAR', score: '20/20', solved: true,
     tokens: ['iii7', 'vi7', 'ii7', 'V7', 'Imaj7'], label: 'iii-vi-ii-V-I in F# minor',
     footer: hintFor('guess', {})[0],
   }),
   'chord row, heard': (c) => V.drawChordRow(c, {
-    title: 'PROGS HEAR', score: '0/20', hidden: true, tokens: ['I', 'V/V', 'V', 'I'], keyText: '?',
+    title: 'PROGS HEAR', score: '0/20', tokens: ['?', '?', '?', '?'], keyText: '?',
     footer: hintFor('guess', {})[0],
   }),
   'ready': (c) => V.drawReadyView(c, {

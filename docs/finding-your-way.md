@@ -41,13 +41,13 @@ welcome is skipped.
 
 ```
 PIANO
-   (o)  (o)  (O)  (o)  (o)       Learning Path, Practice, Quiz, Progress, Settings
-             Quiz
+   (o)  (o)  (O)  (o)  (o)       Learning Path, Practice, Songs, Progress, Settings
+             Songs
 JOG choose  CLICK open
 ```
 
 Home is five circles, each with its picture: an island for the **Learning Path**,
-keys for **Practice**, a question mark for **Quiz**, bars for **Progress**
+keys for **Practice**, a note for **Songs**, bars for **Progress**
 and a cog for **Settings**. The chosen one is filled and grown, its name
 underneath.
 
@@ -65,17 +65,18 @@ circle's pad pulses. Back from a section lands on home with its circle
 chosen, so you are where you left. **Show as list** shows the five as an
 ordinary list for this session; Back turns it into circles again.
 
-**Practice** and **Quiz** open as rings of their own, the same keys and
-the same pads:
+**Practice** and **Songs** open as rings of their own, the same keys and
+the same pads, and so does each trainer in Practice:
 
 | Ring | Circles |
 | --- | --- |
-| **Practice** | Scales (stairs), Chords (a chord), Progressions (blocks and arrows), Random (a die), Songs (a note) |
-| **Quiz** | Ear (an ear), Reading (a staff), Keys (a key with its letter), on the middle three pads |
+| **Practice** | Notes (a note on a line), Intervals (two notes, bracketed), Scales (stairs), Chords (a chord), Progressions (blocks and arrows) |
+| **A trainer** | Read (a staff), Hear (an ear), Play (a key with its letter), Learn (a book), Stats (bars) — the same five in every trainer |
+| **Songs** | Classics, Electronic, Techno, Styles |
 
 The title bar names the ring, MENU explains it, **Show as list** works
-there too, and **Back** goes home with that circle chosen. Deeper folders,
-such as Practice › Songs or Quiz › Ear, are lists.
+there too, and **Back** goes up with that circle chosen. Deeper folders,
+such as a trainer's Learn or a genre of Songs, are lists.
 
 Behind each circle, **click** opens a row: a folder (`>`) shows what is
 inside, anything else opens straight away. **Back** goes up one folder,
@@ -94,12 +95,14 @@ and from the top of a section to home.
   the row reads **Review** and names the piece that is due. Reviews and new
   steps take turns: one review, then one new step. Below the stages sits
   **Review** while anything is due.
-- **Practice** is everything to play freely: Scales, Chords,
-  Progressions, Random, and **Songs** (Classics, Electronic, Techno,
-  Styles, and Other for files you added).
-- **Quiz** is short timed rounds, by skill. **Ear**: name what you hear.
-  **Reading**: read it off the staff. **Keys**: find a named note or
-  chord on the pads, or name the pad that lights.
+- **Practice** is five trainers: Notes, Intervals, Scales, Chords and
+  Progressions. Each is **Read** off the staff, **Hear** by ear, **Play**
+  from a name, **Learn** (its lessons) and **Stats** (what you know, weakest
+  first). Read, Hear and Play open a setup page — what a round asks, the
+  last row **Start** — that remembers what you set. The walk-through is
+  [Practice: five trainers](trainers.md).
+- **Songs** is the pieces: Classics, Electronic, Techno, Styles, and Other
+  for files you added.
 - **Progress** charts how far you have got, overall, per stage, and for
   everything you have played.
 - **Settings** is one short page of what is yours: **Octave**, **Click**,

@@ -307,9 +307,13 @@ export function quizOf(S) {
   const ear = quiz.kind === GUESS.EAR;
   const hidden = (S.quizHear || ear) && !quiz.solved;
   const st = GUESS.quizStats(quiz);
+  /* A line (a scale, an interval) or a row of chords is drawn as it is
+   * played, as the Move draws it (session.lineState, rowState). */
+  const line = S.lineState();
+  const row = S.rowState();
   return {
     kind: quiz.kind,
-    mode: ear ? 'ear' : S.quizPick ? 'pick' : S.quizHear ? 'hear' : 'play',
+    mode: line ? 'line' : row ? 'row' : ear ? 'ear' : S.quizPick ? 'pick' : S.quizHear ? 'hear' : 'play',
     /* A trainer's round says its subject and circle; a hearing exercise its name. */
     title: S.quizTitle() || (ear ? quiz.exercise.name : null),
     question: ear ? quiz.exercise.question || null : null,
@@ -318,11 +322,14 @@ export function quizOf(S) {
     /* A Play drill's row, head first. `index` counts prompts from the start, so
      * a prompt keeps its place as the row moves on. A staff drill withholds the
      * name — reading it is the drill — until Help gives it. */
-    read: quiz.read || null,
+    read: line || row ? null : quiz.read || null,
     /* A reading course draws its prompt: one event per column, spelled as the
      * course wrote it, a beat apart and a beat more between two intervals. */
-    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? staffOf(quiz.entry.staff) : null,
-    queue: quiz.read ? quiz.queue.map((e, i) => ({
+    sheet: line ? staffOf(line.staff.slice(0, line.shown))
+      : quiz.exercise && quiz.exercise.read && quiz.entry ? staffOf(quiz.entry.staff) : null,
+    line: line ? { label: line.label, shown: line.shown, total: line.staff.length } : null,
+    row: row ? { tokens: row.tokens.slice(), done: row.done, keyText: row.keyText, label: row.solved ? row.label : null } : null,
+    queue: quiz.read && !line && !row ? quiz.queue.map((e, i) => ({
       index: quiz.asked - 1 + i,
       pitches: e.pitches.slice(),
       name: quiz.read === GUESS.READ_NAME || (i === 0 && quiz.hint > 0) ? GUESS.entryName(quiz, e) : null,
@@ -409,7 +416,11 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     trainerStats: view === TRAINER_STATS ? {
       title: S.trainerStatsTitle(),
       cursor: S.statsCursor,
-      rows: S.statsRows.map((r) => ({ label: r.label, cells: r.cells.slice(), item: r.item })),
+      rows: S.statsRows.map((r) => ({
+        label: r.label, cells: r.cells.slice(), item: r.item,
+        /* Per circle, asked and right: the chart of the row picked. */
+        counts: { read: r.row.read.slice(), hear: r.row.hear.slice(), play: r.row.play.slice() },
+      })),
     } : null,
     settings: {
       group: S.settingsGroup,
@@ -420,7 +431,7 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
        * `act` an action a click runs; `edit` something else the jog changes. */
       rows: rows.map((r, i) => ({
         row: i, index: r.index !== undefined ? r.index : -1, label: r.label, value: r.value,
-        act: r.act || null, edit: r.edit || null,
+        act: r.act || null, edit: r.edit || null, disabled: Boolean(r.disabled),
       })),
     },
     can: {

@@ -748,37 +748,21 @@ function draw() {
       hint: ask,
       footer: footer(),
     });
-  } else if (view === GUESS_VIEW && quiz.entry && quiz.entry.chords) {
+  } else if (view === GUESS_VIEW && S.rowState()) {
     /* A progression played chord by chord: from its numerals, or by ear. */
+    const row = S.rowState();
     VIEW.drawChordRow(ctx, {
+      ...row,
       title: S.quizTitle() || 'PLAY',
       score: quiz.roundSize > 0 ? quiz.correct + '/' + quiz.roundSize : String(GUESS.quizStats(quiz).correct),
-      tokens: quiz.entry.tokens,
-      done: GUESS.lineProgress(quiz),
-      hidden: quiz.read !== GUESS.READ_NAME && quiz.hint === 0,
-      keyText: quiz.read === GUESS.READ_NAME ? quiz.entry.keyText : '?',
-      label: quiz.entry.label,
-      solved: quiz.solved,
       footer: footer(),
     });
-  } else if (view === GUESS_VIEW && quiz.entry && quiz.entry.line) {
-    /* A line to play — a scale, an interval — from its name, heard, or read
-     * off the staff. Its name is the prompt when it is asked by name; heard,
-     * it is "?" (the help names it); read, the staff is the question and the
-     * name waits for the answer. */
-    const byName = quiz.read === GUESS.READ_NAME;
-    const read = quiz.read === GUESS.READ_STAFF;
-    let label = '?';
-    if (byName || quiz.solved || (!read && quiz.hint > 0)) label = quiz.entry.label;
-    else if (read) label = quiz.hint > 0 ? quiz.entry.label : '';
+  } else if (view === GUESS_VIEW && S.lineState()) {
+    /* A line to play — a scale, an interval — from its name, heard, or read. */
     VIEW.drawLineView(ctx, {
+      ...S.lineState(),
       title: S.quizTitle() || 'PLAY',
       score: quiz.roundSize > 0 ? quiz.correct + '/' + quiz.roundSize : String(GUESS.quizStats(quiz).correct),
-      staff: quiz.entry.staff,
-      shown: quiz.solved ? quiz.entry.staff.length : quiz.played.length,
-      all: read,
-      label,
-      solved: quiz.solved,
       footer: footer(),
     });
   } else if (view === GUESS_VIEW && quiz.read) {

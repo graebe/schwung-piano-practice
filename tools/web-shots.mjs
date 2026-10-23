@@ -85,9 +85,25 @@ await page.locator('.levels .btn').first().waitFor();
 await shoot(page, 'web-ready-song.png');
 await page.close();
 
-/* A hearing drill, answered: where the answer sits on the keys. */
+/* A trainer: its five circles, a setup page, a progression from its numerals. */
 page = await open({ width: 1280, height: 640 });
-await openPath(page, ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']);
+await openPath(page, ['Practice', 'Progressions']);
+await page.locator('svg.home[data-ring="Progressions"]').waitFor();
+await shoot(page, 'web-trainer.png');
+await row(page, 'Play');
+await page.locator('#settings-title').waitFor();
+await shoot(page, 'web-setup.png');
+await page.locator('.setting').getByRole('button', { name: 'Start' }).click();
+await page.locator('.chord-row').waitFor();
+await shoot(page, 'web-progression.png');
+await page.close();
+
+/* A hearing drill, answered: where the answer sits on the keys. Notes ›
+ * Hear, higher or lower. */
+page = await open({ width: 1280, height: 640 });
+await openPath(page, ['Practice', 'Notes', 'Hear']);
+await page.locator('.setting', { hasText: 'Answer' }).getByRole('button', { name: 'More Answer' }).click();
+await page.locator('.setting').getByRole('button', { name: 'Start' }).click();
 await page.locator('.option').first().waitFor();
 for (const option of await page.locator('.option').all()) {
   if (await option.isDisabled()) break;
@@ -95,6 +111,24 @@ for (const option of await page.locator('.option').all()) {
 }
 await page.locator('.kb-key.hit').first().waitFor();
 await shoot(page, 'web-hear.png');
+
+/* Its Stats, after a round: what was asked, weakest first. */
+for (let i = 0; i < 60 && !(await page.locator('.result-screen').count()); i++) {
+  for (const option of await page.locator('.option').all()) {
+    if (await option.isDisabled()) break;
+    await option.click();
+  }
+  await page.waitForTimeout(1500);
+}
+await page.locator('.result-screen').waitFor();
+for (let i = 0; i < 4 && !(await page.locator('svg.home[data-ring="Notes"]').count()); i++) {
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+}
+await row(page, 'Stats');
+await page.locator('.stats-table tbody tr').first().click();
+await page.locator('.stats-screen .progress-detail figure').waitFor();
+await shoot(page, 'web-stats.png');
 await page.close();
 
 /* A result: a drill played twice, by the lit keys, at a brisk tempo. */

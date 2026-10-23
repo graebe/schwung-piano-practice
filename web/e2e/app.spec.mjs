@@ -18,8 +18,28 @@ async function openSettings(page, group) {
   await page.locator('.setting').getByRole('button', { name: 'Advanced' }).click();
   await page.locator('.row', { hasText: new RegExp(`^${group}`) }).click();
 }
-/* A lit key's spoken name ("C sharp 4") as the options print it ("C#4"). */
-const asLabel = (spoken) => spoken.replace(' sharp ', '#').replace(' flat ', 'b').replace(/ /g, '');
+/* Practice › a trainer › a circle: its setup page. */
+async function openTrainer(page, subject, circle) {
+  await openPath(page, ['Practice', subject, circle]);
+  await expect(page.locator('.settings-screen')).toBeVisible();
+}
+/* A row of the setup turned `n` steps (More, or Less when n < 0). */
+async function turn(page, label, n) {
+  const row = page.locator('.setting', { has: page.locator('.row-label', { hasText: new RegExp(`^${label}$`) }) });
+  for (let i = 0; i < Math.abs(n); i++) await row.getByRole('button', { name: `${n > 0 ? 'More' : 'Less'} ${label}` }).click();
+}
+async function start(page) {
+  await page.locator('.setting').getByRole('button', { name: 'Start' }).click();
+  await closeInfo(page);
+  await expect(page.locator('.quiz-screen, .practice-screen').first()).toBeVisible();
+}
+/* Click through the options until one is right: the question stays until then. */
+async function answerRight(page) {
+  for (const option of await page.locator('.option').all()) {
+    if (await option.isDisabled()) break;
+    await option.click();
+  }
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('./');
@@ -29,7 +49,7 @@ test.beforeEach(async ({ page }) => {
 test('home is five circles: a click opens one, Back finds it selected', async ({ page }) => {
   await expect(page.locator('.home-screen')).toBeVisible();
   await expect(page.locator('.home .home-item')).toHaveCount(5);
-  await expect(page.locator('.home-rows .row-label')).toHaveText(['Learning Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
+  await expect(page.locator('.home-rows .row-label')).toHaveText(['Learning Path', 'Practice', 'Songs', 'Progress', 'Settings']);
   await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'program');
   await expect(page.getByRole('button', { name: 'Back' })).toBeDisabled();
   await expect(page.locator('.move-hint')).toContainText('JOG choose');
@@ -42,10 +62,10 @@ test('home is five circles: a click opens one, Back finds it selected', async ({
   expect(parseFloat(r)).toBeCloseTo(12.5, 1);
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('home.png', { fullPage: true });
-  await page.locator('.home .home-item[data-key="quiz"]').click();
-  await expect(page.locator('#home-title')).toHaveText('Quiz');
+  await page.locator('.home .home-item[data-key="songs"]').click();
+  await expect(page.locator('#home-title')).toHaveText('Songs');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'quiz', { message: 'its circle' });
+  await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'songs', { message: 'its circle' });
   /* Options: home as a list for the session; Back is the circles again. */
   await page.getByRole('button', { name: 'Options' }).click();
   await page.locator('.sheet-screen .row', { hasText: 'Show as list' }).click();
@@ -63,7 +83,7 @@ test('home is five circles: a click opens one, Back finds it selected', async ({
  * places are compared as the engine lays them out (homeLayout), retried
  * until the picture shows that ring.
  */
-test('Practice and Quiz are rings: circles spaced by their count, a click opens, Back finds the circle', async ({ page }) => {
+test('Practice, each trainer and Songs are rings: circles spaced by their count, a click opens, Back finds the circle', async ({ page }) => {
   const ring = page.locator('svg.home');
   const xsOf = (n) => homeLayout(n).join(' ');
   await page.locator('.row', { hasText: /^Practice/ }).click();
@@ -71,35 +91,37 @@ test('Practice and Quiz are rings: circles spaced by their count, a click opens,
   await expect(ring).toHaveAttribute('data-count', '5');
   await expect(ring).toHaveAttribute('data-xs', xsOf(5), { message: 'five, as home spaces them' });
   await expect(page.locator('#home-title')).toHaveText('Practice');
-  await expect(page.locator('.home-rows .row-label')).toHaveText(['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
-  await expect(page.locator('.home .home-item')).toHaveCount(5);
+  await expect(page.locator('.home-rows .row-label')).toHaveText(['Notes', 'Intervals', 'Scales', 'Chords', 'Progressions']);
   await expect(page.getByRole('button', { name: 'Back' })).toBeEnabled();
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('ring-practice.png', { fullPage: true });
-  await page.locator('.home .home-item[data-key="songs"]').click();
-  await expect(page.locator('#list-title')).toHaveText(/songs/i, { message: 'deeper levels stay lists' });
+  await page.locator('.home .home-item[data-key="chord-trainer"]').click();
+  await expect(ring).toHaveAttribute('data-ring', 'Chords', { message: 'a trainer: its own ring' });
+  await expect(page.locator('.home-rows .row-label')).toHaveText(['Read', 'Hear', 'Play', 'Learn', 'Stats']);
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot('ring-trainer.png', { fullPage: true });
+  await page.locator('.home .home-item[data-key="basics/chords"]').click();
+  await expect(page.locator('#list-title')).toHaveText(/chords/i, { message: 'Learn is a list' });
+  await page.keyboard.press('Escape');
+  await expect(ring).toHaveAttribute('data-selected', 'basics/chords', { message: 'its circle' });
   await page.keyboard.press('Escape');
   await expect(ring).toHaveAttribute('data-ring', 'Practice');
-  await expect(ring).toHaveAttribute('data-selected', 'songs', { message: 'its circle' });
+  await expect(ring).toHaveAttribute('data-selected', 'chord-trainer');
   await page.keyboard.press('Escape');
   await expect(ring).toHaveAttribute('data-ring', 'Piano');
   await expect(ring).toHaveAttribute('data-selected', 'basics', { message: 'home, on Practice' });
   await page.keyboard.press('ArrowRight');
-  await expect(ring).toHaveAttribute('data-selected', 'quiz');
+  await expect(ring).toHaveAttribute('data-selected', 'songs');
   await page.keyboard.press('Enter');
-  await expect(ring).toHaveAttribute('data-ring', 'Quiz');
-  await expect(ring).toHaveAttribute('data-count', '3');
-  await expect(ring).toHaveAttribute('data-xs', xsOf(3), { message: 'three, spaced for three' });
-  await expect(page.locator('.home .home-item')).toHaveCount(3);
-  await expect(page.locator('.home-rows .row-label')).toHaveText(['Ear', 'Reading', 'Keys']);
-  /* And the circles stand where the element says. */
+  await expect(ring).toHaveAttribute('data-ring', 'Songs');
+  await expect(ring).toHaveAttribute('data-count', '4');
+  await expect(ring).toHaveAttribute('data-xs', xsOf(4), { message: 'four, spaced for four' });
+  await expect(page.locator('.home-rows .row-label')).toHaveText(['Classics', 'Electronic', 'Techno', 'Styles']);
   await expect.poll(() => page.locator('.home .home-item circle')
-    .evaluateAll((cs) => cs.map((c) => +c.getAttribute('cx') - 0.5).join(' '))).toBe(xsOf(3));
-  expect(homeLayout(3)[0]).not.toBe(homeLayout(5)[0]);
+    .evaluateAll((cs) => cs.map((c) => +c.getAttribute('cx') - 0.5).join(' '))).toBe(xsOf(4));
+  expect(homeLayout(4)[0]).not.toBe(homeLayout(5)[0]);
   await page.mouse.move(0, 0);
-  await expect(page).toHaveScreenshot('ring-quiz.png', { fullPage: true });
-  await page.locator('.home .home-item[data-key="keys"]').click();
-  await expect(page.locator('.row .row-label')).toHaveText(['Notes by alphabet', 'Chords by name', 'Name notes', 'Name chords']);
+  await expect(page).toHaveScreenshot('ring-songs.png', { fullPage: true });
 });
 
 test('the Learning Path is five stages, each ending on its Checkpoint; Continue opens the next step', async ({ page }) => {
@@ -300,36 +322,26 @@ test('scrubbing picks the start; tempo follows the knob-less stepper', async ({ 
   await expect(page.locator('.tempo .pp-value')).toHaveText('85');
 });
 
-test('a Name round answered from the lit keys runs to its result, and Progress charts it', async ({ page }) => {
-  /* Settings first: a round of ten. */
-  await openSettings(page, 'Practice');
-  const round = page.locator('.setting', { hasText: 'Round' });
-  await round.getByRole('button', { name: 'Less Round' }).click();
-  await expect(round.locator('.setting-value')).toHaveText('10');
-  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
-  await openPath(page, ['Quiz', 'Keys', 'Name notes']);
-  await expect(page.locator('#quiz-title')).toHaveText(/name the note/i);
+test('a round named off the staff runs to its result, and Progress charts it', async ({ page }) => {
+  await openTrainer(page, 'Notes', 'Read');
+  await turn(page, 'Answer', 1);
+  await expect(page.locator('.setting', { hasText: 'Answer' }).locator('.setting-value')).toHaveText('name');
+  await start(page);
+  await expect(page.locator('#quiz-title')).toHaveText('NOTES READ');
+  await expect(page.locator('.quiz-row svg')).toBeVisible();
   for (let i = 0; i < 40; i++) {
     if (await page.locator('.result-screen').count()) break;
-    const lit = page.locator('.kb-key.lit').first();
-    if (!(await lit.count())) { await page.waitForTimeout(150); continue; }
-    const want = asLabel(await lit.getAttribute('aria-label'));
-    const option = page.locator('.option:not([disabled])', { hasText: new RegExp(`^${want.replace('#', '\\#')}$`) });
-    if (await option.count()) await option.first().click();
-    await page.waitForTimeout(520);
+    await answerRight(page);
+    await page.waitForTimeout(1500);
   }
   await expect(page.locator('.result-screen')).toBeVisible();
   await expect(page.locator('.hero-number').first()).toContainText('/min');
   await expect(page.locator('.hero-number').nth(1)).toContainText('% right');
   await expect(page.locator('.result-screen figcaption', { hasText: 'Right, of all attempts' })).toBeVisible();
-  /* Each note asked gets a bar: every right answer is some note's. */
   const answers = page.locator('.result-screen figure', { hasText: 'Each answer' });
   await expect(answers).toBeVisible();
   expect(await answers.locator('rect.chart-bar').count()).toBeGreaterThan(1);
-  await expect(page.locator('.result-screen svg[role="img"]')).toHaveCount(3);
-  /* Learned at the first go: a star over the result, then the result itself. */
-  await expect(page.locator('.anim-over')).toHaveCount(0);
-  for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
+  for (let i = 0; i < 6; i++) await page.keyboard.press('Escape');
   await page.locator('.row', { hasText: /^Progress/ }).click();
   await page.locator('.progress-screen .row', { hasText: 'Overall' }).click();
   await expect(page.locator('.progress-detail .chart')).toBeVisible();
@@ -341,8 +353,9 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
  * must not match it. */
 const spoken = (name) => new RegExp(`^${name[0]}${name.slice(1).replace('#', ' sharp').replace('b', ' flat')} \\d$`);
 
-test('Notes by alphabet: a row of names, and a right note in any octave moves it on', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Keys', 'Notes by alphabet']);
+test('Notes › Play: a row of names, and a right note in any octave moves it on', async ({ page }) => {
+  await openTrainer(page, 'Notes', 'Play');
+  await start(page);
   const head = page.locator('.name-row-name.head');
   await expect(head).toHaveAttribute('data-index', '0');
   expect(await page.locator('.name-row-name').count()).toBeGreaterThanOrEqual(6);
@@ -359,8 +372,9 @@ test('Notes by alphabet: a row of names, and a right note in any octave moves it
   await expect(page.locator('.screen-head .t-hint')).toContainText(/^2 /);
 });
 
-test('Notes by staff: the next notes on the staff, no names until Help', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Reading', 'Notes by staff']);
+test('Notes › Read, played: the next notes on the staff, no names until Help', async ({ page }) => {
+  await openTrainer(page, 'Notes', 'Read');
+  await start(page);
   await expect(page.locator('.quiz-row svg')).toBeVisible();
   expect(await page.locator('.quiz-row .staff-event').count()).toBeGreaterThanOrEqual(4);
   await expect(page.locator('.quiz-ask')).toHaveText('Play what is written.');
@@ -373,8 +387,10 @@ test('Notes by staff: the next notes on the staff, no names until Help', async (
   await expect(page.locator('.quiz-ask')).toHaveText('Play what is written.', { timeout: 3000 });
 });
 
-test('Chords by name: chord symbols in the row', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Keys', 'Chords by name']);
+test('Chords › Play: chord symbols in the row', async ({ page }) => {
+  await openTrainer(page, 'Chords', 'Play');
+  await turn(page, 'Level', 2);
+  await start(page);
   const names = await page.locator('.name-row-name').allTextContents();
   expect(names.length).toBeGreaterThanOrEqual(6);
   for (const n of names) expect(n.trim()).toMatch(/^[A-G][#b]?(m|dim|aug)?$|^[A-G][#b]? /);
@@ -412,8 +428,11 @@ test('settings are remembered across a reload', async ({ page }) => {
 });
 
 test('a hearing drill answers by colour, then shows where the answer sits', async ({ page }) => {
-  await openPath(page, ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']);
-  await expect(page.locator('#quiz-title')).toHaveText(/higher or lower/i);
+  await openTrainer(page, 'Notes', 'Hear');
+  await turn(page, 'Answer', 1);
+  await expect(page.locator('.setting', { hasText: 'Answer' }).locator('.setting-value')).toHaveText('higher/lower');
+  await start(page);
+  await expect(page.locator('#quiz-title')).toHaveText('NOTES HEAR');
   await expect(page.locator('.option .chip')).toHaveCount(3);
   for (const option of await page.locator('.option').all()) {
     if (await option.isDisabled()) break;
@@ -423,40 +442,50 @@ test('a hearing drill answers by colour, then shows where the answer sits', asyn
   await page.getByRole('button', { name: /Help/ }).click();
 });
 
-/* Click through the options until one is right: the question stays until then. */
-async function answerRight(page) {
-  for (const option of await page.locator('.option').all()) {
-    if (await option.isDisabled()) break;
-    await option.click();
-  }
-}
-
-for (const [course, unit, level, title, answers] of [
-  [['Intervals', 'Identify intervals'], '1 2nds', 'up', /2nds/i, 2],
-  [['Intervals', 'Compare intervals'], '9 6ths', 'fix up', /6ths/i, 3],
-  [['Scales & keys', 'Identify scales'], '6 Seven modes', 'up', /seven modes/i, 7],
+for (const [subject, circle, answer, level, answers] of [
+  ['Intervals', 'Hear', 0, 0, 2],
+  ['Intervals', 'Hear', 1, 0, 3],
+  ['Scales', 'Hear', 1, 1, 5],
+  ['Intervals', 'Read', 0, 6, 8],
+  ['Intervals', 'Read', 1, 0, 3],
+  ['Scales', 'Read', 1, 1, 5],
 ]) {
-  test(`${course[1]}: a unit's level asks its own answers, and a right one counts`, async ({ page }) => {
-    await openPath(page, ['Quiz', 'Ear', ...course, unit, level]);
-    await expect(page.locator('#quiz-title')).toHaveText(title);
+  test(`${subject} › ${circle}, ${['named', 'compared'][answer] || 'named'}: the level's own answers, and a right one counts`, async ({ page }) => {
+    await openTrainer(page, subject, circle);
+    await turn(page, 'Answer', answer);
+    await turn(page, 'Level', level);
+    await start(page);
+    if (circle === 'Read') await expect(page.locator('.quiz-row svg')).toBeVisible();
     await expect(page.locator('.option')).toHaveCount(answers);
     await answerRight(page);
     await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /);
   });
 }
 
-for (const [course, unit, level, answers, notes] of [
-  ['Identify intervals', '9 Up to the octave', 'tog', 12, 2],
-  ['Compare intervals', '9 6ths', 'fix up', 3, 4],
-  ['Identify scales', '6 Seven modes', 'up', 7, 8],
+/* Each trainer: its ring, a setup, a round to its result, and its Stats. */
+for (const [subject, circle, answer] of [
+  ['Notes', 'Hear', 1], ['Intervals', 'Hear', 0], ['Scales', 'Hear', 1], ['Chords', 'Hear', 1], ['Progressions', 'Hear', 1],
 ]) {
-  test(`Read ${course}: the prompt is on the staff, the answers below it`, async ({ page }) => {
-    await openPath(page, ['Quiz', 'Reading', course, unit, level]);
-    await expect(page.locator('.quiz-row svg')).toBeVisible();
-    expect(await page.locator('.quiz-row .staff-note').count()).toBeGreaterThanOrEqual(notes);
-    await expect(page.locator('.option')).toHaveCount(answers);
-    await answerRight(page);
-    await expect(page.locator('.screen-head .t-hint')).toContainText(/^1 /);
+  test(`${subject}: ring, setup, a round to its result, then Stats`, async ({ page }) => {
+    await openTrainer(page, subject, circle);
+    await turn(page, 'Answer', answer);
+    await start(page);
+    for (let i = 0; i < 60; i++) {
+      if (await page.locator('.result-screen').count()) break;
+      await answerRight(page);
+      await page.waitForTimeout(1500);
+    }
+    await expect(page.locator('.result-screen')).toBeVisible({ timeout: 10_000 });
+    for (let i = 0; i < 4 && !(await page.locator('svg.home[data-ring="' + subject + '"]').count()); i++) {
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(100);
+    }
+    await expect(page.locator('svg.home')).toHaveAttribute('data-ring', subject);
+    await openPath(page, ['Stats']);
+    await expect(page.locator('.stats-screen')).toBeVisible();
+    expect(await page.locator('.stats-table tbody tr').count()).toBeGreaterThan(0);
+    await page.locator('.stats-table tbody tr').first().click();
+    await expect(page.locator('.stats-screen .progress-detail figure')).toBeVisible();
   });
 }
 
@@ -734,11 +763,15 @@ test('screens look as designed', async ({ page }, info) => {
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');                     /* the Practice ring */
   await expect(page.locator('#home-title')).toHaveText('Practice');
-  await page.keyboard.press('Enter');                     /* Scales: a list */
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');                     /* Scales: a trainer's ring */
+  await expect(page.locator('#home-title')).toHaveText('Scales');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('Enter');                     /* its Learn: a list */
   await expect(page.locator('#list-title')).toHaveText(/scales/i);
   await expect(page).toHaveScreenshot('list.png', { fullPage: true });
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
   await openPath(page, SCALE);
   await closeInfo(page);
   await expect(page).toHaveScreenshot('ready.png', { fullPage: true });

@@ -39,7 +39,7 @@
 ["usb",11,176,120,0],
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
-["announce","Note guesser. Play G."],
+["announce","Notes, play. Play G."],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{\"folder:basics\":1791532800,\"trainer:note\":1791532801,\"trainer:note:play\":1791532801},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\"],\"trainers\":{\"note\":{\"play\":{\"answer\":\"play\",\"level\":1,\"round\":10,\"key\":0,\"circle\":\"play\",\"custom\":[]}}}}"],
 ["announce","Notes. Help."],
 ["tick",50,"a80af51ad263","5e88855ed025"],

@@ -340,3 +340,42 @@ test('a path step that was a quiz opens its trainer round, and keeps its tick', 
   assert.equal(S(h).quizTitle(), null);
   assert.equal(S(h).quiz.exercise.key, 'home');
 });
+
+/* ---- The page's picture -------------------------------------------------------- */
+
+import { viewModel } from '../src/view_model.mjs';
+import { applyAction } from '../src/actions.mjs';
+
+test('the page gets a line, a row of chords, a setup and Stats as the Move draws them', () => {
+  const h = fakeHost();
+  S(h).init();
+  openPath(S(h), ['Practice', 'Scales', 'Play']);
+  let vm = viewModel(S(h));
+  assert.equal(vm.settings.title, 'Scales Play');
+  assert.deepEqual(vm.settings.rows.at(-1), { row: vm.settings.rows.length - 1, index: -1, label: 'Start', value: '>', act: 'start', edit: null, disabled: false });
+  S(h).activate(false);
+  vm = viewModel(S(h));
+  assert.equal(vm.quiz.mode, 'line');
+  assert.equal(vm.quiz.read, null, 'no row of names: the line is the prompt');
+  assert.equal(vm.quiz.line.shown, 0);
+  assert.match(vm.quiz.line.label, /^[A-G][#b]? /);
+  const line = S(h).quiz.entry.line;
+  S(h).play(line[0], 90);
+  vm = viewModel(S(h));
+  assert.equal(vm.quiz.line.shown, 1);
+  assert.equal(vm.quiz.sheet.length, 1, 'the staff shows what is played');
+  S(h).back(); S(h).back();
+  S(h).back();
+  openPath(S(h), ['Progressions', 'Hear']);
+  S(h).activate(false);
+  vm = viewModel(S(h));
+  assert.equal(vm.quiz.mode, 'row');
+  assert.ok(vm.quiz.row.tokens.every((w) => w === '?'), 'heard: the numerals withheld');
+  assert.equal(vm.quiz.row.label, null, 'and the name');
+  S(h).back(); S(h).back();
+  openPath(S(h), ['Stats']);
+  vm = viewModel(S(h));
+  assert.equal(vm.screen, TRAINER_STATS);
+  assert.deepEqual(vm.trainerStats.rows, []);
+  assert.equal(applyAction(S(h), { type: 'trainerStats', index: 3 }), null);
+});

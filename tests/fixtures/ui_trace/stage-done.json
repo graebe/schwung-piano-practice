@@ -1067,7 +1067,7 @@
 ["usb",11,176,120,0],
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
-["announce","Intervals. Listen, then jog to the answer and click."],
+["announce","Intervals, hear. Listen, then answer."],
 ["dsp","n","72:90"],
 ["tick",1096,"20c5e4e74c07","73dc0aeae717"],
 ["tick",1100,"-","d7efac5aa030"],

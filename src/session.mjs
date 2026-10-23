@@ -846,7 +846,11 @@ export function createSession(fx, opts = {}) {
     view = GUESS_VIEW;
     dirty = true;
     ledDirty = true;
-    if (readingCourse()) {
+    if (spec.trainer) {
+      /* Heard: the prompt plays at once, as every hearing drill's does. */
+      if ((quiz.kind === GUESS.EAR && !readingCourse()) || quizHear) hearPrompt();
+      announce(trainerWords());
+    } else if (readingCourse()) {
       /* Reading: the staff is the question, so nothing sounds until you ask. */
       announce(quiz.exercise.name + '. Read it, then jog to the answer and click.');
     } else if (quiz.kind === GUESS.EAR) {
@@ -865,6 +869,23 @@ export function createSession(fx, opts = {}) {
     }
     autoInfo({ id: quizId(spec) });
     showTip(TIPS.QUIZ);
+  }
+
+  /*
+   * What a trainer's round says as it starts: its subject and circle, and
+   * what to do — never the answer. A progression from its numerals says the
+   * numerals and the key, not the progression's name.
+   */
+  function trainerWords() {
+    const s = TRAIN.subjectOf(quizSpec.trainer.subject);
+    const head = s.name + ', ' + quizSpec.trainer.circle + '. ';
+    const row = rowState();
+    if (quiz.read === GUESS.READ_NAME) {
+      return head + 'Play ' + (row ? row.tokens.join(' ') + ' ' + row.keyText : promptName()) + '.';
+    }
+    if (quiz.read === GUESS.READ_STAFF) return head + 'Play what is written.';
+    if (quiz.kind === GUESS.EAR) return head + (readingCourse() ? 'Read it' : 'Listen') + ', then answer.';
+    return head + 'Listen, then play it back.';
   }
 
   /*
@@ -2454,8 +2475,55 @@ export function createSession(fx, opts = {}) {
       + TRAIN.CIRCLE_LABEL[quizSpec.trainer.circle]).toUpperCase();
   }
 
+  /*
+   * A line to play — a scale, an interval — as the Move and the page draw it:
+   * its staff, how much of it shows, and the name lane. Its name is the
+   * prompt when asked by name; heard, "?" (help names it); read, the staff
+   * is the question and the name waits for the answer. Null for any other
+   * prompt.
+   */
+  function lineState() {
+    if (!quiz || !quiz.entry || !quiz.entry.line) return null;
+    const byName = quiz.read === GUESS.READ_NAME;
+    const read = quiz.read === GUESS.READ_STAFF;
+    let label = '?';
+    if (byName || quiz.solved || (!read && quiz.hint > 0)) label = quiz.entry.label;
+    else if (read) label = '';
+    const total = quiz.entry.staff.length;
+    return {
+      staff: quiz.entry.staff,
+      shown: read || quiz.solved ? total : quiz.played.length,
+      label,
+      solved: quiz.solved,
+    };
+  }
+
+  /*
+   * A row of chords to play — a progression from its numerals or by ear:
+   * the numerals ("?" heard, until help or the answer), how many are down,
+   * the name lane's key or "?", and the progression once played.
+   */
+  function rowState() {
+    if (!quiz || !quiz.entry || !quiz.entry.chords) return null;
+    const byName = quiz.read === GUESS.READ_NAME;
+    const hidden = !byName && quiz.hint === 0 && !quiz.solved;
+    return {
+      tokens: quiz.entry.tokens.map((w) => (hidden ? '?' : w)),
+      done: GUESS.lineProgress(quiz),
+      keyText: byName ? quiz.entry.keyText : '?',
+      label: quiz.entry.label,
+      solved: quiz.solved,
+    };
+  }
+
   function trainerStatsTitle() {
     return TRAIN.subjectOf(statsSubject).name;
+  }
+
+  /* A row of the Stats list, as the page picks one: the cursor on it. */
+  function selectStatsRow(i) {
+    statsCursor = clamp(i, 0, Math.max(0, statsRows.length - 1));
+    dirty = true;
   }
 
   /* One item's page, over the Stats list. */
@@ -3832,6 +3900,7 @@ export function createSession(fx, opts = {}) {
     selectRow,
     openSheet,
     openItem,
+    selectStatsRow,
     pickSheet,
     pickCard,
     /* The Settings page over the list, as the web page's top bar opens it. */
@@ -3857,6 +3926,8 @@ export function createSession(fx, opts = {}) {
     settingsTitle,
     trainerStatsTitle,
     quizTitle,
+    lineState,
+    rowState,
     decorateRow,
     progressDetail,
     keyFifths,

@@ -15,6 +15,7 @@ import { Button } from '../kit/components/Button.jsx';
 import { createStore } from './store.js';
 import {
   ListView, HomeView, MapView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
+  TrainerStatsView,
   MoveHint, KeysPanel,
 } from './views.jsx';
 import { AnimView } from './scene-view.jsx';
@@ -179,6 +180,7 @@ export function App(props) {
     if (v.screen === 'settings') return v.settings.title;
     if (v.screen === 'sheet' && v.sheet) return 'Options: ' + v.sheet.title;
     if (v.screen === 'card' && v.card) return v.card.title;
+    if (v.screen === 'trainer-stats' && v.trainerStats) return v.trainerStats.title + ' · Stats';
     return { progress: 'Progress', 'progress-detail': 'Progress', info: 'Info', summary: 'Result' }[v.screen] || '';
   };
   const audioLabel = () => ({
@@ -254,6 +256,7 @@ export function App(props) {
                 <SettingsView vm={vm} dispatch={dispatch} remote={!props.piano} extra={extraSettings()} />
               </Match>
               <Match when={vm().screen === 'info'}><InfoView vm={vm} dispatch={dispatch} /></Match>
+              <Match when={vm().screen === 'trainer-stats'}><TrainerStatsView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'sheet'}><SheetView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'card'}><CardView vm={vm} dispatch={dispatch} /></Match>
             </Switch>

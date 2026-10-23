@@ -294,6 +294,8 @@ export function coerceSetup(subject, circle, stored, ctx = {}) {
   }
   const all = allItems(subject);
   setup.custom = Array.isArray(src.custom) ? all.filter((id) => src.custom.indexOf(id) >= 0) : [];
+  /* A compare from a fixed root: the Path's "fix" units, no row of the page. */
+  if (subject === 'int' && src.fixed === true) setup.fixed = true;
   if (setup.level !== 'custom' && valuesOf(s, setup, 'level').indexOf(setup.level) < 0) {
     setup.level = valuesOf(s, setup, 'level')[0];
   }
@@ -966,7 +968,8 @@ function intSpec(s, circle, setup, ctx, base0) {
     /* Two intervals: which is bigger? Filed under the bigger one, the one
      * the ear had to measure (stats.mjs). */
     const unit = 'trainer-' + customHash(set);
-    const make = read ? readComparePrompts(unit, set, way, false) : hearComparePrompts(unit, set, way, false);
+    const make = read ? readComparePrompts(unit, set, way, Boolean(setup.fixed))
+      : hearComparePrompts(unit, set, way, Boolean(setup.fixed));
     const range = intRange(set, transpose);
     const exercise = {
       key: 'trainer-int-compare-' + circle, name: s.name, short: s.name, question: 'which is bigger?', read,
@@ -1054,7 +1057,10 @@ export function presetOf(id) {
     return { subject: 'int', circle, setup: custom(keys, { answer: 'name', direction: WAY(lv) }) };
   }
   if (which === 'compare') {
-    return { subject: 'int', circle, setup: custom(ex.set, { answer: 'compare', direction: WAY(lv.replace('fix-', '')) }) };
+    return {
+      subject: 'int', circle,
+      setup: custom(ex.set, { answer: 'compare', direction: WAY(lv.replace('fix-', '')), fixed: lv.indexOf('fix-') === 0 }),
+    };
   }
   if (which === 'scales') {
     return { subject: 'scale', circle, setup: custom(keys, { answer: 'name', direction: lv === 'down' ? 'down' : 'up' }) };

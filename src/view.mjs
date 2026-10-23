@@ -1187,18 +1187,18 @@ export function drawReadPick(ctx, state) {
 /*
  * A line to play — a scale, from its name or by ear — drawn as it is played:
  * the notes so far appear where the whole line will stand, so the staff fills
- * left to right and a wrong note (the line starts again) empties it. The name
- * lane holds the name, or "?" while the line is still to be heard.
+ * left to right and a wrong note (the line starts again) empties it; read
+ * off the staff, all of it shows from the start (session.lineState). The
+ * name lane holds the name, "?" while it is still to be heard.
  *
- *   state = { title, score, staff: [{ part, notes }], shown, label, footer }
+ *   state = { title, score, staff: [{ part, notes }], shown, label, solved, footer }
  */
 export function drawLineView(ctx, state) {
   ctx.clear();
   R.drawStaff(ctx);
   const columns = state.staff || [];
   const xs = readColumnsX(columns);
-  /* Read and played, the whole line is the prompt: shown from the start. */
-  const shown = state.all ? columns.length : Math.min(state.shown || 0, columns.length);
+  const shown = Math.min(state.shown || 0, columns.length);
   for (let i = 0; i < shown; i++) drawReadColumn(ctx, xs[i], columns[i].notes);
   ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
   R.drawClef(ctx);
@@ -1219,16 +1219,16 @@ export function drawLineView(ctx, state) {
  * A row of chords to play — a progression from its numerals, or heard and
  * played back. The numerals stand where the staff is, in lines, as a chart
  * reads; each one inverts as its chord goes down, so the row shows how far
- * you are. Heard, each is a "?" until the row is played: you hear how many
- * chords there are, not which. The name lane says the key (from the
- * numerals), or the progression once it is played.
+ * you are. Heard, each is a "?" until the row is played (session.rowState):
+ * you hear how many chords there are, not which. The name lane says the key
+ * (from the numerals), or the progression once it is played.
  *
- *   state = { title, score, tokens, done, hidden, keyText, label, solved, footer }
+ *   state = { title, score, tokens, done, keyText, label, solved, footer }
  */
 export function drawChordRow(ctx, state) {
   ctx.clear();
   R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: true });
-  const words = state.tokens.map((w) => (state.hidden && !state.solved ? '?' : w));
+  const words = state.tokens;
   const gap = ctx.textWidth(' ') + 2;
   const lines = [[]];
   let width = 0;
