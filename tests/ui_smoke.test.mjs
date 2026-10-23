@@ -150,8 +150,8 @@ const ROUNDS = [
   () => openSetup(SUBJECT.notes, CIRCLE.read),                                        /* a note on the staff */
   () => openSetup(SUBJECT.intervals, CIRCLE.hear),                                    /* an interval, named */
   () => openSetup(SUBJECT.chords, CIRCLE.hear),                                       /* a chord, played back */
-  () => { openSetup(SUBJECT.notes, CIRCLE.read); turnKnob(1, 1); },                  /* a note, named */
-  () => { openSetup(SUBJECT.chords, CIRCLE.read); turnKnob(1, 1); },                 /* a chord, named */
+  () => { openSetup(SUBJECT.notes, CIRCLE.read); turnKnob(2, 1); },                  /* a note, named */
+  () => { openSetup(SUBJECT.chords, CIRCLE.read); turnKnob(2, 1); },                 /* a chord, named */
 ];
 function openQuiz(row) {
   ROUNDS[row]();
@@ -1207,7 +1207,7 @@ test('Practice is the five trainers, each the same five circles', () => {
 const THIRDS = { pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
 function openThirds() {
   openSetup(SUBJECT.intervals, CIRCLE.hear);
-  turnKnob(2, 1);                                    /* Level 2 */
+  turnKnob(1, 1);                                    /* knob 1, Level 2 */
   startRound();
 }
 
@@ -1443,8 +1443,8 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
 test('hearing help: Record replays slower, then strikes an answer; Play repeats', () => {
   freezeClock();
   openSetup(SUBJECT.chords, CIRCLE.hear);     /* Chords › Hear, named: four triads, block */
-  turnKnob(1, 1);
-  turnKnob(2, 1);
+  turnKnob(2, 1);                              /* knob 2: Answer, name */
+  turnKnob(1, 1);                              /* knob 1: Level */
   startRound();
   advanceMs(3000);
   hostCalls.notes.length = 0;

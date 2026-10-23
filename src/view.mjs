@@ -27,7 +27,7 @@ import { createWalk } from './pathmap/walk.mjs';
 import { cellCentre } from './pathmap/layout.mjs';
 import { flagRise, fireworks, zoomIn, zoomOut, starBurst, starFit, finale, banner, FLAG_MS } from './pathmap/anim.mjs';
 import { ZOOM, CELEBRATE, FINALE, BANNER } from './pathmap/scenes.mjs';
-import { drawHome, circleRuns, circleRows } from './home/render.mjs';
+import { drawHome } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
 
 /* Every footer is a part of a hint from hints.mjs: the caller picks the part
@@ -1555,104 +1555,173 @@ export function infoLines(ctx, paragraphs) {
   return wrapLines(paragraphs, L.INFO_TEXT_PX, (s) => ctx.textWidth(s));
 }
 
-/* Scrolling list used for both the exercise picker and the settings page. */
 /*
- * A trainer circle's setup, as a row of eight knobs mirroring the hardware:
- * each knob drawn where it sits under the screen, its number inside, an arc
- * along its rim as far as its value stands — from 7 o'clock for the first
- * value to 5 o'clock for the last, as a real knob turns — and the value's two
- * characters under it. A knob this circle does not use is a dotted ring with
- * nothing in it. The knob in focus (last turned or touched) is filled, and
- * the area under the rule names it and spells out its value. Play starts;
- * while starting is blocked the second detail line says why.
+ * A trainer circle's setup: a box of the song ready box's family — the same
+ * frame and the LEVEL with its big digit — holding a tile for each setting
+ * the circle really has and nothing for the rest. Each trainer arranges its
+ * own (setup_layout.mjs): LEVEL across the top, under a rule one or two rows
+ * of settings, and across the bottom the PLAY strip, saying in so many words
+ * that PLAY starts. Every tile carries its knob's number in a small inverted
+ * badge; the numbers run 1..n in reading order (LEVEL is knob 1), so the knob
+ * to turn is the number you see.
  *
- *   state = { title, knobs: [{ n, field, label, short, text, pos }], focus,
- *             blocked, footer }
+ * A value is fitted by measure: its full words where they fit, then shorter
+ * ones, then its two-letter short. A full row says the setting's name too.
+ * The whole of a value is one touch away: for two seconds after a knob is
+ * touched or turned the PLAY strip names it in full ("Roots: diatonic") and
+ * its tile is inverted. Blocked (a Custom pick too small to start), the
+ * strip is not inverted and says what is missing.
+ *
+ *   y 10        the box's top                x 2..125
+ *   y 13        LEVEL: badge, the word, the digit (12..21), what it adds
+ *   y 23        the rule
+ *   y 26 / 35   the rows of settings, two clear rows above each
+ *   y 43..52    the PLAY strip, its words at 44; the box's bottom at 53
+ *
+ *   state = { title, knobs (trainer.mjs knobsOf), blocked, feedback:
+ *             { n, label, text } | null, footer }
  */
-export const KNOB_R = 6;
-export const KNOB_Y = 16;
-export const knobX = (n) => 8 + 16 * (n - 1);
-export const KNOB_VALUE_Y = 26;
-const KNOB_RULE_Y = 35;
-const KNOB_DETAIL_Y = [37, 46];
+export { SETUP_LAYOUTS } from './setup_layout.mjs';
+export const SETUP_BOX = { x: 2, y: 10, w: 124, h: 44 };
+export const SETUP_LEVEL_Y = 13;
+export const SETUP_RULE_Y = 23;
+export const SETUP_ROW_Y = [26, 35];
+export const SETUP_STRIP = { y: 43, h: 10, textY: 44 };
+const SETUP_INNER = { x: SETUP_BOX.x + 2, w: SETUP_BOX.w - 4 };
+const SETUP_DIGIT_SCALE = 2;
+export const BADGE_W = 7;
+const BADGE_GAP = 1;
+const SETUP_GUTTER = 3;
 
-let dottedRing = null;
-/* Every other pixel of the ring, as single rects: "nothing here". */
-function dotted() {
-  if (dottedRing) return dottedRing;
-  const rows = circleRows(KNOB_R).outline;
-  dottedRing = [];
-  rows.forEach((row, y) => [...row].forEach((ch, x) => {
-    if (ch === '#' && (x + y) % 2 === 0) dottedRing.push([x, y, 1, 1]);
-  }));
-  return dottedRing;
+/* A knob's number, inverted: the badge every tile carries. On an inverted
+ * band (`ink` 0) it is the other way round. */
+function drawBadge(ctx, x, y, n, ink = 1) {
+  ctx.fillRect(x, y, BADGE_W, L.TEXT_H, ink);
+  ctx.text(x + 1, y, String(n), ink ? 0 : 1);
 }
 
-function blitRects(ctx, rects, x, y, v) {
-  for (let i = 0; i < rects.length; i++) ctx.fillRect(x + rects[i][0], y + rects[i][1], rects[i][2], rects[i][3], v);
+/* The first of a value's words that fits `w`, else its short. */
+function fitValue(ctx, k, w) {
+  for (const s of k.tile || []) if (ctx.textWidth(s) <= w) return s;
+  return truncate(ctx, k.short, w);
 }
 
-/*
- * The value as an arc: the ring drawn double from 7 o'clock, clockwise, as far
- * as the value stands, to 5 o'clock for the last; a real knob's travel. A
- * single dot on a 13-pixel ring read as a thicker outline, not a position.
- * The arc is the ring one pixel in, as rects relative to the knob's box, one
- * set per step of the travel (cached).
- */
-const KNOB_TRAVEL = 300;
-const arcCache = new Map();
-export function knobArc(pos) {
-  const deg = Math.round(KNOB_TRAVEL * Math.max(0, Math.min(1, pos)));
-  let rects = arcCache.get(deg);
-  if (rects) return rects;
-  /* The ring's pixels along the travel; the first is lit at the first value,
-   * all of them at the last. */
-  const r = KNOB_R - 1;
-  const ring = [];
-  circleRows(r).outline.forEach((row, y) => [...row].forEach((ch, x) => {
-    if (ch !== '#') return;
-    const t = ((Math.atan2(x - r, r - y) * 180) / Math.PI - 210 + 720) % 360;
-    if (t <= KNOB_TRAVEL) ring.push({ x: x + 1, y: y + 1, t });
-  }));
-  const t0 = Math.min(...ring.map((p) => p.t));
-  const t1 = Math.max(...ring.map((p) => p.t));
-  const upTo = t0 + ((t1 - t0) * deg) / KNOB_TRAVEL + 0.5;
-  rects = ring.filter((p) => p.t <= upTo).map((p) => [p.x, p.y, 1, 1]);
-  arcCache.set(deg, rects);
-  return rects;
+/* Where a tile sits: { x, y, w, h }. Rows split into halves or thirds with a
+ * column of space between. */
+export function tileBox(k) {
+  if (k.kind === 'level') return { x: SETUP_BOX.x + 1, y: SETUP_BOX.y + 1, w: SETUP_BOX.w - 2, h: SETUP_RULE_Y - SETUP_BOX.y - 1 };
+  if (k.kind === 'strip') return null;
+  const of = k.of || 1;
+  const w = Math.floor((SETUP_INNER.w - (of - 1) * SETUP_GUTTER) / of);
+  return { x: SETUP_INNER.x + k.col * (w + SETUP_GUTTER), y: SETUP_ROW_Y[k.row], w, h: L.TEXT_H };
 }
 
-export function drawKnobSetup(ctx, state) {
-  ctx.clear();
-  R.drawChrome(ctx, { left: state.title, right: state.blocked ? '' : '> PLAY' });
-  const runs = circleRuns(KNOB_R);
-  for (const k of state.knobs) {
-    const cx = knobX(k.n);
-    const ox = cx - KNOB_R;
-    const oy = KNOB_Y - KNOB_R;
-    if (!k.field) {
-      blitRects(ctx, dotted(), ox, oy, 1);
-      continue;
+/* A row, a half or a third: the badge, then the value (a full row: the
+ * setting's name, and its value at the right); inverted while it speaks. */
+function drawSettingTile(ctx, k, lit) {
+  const b = tileBox(k);
+  const ink = lit ? 0 : 1;
+  if (lit) ctx.fillRect(b.x - 1, b.y - 1, b.w + 2, L.TEXT_H + 2, 1);
+  drawBadge(ctx, b.x, b.y, k.n, ink);
+  const x = b.x + BADGE_W + BADGE_GAP + 1;
+  const room = b.x + b.w - x;
+  if (k.kind === 'row') {
+    /* A full row names the setting, so its value can be the plain word. */
+    const value = fitValue(ctx, { tile: [k.plain, k.short], short: k.short }, room - ctx.textWidth(k.label) - 6);
+    if (ctx.textWidth(k.label) + 6 + ctx.textWidth(value) <= room) {
+      ctx.text(x, b.y, k.label, ink);
+      ctx.text(b.x + b.w - ctx.textWidth(value), b.y, value, ink);
+      return;
     }
-    const focus = k.n === state.focus;
-    blitRects(ctx, focus ? runs.fill : runs.outline, ox, oy, 1);
-    const ink = focus ? 0 : 1;
-    ctx.text(cx - 2, KNOB_Y - 3, String(k.n), ink);
-    blitRects(ctx, knobArc(k.pos), ox, oy, ink);
-    const w = ctx.textWidth(k.short);
-    ctx.text(cx - ((w + 1) >> 1) + 1, KNOB_VALUE_Y, k.short, 1);
   }
-  ctx.fillRect(0, KNOB_RULE_Y, L.SCREEN_W, 1, 1);
-  const k = state.knobs.find((x) => x.n === state.focus && x.field);
-  if (k) {
-    ctx.text(2, KNOB_DETAIL_Y[0], truncate(ctx, 'KNOB ' + k.n + '  ' + k.label.toUpperCase(), L.TEXT_MAX_PX - 2), 1);
-    /* Blocked, the reason is what matters: the value waits. */
-    const max = L.TEXT_MAX_PX - 2;
-    const second = state.blocked
-      ? ['to start: ' + state.blocked, 'start: ' + state.blocked, state.blocked].find((s) => ctx.textWidth(s) <= max) || state.blocked
-      : k.field === 'level' ? fitItems(ctx, k.text, max) : fitWords(ctx, k.text, max);
-    ctx.text(2, KNOB_DETAIL_Y[1], truncate(ctx, second, max), 1);
+  ctx.text(x, b.y, fitValue(ctx, k, room), ink);
+}
+
+/* LEVEL, the hero: its badge and name, the big digit, what it adds. */
+function drawLevelTile(ctx, k, lit) {
+  const b = tileBox(k);
+  const ink = lit ? 0 : 1;
+  if (lit) ctx.fillRect(b.x, b.y, b.w, b.h, 1);
+  const y = SETUP_LEVEL_Y;
+  drawBadge(ctx, SETUP_INNER.x, y, k.n, ink);
+  const lx = SETUP_INNER.x + BADGE_W + BADGE_GAP + 1;
+  ctx.text(lx, y, 'LEVEL', ink);
+  const digit = k.digit || '';
+  const dx = lx + ctx.textWidth('LEVEL') + 6;
+  R.drawBigText(ctx, dx, y - 1, digit, SETUP_DIGIT_SCALE, ink);
+  const bx = dx + R.bigTextWidth(digit, SETUP_DIGIT_SCALE) + 6;
+  const room = SETUP_INNER.x + SETUP_INNER.w - bx;
+  const blurbs = (k.blurb || []).flatMap((s) => [s, s.replace(/^\+ /, '+').replace('octaves', 'oct')]);
+  const blurb = blurbs.find((s) => ctx.textWidth(s) <= room) || fitWords(ctx, blurbs[1] || '', room);
+  ctx.text(bx, y, truncate(ctx, blurb, room), ink);
+  ctx.fillRect(SETUP_BOX.x + 1, SETUP_RULE_Y, SETUP_BOX.w - 2, 1, 1);
+}
+
+/* The PLAY strip: PLAY start (or why not), a knob's feedback, and the
+ * settings that live at its right end. */
+function drawPlayStrip(ctx, state, stripKnobs) {
+  const x0 = SETUP_BOX.x + 1;
+  const w = SETUP_BOX.w - 2;
+  const { y, h, textY } = SETUP_STRIP;
+  const fb = state.feedback;
+  const inverted = Boolean(fb) || !state.blocked;
+  const ink = inverted ? 0 : 1;
+  if (inverted) ctx.fillRect(x0, y, w, h, 1);
+  let right = x0 + w - 2;
+  if (!fb) {
+    /* Settings at the end of the strip, right to left. */
+    for (let i = stripKnobs.length - 1; i >= 0; i--) {
+      const k = stripKnobs[i];
+      const text = fitValue(ctx, k, 30);
+      const tx = right - ctx.textWidth(text);
+      ctx.text(tx, textY, text, ink);
+      drawBadge(ctx, tx - BADGE_W - 2, textY, k.n, inverted ? 0 : 1);
+      right = tx - BADGE_W - 6;
+    }
   }
+  const left = x0 + 3;
+  if (fb) {
+    drawBadge(ctx, left, textY, fb.n, 0);
+    const room = x0 + w - 2 - (left + BADGE_W + 3);
+    /* The whole value; a level lists what it asks, as many as fit and "+n",
+     * or when none fits, how many. */
+    const full = fb.label + ': ' + fb.text;
+    const items = fb.text.indexOf('  ') > 0 ? fitItems(ctx, full, room) : '';
+    const kept = items ? items.slice(items.indexOf('  ') + 2).split(' ').filter((w) => !/^\+\d+$/.test(w)).length : 0;
+    const said = ctx.textWidth(full) <= room ? full
+      : kept >= 3 ? items
+        : fb.brief && ctx.textWidth(fb.label + ': ' + fb.brief) <= room ? fb.label + ': ' + fb.brief
+          : fitWords(ctx, fb.text, room);
+    ctx.text(left + BADGE_W + 3, textY, truncate(ctx, said, room), 0);
+    return;
+  }
+  const room = right - left;
+  if (state.blocked) {
+    /* "tick 2 progressions", or with Round beside it "tick 2 progs". */
+    const said = [state.blocked, state.blocked.replace(/(\w{4})\w+s$/, '$1s')]
+      .find((s) => ctx.textWidth(s) <= room) || truncate(ctx, state.blocked, room);
+    ctx.text(left, textY, said, 1);
+    return;
+  }
+  const gh = 7;
+  R.drawPlayGlyph(ctx, left, textY, gh, 0);
+  const tx = left + R.playGlyphWidth(gh) + 3;
+  ctx.text(tx, textY, truncate(ctx, 'PLAY start', right - tx), 0);
+}
+
+export function drawTrainerSetup(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title, right: '' });
+  const b = SETUP_BOX;
+  ctx.drawRect(b.x, b.y, b.w, b.h, 1);
+  const lit = state.feedback ? state.feedback.n : 0;
+  const strip = [];
+  for (const k of state.knobs) {
+    if (k.kind === 'level') drawLevelTile(ctx, k, k.n === lit);
+    else if (k.kind === 'strip') strip.push(k);
+    else drawSettingTile(ctx, k, k.n === lit);
+  }
+  drawPlayStrip(ctx, state, strip);
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
 }

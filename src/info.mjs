@@ -429,13 +429,13 @@ const TRAINER_TEXT = {
 };
 
 const CIRCLE_TEXT = {
-  setup: 'The setup: what a round asks and how, a knob each, the same knob in every trainer. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round. PLAY starts.',
+  setup: 'The setup: what a round asks and how, a tile a setting, numbered for the knob that turns it; LEVEL is knob 1 in every trainer. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round. PLAY starts.',
   common: 'The same five circles in every trainer: Read, Hear, Play, Learn, Stats.',
 };
 
-/* This circle's knobs, by number: "Knobs: 1 Answer, 2 Level, 8 Round." */
+/* This circle's knobs, by number: "Knobs: 1 Level, 2 Answer, 3 Round." */
 function knobLine(subject, circle) {
-  const used = knobsOf(subject, circle, coerceSetup(subject, circle, {})).filter((k) => k.field);
+  const used = knobsOf(subject, circle, coerceSetup(subject, circle, {}));
   return 'Knobs: ' + used.map((k) => k.n + ' ' + k.label).join(', ') + '.';
 }
 

@@ -695,7 +695,7 @@ function draw() {
       editing: S.settingsEditing,
     });
   } else if (view === TRAINER_SETUP) {
-    VIEW.drawKnobSetup(ctx, { ...S.knobSetup(), footer: footer() });
+    VIEW.drawTrainerSetup(ctx, { ...S.knobSetup(), footer: footer() });
   } else if (view === TRAINER_STATS) {
     VIEW.drawTrainerStats(ctx, {
       title: S.trainerStatsTitle().toUpperCase(),

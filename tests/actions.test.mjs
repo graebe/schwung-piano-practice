@@ -292,9 +292,9 @@ test('the knob screen from a page: a knob a step, a knob pointed at, Custom, Pla
   assert.equal(knob(3).short, 'C#', 'pointing changes nothing');
   applyAction(h.session, { type: 'customPick' });
   assert.equal(h.session.view, TRAINER_SETUP, 'no Custom level: nothing to tick');
-  applyAction(h.session, { type: 'knob', n: 2, delta: 1 });
-  for (let i = 0; i < 20; i++) applyAction(h.session, { type: 'knob', n: 2, delta: 1 });
-  assert.equal(knob(2).short, 'Cu');
+  applyAction(h.session, { type: 'knob', n: 1, delta: 1 });
+  for (let i = 0; i < 20; i++) applyAction(h.session, { type: 'knob', n: 1, delta: 1 });
+  assert.equal(knob(1).short, 'Cu', 'Level: knob 1');
   applyAction(h.session, { type: 'customPick' });
   assert.equal(h.session.view, SETTINGS, 'its tick list');
   h.session.back();

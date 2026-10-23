@@ -44,7 +44,7 @@ const HOME = 'home';
 const ANIM = 'anim';
 /* A trainer's Stats: its items, weakest first. */
 const TRAINER_STATS = 'trainer-stats';
-/* A trainer circle's setup: eight knobs. */
+/* A trainer circle's setup: a box of tiles, a knob each. */
 const TRAINER_SETUP = 'trainer-setup';
 
 /* Shift+Back leaves the module from anywhere (ui.js). */
@@ -167,8 +167,8 @@ function about(screen, s) {
         : s.pick ? 'A round of naming: name what the lit pads play.'
           : 'A round: play what is asked, on the pads.';
     case TRAINER_SETUP:
-      return 'A round\'s setup, on the knobs under the screen: each turns one setting, the same knob in every trainer'
-        + (s.knobs ? ' (' + s.knobs + ')' : '') + '. A touch names a knob, the jog walks them, PLAY starts the round.';
+      return 'A round\'s setup: a tile for each setting, numbered for the knob under the screen that turns it'
+        + (s.knobs ? ' (' + s.knobs + ')' : '') + '. A touch names a knob in full, the jog walks them, PLAY starts the round.';
     case TRAINER_STATS:
       return 'What you have played of this subject, weakest first: how much of each was right read, heard and played. CLICK shows one in detail.';
     case SETTINGS:

@@ -169,8 +169,8 @@ export function applyAction(S, a) {
       S.dirty = true;
       return null;
     }
-    /* A trainer's knob screen: a knob turned one step, a knob pointed at,
-     * PLAY, and the Custom tick list (a click on knob 2 on the Move). */
+    /* A trainer's setup box: a knob turned one step, a knob pointed at,
+     * PLAY, and the Custom tick list (a click on LEVEL on the Move). */
     case 'knob':
       if (S.view === TRAINER_SETUP && a.delta) S.knobStep(a.n | 0, a.delta > 0 ? 1 : -1);
       return null;
@@ -182,7 +182,7 @@ export function applyAction(S, a) {
       return null;
     case 'customPick':
       if (S.view !== TRAINER_SETUP) return null;
-      S.knobTouch(2);
+      S.knobTouch(S.knobSetup().levelKnob);
       S.activate(false);
       return null;
     case 'trainerStats':

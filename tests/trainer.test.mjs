@@ -557,37 +557,52 @@ test('the old drills map as the plan\'s table has them', () => {
 
 /* ---- The knobs ----------------------------------------------------------------- */
 
-import { knobsOf, knobValues, KNOB_OF, KNOBS, SUBJECTS } from '../src/trainer.mjs';
+import { knobsOf, knobValues, SUBJECTS } from '../src/trainer.mjs';
+import { SETUP_LAYOUTS } from '../src/setup_layout.mjs';
 
-test('knobsOf: eight slots, every setting on its fixed knob, never two on one', () => {
+/* Every answer a circle offers, with the setup made whole around it. */
+function everySetup(fn) {
   for (const subject of Object.keys(SUBJECTS)) {
+    const s = SUBJECTS[subject];
     for (const circle of CIRCLES) {
-      const s = SUBJECTS[subject];
-      const fields = s.fields[circle];
-      const knobs = new Set(fields.map((f) => KNOB_OF[f]));
-      assert.equal(knobs.size, fields.length, `${subject}/${circle}: two settings on one knob`);
       for (const answer of circle === 'play' ? ['play'] : (s.answers && s.answers[circle]) || ['play', 'name']) {
-        const setup = { ...coerceSetup(subject, circle, null, { rootPc: 0, mode: 'major' }), answer };
-        const slots = knobsOf(subject, circle, setup);
-        assert.equal(slots.length, KNOBS);
-        slots.forEach((k, i) => {
-          assert.equal(k.n, i + 1);
-          if (!k.field) return;
-          assert.equal(KNOB_OF[k.field], k.n, `${subject}/${circle}: ${k.field}`);
-          assert.ok(k.pos >= 0 && k.pos <= 1);
-          assert.ok(k.short.length >= 1 && k.short.length <= 2, `${k.field}: "${k.short}"`);
-          assert.ok(k.text.length > 0);
-        });
-        for (const f of fields) {
-          const shown = !(s.hidden && s.hidden(f, circle, setup));
-          assert.equal(slots[KNOB_OF[f] - 1].field === f, shown, `${subject}/${circle}: ${f} on knob ${KNOB_OF[f]}`);
-        }
-        if (circle === 'play') assert.equal(slots[0].field, null, 'Play has no answer: knob 1 empty');
+        fn(subject, circle, { ...coerceSetup(subject, circle, null, { rootPc: 0, mode: 'major' }), answer });
       }
     }
   }
-  assert.equal(knobsOf('note', 'read', coerceSetup('note', 'read', null))[2].field, null, 'Notes have no key');
-  assert.equal(knobsOf('int', 'hear', coerceSetup('int', 'hear', null))[2].field, null, 'nor Intervals');
+}
+
+test('knobsOf: a tile per setting the circle has, none for the rest, knobs 1..n with LEVEL first', () => {
+  everySetup((subject, circle, setup) => {
+    const s = SUBJECTS[subject];
+    const tiles = knobsOf(subject, circle, setup);
+    const shown = s.fields[circle].filter((f) => !(s.hidden && s.hidden(f, circle, setup)));
+    const where = `${subject}/${circle}/${setup.answer}`;
+    assert.deepEqual(tiles.map((k) => k.field).sort(), shown.slice().sort(), `${where}: exactly one tile a setting`);
+    assert.deepEqual(tiles.map((k) => k.n), tiles.map((_, i) => i + 1), `${where}: knobs 1..n`);
+    assert.equal(tiles[0].field, 'level', `${where}: LEVEL is knob 1`);
+    if (shown.includes('answer')) assert.equal(tiles[1].field, 'answer', `${where}: Answer is knob 2`);
+    /* Reading order: row by row, left to right, then the strip. */
+    const order = tiles.slice(1).map((k) => [k.row, k.col]);
+    const sorted = order.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    assert.deepEqual(order, sorted, `${where}: reading order`);
+    for (const k of tiles) {
+      assert.ok(k.pos >= 0 && k.pos <= 1);
+      assert.ok(k.short.length >= 1 && k.short.length <= 2, `${k.field}: "${k.short}"`);
+      assert.ok(k.text.length > 0 && k.plain.length > 0 && k.tile.length > 0);
+      if (k.kind !== 'level' && k.kind !== 'strip') assert.equal(k.of, { row: 1, half: 2, third: 3 }[k.kind]);
+    }
+  });
+});
+
+test('every layout places only settings its trainer has', () => {
+  for (const [subject, layout] of Object.entries(SETUP_LAYOUTS)) {
+    const fields = new Set(Object.values(SUBJECTS[subject].fields).flat());
+    for (const f of [...layout.rows.flat(), ...layout.strip]) assert.ok(fields.has(f), `${subject}: ${f}`);
+    for (const f of fields) {
+      if (f !== 'level') assert.ok([...layout.rows.flat(), ...layout.strip].includes(f), `${subject}: no place for ${f}`);
+    }
+  }
 });
 
 test('every value of every knob has a short, unique within its knob; pos runs 0 to 1', () => {
@@ -612,10 +627,25 @@ test('every value of every knob has a short, unique within its knob; pos runs 0 
   }
 });
 
-test('the Level knob\'s detail lists what the level asks', () => {
+test('the LEVEL tile: its digit, what the level adds, and the whole of it for the feedback', () => {
   const s = { ...coerceSetup('chord', 'read', null), level: 3 };
-  assert.equal(knobsOf('chord', 'read', s)[1].text, '3  maj m dim aug');
-  const c = { ...s, level: 'custom', custom: [] };
-  assert.equal(knobsOf('chord', 'read', c)[1].text, 'custom  nothing ticked');
-  assert.equal(knobsOf('int', 'hear', coerceSetup('int', 'hear', null))[1].text, '1  m2 M2');
+  const lv = knobsOf('chord', 'read', s)[0];
+  assert.equal(lv.text, '3  maj m dim aug');
+  assert.equal(lv.digit, '3');
+  assert.deepEqual(lv.blurb, ['+ dim aug']);
+  const c = knobsOf('chord', 'read', { ...s, level: 'custom', custom: [] })[0];
+  assert.equal(c.text, 'custom  nothing ticked');
+  assert.equal(c.digit, 'Cu');
+  assert.deepEqual(c.blurb, ['0 chords', '0 ticked']);
+  assert.equal(knobsOf('int', 'hear', coerceSetup('int', 'hear', null))[0].text, '1  m2 M2');
+});
+
+test('a tile says what its value is: "key C", "10 right", "in 3rds"', () => {
+  const tiles = knobsOf('scale', 'read', { ...coerceSetup('scale', 'read', null), pattern: '3rds', direction: 'both' })
+    .concat(knobsOf('scale', 'hear', { ...coerceSetup('scale', 'hear', null), round: 10 }));
+  const by = (f) => tiles.find((k) => k.field === f).tile;
+  assert.deepEqual(by('key'), ['key C', 'C']);
+  assert.deepEqual(by('round'), ['10 right', '10x']);
+  assert.deepEqual(by('pattern'), ['in 3rds', '3rds']);
+  assert.deepEqual(by('direction'), ['up+down', 'both']);
 });

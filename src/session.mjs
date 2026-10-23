@@ -2348,20 +2348,32 @@ export function createSession(fx, opts = {}) {
   }
 
   /*
-   * A circle's setup: one screen, a row of eight knobs mirroring the
-   * hardware's (trainer.mjs knobsOf). A knob turns its setting, a touch
-   * names it, the jog walks the focus, a click on Level = Custom opens the
-   * tick list, PLAY starts. The focus is kept per circle, so a round's Back
-   * finds it where it was; it opens on Level.
+   * A circle's setup: one box, a tile per setting this circle has, each
+   * numbered for the knob that turns it (trainer.mjs knobsOf). A knob turns
+   * its setting, a touch names it, the jog walks the focus, a click on
+   * Level = Custom opens the tick list, PLAY starts. The focus is kept per
+   * circle, so a round's Back finds it where it was; it opens on Level.
+   * A touch or a turn puts the knob's whole name and value in the PLAY
+   * strip for KNOB_FEEDBACK_MS.
    */
   const knobFocus = {};
   const knobKey = () => trainerOpen.subject + ':' + trainerOpen.circle;
+  const KNOB_FEEDBACK_MS = 2000;
+  let knobFeedback = null;      /* { n, until } */
+  const levelKnob = (knobs) => (knobs.find((k) => k.field === 'level') || knobs[0]).n;
+
+  function showKnobFeedback(n) {
+    knobFeedback = { n, until: now() + KNOB_FEEDBACK_MS };
+    dirty = true;
+  }
 
   function openSetup(subject, circle) {
     trainerOpen = { subject, circle, custom: false };
     settingsGroup = SET.MAIN_GROUP.key;
     settingsEditing = false;
     view = TRAINER_SETUP;
+    knobFeedback = null;
+    settingsAccel.reset();
     dirty = true;
     ledDirty = true;
     announce(settingsTitleOf(subject, circle) + '. Turn the knobs; Play starts.');
@@ -2376,14 +2388,17 @@ export function createSession(fx, opts = {}) {
     if (!trainerOpen) return null;
     const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
     const knobs = TRAIN.knobsOf(trainerOpen.subject, trainerOpen.circle, setup);
-    let focus = knobFocus[knobKey()] || TRAIN.KNOB_OF.level;
-    if (!knobs[focus - 1].field) focus = TRAIN.KNOB_OF.level;
+    let focus = knobFocus[knobKey()] || levelKnob(knobs);
+    if (!knobs[focus - 1]) focus = levelKnob(knobs);
+    const fb = knobFeedback && now() < knobFeedback.until ? knobs[knobFeedback.n - 1] : null;
     return {
       title: settingsTitleOf(trainerOpen.subject, trainerOpen.circle).toUpperCase(),
       knobs,
       focus,
+      levelKnob: levelKnob(knobs),
       custom: setup.level === 'custom',
       blocked: TRAIN.startBlock(trainerOpen.subject, trainerOpen.circle, setup),
+      feedback: fb ? { n: fb.n, label: fb.label, text: fb.text, brief: fb.blurb ? (fb.digit === 'Cu' ? '' : fb.digit + ' ') + fb.blurb[0] : null } : null,
     };
   }
 
@@ -2412,8 +2427,9 @@ export function createSession(fx, opts = {}) {
     knobFocus[knobKey()] = n;
     const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
     if (TRAIN.applySetup(trainerOpen.subject, setup, k.field, delta)) saveTrainerSetup(setup);
-    const now = knobSetup().knobs[n - 1];
-    announce(now.label + ' ' + now.text + '.');
+    showKnobFeedback(n);
+    const turned = knobSetup().knobs[n - 1];
+    announce(turned.label + ' ' + turned.text + '.');
     dirty = true;
     ledDirty = true;
   }
@@ -2425,6 +2441,7 @@ export function createSession(fx, opts = {}) {
     if (!k || !k.field) return;
     const was = knobFocus[knobKey()];
     knobFocus[knobKey()] = n;
+    showKnobFeedback(n);
     if (quiet && was === n) return;
     announce('Knob ' + n + ', ' + k.label + ': ' + k.text + '.');
     dirty = true;
@@ -2447,7 +2464,7 @@ export function createSession(fx, opts = {}) {
       openSetupList();
       return;
     }
-    if (ks.focus === TRAIN.KNOB_OF.level && ks.custom) {
+    if (ks.focus === ks.levelKnob && ks.custom) {
       trainerOpen.custom = true;
       trainerOpen.fromKnobs = true;
       settingsGroup = TRAINER_GROUP;
@@ -2983,9 +3000,9 @@ export function createSession(fx, opts = {}) {
     if (view === TRAINER_STATS) st.empty = !statsRows.length;
     if (view === TRAINER_SETUP) {
       const ks = knobSetup();
-      st.custom = ks.custom && ks.focus === TRAIN.KNOB_OF.level;
+      st.custom = ks.custom && ks.focus === ks.levelKnob;
       st.blocked = ks.blocked || null;
-      st.knobs = ks.knobs.filter((k) => k.field).map((k) => k.n + ' ' + k.label).join(', ');
+      st.knobs = ks.knobs.map((k) => k.n + ' ' + k.label).join(', ');
     }
     if (view === CARD_VIEW && card) {
       st.pages = card.pages.length;
@@ -3945,6 +3962,11 @@ export function createSession(fx, opts = {}) {
    */
   function tick(t) {
     if (view === ANIM_VIEW) serviceScenes(t);
+    /* The PLAY strip says PLAY again once a knob's feedback has had its time. */
+    if (knobFeedback && now() >= knobFeedback.until) {
+      knobFeedback = null;
+      dirty = true;
+    }
     if (view === MENU) serviceMap(t);
     /* While a circle grows every frame is a new picture. */
     if (homeGrow && onHome() && growing(homeGrow, t)) {

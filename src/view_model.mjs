@@ -417,10 +417,14 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     trainerSetup: view === TRAINER_SETUP ? (() => {
       const ks = S.knobSetup();
       return {
-        title: ks.title, focus: ks.focus, blocked: ks.blocked, custom: ks.custom,
-        knobs: ks.knobs.map((k) => (k.field
-          ? { n: k.n, field: k.field, label: k.label, short: k.short, text: k.text, pos: k.pos, count: k.count }
-          : { n: k.n, field: null })),
+        title: ks.title, focus: ks.focus, blocked: ks.blocked, custom: ks.custom, levelKnob: ks.levelKnob,
+        feedback: ks.feedback,
+        /* A tile per setting, as the Move's box has them (trainer.mjs knobsOf). */
+        knobs: ks.knobs.map((k) => ({
+          n: k.n, field: k.field, kind: k.kind, row: k.row, col: k.col, label: k.label, short: k.short,
+          plain: k.plain, text: k.text, tile: k.tile.slice(), pos: k.pos, count: k.count,
+          ...(k.digit ? { digit: k.digit, blurb: k.blurb.slice() } : {}),
+        })),
       };
     })() : null,
     /* A trainer's Stats: its items, weakest first, % right read, heard, played. */

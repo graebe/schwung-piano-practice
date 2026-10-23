@@ -52,6 +52,7 @@ import {
 } from './comping.mjs';
 import { chordSymbol } from './chords.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
+import { placeTiles } from './setup_layout.mjs';
 
 export const CIRCLES = ['read', 'hear', 'play'];
 export const CIRCLE_LABEL = { read: 'Read', hear: 'Hear', play: 'Play' };
@@ -221,6 +222,8 @@ const FIELDS = {
     values: (s, setup) => answersOf(s, setup.circle),
     text: (v, s, setup) => (v === 'play' && s.key === 'note' && setup.circle === 'hear' ? 'play back' : ANSWER_TEXT[v]),
     short: (v) => ({ name: 'nm', play: 'pl', compare: 'cp', hilo: 'hl' })[v],
+    tile: (v, s, setup) => (v === 'play' && s.key === 'note' && setup.circle === 'hear' ? ['play back', 'back']
+      : { name: ['name it', 'name'], play: ['play it', 'play'], compare: ['compare', 'cmp'], hilo: ['hi or lo', 'hi/lo'] }[v]),
   },
   level: {
     label: 'Level',
@@ -238,42 +241,51 @@ const FIELDS = {
     values: (s) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'random'].concat(s.allKeys ? ['all'] : []),
     text: (v) => (v === 'random' ? 'random' : v === 'all' ? 'all 12' : PC_NAMES[v]),
     short: (v) => (v === 'random' ? 'rn' : v === 'all' ? 'al' : PC_NAMES[v]),
+    tile: (v) => (v === 'random' ? ['any key', 'any'] : v === 'all' ? ['all 12', 'all'] : ['key ' + PC_NAMES[v], PC_NAMES[v]]),
   },
   voicing: {
     label: 'Voicing', values: () => VOICINGS, text: (v) => VOICING_TEXT[v],
     short: (v) => ({ root: 'rt', smooth: 'sm', bass: 'bc', guide: 'gt' })[v],
+    tile: (v) => [VOICING_TEXT[v], { root: 'root', smooth: 'smth', bass: 'bass', guide: 'guide' }[v]],
   },
   rhythm: {
     label: 'Rhythm', values: () => RHYTHMS, text: (v) => RHYTHM_TEXT[v],
     short: (v) => ({ block: 'bl', pop: 'p8', ballad: 'ba', offbeat: 'of', stabs: 'sb', waltz: 'wz' })[v],
+    tile: (v) => [RHYTHM_TEXT[v], { block: 'blk', pop: 'pop', ballad: 'bald', offbeat: 'off', stabs: 'stab', waltz: 'wltz' }[v]],
   },
   scale: {
     label: 'Scale', values: () => SCALE_IDS, text: (v) => MODE_LABELS[v] || v,
     short: (v) => scaleById(v).mark,
+    tile: (v) => [MODE_LABELS[v] || v, scaleById(v).short, scaleById(v).mark],
   },
   roots: {
     label: 'Roots',
     values: () => ['diatonic', 'key', 'chromatic'],
     text: (v) => ({ diatonic: 'diatonic', key: 'in key', chromatic: 'chromatic' })[v],
     short: (v) => ({ diatonic: 'dt', key: 'ik', chromatic: 'ch' })[v],
+    tile: (v) => ({ diatonic: ['diatonic', 'diat'], key: ['in key', 'key'], chromatic: ['chromatic', 'chro'] })[v],
   },
   inversions: {
     label: 'Inversions', values: () => [false, true], text: (v) => (v ? 'on' : 'off'),
     short: (v) => (v ? 'on' : 'of'),
+    tile: (v) => (v ? ['inverted', 'inv'] : ['root pos', 'root']),
   },
   sound: {
     label: 'Sound', values: () => ['block', 'broken'], text: (v) => v,
     short: (v) => ({ block: 'bk', broken: 'bn' })[v],
+    tile: (v) => ({ block: ['block', 'blk'], broken: ['broken', 'brkn'] })[v],
   },
   direction: {
     label: 'Direction', values: (s) => s.directions || ['up', 'down', 'both'], text: (v) => v,
     short: (v) => ({ up: 'up', down: 'dn', both: 'bo', together: 'tg' })[v],
+    tile: (v) => ({ up: ['up'], down: ['down'], both: ['up+down', 'both'], together: ['together', 'tog'] })[v],
   },
   pattern: {
     label: 'Pattern',
     values: () => ['straight', '3rds', '5ths'],
     text: (v) => ({ straight: 'straight', '3rds': 'in 3rds', '5ths': 'in 5ths' })[v],
     short: (v) => ({ straight: 'st', '3rds': '3r', '5ths': '5t' })[v],
+    tile: (v) => ({ straight: ['straight', 'strt'], '3rds': ['in 3rds', '3rds'], '5ths': ['in 5ths', '5ths'] })[v],
   },
   round: {
     label: 'Round',
@@ -281,24 +293,13 @@ const FIELDS = {
     text: (v) => (v ? String(v) : 'endless'),
     /* No infinity in the Move's font: endless is "en". */
     short: (v) => (v ? String(v) : 'en'),
+    tile: (v) => (v ? [v + ' right', v + 'x'] : ['endless', 'end']),
   },
 };
 
 /* ---- The knobs ------------------------------------------------------------ */
 
-/*
- * The setup as a row of eight knobs, mirroring the hardware. Each setting has
- * the same knob in every trainer, so a learner who knows one knows all:
- * Answer 1, Level 2, Key 3, then the subject's own on 4 to 7, Round 8.
- * A knob this circle does not use stays empty.
- */
-export const KNOBS = 8;
-export const KNOB_OF = {
-  answer: 1, level: 2, key: 3, scale: 4, direction: 4, roots: 5, pattern: 5, voicing: 5,
-  inversions: 6, rhythm: 6, sound: 7, round: 8,
-};
-
-/* A level's items, as the detail line lists them. */
+/* A level's items, as the touch feedback lists them. */
 function itemShort(s, id) {
   if (s.key === 'chord') return qualityById(id).suffix || 'maj';
   if (s.key === 'scale') return scaleById(id).short;
@@ -306,7 +307,8 @@ function itemShort(s, id) {
   return id;
 }
 
-/* The detail line's full value: a level lists what it asks. */
+/* A setting's whole value, as the touch feedback says it: a level lists
+ * what it asks. */
 function detailText(s, setup, field) {
   if (field !== 'level') return FIELDS[field].text(setup[field], s, setup);
   const items = itemSet(s.key, setup).map((id) => itemShort(s, id)).join(' ');
@@ -315,29 +317,41 @@ function detailText(s, setup, field) {
 }
 
 /*
- * The eight slots of a circle's setup: { n, field, label, short, text, pos,
- * count } for a knob in use — `pos` 0..1 across its values, for the pointer —
- * and { n, field: null } for one this circle leaves empty.
+ * The setup box's tiles: one per setting this circle really has, numbered
+ * 1..n in the reading order of its trainer's layout (setup_layout.mjs) —
+ * the knob that turns it. Each is { n, field, kind, row, col, label, short,
+ * text, plain, tile, pos, count }: `plain` the value as a word beside its
+ * name (a full row), `tile` the value in words that say what it is, longest
+ * first, for the box to fit by measure (then `short`); `text` the whole value, for the
+ * touch feedback; `pos` 0..1 across its values. The level adds `digit` (its
+ * number, or Cu) and `blurb` (what it adds, or how many are ticked).
  */
 export function knobsOf(subject, circle, setup) {
   const s = subjectOf(subject);
-  const slots = [];
-  for (let n = 1; n <= KNOBS; n++) slots.push({ n, field: null });
-  for (const f of s.fields[circle]) {
-    if (s.hidden && s.hidden(f, circle, setup)) continue;
+  const fields = s.fields[circle].filter((f) => !(s.hidden && s.hidden(f, circle, setup)));
+  return placeTiles(subject, fields).map((place, i) => {
+    const f = place.field;
     const values = valuesOf(s, setup, f);
     const at = Math.max(0, values.indexOf(setup[f]));
-    slots[KNOB_OF[f] - 1] = {
-      n: KNOB_OF[f],
-      field: f,
+    const k = {
+      n: i + 1,
+      ...place,
       label: FIELDS[f].label,
       short: FIELDS[f].short(setup[f], s, setup),
       text: detailText(s, setup, f),
+      plain: FIELDS[f].text(setup[f], s, setup),
+      tile: FIELDS[f].tile ? FIELDS[f].tile(setup[f], s, setup) : [FIELDS[f].text(setup[f], s, setup)],
       pos: values.length > 1 ? at / (values.length - 1) : 0,
       count: values.length,
     };
-  }
-  return slots;
+    if (f === 'level') {
+      const custom = setup.level === 'custom';
+      const n = custom ? itemSet(s.key, setup).length : 0;
+      k.digit = custom ? 'Cu' : String(setup.level);
+      k.blurb = custom ? [n + ' ' + s.noun[n === 1 ? 0 : 1], n + ' ticked'] : [s.levelText[setup.level - 1]];
+    }
+    return k;
+  });
 }
 
 /* Every value a knob can show, for its tests: [{ value, short }]. */

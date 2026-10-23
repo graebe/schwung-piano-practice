@@ -41,13 +41,17 @@ import { PRACTICE_PIANO } from '../src/home/icons.mjs';
 import * as TRAIN from '../src/trainer.mjs';
 
 /* A map at its worst: long names, three-digit percents, reviews due. */
-/* A trainer's knob screen as the session hands it to the view. */
-function knobScreen(c, subject, circle, stored, focus) {
+/* A trainer's setup box as the session hands it to the view; `touched` is
+ * the knob whose feedback the PLAY strip shows. */
+function setupScreen(c, subject, circle, stored, touched = 0) {
   const setup = TRAIN.coerceSetup(subject, circle, stored);
   const blocked = TRAIN.startBlock(subject, circle, setup);
-  return V.drawKnobSetup(c, {
+  const knobs = TRAIN.knobsOf(subject, circle, setup);
+  const k = knobs[touched - 1];
+  return V.drawTrainerSetup(c, {
     title: (TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle]).toUpperCase(),
-    knobs: TRAIN.knobsOf(subject, circle, setup), focus, blocked,
+    knobs, blocked,
+    feedback: k ? { n: k.n, label: k.label, text: k.text, brief: k.blurb ? k.blurb[0] : null } : null,
     footer: hintFor('trainer-setup', { blocked, custom: setup.level === 'custom' })[0],
   });
 }
@@ -466,13 +470,25 @@ const SCREENS = {
   }),
   /* The knob screen: three, five and eight knobs in use, the focus at
    * either end, the longest level, and a Custom pick too small to start. */
-  'knobs, Notes Play: three': (c) => knobScreen(c, 'note', 'play', {}, 2),
-  'knobs, Scales Read: five, focus last': (c) => knobScreen(c, 'scale', 'read', { answer: 'name' }, 5),
-  'knobs, Chords Hear: eight, focus first': (c) => knobScreen(c, 'chord', 'hear', { answer: 'name' }, 1),
-  'knobs, Chords Hear: eight, focus last': (c) => knobScreen(c, 'chord', 'hear', { round: 0 }, 8),
-  'knobs, Chords Read: the top level': (c) => knobScreen(c, 'chord', 'read', { level: 10 }, 2),
-  'knobs, Progressions Read: blocked': (c) =>
-    knobScreen(c, 'prog', 'read', { answer: 'name', level: 'custom', custom: [] }, 2),
+  /* The setup box: each trainer's busiest circle, the longest level, Custom,
+   * blocked, and a knob's feedback in the PLAY strip. */
+  'setup, Notes Play: two tiles': (c) => setupScreen(c, 'note', 'play', {}),
+  'setup, Notes Hear: higher or lower, endless': (c) => setupScreen(c, 'note', 'hear', { answer: 'hilo', round: 0 }),
+  'setup, Intervals Read: compare, together': (c) => setupScreen(c, 'int', 'read', { answer: 'compare', direction: 'together' }),
+  'setup, Scales Read: played, in 3rds': (c) => setupScreen(c, 'scale', 'read', { answer: 'play', pattern: '3rds', direction: 'both' }),
+  'setup, Chords Hear: eight tiles': (c) =>
+    setupScreen(c, 'chord', 'hear', { answer: 'name', roots: 'chromatic', inversions: true, sound: 'broken', scale: 'harmonicMinor' }),
+  'setup, Chords Read: the top level': (c) => setupScreen(c, 'chord', 'read', { level: 10, key: 'random' }),
+  'setup, Progressions Read: guide tones, pop 8ths': (c) =>
+    setupScreen(c, 'prog', 'read', { voicing: 'guide', rhythm: 'pop', key: 'all' }),
+  'setup, Progressions Read: Custom, blocked': (c) =>
+    setupScreen(c, 'prog', 'read', { answer: 'name', level: 'custom', custom: [] }),
+  'setup, Chords Hear: Custom of 27': (c) =>
+    setupScreen(c, 'chord', 'hear', { answer: 'name', level: 'custom', custom: TRAIN.allItems('chord') }),
+  'setup, Chords Hear: Level touched': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', level: 8 }, 1),
+  'setup, Chords Hear: Custom touched': (c) =>
+    setupScreen(c, 'chord', 'hear', { answer: 'name', level: 'custom', custom: TRAIN.allItems('chord') }, 1),
+  'setup, Progressions Read: Voicing touched': (c) => setupScreen(c, 'prog', 'read', { voicing: 'bass' }, 4),
   'pick, eight chord answers on the map': (c) => V.drawPick(c, {
     title: 'CHORDS HEAR', score: '19/20', index: 7,
     options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
@@ -717,28 +733,54 @@ test('the star stays in its room: clear of the digits and the caption, inside th
 /* Every circle of every trainer: the knob screen's values sit under their
  * knobs, inside the screen, and its two detail lines fit, whichever knob is in
  * focus and whatever its value. */
-test('the knob screen fits for every knob of every circle at every value', () => {
+test('the setup box fits every circle at every value of every setting, touched or not', () => {
+  const B = V.SETUP_BOX;
   for (const subject of Object.keys(TRAIN.SUBJECTS)) {
     for (const circle of TRAIN.CIRCLES) {
-      const setup = TRAIN.coerceSetup(subject, circle, { answer: 'name' });
-      const knobs = TRAIN.knobsOf(subject, circle, setup);
-      for (const k of knobs.filter((x) => x.field)) {
-        for (const v of TRAIN.knobValues(subject, circle, setup, k.field)) {
-          const c = probe();
-          const s = TRAIN.coerceSetup(subject, circle, { ...setup, [k.field]: v.value });
-          V.drawKnobSetup(c, {
-            title: subject.toUpperCase(), knobs: TRAIN.knobsOf(subject, circle, s), focus: k.n,
-            blocked: TRAIN.startBlock(subject, circle, s), footer: 'KNOB set  PLAY start',
-          });
-          const bad = collisions(c);
-          assert.deepEqual(bad, [], `${subject} ${circle} knob ${k.n} = ${v.short}\n  ` + bad.join('\n  '));
-          const { texts } = c.transcript();
-          /* A value is narrower than the 16 px between two knobs. */
-          for (const tx of texts.filter((x) => x.y === V.KNOB_VALUE_Y)) {
-            assert.ok(tx.w <= 14, `${subject} ${circle}: value ${tx.s} is ${tx.w}px, wider than its knob`);
+      for (const answer of TRAIN.knobValues(subject, circle, TRAIN.coerceSetup(subject, circle, {}), 'answer')) {
+        const setup = TRAIN.coerceSetup(subject, circle, { answer: answer.value });
+        for (const k of TRAIN.knobsOf(subject, circle, setup)) {
+          for (const v of TRAIN.knobValues(subject, circle, setup, k.field)) {
+            const s = { ...setup, [k.field]: v.value };
+            if (v.value === 'custom') s.custom = TRAIN.allItems(subject);
+            for (const touched of [0, k.n]) {
+              const c = probe();
+              setupScreen(c, subject, circle, s, touched);
+              const where = `${subject} ${circle} ${answer.value}: ${k.field} = ${v.short}${touched ? ', touched' : ''}`;
+              const bad = collisions(c);
+              assert.deepEqual(bad, [], `${where}\n  ` + bad.join('\n  '));
+              for (const tx of c.transcript().texts) {
+                if (tx.y >= L.FOOTER_Y - 3) continue;            /* the hint line */
+                if (tx.y < L.HEADER_H) continue;                  /* the title */
+                assert.ok(tx.x > B.x && tx.x + tx.w < B.x + B.w - 1 && tx.y > B.y && tx.y + L.TEXT_H < B.y + B.h,
+                  `${where}: ${JSON.stringify(tx.s)} @${tx.x},${tx.y} leaves the box`);
+              }
+            }
           }
         }
       }
     }
   }
+});
+
+test('a setup tile keeps to its own room: no tile reaches the next', () => {
+  for (const subject of Object.keys(TRAIN.SUBJECTS)) {
+    for (const circle of TRAIN.CIRCLES) {
+      const tiles = TRAIN.knobsOf(subject, circle, TRAIN.coerceSetup(subject, circle, { answer: 'name' }))
+        .map((k) => V.tileBox(k)).filter(Boolean);
+      for (let i = 0; i < tiles.length; i++) {
+        for (let j = i + 1; j < tiles.length; j++) {
+          const a = tiles[i];
+          const b = tiles[j];
+          const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
+          assert.ok(apart, `${subject} ${circle}: tiles ${i + 1} and ${j + 1} overlap`);
+        }
+      }
+    }
+  }
+  /* The rhythm: two clear rows above each row of settings. */
+  assert.equal(V.SETUP_ROW_Y[0] - V.SETUP_RULE_Y, 3);
+  assert.equal(V.SETUP_ROW_Y[1] - V.SETUP_ROW_Y[0], L.TEXT_H + 2);
+  assert.ok(V.SETUP_STRIP.y + V.SETUP_STRIP.h <= V.SETUP_BOX.y + V.SETUP_BOX.h - 1, 'the strip inside the box');
+  assert.ok(V.SETUP_BOX.y + V.SETUP_BOX.h + 1 < L.FOOTER_Y - 2, 'the box clear of the hint line');
 });
