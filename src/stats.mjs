@@ -19,6 +19,7 @@ import {
 import { ALL_QUALITIES, qualityById } from './chords.mjs';
 import { scaleById } from './scales.mjs';
 import { progressionById } from './progressions.mjs';
+import { trainerLabel } from './trainer.mjs';
 
 /*
  * 2: the per-item table (`items`) beside the per-drill tally. A version 1
@@ -36,7 +37,9 @@ export const MAX_RECORDS = 200;   /* ~12KB; the file cannot grow without bound *
  */
 export function drillId({ hear = false, pick = false, kind = 'notes',
                           chordSet = 'triads', halfTones = false,
-                          read = null, exercise = '', level = '' } = {}) {
+                          read = null, exercise = '', level = '', trainer = null } = {}) {
+  /* A trainer's round: subject, circle, answer and level (trainer.mjs). */
+  if (trainer) return trainer.id;
   /* A hearing drill is its exercise and level: ear:thirds:up. */
   if (kind === 'ear') return 'ear:' + exercise + ':' + level;
   /* Reading the staff is a different skill from finding a name on the grid, so
@@ -61,6 +64,8 @@ const DRILL_WORDS = {
 /* Readable, and inside 21 characters — the widest the 6px font fits on a
  * 128px line. "Guess chords all types" was 22 and overflowed. */
 export function drillLabel(id) {
+  const trained = trainerLabel(id);
+  if (trained) return trained;
   const parts = String(id).split(':');
   if (parts.length !== 3) return String(id);
   if (parts[0] === 'ear') {

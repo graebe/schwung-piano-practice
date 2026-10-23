@@ -456,8 +456,10 @@ test('a chord lesson opens from Practice and arms at both hands', () => {
   jog(TOP.practice);
   open();                        /* Practice */
   jog(1);
-  open();                        /* Chords */
-  assert.match(screen(), /CHORDS/);
+  open();                        /* Chords: the trainer's ring */
+  jog(3);
+  open();                        /* Learn */
+  assert.match(screen(), /CHORDS: LEARN/);
   jog(4);
   open();                        /* Sevenths */
   assert.match(screen(), /Major 7th/);
@@ -1294,7 +1296,9 @@ test('a long Info page scrolls with the jog, and a chord page shows its formula'
   jog(TOP.practice);
   click();                                              /* Practice */
   jog(1);
-  click();                                              /* Chords */
+  click();                                              /* Chords: the trainer */
+  jog(3);
+  click();                                              /* Learn */
   click();                                              /* Triads */
   jog(1);                                               /* Minor */
   const first = screen.frame(MENU_PRESS);

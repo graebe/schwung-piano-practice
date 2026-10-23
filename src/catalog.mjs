@@ -206,6 +206,31 @@ export function randomFolder(gen = {}) {
 }
 
 /*
+ * A trainer: five circles, the same for every subject (trainer.mjs). Read,
+ * Hear and Play open a setup page and a round; Learn is the subject's lessons,
+ * as they were; Stats its items, weakest first.
+ *
+ * `learn` keeps the id its folder always had — `learnId`, stamped absolute —
+ * so moving the lessons under the trainer moved nobody's progress: the chord
+ * lessons are basics/chords/... whatever folder holds them.
+ */
+export function trainerFolder(subject, label, learn, learnId) {
+  learn.label = 'Learn';
+  /* Its list says whose lessons they are: "Learn" alone could be any. */
+  learn.title = label + ': learn';
+  learn.key = learnId;
+  learn.absolute = true;
+  const circle = (c, name) => ({ label: name, value: '', key: c, trainer: { subject, circle: c } });
+  return folder(label, [
+    circle('read', 'Read'),
+    circle('hear', 'Hear'),
+    circle('play', 'Play'),
+    learn,
+    { label: 'Stats', value: '', key: 'stats', trainerStats: subject },
+  ], subject + '-trainer');
+}
+
+/*
  * Practice (the folder was Basics, and keeps its key). What the settings
  * decide — the key, the transpose — is captured when the tree is built, which
  * the session does again whenever one of them changes. `more` is appended:
@@ -236,7 +261,7 @@ export function basics(gen = {}, more = []) {
 
   return folder('Practice', [
     lazyFolder('Scales', scales),
-    lazyFolder('Chords', families),
+    trainerFolder('chord', 'Chords', lazyFolder('Chords', families), 'basics/chords'),
     lazyFolder('Progressions', progressions),
     randomFolder(gen),
   ].concat(more), 'basics');

@@ -523,6 +523,63 @@ const SCENARIOS = {
   } },
 
   /*
+   * The chord trainer, read: the ring, Read's setup (Answer to name, Level 3),
+   * a round answered with the jog to its result, the result's next, Back to
+   * the setup and the ring.
+   */
+  'chord-read': { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);              /* Practice */
+    d.jog(1); d.click(); d.run(200);              /* Chords: the trainer's ring */
+    d.click(); d.run(100);                        /* Read: its setup, on Start */
+    d.jog(-7); d.click(); d.jog(1); d.click();    /* Answer: name */
+    d.jog(1); d.click(); d.jog(1); d.click();     /* Level 3 */
+    d.jog(20); d.click(); d.run(400);             /* Start */
+    for (let i = 0; i < 30; i++) { d.jog(1); d.click(); d.run(1500); }
+    d.run(1000); d.click(); d.run(400);           /* the result's next: another round */
+    d.press(BACK); d.run(100);                    /* its setup */
+    d.press(BACK); d.run(100);                    /* the ring */
+  } },
+
+  /* Hear: block chords played back on the pads, then named, broken. */
+  'chord-hear': { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);
+    d.jog(1); d.click(); d.run(200);
+    d.jog(1); d.click(); d.run(100);              /* Hear: its setup */
+    d.click(); d.run(1500);                       /* Start: play it back */
+    for (const p of [0, 4, 7, 12]) d.pad(p, 60);
+    d.press(PLAY); d.run(1500);                   /* again */
+    d.press(RECORD); d.run(400);                  /* help */
+    d.press(BACK); d.run(100);                    /* the setup */
+    d.jog(-8); d.click(); d.jog(1); d.click();    /* Answer: name */
+    d.jog(6); d.click(); d.jog(1); d.click();     /* Sound: broken */
+    d.jog(20); d.click(); d.run(2500);
+    for (let i = 0; i < 4; i++) { d.pad(i, 60); d.run(1500); }
+    d.press(BACK); d.press(BACK); d.run(100);
+  } },
+
+  /* Stats: a round heard, then the list, a row's detail and Back. */
+  'trainer-stats': { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);
+    d.jog(1); d.click(); d.run(200);
+    d.jog(4); d.click(); d.run(200);              /* Stats, nothing yet */
+    d.press(BACK); d.run(100);
+    d.jog(-3); d.click(); d.run(100);             /* Hear */
+    d.jog(-8); d.click(); d.jog(1); d.click();    /* Answer: name */
+    d.jog(20); d.click(); d.run(2500);
+    for (let i = 0; i < 40 && d.host.screen().startsWith('CHORDS HEAR'); i++) {
+      d.jog(1); d.click(); d.run(1500);
+    }
+    d.run(1000);                                  /* the result */
+    d.press(BACK); d.press(BACK); d.press(BACK); d.run(200);   /* again, its setup, the ring */
+    d.jog(3); d.click(); d.run(200);              /* Stats */
+    d.jog(1); d.click(); d.run(200);              /* a row's detail */
+    d.press(BACK); d.press(BACK); d.run(200);
+  } },
+
+  /*
    * Into an island and out: the zoom in (frames on the way), Back's zoom out,
    * and a zoom skipped by the jog, which only skips.
    */

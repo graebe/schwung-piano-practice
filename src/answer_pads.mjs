@@ -78,12 +78,14 @@ export function answerColour(index) {
 }
 
 /*
- * What a cell of the screen map says: the answer's own key when that is
- * already short (m3, P5, TT, IV, 1), else the start of its label. Two
+ * What a cell of the screen map says: the answer's own short form when it
+ * has one (a chord's M, m, o, M7), its key when that is already short (m3,
+ * P5, TT, IV, 1), else the start of its label. Two
  * characters is what a boxed 16px cell holds at the 6px advance.
  */
 export const SHORT_MAX = 2;
 export function shortLabel(answer) {
+  if (answer && answer.short) return String(answer.short).slice(0, SHORT_MAX);
   if (answer && answer.key && String(answer.key).length <= SHORT_MAX) return String(answer.key);
   const label = answer && answer.label ? String(answer.label) : '';
   return label.replace(/\s+/g, '').slice(0, SHORT_MAX);

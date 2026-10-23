@@ -411,6 +411,48 @@ const SCREENS = {
   'settings list, an implausibly long value': (c) => V.drawList(c, 'SETTINGS', [
     { label: 'Read ahead', value: '48 pixels per beat' },
   ], 0, { footer: 'turn change  CLICK ok', editing: true }),
+  /* A trainer's setup at its widest: every row the chord trainer can show,
+   * with the longest value each can take, and the row being edited. */
+  'trainer setup, the widest values, editing': (c) => V.drawList(c, 'CHORDS HEAR', [
+    { label: 'Level', value: '6 + m7b5 6ths' },
+    { label: 'Scale', value: 'Maj Pentatonic' },
+    { label: 'Inversions', value: 'off' },
+    { label: 'Roots', value: 'chromatic' },
+  ], 0, { footer: hintFor('settings', { editing: true })[0], centreFooter: true, editing: true }),
+  'trainer setup, on Start': (c) => V.drawList(c, 'CHORDS READ', [
+    { label: 'Inversions', value: 'off' }, { label: 'Round', value: 'endless' },
+    { label: 'Chords', value: '27 >' }, { label: 'Start', value: '>' },
+  ], 3, { footer: hintFor('settings', { start: true })[0], centreFooter: true }),
+  'trainer custom list': (c) => V.drawList(c, 'CHORDS CUSTOM', [
+    { label: 'Minor-maj 7th', value: 'on' }, { label: 'Aug major 7th', value: 'off' },
+    { label: 'Half-dim 7th', value: 'on' }, { label: 'Power chord', value: 'off' },
+  ], 1, { footer: hintFor('settings', { tick: true })[0], centreFooter: true }),
+  'trainer stats, three-digit cells and long names': (c) => V.drawTrainerStats(c, {
+    title: 'PROGRESSIONS',
+    rows: [
+      { label: 'Minor-maj 7th', cells: [100, 100, 100] },
+      { label: 'Aug major 7th', cells: [null, 7, 100] },
+      { label: 'Half-dim 7th', cells: [0, null, null] },
+      { label: 'Secondary dom', cells: [55, 100, 9] },
+    ],
+    cursor: 1, footer: hintFor('trainer-stats')[0],
+  }),
+  'trainer stats, nothing yet': (c) => V.drawTrainerStats(c, {
+    title: 'CHORDS', rows: [], cursor: 0, footer: hintFor('trainer-stats', { empty: true })[0],
+  }),
+  'pick, eight chord answers on the map': (c) => V.drawPick(c, {
+    title: 'CHORDS HEAR', score: '19/20', index: 7,
+    options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
+    short: ['M', 'm', 'o', '+', '7', 'M7', 'm7', 'mM'],
+    colours: ['blue', 'orange', 'cyan', 'pink', 'green', 'yellow', 'purple', 'red'],
+    hint: 'which chord?', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
+  'read pick, a chord on the staff': (c) => V.drawReadPick(c, {
+    title: 'CHORDS READ', score: '19/20',
+    staff: [{ part: 0, notes: [{ pitch: 61, diatonic: 28, alter: 1 }, { pitch: 64, diatonic: 30, alter: 0 },
+      { pitch: 68, diatonic: 32, alter: 1 }, { pitch: 71, diatonic: 34, alter: 0 }] }],
+    option: 'Minor-maj 7th', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
   'ready': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
   }),
@@ -449,8 +491,17 @@ for (const [name, draw] of Object.entries(SCREENS)) {
 
 /* ---- The specific faults, so a regression names itself ------------------- */
 
+test('a Stats row keeps its whole label: thirteen characters beside the meters', () => {
+  const c = createScreen();
+  const { lefts, labelEnd } = V.statsColumns();
+  assert.ok(c.textWidth('Minor-maj 7th') <= labelEnd - 2, `label room ${labelEnd - 2}px`);
+  /* Each meter sits under its letter, the last a pixel from the edge. */
+  assert.equal(lefts[2] + 5, L.SCREEN_W - 2);
+  for (let i = 1; i < lefts.length; i++) assert.ok(lefts[i] - lefts[i - 1] >= 5 + 4);
+});
+
 test('the name-lane rule is drawn only by the views that have a name lane', () => {
-  const laned = ['reading', 'guess', 'ready'];
+  const laned = ['reading', 'guess', 'ready', 'read pick'];
   for (const [name, draw] of Object.entries(SCREENS)) {
     const c = probe();
     draw(c);
@@ -480,9 +531,10 @@ test('every footer this module can show fits across the screen', () => {
     { stages: true, stage: 1 }, { stages: true, stage: 2 }, { listening: true }, { paused: true },
     { paused: true, listening: true }, { quiz: true, twoNext: true }, { ear: true, hintsLeft: true },
     { ear: true }, { pick: true, hintsLeft: true }, { pick: true }, { hintsLeft: true, streak: 999 },
-    { streak: 999 }, { editing: true }, { action: true }];
+    { streak: 999 }, { editing: true }, { action: true }, { start: true }, { tick: true }, { empty: true },
+    { open: true }];
   for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
-    'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim']) {
+    'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim', 'trainer-stats']) {
     for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
   }
   for (const f of footers) {

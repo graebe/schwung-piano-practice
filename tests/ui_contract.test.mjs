@@ -209,7 +209,7 @@ test('Back from a result starts again rather than leaving', () => {
   const back = fnBody(sessionCode, 'back');
   assert.match(back, /view === RESULT_VIEW\) \{\s*retryFromResult\(\)/);
   const retry = fnBody(code, 'retryFromResult');
-  assert.match(retry, /startQuiz\(quizSpec\)/, 'a quiz gets a fresh round');
+  assert.match(retry, /againQuiz\(\)/, 'a quiz gets a fresh round');
   assert.match(retry, /armRun\(\);\s*view = READY/, 'an exercise goes back to its start');
 });
 

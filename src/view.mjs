@@ -1431,6 +1431,75 @@ export function infoLines(ctx, paragraphs) {
 }
 
 /* Scrolling list used for both the exercise picker and the settings page. */
+/*
+ * A trainer's Stats: its items, weakest first, and how much of each was right
+ * read, heard and played — a meter each under R H P.
+ *
+ * A meter, not a number: three percentages a row would leave a label ten
+ * characters, and "Minor-maj 7th" or "Phrygian vamp" would be cut. A meter is
+ * as wide as a letter, so it sits exactly under its letter in the header, and
+ * the label keeps the rest of the row. It is an outline the height of a line,
+ * filled from the bottom by the share right: empty is none right, full is all.
+ * A circle never asked is a dash, not an empty meter: nothing asked is not the
+ * same as nothing right. The numbers are one click away, on the row's page.
+ *
+ *   state = { title, rows: [{ label, cells: [r, h, p] }], cursor, footer }
+ *   cells are percents 0..100, or null for never asked
+ */
+export const STATS_COLUMNS = ['R', 'H', 'P'];
+const METER_W = 5;
+const METER_GAP = 4;
+
+/* Where each meter's left edge is, and where the label must end. */
+export function statsColumns() {
+  const lefts = [];
+  for (let i = 0; i < STATS_COLUMNS.length; i++) {
+    lefts.push(L.SCREEN_W - 2 - (STATS_COLUMNS.length - i) * METER_W - (STATS_COLUMNS.length - 1 - i) * METER_GAP);
+  }
+  return { lefts, labelEnd: lefts[0] - 4 };
+}
+
+/* One meter in the text row at `y` (a glyph's 7 rows): outline, and the
+ * inside filled from the bottom by the share. */
+export function drawMeter(ctx, x, y, percent, v) {
+  if (percent == null) {
+    ctx.fillRect(x + 1, y + 3, METER_W - 2, 1, v);
+    return;
+  }
+  ctx.drawRect(x, y, METER_W, 7, v);
+  const fill = Math.round((Math.max(0, Math.min(100, percent)) * 5) / 100);
+  if (fill) ctx.fillRect(x + 1, y + 6 - fill, METER_W - 2, fill, v);
+}
+
+export function drawTrainerStats(ctx, state) {
+  const lineH = 9;
+  const top = 11;
+  const perPage = 4;
+  ctx.clear();
+  const { lefts, labelEnd } = statsColumns();
+  R.drawChrome(ctx, { left: fitWords(ctx, state.title, labelEnd - 2) });
+  STATS_COLUMNS.forEach((c, i) => ctx.text(lefts[i], 0, c, 0));
+  const rows = state.rows;
+  if (!rows.length) {
+    const say = 'Nothing played yet';
+    ctx.text((L.SCREEN_W - ctx.textWidth(say)) >> 1, top + lineH, say, 1);
+  }
+  const cursor = state.cursor;
+  const first = Math.max(0, Math.min(cursor - (perPage >> 1), rows.length - perPage));
+  for (let i = 0; i < perPage; i++) {
+    const idx = first + i;
+    if (idx < 0 || idx >= rows.length) break;
+    const y = top + i * lineH;
+    const selected = idx === cursor;
+    if (selected) ctx.fillRect(0, y - 1, L.SCREEN_W, lineH, 1);
+    const v = selected ? 0 : 1;
+    ctx.text(2, y, truncate(ctx, rows[idx].label, labelEnd - 2), v);
+    rows[idx].cells.forEach((cell, c) => drawMeter(ctx, lefts[c], y, cell, v));
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
 export function drawList(ctx, title, rows, cursor, opts = {}) {
   const lineH = 9;
   const top = 11;

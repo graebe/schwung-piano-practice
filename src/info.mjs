@@ -371,7 +371,45 @@ function earPage(exKey, levelKey) {
 }
 
 /* The quiz rows: Keys and Reading, notes or chords; hearing play-back. */
+/* ---- The trainers ---------------------------------------------------------- */
+
+/*
+ * A trainer's pages: the ring, each circle, and a round of it. The words
+ * are the subject's; the five circles say the same thing in every trainer,
+ * which is the point of them.
+ */
+const TRAINER_TEXT = {
+  chord: {
+    ring: 'Chords, as a trainer. Read a chord off the staff, hear one, or play one from its name; Learn holds the lessons by family; Stats shows which chords you know and which you do not yet.',
+    read: 'A chord on the staff. Play exactly what is written, every note in its octave, or name it from a short list.',
+    hear: 'A chord sounds. Play it back, any voicing of it counts, or name it from a short list.',
+    play: 'A chord\'s name, like Am7. Play it: any octave and any inversion counts, nothing else held with it.',
+    stats: 'Every chord you have been asked, weakest first: how much of it was right read, heard and played.',
+    ladder: 'Level 1 is the major chord; each level adds: minor; diminished and augmented; sus and power chords; the three common 7ths; half-diminished, dim7 and the 6ths; ninths and add9; the altered dominants. Custom picks your own.',
+    terms: ['chord', 'quality', 'inversion', 'level'],
+  },
+};
+
+const CIRCLE_TEXT = {
+  setup: 'The setup: what a round asks and how. Answer is play or name; Level what it asks; Key the key it is in, or random; Roots which chords are asked on which notes; Round how many right answers make a round.',
+  common: 'The same five circles in every trainer: Read, Hear, Play, Learn, Stats.',
+};
+
+export function trainerPage(subject, circle, label) {
+  const t = TRAINER_TEXT[subject];
+  if (!t) return null;
+  const sections = [sec('', t[circle] || t.ring)];
+  if (circle === 'read' || circle === 'hear' || circle === 'play') {
+    sections.push(sec('', CIRCLE_TEXT.setup), sec('', t.ladder));
+  } else {
+    sections.push(sec('', CIRCLE_TEXT.common));
+  }
+  return page('trainer:' + subject + (circle ? ':' + circle : ''), label || 'Chords', sections, t.terms);
+}
+
 function quizPage(drill, label) {
+  const trained = /^([a-z]+):(read|hear|play):[a-z]+:(L\d+|C-[0-9a-z]{6})$/.exec(drill);
+  if (trained) return trainerPage(trained[1], trained[2], label);
   const [mode, kind, set] = drill.split(':');
   if (mode === 'ear') return earPage(kind, set);
   if (mode === 'hear') return earPage(kind === 'chords' ? 'playback-chords' : 'playback-notes', set);
@@ -529,6 +567,8 @@ export function infoFor(target, env = {}) {
     return songPage(song, level, env, label);
   }
   const parts = id.split('/');
+  const ring = parts[0] === 'basics' && /^([a-z]+)-trainer$/.exec(parts[1] || '');
+  if (ring) return trainerPage(ring[1], parts[2] || null, label);
   if (parts[0] === 'basics' && parts[1] === 'scales' && parts[2]) return scalePage(parts[2], parts[3], label);
   if (parts[0] === 'basics' && parts[1] === 'chords' && parts[2]) return chordPage(parts[2], parts[3], parts[4], label);
   if (parts[0] === 'basics' && parts[1] === 'progressions' && parts[2]) return progressionPage(parts[2], parts[3], label);

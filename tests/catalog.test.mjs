@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   FOLDER, folder, lazyFolder, isFolder, songNode, basics, randomFolder, buildCatalog,
-  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt, stampChildren,
+  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt, stampChildren, findById,
 } from '../src/catalog.mjs';
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
 import { MODES, playableRange } from '../src/generator.mjs';
@@ -35,6 +35,8 @@ const labels = (node) => node.children.map((c) => c.label);
 function leavesOf(node, path = [], out = []) {
   node.children.forEach((child, i) => {
     if (isFolder(child)) leavesOf(child, path.concat(i), out);
+    /* A trainer's circles open a setup or its Stats, not a chart. */
+    else if (child.trainer || child.trainerStats) return;
     else if (child.levels) child.levels.forEach((lv, l) => out.push({ node: lv, path: path.concat(i, l) }));
     else out.push({ node: child, path: path.concat(i) });
   });
@@ -85,8 +87,27 @@ test('Basics holds scales, chords, progressions and the random drills', () => {
   const b = basics({});
   assert.deepEqual(labels(b), ['Scales', 'Chords', 'Progressions', 'Random']);
   assert.equal(b.children[0].children.length, Object.keys(MODES).length, 'one folder per Move scale');
-  assert.deepEqual(labels(b.children[1]), CHORD_FAMILIES.map((f) => f.name));
+  /* Chords is a trainer: five circles, its lessons under Learn. */
+  assert.deepEqual(labels(b.children[1]), ['Read', 'Hear', 'Play', 'Learn', 'Stats']);
+  assert.deepEqual(labels(b.children[1].children[3]), CHORD_FAMILIES.map((f) => f.name));
   assert.deepEqual(labels(b.children[2]), PROGRESSIONS.map((p) => p.id));
+});
+
+test('a trainer keeps its lessons under their old ids', () => {
+  const b = basics({});
+  stampChildren([b], '');
+  const ring = b.children[1];
+  assert.equal(ring.id, 'basics/chord-trainer');
+  assert.deepEqual(ring.children.map((c) => c.id), [
+    'basics/chord-trainer/read', 'basics/chord-trainer/hear', 'basics/chord-trainer/play',
+    'basics/chords', 'basics/chord-trainer/stats',
+  ]);
+  assert.equal(ring.children[3].children[0].id, 'basics/chords/triads');
+  assert.ok(findById({ children: [b] }, 'basics/chords/triads/chord-maj/1l'));
+  assert.deepEqual(ring.children.slice(0, 3).map((c) => c.trainer), [
+    { subject: 'chord', circle: 'read' }, { subject: 'chord', circle: 'hear' }, { subject: 'chord', circle: 'play' },
+  ]);
+  assert.equal(ring.children[4].trainerStats, 'chord');
 });
 
 test('Random has every note, notes in key, and chords from every quality', () => {

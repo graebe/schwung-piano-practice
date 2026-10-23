@@ -133,19 +133,27 @@ export function createQuiz({
   chordSet = TRIADS,
   fifths = 0,
   pick = false,         /* multiple choice: a pad lights, you name it */
-  exercise = null,      /* EAR: which exercise of ear.mjs, by key */
+  exercise = null,      /* EAR: which exercise of ear.mjs, by key — or a trainer's own */
   level = null,         /* EAR: and which of its levels */
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
   read = null,          /* Play drills: READ_NAME or READ_STAFF */
   history = null,       /* the drill's tally over every round: { key: [asked, right] } */
   itemTable = null,     /* the per-item table, stats.items: weights by item, per mode */
   seed = 1,
+  /* A trainer's round (trainer.mjs) brings its own: */
+  pool: given = null,   /* the prompts, instead of the ones the kind would build */
+  how = null,           /* 'exact' | 'name': how a played answer is judged */
+  subject = null,       /* what the per-item table files it under */
+  choicesFor = null,    /* entry -> the answers to offer for it, of the exercise's */
 } = {}) {
-  const ear = kind === EAR ? exerciseByKey(exercise) : null;
+  const ear = kind === EAR ? (typeof exercise === 'object' && exercise ? exercise : exerciseByKey(exercise)) : null;
   const earLevel = ear ? levelByKey(ear, level) : null;
-  const pool = ear
-    ? buildEarPool(ear, earLevel.key, transpose)
-    : buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths);
+  let pool = given;
+  if (!pool) {
+    pool = ear
+      ? buildEarPool(ear, earLevel.key, transpose)
+      : buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths);
+  }
   const answers = ear ? answersFor(ear, earLevel) : null;
   const quiz = {
     kind: ear ? EAR : (kind === CHORDS ? CHORDS : NOTES),
@@ -206,7 +214,9 @@ export function createQuiz({
     startedAt: null,
     finishedAt: null,
   };
-  quiz.subject = quizSubject(quiz);
+  quiz.how = how === 'exact' || how === 'name' ? how : null;
+  quiz.choicesFor = typeof choicesFor === 'function' ? choicesFor : null;
+  quiz.subject = subject || quizSubject(quiz);
   quiz.mode = quizMode(quiz);
   /* What this subject has asked before in this mode, whichever drill asked:
    * the items you miss come round more often. */
@@ -283,7 +293,7 @@ export function nextPrompt(quiz) {
   if (quiz.kind === EAR) {
     /* Same list, same order, cursor back on top: the answer's place is
      * something you learn, so it must not move. */
-    quiz.choices = quiz.answers;
+    quiz.choices = quiz.choicesFor ? quiz.choicesFor(chosen) : quiz.answers;
     quiz.choiceIndex = 0;
   } else if (quiz.pick) {
     quiz.choices = buildChoices(quiz.pool, chosen, quiz.rand, PICK_COUNT,
@@ -424,7 +434,7 @@ function isRight(quiz, option) {
  * for "F", A C E in any inversion for "Am"; the staff drills by the written
  * pitches (chords.mjs matchChord). */
 function evaluate(quiz) {
-  return matchChord(quiz.held, quiz.prompt, quiz.read === READ_NAME ? 'name' : 'exact');
+  return matchChord(quiz.held, quiz.prompt, quiz.how || (quiz.read === READ_NAME ? 'name' : 'exact'));
 }
 
 /*

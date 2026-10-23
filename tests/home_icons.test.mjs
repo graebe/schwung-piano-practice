@@ -15,7 +15,7 @@ const ALL = { ...ICONS, practiceDrums: PRACTICE_DRUMS, practicePiano: PRACTICE_P
 test('the shared icons: the home screen\'s and the rings\' one level down; practice is passed in', () => {
   assert.deepEqual(Object.keys(ICONS), ['path', 'quiz', 'progress', 'settings',
     'notes', 'kit', 'sticks', 'dice', 'folder', 'staff', 'ear', 'padpick', 'metronome', 'loop',
-    'stairs', 'chord', 'progression', 'song', 'keyletter']);
+    'stairs', 'chord', 'progression', 'song', 'keyletter', 'note', 'interval', 'book']);
   assert.ok(Object.isFrozen(ICONS) && Object.isFrozen(PRACTICE_DRUMS) && Object.isFrozen(PRACTICE_PIANO));
 });
 
@@ -54,7 +54,14 @@ const RINGS = {
   'quiz-drums': ['staff', 'ear', 'padpick', 'metronome', 'loop'],
   'practice-piano': ['stairs', 'chord', 'progression', 'dice', 'song'],
   'quiz-piano': ['ear', 'staff', 'keyletter'],
+  /* Practice as five trainers, and the five circles every trainer has. */
+  'subjects-piano': ['note', 'interval', 'stairs', 'chord', 'progression'],
+  'trainer-piano': ['staff', 'ear', 'keyletter', 'book', 'progress'],
 };
+
+test('no subject icon is a circle icon: the two levels never look alike', () => {
+  for (const s of RINGS['subjects-piano']) assert.ok(RINGS['trainer-piano'].indexOf(s) < 0, s);
+});
 
 test('the icons of one ring are told apart: no two alike, at either size', () => {
   for (const [ring, keys] of Object.entries(RINGS)) {

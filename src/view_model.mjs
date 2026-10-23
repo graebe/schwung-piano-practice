@@ -30,8 +30,8 @@ import * as AP from './answer_pads.mjs';
 import { chartTotalBeats, beatsPerBar, barBeatOf, keyAt } from './chart.mjs';
 import {
   MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SHEET_VIEW, CARD_VIEW,
+  TRAINER_STATS,
 } from './session.mjs';
-import { groupByKey } from './settings_def.mjs';
 import { iconRows } from './home/render.mjs';
 
 export const VM_VERSION = 2;
@@ -192,7 +192,7 @@ export function navOf(S) {
   const top = CAT.navTop(S.nav);
   return {
     path: S.nav.map((n) => n.node.label),
-    title: top.node.label,
+    title: top.node.title || top.node.label,
     cursor: top.cursor,
     rows: top.node.children.map((row) => {
       const deco = S.decorateRow(row) || {};
@@ -310,7 +310,8 @@ export function quizOf(S) {
   return {
     kind: quiz.kind,
     mode: ear ? 'ear' : S.quizPick ? 'pick' : S.quizHear ? 'hear' : 'play',
-    title: ear ? quiz.exercise.name : null,
+    /* A trainer's round says its subject and circle; a hearing exercise its name. */
+    title: S.quizTitle() || (ear ? quiz.exercise.name : null),
     question: ear ? quiz.exercise.question || null : null,
     prompt: hidden ? null : quiz.prompt.slice(),
     label: hidden ? null : quiz.label || null,
@@ -404,9 +405,15 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     anim: animOf(S, t),
     /* The hint line, as the Move's footer has it: its parts, which take turns. */
     hint: S.hint(),
+    /* A trainer's Stats: its items, weakest first, % right read, heard, played. */
+    trainerStats: view === TRAINER_STATS ? {
+      title: S.trainerStatsTitle(),
+      cursor: S.statsCursor,
+      rows: S.statsRows.map((r) => ({ label: r.label, cells: r.cells.slice(), item: r.item })),
+    } : null,
     settings: {
       group: S.settingsGroup,
-      title: groupByKey(S.settingsGroup) ? groupByKey(S.settingsGroup).label : 'Settings',
+      title: S.settingsTitle(),
       cursor: S.settingsCursor,
       editing: S.settingsEditing,
       /* `row` is the place on the page; `index` the setting, for a setting;
