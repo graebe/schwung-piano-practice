@@ -383,23 +383,25 @@ knows one knows them all: the subject changes, the way to practise it never does
 | **Learn** | the lessons that were there before: scale drills, chord lessons, progression charts |
 | **Stats** | every item asked, weakest first, a meter each for read, heard and played |
 
-**The setup.** Read, Hear and Play open the knob screen: eight knobs drawn as the Move's own, each
-setting one thing, the same knob the same setting in every trainer. A knob turns its setting, a
-touch names it, the jog walks along them, **PLAY** starts. It remembers what you set, per trainer
-and circle; **Shift + click** shows it as a list.
+**The setup.** Read, Hear and Play open a setup box, the song ready box's family: **LEVEL** across
+the top with its big number, a tile for each setting the circle really has, and a strip that says
+**▶ PLAY start**. Each tile carries the number of the knob that turns it — **LEVEL is knob 1**,
+**Answer knob 2** — and a deliberate turn is one value (ten units of a knob, never racing). A touch
+names the knob in full in the PLAY strip for two seconds; the jog walks the tiles; **PLAY** starts.
+It remembers what you set, per trainer and circle; **Shift + click** shows it as a list.
 
-| Knob | What it sets |
+| Setting | What it sets |
 | --- | --- |
-| 1 Answer | play or name (compare; play back or higher/lower), where the circle offers a choice |
-| 2 Level | the trainer's ladder, simple first; **Custom** ticks your own set (click opens the list) |
-| 3 Key | the key a round is in, or random; for progressions also **all 12**, round the circle of fifths |
-| 4 Scale, Direction | chords: the key's scale; scales: up, down or both; intervals: up, down or together |
-| 5 Roots, Pattern, Voicing | chords: diatonic, in key, chromatic; scales: straight, in 3rds or 5ths; progressions: root, smooth, bass + chord, guide tones |
-| 6 Inversions, Rhythm | chords: on or off; progressions: block, pop 8ths, ballad, offbeat, stabs, waltz |
-| 7 Sound | chords heard: block or broken |
-| 8 Round | 10, 20 or 30 right answers, or endless |
+| Level | the trainer's ladder, simple first; **Custom** ticks your own set (click opens the list) |
+| Answer | play or name (compare; play back or higher/lower), where the circle offers a choice |
+| Key | the key a round is in, or random; for progressions also **all 12**, round the circle of fifths |
+| Scale, Direction | chords: the key's scale; scales: up, down or both; intervals: up, down or together |
+| Roots, Pattern, Voicing | chords: diatonic, in key, chromatic; scales: straight, in 3rds or 5ths; progressions: root, smooth, bass + chord, guide tones |
+| Inversions, Rhythm | chords: on or off; progressions: block, pop 8ths, ballad, offbeat, stabs, waltz |
+| Sound | chords heard: block or broken |
+| Round | 10, 20 or 30 right answers, or endless |
 
-Naming needs two things to tell apart, so PLAY waits until a Custom pick has two (the screen says
+Naming needs two things to tell apart, so PLAY waits until a Custom pick has two (the strip says
 what is missing, and the PLAY light stays dark); playing needs one.
 
 **Which pad.** Wherever pads answer, the screen ties each answer to its pad: heard, four answers or
@@ -629,8 +631,8 @@ A hinted answer still counts and keeps your streak — a hint you are afraid to 
 does not help you learn — but the round records how many you took, and the result screen shows it.
 Record dims once the help is used up, so the button itself tells you whether there is more.
 
-**Back** during a round returns to its knob screen. From a round's result it starts a **fresh round** of
-the same setup, so trying again is one press; Back once more for the knobs, and again for the
+**Back** during a round returns to its setup box. From a round's result it starts a **fresh round** of
+the same setup, so trying again is one press; Back once more for the setup, and again for the
 trainer.
 
 **The answer is never lit on the pads** outside the top rung of help. Lit pads are a playing aid for
@@ -1041,9 +1043,10 @@ Four beats count you in, counted down on screen.
 | **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. The pads light the note the playhead has landed on, at either stage, so you can see where you are on the grid as well as on the staff; they go dark again the moment the music runs. Find your spot, then Play or Record from there |
 | **Knob 8** | tempo, 40–200: a drill's Tempo setting, or a song's own tempo for the session (not saved) |
 
-The knobs mean different things in different places, and **only Settings changes settings**: in an
-exercise they are the two above, in Settings they are the four rows on screen, and everywhere else
-they do nothing. **Touching** a knob in Settings moves the cursor to the row it edits, so the
+The knobs mean different things in different places: in an exercise they are the two above, in
+Settings they are the four rows on screen, in a trainer's setup box the numbered tiles, and
+everywhere else they do nothing. Settings and setup knobs are deliberately calm: about ten units of
+a turn move one value, and a fast flick never moves more than one. **Touching** a knob in Settings moves the cursor to the row it edits, so the
 mapping is something you find rather than memorise.
 
 The ready screen spells all three out — `▶ PLAY listen`, `● REC practice`, `↻ SCRUB view` — and the

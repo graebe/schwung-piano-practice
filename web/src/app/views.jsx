@@ -726,62 +726,64 @@ export function TrainerStatsView(props) {
   );
 }
 
-/* ---- A trainer's knob screen --------------------------------------------------- */
+/* ---- A trainer's setup box ---------------------------------------------------- */
 
 /*
- * A trainer circle's setup, as the Move shows it: eight knobs in a row, the
- * same knob the same setting in every trainer. Each cell is a knob: its
- * number, what it sets, its value in words (the page has the room the
- * Move's two letters lack), and − / + for a step either way (a knob
- * this circle does not use is greyed). The knob last touched is spelled out
- * under the row; Play starts, and while a Custom pick is too small it says
- * why instead.
+ * A trainer circle's setup, as the Move's box has it: a LEVEL card with its
+ * big number and what the level adds, a card for each other setting the
+ * circle has (nothing for the rest), each with the number of the knob that
+ * turns it on the Move, its value in words and − / + to step it, and a large
+ * Play. While a Custom pick is too small, Play waits and says why.
  */
 export function KnobSetupView(props) {
   const ks = () => props.vm().trainerSetup;
-  const focused = () => ks() && ks().knobs.find((k) => k.n === ks().focus && k.field);
-  const turn = (n, delta) => props.dispatch({ type: 'knob', n, delta });
+  const level = () => ks() && ks().knobs.find((k) => k.field === 'level');
+  const others = () => (ks() ? ks().knobs.filter((k) => k.field !== 'level') : []);
+  const step = (k, delta) => props.dispatch({ type: 'knob', n: k.n, delta });
+  const steps = (k) => (
+    <span class="setup-steps">
+      <Button info={`${k.label}: one back`} ariaLabel={`Knob ${k.n}, ${k.label}: down`} onClick={() => step(k, -1)}>−</Button>
+      <Button info={`${k.label}: one on`} ariaLabel={`Knob ${k.n}, ${k.label}: up`} onClick={() => step(k, 1)}>+</Button>
+    </span>
+  );
   return (
     <Show when={ks()}>
-      <section class="screen knob-screen" aria-labelledby="knob-title">
+      <section class="screen setup-screen" aria-labelledby="setup-title">
         <header class="screen-head">
-          <h1 id="knob-title" class="t-title">{ks().title}</h1>
-          <p class="t-hint">Turn the knobs; Play starts. The same knob sets the same thing in every trainer.</p>
+          <h1 id="setup-title" class="t-title">{ks().title}</h1>
+          <p class="t-hint">Each card is a knob on the Move, numbered as there. Play starts.</p>
         </header>
-        <ol class="knob-row" aria-label="The eight knobs">
-          <For each={ks().knobs}>{(k) => (
-            <li class="knob-cell" classList={{ on: k.n === ks().focus, unused: !k.field }} data-knob={k.n}
-                data-field={k.field || ''}>
-              <span class="knob-dial" aria-hidden="true"
-                    style={{ '--pos': k.field ? k.pos : 0 }}><span class="t-value">{k.n}</span></span>
-              <Show when={k.field} fallback={<span class="t-hint knob-label">unused</span>}>
-                <button class="knob-label t-label" type="button" onClick={() => props.dispatch({ type: 'focusKnob', n: k.n })}
-                        data-info={`Knob ${k.n}: ${k.label}`}>{k.label}</button>
-                <span class="knob-value t-value" title={k.text}>{k.text}</span>
-                <span class="knob-steps">
-                  <Button info={`${k.label}: one back`} ariaLabel={`Knob ${k.n}, ${k.label}: down`}
-                          onClick={() => turn(k.n, -1)}>−</Button>
-                  <Button info={`${k.label}: one on`} ariaLabel={`Knob ${k.n}, ${k.label}: up`}
-                          onClick={() => turn(k.n, 1)}>+</Button>
-                </span>
+        <div class="setup-box">
+          <Show when={level()}>
+            <article class="setup-card setup-level" classList={{ on: ks().focus === level().n }}
+                     data-knob={level().n} data-field="level">
+              <span class="setup-badge t-value" aria-label={`Knob ${level().n}`}>{level().n}</span>
+              <h2 class="t-label setup-label">Level</h2>
+              <span class="setup-digit" aria-hidden="true">{level().digit === 'Cu' ? 'Custom' : level().digit}</span>
+              <span class="setup-value t-value" title={level().text}>{level().blurb[0]}</span>
+              {steps(level())}
+              <Show when={ks().custom}>
+                <Button onClick={() => props.dispatch({ type: 'customPick' })} info="Tick the items of your own level">Custom…</Button>
               </Show>
-            </li>
-          )}</For>
-        </ol>
-        <Show when={focused()}>
-          <p class="knob-detail" aria-live="polite">
-            <span class="t-label">Knob {focused().n} · {focused().label}</span>
-            <span class="t-value">{ks().blocked ? 'to start: ' + ks().blocked : focused().text}</span>
-          </p>
-        </Show>
-        <div class="transport">
-          <Button onClick={() => props.dispatch({ type: 'back' })} info="Back to the trainer">Back</Button>
-          <Show when={ks().custom}>
-            <Button onClick={() => props.dispatch({ type: 'customPick' })} info="Tick the items of your own level">Custom…</Button>
+            </article>
           </Show>
+          <div class="setup-tiles">
+            <For each={others()}>{(k) => (
+              <article class="setup-card" classList={{ on: k.n === ks().focus }} data-knob={k.n} data-field={k.field}>
+                <span class="setup-badge t-value" aria-label={`Knob ${k.n}`}>{k.n}</span>
+                <button class="setup-label t-label" type="button" onClick={() => props.dispatch({ type: 'focusKnob', n: k.n })}
+                        data-info={`Knob ${k.n}: ${k.label}`}>{k.label}</button>
+                <span class="setup-value t-value" title={k.text}>{k.plain}</span>
+                {steps(k)}
+              </article>
+            )}</For>
+          </div>
           <Button icon="play" disabled={Boolean(ks().blocked)}
                   info={ks().blocked ? 'Not yet: ' + ks().blocked : 'Start a round'}
-                  onClick={() => props.dispatch({ type: 'play' })}>Play</Button>
+                  onClick={() => props.dispatch({ type: 'play' })}>{ks().blocked ? ks().blocked : 'Play'}</Button>
+        </div>
+        <div class="transport">
+          <Button onClick={() => props.dispatch({ type: 'back' })} info="Back to the trainer">Back</Button>
         </div>
       </section>
     </Show>

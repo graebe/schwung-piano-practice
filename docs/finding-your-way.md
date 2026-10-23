@@ -98,9 +98,9 @@ and from the top of a section to home.
 - **Practice** is five trainers: Notes, Intervals, Scales, Chords and
   Progressions. Each is **Read** off the staff, **Hear** by ear, **Play**
   from a name, **Learn** (its lessons) and **Stats** (what you know, weakest
-  first). Read, Hear and Play open the knob screen — what a round asks, a
-  knob each, the same knob in every trainer, **PLAY** to start — that
-  remembers what you set. The walk-through is
+  first). Read, Hear and Play open a setup box — what a round asks, a
+  numbered tile per setting for the knob that turns it, **▶ PLAY start**
+  at the bottom — that remembers what you set. The walk-through is
   [Practice: five trainers](trainers.md).
 - **Songs** is the pieces: Classics, Electronic, Techno, Styles, and Other
   for files you added.

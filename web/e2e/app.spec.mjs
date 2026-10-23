@@ -18,18 +18,18 @@ async function openSettings(page, group) {
   await page.locator('.setting').getByRole('button', { name: 'Advanced' }).click();
   await page.locator('.row', { hasText: new RegExp(`^${group}`) }).click();
 }
-/* Practice › a trainer › a circle: its knob screen. */
+/* Practice › a trainer › a circle: its setup box. */
 async function openTrainer(page, subject, circle) {
   await openPath(page, ['Practice', subject, circle]);
-  await expect(page.locator('.knob-screen')).toBeVisible();
+  await expect(page.locator('.setup-screen')).toBeVisible();
 }
-/* The knob that sets `label` turned `n` steps (+, or − when n < 0). */
+/* The card that sets `label` stepped `n` times (+, or − when n < 0). */
 async function turn(page, label, n) {
-  const knob = page.locator('.knob-cell', { has: page.locator('.knob-label', { hasText: new RegExp(`^${label}$`) }) });
+  const knob = page.locator('.setup-card', { has: page.locator('.setup-label', { hasText: new RegExp(`^${label}$`) }) });
   for (let i = 0; i < Math.abs(n); i++) await knob.getByRole('button', { name: new RegExp(`${label}: ${n > 0 ? 'up' : 'down'}$`) }).click();
 }
 async function start(page) {
-  await page.locator('.knob-screen').getByRole('button', { name: 'Play' }).click();
+  await page.locator('.setup-box > .btn').click();
   await closeInfo(page);
   await expect(page.locator('.quiz-screen, .practice-screen').first()).toBeVisible();
 }
@@ -322,46 +322,52 @@ test('scrubbing picks the start; tempo follows the knob-less stepper', async ({ 
   await expect(page.locator('.tempo .pp-value')).toHaveText('85');
 });
 
-test('a trainer\'s knob screen: eight knobs, − / + turn one, Play starts, Back returns', async ({ page }) => {
+test('a trainer\'s setup box: a card per setting, numbered as its knob; − / + step one, Play starts, Back returns', async ({ page }) => {
   await openTrainer(page, 'Chords', 'Hear');
-  await expect(page.locator('.knob-cell')).toHaveCount(8);
-  await expect(page.locator('.knob-cell .knob-label')).toHaveText(
-    ['Answer', 'Level', 'Key', 'Scale', 'Roots', 'Inversions', 'Sound', 'Round']);
-  await expect(page.locator('.knob-cell.on')).toHaveAttribute('data-knob', '2', { message: 'it opens on Level' });
+  await expect(page.locator('.setup-card')).toHaveCount(8);
+  await expect(page.locator('.setup-card .setup-label')).toHaveText(
+    ['Level', 'Answer', 'Key', 'Scale', 'Roots', 'Inversions', 'Sound', 'Round']);
+  await expect(page.locator('.setup-card .setup-badge')).toHaveText(['1', '2', '3', '4', '5', '6', '7', '8']);
+  await expect(page.locator('.setup-card.on')).toHaveAttribute('data-field', 'level', { message: 'it opens on Level' });
   await turn(page, 'Key', 2);
-  await expect(page.locator('.knob-cell[data-field="key"] .knob-value')).toHaveText('D');
-  await expect(page.locator('.knob-cell.on')).toHaveAttribute('data-knob', '3', { message: 'the knob turned is in focus' });
-  await expect(page.locator('.knob-detail')).toContainText('Knob 3 · Key');
+  await expect(page.locator('.setup-card[data-field="key"] .setup-value')).toHaveText('D');
+  await expect(page.locator('.setup-card.on')).toHaveAttribute('data-knob', '3', { message: 'the card stepped is in focus' });
   await turn(page, 'Key', -1);
-  await expect(page.locator('.knob-cell[data-field="key"] .knob-value')).toHaveText('C#');
-  await expect(page).toHaveScreenshot('knobs-chords-hear.png', { fullPage: true });
+  await expect(page.locator('.setup-card[data-field="key"] .setup-value')).toHaveText('C#');
+  await expect(page.locator('.setup-box > .btn')).toHaveText('Play');
+  await expect(page).toHaveScreenshot('setup-chords-hear.png', { fullPage: true });
   await start(page);
   await expect(page.locator('#quiz-title')).toHaveText('CHORDS HEAR');
   await page.keyboard.press('Escape');
-  await expect(page.locator('.knob-screen')).toBeVisible();
-  await expect(page.locator('.knob-cell[data-field="key"] .knob-value')).toHaveText('C#', { message: 'remembered' });
-  await expect(page.locator('.knob-cell.on')).toHaveAttribute('data-knob', '3', { message: 'the focus kept' });
+  await expect(page.locator('.setup-screen')).toBeVisible();
+  await expect(page.locator('.setup-card[data-field="key"] .setup-value')).toHaveText('C#', { message: 'remembered' });
+  await expect(page.locator('.setup-card.on')).toHaveAttribute('data-knob', '3', { message: 'the focus kept' });
+});
+
+test('Notes › Play: only its two settings, no empty cards', async ({ page }) => {
+  await openTrainer(page, 'Notes', 'Play');
+  await expect(page.locator('.setup-card .setup-label')).toHaveText(['Level', 'Round']);
 });
 
 test('a Custom level with too little ticked: Play waits and says why', async ({ page }) => {
   await openTrainer(page, 'Chords', 'Hear');
   await turn(page, 'Answer', 1);
   await turn(page, 'Level', 20);
-  await expect(page.locator('.knob-cell[data-field="level"] .knob-value')).toHaveText(/^custom/);
+  await expect(page.locator('.setup-level .setup-digit')).toHaveText('Custom');
   await page.getByRole('button', { name: 'Custom…' }).click();
   await expect(page.locator('.settings-screen')).toBeVisible();
   const ticked = page.locator('.setting', { has: page.locator('.setting-value', { hasText: /^on$/ }) });
   for (let i = 0; i < 40 && await ticked.count(); i++) await ticked.first().click();
   await page.keyboard.press('Escape');
-  await expect(page.locator('.knob-screen')).toBeVisible();
-  await expect(page.locator('.knob-screen').getByRole('button', { name: 'Play' })).toBeDisabled();
-  await expect(page.locator('.knob-detail')).toContainText('to start: tick 2 chords');
+  await expect(page.locator('.setup-screen')).toBeVisible();
+  await expect(page.locator('.setup-box > .btn')).toBeDisabled();
+  await expect(page.locator('.setup-box > .btn')).toHaveText('tick 2 chords');
 });
 
 test('a round named off the staff runs to its result, and Progress charts it', async ({ page }) => {
   await openTrainer(page, 'Notes', 'Read');
   await turn(page, 'Answer', 1);
-  await expect(page.locator('.knob-cell[data-field="answer"] .knob-value')).toHaveText('name');
+  await expect(page.locator('.setup-card[data-field="answer"] .setup-value')).toHaveText('name');
   await start(page);
   await expect(page.locator('#quiz-title')).toHaveText('NOTES READ');
   await expect(page.locator('.quiz-row svg')).toBeVisible();
@@ -466,7 +472,7 @@ test('settings are remembered across a reload', async ({ page }) => {
 test('a hearing drill answers by colour, then shows where the answer sits', async ({ page }) => {
   await openTrainer(page, 'Notes', 'Hear');
   await turn(page, 'Answer', 1);
-  await expect(page.locator('.knob-cell[data-field="answer"] .knob-value')).toHaveText('higher/lower');
+  await expect(page.locator('.setup-card[data-field="answer"] .setup-value')).toHaveText('higher/lower');
   await start(page);
   await expect(page.locator('#quiz-title')).toHaveText('NOTES HEAR');
   await expect(page.locator('.option .chip')).toHaveCount(3);

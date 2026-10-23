@@ -85,15 +85,15 @@ await page.locator('.levels .btn').first().waitFor();
 await shoot(page, 'web-ready-song.png');
 await page.close();
 
-/* A trainer: its five circles, its knob screen, a progression from its numerals. */
+/* A trainer: its five circles, its setup box, a progression from its numerals. */
 page = await open({ width: 1280, height: 640 });
 await openPath(page, ['Practice', 'Progressions']);
 await page.locator('svg.home[data-ring="Progressions"]').waitFor();
 await shoot(page, 'web-trainer.png');
 await row(page, 'Play');
-await page.locator('.knob-screen').waitFor();
+await page.locator('.setup-screen').waitFor();
 await shoot(page, 'web-setup.png');
-await page.locator('.knob-screen').getByRole('button', { name: 'Play' }).click();
+await page.locator('.setup-box > .btn').click();
 await page.locator('.chord-row').waitFor();
 await shoot(page, 'web-progression.png');
 await page.close();
@@ -102,8 +102,8 @@ await page.close();
  * Hear, higher or lower. */
 page = await open({ width: 1280, height: 640 });
 await openPath(page, ['Practice', 'Notes', 'Hear']);
-await page.locator('.knob-cell[data-field="answer"]').getByRole('button', { name: /Answer: up$/ }).click();
-await page.locator('.knob-screen').getByRole('button', { name: 'Play' }).click();
+await page.locator('.setup-card[data-field="answer"]').getByRole('button', { name: /Answer: up$/ }).click();
+await page.locator('.setup-box > .btn').click();
 await page.locator('.option').first().waitFor();
 for (const option of await page.locator('.option').all()) {
   if (await option.isDisabled()) break;

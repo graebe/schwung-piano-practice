@@ -34,34 +34,26 @@ it and find it; you are told its name and play it.
 
 ## Setting up a round
 
-Read, Hear and Play each open the **knob screen**: a row of eight knobs, drawn as the Move's own
-eight sit under the display. Each knob sets one thing. Its number is inside it, an arc round it
-shows how far the value has turned, and two letters under it say the value (`nm` for name, `L3`
-for level 3). Turn a knob to change its setting; touch one to see what it is without changing it.
-The knob you turned or touched is spelled out under the row: its name and its whole value. **PLAY**
-starts a round.
+Read, Hear and Play each open a **setup box**, the same family as the box a song waits in: the
+**LEVEL** across the top with its big number and what that level adds, under it a tile for each
+setting this circle has, and across the bottom a strip that says **▶ PLAY start**. There is a tile
+only for a setting the circle really has: Notes › Play has two, Chords › Hear eight.
 
-![The knob screen of Chords › Read](media/move-setup.png)
+![The setup box of Chords › Read](media/move-setup.png)
 
-The same knob sets the same thing in every trainer, so knowing one trainer is knowing them all:
+Every tile carries a small number: the knob under the screen that turns it. The numbers run in
+reading order, and **LEVEL is knob 1 in every trainer**, **Answer knob 2** wherever there is one.
+A tile says its value in words that tell you what it is — `key C`, `10 right`, `in 3rds` — and
+falls back to fewer letters only where the room runs out.
 
-| Knob | Sets |
-| --- | --- |
-| 1 | Answer |
-| 2 | Level |
-| 3 | Key |
-| 4 | Scale (chords), Direction (scales, intervals) |
-| 5 | Roots (chords), Pattern (scales), Voicing (progressions) |
-| 6 | Inversions (chords), Rhythm (progressions) |
-| 7 | Sound (chords heard) |
-| 8 | Round |
+- **Turn** a knob to change its setting. A deliberate turn is one value: the knobs gather a whole
+  turn before they move, so a setting never races past where you wanted it.
+- **Touch** a knob to see it whole: for two seconds the PLAY strip names it in full
+  (`Roots: diatonic`) and its tile lights up.
+- **PLAY** starts. The jog walks along the tiles too, and **Shift + click** shows the same setup as
+  a list. The box remembers what you set, for each trainer and each circle.
 
-A knob a circle does not use is drawn dotted and empty. The jog walks along the knobs too, for
-anyone who prefers it, and **Shift + click** shows the same setup as a list. The screen remembers
-what you set, for each trainer and each circle, so the next time you open it, a round is one press
-of PLAY away.
-
-What the knobs set:
+What the settings are:
 
 - **Answer** — how you answer: **play** it on the pads, or **name** it from a short list. Intervals
   can also **compare** two (which is bigger?). Notes heard are **played back** or answered **higher
@@ -70,7 +62,7 @@ What the knobs set:
 - **Level** — the trainer's ladder, simple first (below). **Custom** lets you tick your own set:
   turned to Custom, **click** opens the tick list. A new Custom pick starts as the level you came
   from, and PLAY waits until it has enough — one thing to play, two to tell apart when naming. While
-  it waits, the PLAY light is dark and the screen says what is missing (`tick 2 chords`).
+  it waits, the PLAY light is dark and the strip says what is missing (`tick 2 chords`).
 - **Key** — the key a round is in, or **random**. For progressions there is also **all 12**: the
   same progression in every key, walking round the circle of fifths.
 - The subject's own rows: for chords the key's **Scale**, which **Roots** (diatonic — only the
@@ -122,7 +114,7 @@ habit.
 out a wrong answer, or names what you are finding. A hinted answer still counts, but the round
 records how many hints you took.
 
-**Back** from a round is its knob screen, the knob you last turned still in focus; from there, the
+**Back** from a round is its setup box, the knob you last turned still in focus; from there, the
 trainer's ring. From a result,
 **CLICK** runs another round as set up.
 
@@ -172,7 +164,7 @@ subject, until you stop missing it.
 
 ## On the page
 
-In a browser the trainers work the same way: the rings, the eight knobs with − and + on each,
+In a browser the trainers work the same way: the rings, the setup box as cards with − and + on each,
 the answer buttons in their pad colours, and Stats as a table with a chart of the row you pick.
 See [the page](web.md#trainers).
 
