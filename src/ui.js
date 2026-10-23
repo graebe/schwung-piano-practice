@@ -818,7 +818,7 @@ function drawScene(lastResult) {
   if (scene.over === 'result' && lastResult) {
     if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, { ...lastResult, footer: footer() });
     else VIEW.drawResultPage(ctx, { ...lastResult, footer: footer() });
-    VIEW.drawStar(ctx, lastResult, now() - scene.t0);
+    VIEW.drawStarBand(ctx, lastResult, now() - scene.t0);
     return;
   }
   VIEW.drawScene(ctx, { scene, now: now(), footer: footer() });

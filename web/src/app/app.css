@@ -451,12 +451,6 @@ button.status-pill { cursor: pointer; }
 .anim-zoom-out { animation-name: anim-zoom-out; }
 @keyframes anim-zoom-in { from { transform: scale(0.125); } to { transform: scale(1); } }
 @keyframes anim-zoom-out { from { transform: scale(4); } to { transform: scale(1); } }
-.anim-over { position: relative; }
-.anim-star {
-  position: absolute; top: 72px; left: 0; width: 240px; height: 160px; pointer-events: none;
-}
-.anim-star .ink, .anim-star .ink-line { fill: var(--uv); stroke: var(--uv); }
-.anim-star .sea { fill: none; }
 @media (prefers-reduced-motion: reduce) {
   .anim-zoom { animation: none; }
 }

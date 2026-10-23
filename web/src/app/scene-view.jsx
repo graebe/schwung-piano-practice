@@ -5,7 +5,8 @@
  * the page as on the Move: the walk, the flag going up, fireworks, the
  * banner and the finale drawn by the same engine (pathmap/anim.mjs) into a
  * recording ctx whose shapes become SVG; the zoom as a CSS transform of the
- * map it lands on; the star round a level's score over the result.
+ * map it lands on; a level learned as the panel shows it: the score, big,
+ * a star round it and LEVEL LEARNED under it (view.mjs drawStarBand).
  *
  * The page keeps its own clock for the scene, set from the session's
  * progress when the scene first arrives, so it plays smoothly however late
@@ -13,11 +14,11 @@
  */
 import { For, Show, createSignal, onCleanup, onMount } from 'solid-js';
 import { Button } from '../kit/components/Button.jsx';
-import { ResultView } from './views.jsx';
 import { layoutPlaces, cellCentre, MAP_X, MAP_Y, MAP_W, MAP_H } from '../../../src/pathmap/layout.mjs';
 import { createWalk, walkTo, STORY_MS_PER_CELL } from '../../../src/pathmap/walk.mjs';
 import { drawMap } from '../../../src/pathmap/render.mjs';
-import { flagRise, fireworks, banner, finale, starBurst, FLAG_MS } from '../../../src/pathmap/anim.mjs';
+import { flagRise, fireworks, banner, finale, FLAG_MS } from '../../../src/pathmap/anim.mjs';
+import { drawStarBand } from '../../../src/view.mjs';
 
 /* What the engine draws, as shapes: rectangles, lines and the banner's words. */
 function recorder() {
@@ -114,13 +115,24 @@ export function AnimView(props) {
 
   const skip = () => props.dispatch({ type: 'skip' });
   return (
-    <Show when={a().over !== 'result'} fallback={
-      <div class="anim-over" onClick={skip} data-kind={a().kind}>
-        <ResultView vm={props.vm} dispatch={() => {}} />
-        <svg class="anim-star" viewBox="34 12 60 40" aria-hidden="true">
-          <Shapes shapes={(() => { const { ctx, shapes: out } = recorder(); starBurst(ctx, { x: 64, y: 32, r: 9, seed: 3 }, t()); return out; })()} />
-        </svg>
-      </div>
+    <Show when={a().over !== 'result' || !props.vm().result} fallback={
+      <section class="screen anim-screen anim-over" aria-labelledby="anim-title" data-kind={a().kind}
+               data-info="Any click or key skips it" onClick={skip}>
+        <header class="screen-head">
+          <h1 id="anim-title" class="t-title">{a().say}</h1>
+          <p class="t-hint">Any key or click skips it.</p>
+        </header>
+        <div class="anim-stage">
+          <svg class="map anim-star" viewBox={`0 ${MAP_Y} 128 ${MAP_H}`} shape-rendering="crispEdges" aria-hidden="true">
+            <Shapes shapes={(() => {
+              const { ctx, shapes: out } = recorder();
+              drawStarBand(ctx, props.vm().result, t());
+              return out;
+            })()} />
+          </svg>
+        </div>
+        <Button onClick={(e) => { e.stopPropagation(); skip(); }}>Skip</Button>
+      </section>
     }>
       <section class="screen anim-screen" aria-labelledby="anim-title" data-kind={a().kind}
                data-info="Any click or key skips it" onClick={skip}>

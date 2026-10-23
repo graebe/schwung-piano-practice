@@ -295,6 +295,14 @@ const SCREENS = {
   'card, keys': (c) => card(c, welcomePages()[1], 1, 3, hintFor('card', { pages: 3 })[0]),
   'card, new to piano': (c) => card(c, welcomePages()[2], 2, 3, hintFor('card', { choice: true })[0]),
   'card, the longest tip': (c) => card(c, tipCard(PLACEMENT), 0, 1, hintFor('card', { pages: 1 })[0]),
+  'star, a level learned at 100%': (c) => V.drawStarBand(V.drawExerciseResult(c, {
+    name: 'Scarborough Fair L3 Both hands', percent: 100, hits: 120, total: 120, wrong: 0, stage: 2, passed: 2,
+    isBest: false, history: [], timing: null, footer: hintFor('anim')[0],
+  }), { kind: 'exercise', percent: 100 }, 300),
+  'star, a round learned': (c) => V.drawStarBand(V.drawRoundResult(c, {
+    rate: 144, ms: 480000, n: 30, wrong: 0, bestStreak: 30, hints: 0, best: 144, isBest: true, records: [],
+    success: 100, passed: 2, footer: hintFor('anim')[0],
+  }), { kind: 'quiz', success: 100 }, 300),
   'result, worst case': (c) => V.drawRoundResult(c, {
     rate: 144, ms: 480000, n: 30, wrong: 12, bestStreak: 100, hints: 2,
     best: 144, isBest: false, records: records(12),
@@ -509,4 +517,43 @@ test('the map\'s title keeps its percent, and its reviews only when they fit', (
     { title: '1 Colour 5%', right: '2 due' });
   assert.ok(w(mapTitle(makePlace({ label: '5.8 Advanced pieces and more', percent: 100 }), L.SCREEN_W - 2, w).title) <= L.SCREEN_W - 2);
   assert.deepEqual(mapTitle(null, 100, w), { title: '', right: '' });
+});
+
+test('a level learned: the score centred in the band, LEVEL LEARNED under it, the star\'s room above it', () => {
+  const c = createScreen();
+  for (const result of [{ kind: 'exercise', percent: 100 }, { kind: 'exercise', percent: 92 }, { kind: 'quiz', success: 95 }]) {
+    const s = V.starLayout(result, (x) => c.textWidth(x));
+    assert.equal(s.caption, 'LEVEL LEARNED');
+    assert.ok(Math.abs(s.x + s.w / 2 - L.SCREEN_W / 2) <= 1, 'centred across');
+    assert.ok(Math.abs((s.y - s.top) - (s.bottom - (s.y + s.h - 1))) <= 1, 'centred in its room');
+    assert.ok(s.top >= 10 && s.captionY + L.TEXT_H - 1 <= 53, 'inside the band');
+    assert.ok(s.y + s.h < s.captionY && s.bottom < s.captionY, 'the caption under the score and the star');
+  }
+  assert.equal(V.starLayout({ kind: 'exercise', percent: 100 }, (x) => x.length * 12).caption, 'LEARNED', 'too wide: the short word');
+});
+
+test('the star stays in its room: clear of the digits and the caption, inside the band', async () => {
+  const { isOn } = await import('../tools/screen_buffer.mjs');
+  for (const result of [{ kind: 'exercise', percent: 100 }, { kind: 'exercise', percent: 90 }, { kind: 'quiz', success: 95 }]) {
+    const still = createScreen();
+    still.clear();
+    V.drawStarBand(still, result, 0);              /* no rays yet: the score and the caption */
+    const s = V.starLayout(result, (x) => still.textWidth(x));
+    let rays = 0;
+    for (let t = 0; t <= 600; t += 20) {
+      const c = createScreen();
+      c.clear();
+      V.drawStarBand(c, result, t);
+      for (let y = 0; y < 64; y++) {
+        for (let x = 0; x < 128; x++) {
+          if (!isOn(c, x, y) || isOn(still, x, y)) continue;
+          rays++;
+          const where = `${result.kind} ${s.text} at t ${t}: (${x}, ${y})`;
+          assert.ok(y >= s.top && y <= s.bottom, 'inside its room: ' + where);
+          assert.ok(!(x >= s.x - 1 && x <= s.x + s.w && y >= s.y - 1 && y <= s.y + s.h), 'clear of the digits: ' + where);
+        }
+      }
+    }
+    assert.ok(rays > 0, 'a star is drawn');
+  }
 });

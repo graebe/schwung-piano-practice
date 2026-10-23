@@ -25,7 +25,7 @@ import { wrapLines } from './info.mjs';
 import { drawMap } from './pathmap/render.mjs';
 import { createWalk } from './pathmap/walk.mjs';
 import { cellCentre } from './pathmap/layout.mjs';
-import { flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, banner, FLAG_MS } from './pathmap/anim.mjs';
+import { flagRise, fireworks, zoomIn, zoomOut, starBurst, starFit, finale, banner, FLAG_MS } from './pathmap/anim.mjs';
 import { ZOOM, CELEBRATE, FINALE, BANNER } from './scenes.mjs';
 import { drawHome } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
@@ -1316,21 +1316,66 @@ export function drawScene(ctx, state) {
 }
 
 /*
- * The big score of a result (drawExerciseResult, drawRoundResult and the
- * round's right-% page): where it sits and how far round it a star goes.
+ * A level learned: its own frame. The result's title bar and the hint stay;
+ * between them the score, big, in the middle of the band (y 10..53), a star
+ * round it, and "LEVEL LEARNED" under it. When the scene is over the result
+ * screen follows as it always is.
+ *
+ *   starLayout(result, widthOf) -> where the score, the caption and the
+ *                                  star's room are: pure, for the page too
+ *   drawStarBand(ctx, result, t) -> the band, over a result screen already
+ *                                  drawn (its title and hint stay), or alone
+ *
+ * The score is what learning it took: an exercise's percent, a round's
+ * share right.
  */
-export function resultScore(result) {
-  const page = result.kind === 'quiz' ? result.page || 0 : 0;
-  const value = result.kind === 'exercise' ? result.percent : page === 1 ? result.success : result.rate;
-  const w = R.bigTextWidth(String(Math.round(value || 0)), L.RESULT_BIG_SCALE);
+export const STAR_CAPTION = 'LEVEL LEARNED';
+const STAR_CAPTION_SHORT = 'LEARNED';
+const BAND_TOP = 10;
+const BAND_BOTTOM = 53;
+
+export function starLayout(result, widthOf) {
+  const value = result.kind === 'quiz' ? result.success : result.percent;
+  const text = String(Math.round(value || 0));
+  const w = R.bigTextWidth(text, L.RESULT_BIG_SCALE);
   const h = R.bigDigitHeight(L.RESULT_BIG_SCALE);
-  return { x: L.RESULT_LEFT_X + (w >> 1), y: L.RESULT_BIG_Y + (h >> 1), r: Math.max(w, h) >> 1 };
+  const caption = widthOf(STAR_CAPTION) <= L.SCREEN_W - 4 ? STAR_CAPTION : STAR_CAPTION_SHORT;
+  /* A row of air above the hint line's rule. */
+  const captionY = BAND_BOTTOM - L.TEXT_H;
+  /* The star's room: the band above the caption, a row clear of it. */
+  const top = BAND_TOP;
+  const bottom = captionY - 2;
+  const x = (L.SCREEN_W - w) >> 1;
+  const y = top + ((bottom - top + 1 - h) >> 1);
+  return {
+    text, x, y, w, h, caption, captionX: (L.SCREEN_W - widthOf(caption)) >> 1, captionY, top, bottom,
+    cx: x + (w >> 1), cy: y + (h >> 1),
+  };
 }
 
-/* A level learned: the star round the result's big score, `t` ms in. */
-export function drawStar(ctx, result, t) {
-  const at = resultScore(result);
-  starBurst(ctx, { ...at, seed: 3 }, t);
+/*
+ * The star round the score, in the room it has: the engine's starFit picks
+ * the ellipse that clears the digits' corners and the rays that stay inside
+ * the band. Worked out once per shape (it searches), not every frame.
+ */
+const starFits = new Map();
+
+function starArgs(s) {
+  const key = [s.w, s.h, s.top, s.bottom, s.cx, s.cy].join();
+  let fit = starFits.get(key);
+  if (!fit) {
+    fit = starFit({ w: s.w, h: s.h, top: s.top, bottom: s.bottom, y: s.cy, x: s.cx });
+    starFits.set(key, fit);
+  }
+  return { x: s.cx, y: fit.y, rx: fit.rx, ry: fit.ry, len: fit.len, seed: 3 };
+}
+
+export function drawStarBand(ctx, result, t) {
+  const s = starLayout(result, (x) => ctx.textWidth(x));
+  ctx.fillRect(0, BAND_TOP, L.SCREEN_W, BAND_BOTTOM - BAND_TOP + 1, 0);
+  R.drawBigText(ctx, s.x, s.y, s.text, L.RESULT_BIG_SCALE);
+  ctx.text(s.captionX, s.captionY, s.caption, 1);
+  starBurst(ctx, starArgs(s), t);
   return ctx;
 }
 
