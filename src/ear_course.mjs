@@ -108,7 +108,7 @@ function bounds(anchor, semis, way) {
   return way === 'down' ? [anchor - semis, anchor] : [anchor, anchor + semis];
 }
 
-function comparePrompts(unitKey, keys, way, fixed) {
+export function comparePrompts(unitKey, keys, way, fixed) {
   return ({ lo, hi }) => {
     const rand = rng(seedOf(unitKey + '/' + way + (fixed ? '/fix' : '')));
     const ways = WAYS[way];

@@ -762,14 +762,22 @@ function draw() {
       footer: footer(),
     });
   } else if (view === GUESS_VIEW && quiz.entry && quiz.entry.line) {
-    /* A scale played as a line: from its name, or heard and played back. */
-    const named = quiz.read === GUESS.READ_NAME || quiz.solved;
+    /* A line to play — a scale, an interval — from its name, heard, or read
+     * off the staff. Its name is the prompt when it is asked by name; heard,
+     * it is "?" (the help names it); read, the staff is the question and the
+     * name waits for the answer. */
+    const byName = quiz.read === GUESS.READ_NAME;
+    const read = quiz.read === GUESS.READ_STAFF;
+    let label = '?';
+    if (byName || quiz.solved || (!read && quiz.hint > 0)) label = quiz.entry.label;
+    else if (read) label = quiz.hint > 0 ? quiz.entry.label : '';
     VIEW.drawLineView(ctx, {
       title: S.quizTitle() || 'PLAY',
       score: quiz.roundSize > 0 ? quiz.correct + '/' + quiz.roundSize : String(GUESS.quizStats(quiz).correct),
       staff: quiz.entry.staff,
       shown: quiz.solved ? quiz.entry.staff.length : quiz.played.length,
-      label: named ? quiz.entry.label : (quiz.hint > 0 ? quiz.entry.label : '?'),
+      all: read,
+      label,
       solved: quiz.solved,
       footer: footer(),
     });
@@ -777,7 +785,7 @@ function draw() {
     const st = GUESS.quizStats(quiz);
     const staff = quiz.read === GUESS.READ_STAFF;
     VIEW.drawQuizRow(ctx, {
-      queue: quiz.queue.map((e) => ({ pitches: e.pitches, name: GUESS.entryName(quiz, e) })),
+      queue: quiz.queue.map((e) => ({ pitches: e.pitches, name: GUESS.entryName(quiz, e), fifths: e.fifths })),
       read: quiz.read,
       glide: S.quizGlide(),
       fifths: S.keyFifths(),

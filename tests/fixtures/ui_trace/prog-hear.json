@@ -84,7 +84,7 @@
 ["tick",564,"03580d03e446","5e88855ed025"],
 ["tick",571,"5eda08e83ee2","-"],
 ["tick",572,"56c5951f5da4","-"],
-["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\"],\"trainers\":{\"prog\":{\"hear\":{\"answer\":\"name\",\"level\":1,\"voicing\":\"smooth\",\"rhythm\":\"block\",\"round\":10,\"key\":0,\"custom\":[]}}}}"],
+["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\"],\"trainers\":{\"prog\":{\"hear\":{\"answer\":\"name\",\"level\":1,\"voicing\":\"smooth\",\"rhythm\":\"block\",\"round\":10,\"key\":0,\"circle\":\"hear\",\"custom\":[]}}}}"],
 ["tick",574,"2c90d43d7912","-"],
 ["tick",575,"f20186bba41b","5e88855ed025"],
 ["tick",577,"03580d03e446","-"],

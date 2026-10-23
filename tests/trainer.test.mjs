@@ -10,10 +10,10 @@ import assert from 'node:assert/strict';
 import {
   CIRCLES, MAX_CHOICES, coerceSetup, setupRows, applySetup, customRows, toggleCustom, itemSet,
   customHash, trainerId, parseTrainerId, trainerLabel, trainerSpec, choicesFor, qualityDistance,
-  allItems, subjectOf, startBlock, scaleChart, scaleDistance, progChart,
+  allItems, subjectOf, startBlock, scaleChart, scaleDistance, progChart, intervalDistance, noteDistance, notePc,
 } from '../src/trainer.mjs';
 import { CHORD_LEVELS, playable, qualityById } from '../src/chords.mjs';
-import { createQuiz, pressPitch, pickChoice, CORRECT, WRONG, EAR } from '../src/guess.mjs';
+import { createQuiz, pressPitch, pickChoice, itemOf, CORRECT, WRONG, EAR } from '../src/guess.mjs';
 import { drillId, drillLabel } from '../src/stats.mjs';
 import { MODES } from '../src/scales.mjs';
 
@@ -23,7 +23,7 @@ test('a fresh setup: the key and scale of the settings, level 1, diatonic roots'
   const s = coerceSetup('chord', 'read', null, { rootPc: 9, mode: 'minor' });
   assert.deepEqual(s, {
     answer: 'play', level: 1, roots: 'diatonic', inversions: false, sound: 'block', round: 10,
-    key: 9, scale: 'minor', custom: [],
+    key: 9, scale: 'minor', custom: [], circle: 'read',
   });
   assert.equal(coerceSetup('chord', 'read', null, { mode: 'chromatic' }).scale, 'major', 'chromatic is no key');
   assert.equal(coerceSetup('chord', 'play', { answer: 'name' }).answer, 'play', 'Play has no answer to choose');
@@ -408,4 +408,83 @@ test('a progression played back: chord by chord by name, a wrong chord played ag
   assert.equal(res, CORRECT);
   assert.deepEqual(quiz.items[quiz.entry.item].n, [1, 0], 'right only when the whole of it was');
   assert.ok(progChart('Pachelbel', 7, { voicing: 'bass', rhythm: 'waltz' }).timeSig[0] === 3);
+});
+
+/* ---- Notes and intervals ----------------------------------------------------- */
+
+test('notes: the ladder widens the range, then the spellings; Hear has no name', () => {
+  const rows = (circle, over = {}) => setupRows('note', circle, { ...coerceSetup('note', circle, null), ...over });
+  assert.deepEqual(rows('hear').map((r) => r.field || r.act), ['answer', 'level', 'round', 'start']);
+  assert.equal(rows('hear')[0].value, 'play back');
+  const s = coerceSetup('note', 'hear', null);
+  applySetup('note', s, 'answer', 1);
+  assert.equal(s.answer, 'hilo');
+  applySetup('note', s, 'answer', 1);
+  assert.equal(s.answer, 'hilo', 'no third answer: naming a heard pitch is not asked');
+  const pool = (level) => trainerSpec('note', 'play', { ...coerceSetup('note', 'play', null), level }, {}).pool;
+  assert.deepEqual([...new Set(pool(1).map((e) => e.item))], ['C', 'D', 'E', 'F', 'G']);
+  assert.ok(pool(1).every((e) => e.root >= 60 && e.root <= 67));
+  assert.ok(pool(3).some((e) => e.root < 60) && pool(3).some((e) => e.root > 72), 'two octaves');
+  const l4 = pool(4);
+  assert.ok(l4.some((e) => e.item === 'Db' && e.fifths < 0) && l4.some((e) => e.item === 'C#' && e.fifths > 0));
+  assert.ok(pool(5).some((e) => e.item === 'Cb'));
+  for (let level = 1; level <= 5; level++) for (const e of pool(level)) assert.ok(playable(e.pitches));
+});
+
+test('notes: every circle x answer x level runs and files notes', () => {
+  for (const circle of CIRCLES) {
+    const answers = circle === 'play' ? ['play'] : circle === 'read' ? ['play', 'name'] : ['play', 'hilo'];
+    for (const answer of answers) {
+      for (let level = 1; level <= 5; level++) {
+        const setup = { ...coerceSetup('note', circle, null), answer, level };
+        if (startBlock('note', circle, setup)) continue;
+        const quiz = createQuiz({ ...trainerSpec('note', circle, setup, { seed: level }), seed: 1 });
+        const where = `${circle}/${answer}/L${level}`;
+        assert.ok(quiz.pool.length > 0, where);
+        assert.equal(quiz.subject, 'note');
+        assert.equal(quiz.mode, circle);
+        assert.ok(itemOf(quiz, quiz.entry).item, where);
+      }
+    }
+  }
+});
+
+test('intervals: levels are sets of their own; name, compare and play', () => {
+  const s = coerceSetup('int', 'hear', null);
+  assert.equal(s.answer, 'name');
+  assert.deepEqual(itemSet('int', { ...s, level: 4 }), ['P4', 'P5', 'P8'], 'not everything below it');
+  assert.deepEqual(setupRows('int', 'hear', s).map((r) => r.field || r.act), ['answer', 'level', 'direction', 'round', 'start']);
+  for (const circle of CIRCLES) {
+    for (const answer of circle === 'play' ? ['play'] : ['name', 'compare', 'play']) {
+      for (let level = 1; level <= 8; level++) {
+        for (const direction of ['up', 'down', 'together']) {
+          const setup = { ...coerceSetup('int', circle, null), answer, level, direction };
+          const quiz = createQuiz({ ...trainerSpec('int', circle, setup, { seed: level }), seed: 1 });
+          const where = `${circle}/${answer}/L${level}/${direction}`;
+          /* Compound intervals heard and named are over the whole staff; played,
+           * only those the pads reach. */
+          if (answer === 'play' && level === 8) continue;
+          assert.ok(quiz.pool.length > 0, where);
+          assert.equal(quiz.subject, 'int', where);
+          const at = itemOf(quiz, quiz.entry);
+          assert.ok(at && itemSet('int', setup).indexOf(at.item) >= 0, `${where}: ${at && at.item}`);
+        }
+      }
+    }
+  }
+});
+
+test('an interval from its name: any octave of the first note, the second at its distance', () => {
+  const setup = { ...coerceSetup('int', 'play', null), level: 2, direction: 'up' };
+  const quiz = createQuiz({ ...trainerSpec('int', 'play', setup, { seed: 3 }), seed: 3 });
+  const [a, b] = quiz.entry.line;
+  assert.match(quiz.entry.label, /^(m3|M3) above [A-G][#b]?$/);
+  pressPitch(quiz, a + 12);
+  assert.equal(pressPitch(quiz, b), WRONG, 'the right letter, the wrong distance');
+  pressPitch(quiz, a - 12);
+  assert.equal(pressPitch(quiz, b - 12), CORRECT);
+  assert.equal(intervalDistance('m3', 'P5'), 4);
+  assert.equal(noteDistance('C#', 'Db'), 0.5);
+  assert.equal(notePc('B#'), 0);
+  assert.equal(notePc('Cb'), 11);
 });

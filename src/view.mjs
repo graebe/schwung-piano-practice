@@ -547,10 +547,12 @@ function drawStaffRow(ctx, state) {
     if (x > L.SCREEN_W + L.HEAD_W) break;
     const notes = [];
     const state0 = i === 0 && state.solved ? 'hit' : 'pending';
+    /* A prompt may bring its own spelling: the note trainer's Db is not C#. */
+    const f = queue[i].fifths != null ? queue[i].fifths : fifths;
     for (let n = 0; n < queue[i].pitches.length; n++) {
       const pitch = queue[i].pitches[n];
       if (!inStaffRange(pitch)) continue;
-      notes.push({ y: pitchToY(pitch, fifths), alter: spell(pitch, fifths).alter, state: state0 });
+      notes.push({ y: pitchToY(pitch, f), alter: spell(pitch, f).alter, state: state0 });
     }
     if (notes.length) R.drawEntry(ctx, { x, notes, label: '' });
   }
@@ -1195,7 +1197,9 @@ export function drawLineView(ctx, state) {
   R.drawStaff(ctx);
   const columns = state.staff || [];
   const xs = readColumnsX(columns);
-  for (let i = 0; i < Math.min(state.shown || 0, columns.length); i++) drawReadColumn(ctx, xs[i], columns[i].notes);
+  /* Read and played, the whole line is the prompt: shown from the start. */
+  const shown = state.all ? columns.length : Math.min(state.shown || 0, columns.length);
+  for (let i = 0; i < shown; i++) drawReadColumn(ctx, xs[i], columns[i].notes);
   ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
   R.drawClef(ctx);
   R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: true });

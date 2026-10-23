@@ -34,8 +34,12 @@ import {
 import { scaleKey, spell, MIN_PITCH, MAX_PITCH } from './notation.mjs';
 import { together, broken, ev, NOTE_GAP, rootName } from './ear_core.mjs';
 import { rng, PC_NAMES, playableRange, scalePitches, keyForScale } from './generator.mjs';
-import { spellLine } from './read_course.mjs';
-import { SCALE_GAP } from './ear_course.mjs';
+import {
+  spellLine, noteLabel, identifyPrompts, comparePrompts as readComparePrompts,
+} from './read_course.mjs';
+import { SCALE_GAP, comparePrompts as hearComparePrompts } from './ear_course.mjs';
+import { INTERVALS, interval, intervalPrompts, intervalEvents, melodic } from './ear_core.mjs';
+import { inStaffRange } from './notation.mjs';
 import {
   PROGRESSION_LEVELS, progressionById, progressionChords, progressionKey, keyName, numeralsLabel,
   progressionDistance,
@@ -128,15 +132,76 @@ const PROG = {
   spec: (...a) => progSpec(...a),
 };
 
-export const SUBJECTS = { scale: SCALE, chord: CHORD, prog: PROG };
+/*
+ * Notes: the smallest unit, so reading and finding it come first. The ladder
+ * widens the range and then the spellings: five white keys round middle C,
+ * the octave, two octaves with ledger lines, the sharps and flats, and last
+ * the enharmonic white keys (E#, Fb, B#, Cb). Heard, a note is played back or
+ * compared with the one before it: naming an absolute pitch is not a sensible
+ * exercise (owner, 2026-10-23).
+ */
+const NOTE = {
+  key: 'note',
+  name: 'Notes',
+  noun: ['note', 'notes'],
+  levels: [['C', 'D', 'E', 'F', 'G'], ['A', 'B'], [],
+    ['C#', 'Db', 'D#', 'Eb', 'F#', 'Gb', 'G#', 'Ab', 'A#', 'Bb'], ['E#', 'Fb', 'B#', 'Cb']],
+  levelText: ['C to G', '+ A B', '+ 2 octaves', '+ sharps', '+ E# Fb'],
+  itemLabel: (id) => id,
+  answers: { read: ['play', 'name'], hear: ['play', 'hilo'] },
+  fields: {
+    read: ['answer', 'level', 'round'],
+    hear: ['answer', 'level', 'round'],
+    play: ['level', 'round'],
+  },
+  defaults: { answer: 'play', level: 1, round: 10 },
+  spec: (...a) => noteSpec(...a),
+};
+
+/*
+ * Intervals: the course's order, each level a set of its own (a contrasting
+ * pair, then the pair with its neighbours) rather than everything below it.
+ * Asked up, down or together; named, compared (which of two is bigger), or
+ * played: both notes, the second the interval's distance from the first.
+ */
+const INT = {
+  key: 'int',
+  name: 'Intervals',
+  noun: ['interval', 'intervals'],
+  cumulative: false,
+  levels: [['m2', 'M2'], ['m3', 'M3'], ['m2', 'M2', 'm3', 'M3'], ['P4', 'P5', 'P8'],
+    ['m2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5'], ['m6', 'M6', 'm7', 'M7', 'P8'],
+    INTERVALS.filter((i) => i.semis <= 12).map((i) => i.key),
+    INTERVALS.filter((i) => i.semis > 12).map((i) => i.key)],
+  levelText: ['2nds', '3rds', '2nds 3rds', '4 5 octave', 'to the 5th', '6ths 7ths', 'to octave', 'compound'],
+  itemLabel: (id) => interval(id).label,
+  answers: { read: ['name', 'compare', 'play'], hear: ['name', 'compare', 'play'] },
+  directions: ['up', 'down', 'together'],
+  fields: {
+    read: ['answer', 'level', 'direction', 'round'],
+    hear: ['answer', 'level', 'direction', 'round'],
+    play: ['level', 'direction', 'round'],
+  },
+  defaults: { answer: 'name', level: 1, direction: 'up', round: 10 },
+  spec: (...a) => intSpec(...a),
+};
+
+export const SUBJECTS = { note: NOTE, int: INT, scale: SCALE, chord: CHORD, prog: PROG };
 
 export function subjectOf(key) {
   return SUBJECTS[key] || null;
 }
 
-/* Every item of a subject, in ladder order. */
+/* A level's items: everything up to it, or — for a subject whose levels are
+ * sets of their own, as the interval course's units are — just its own. */
+export function levelItems(s, n) {
+  if (s.cumulative === false) return s.levels[n - 1].slice();
+  return [].concat(...s.levels.slice(0, n));
+}
+
+/* Every item of a subject, in ladder order, each once. */
 export function allItems(subject) {
-  return [].concat(...subjectOf(subject).levels);
+  return [].concat(...subjectOf(subject).levels).filter((x, i, all) => all.indexOf(x) === i);
 }
 
 /* ---- The rows ------------------------------------------------------------- */
@@ -149,11 +214,15 @@ const SCALE_IDS = Object.keys(MODES).filter((m) => m !== 'chromatic');
  * where there are two answers.
  */
 const FIELDS = {
-  answer: { label: 'Answer', values: () => ['play', 'name'], text: (v) => v },
+  answer: {
+    label: 'Answer',
+    values: (s, setup) => answersOf(s, setup.circle),
+    text: (v, s, setup) => (v === 'play' && s.key === 'note' && setup.circle === 'hear' ? 'play back' : ANSWER_TEXT[v]),
+  },
   level: {
     label: 'Level',
     values: (s, setup) => {
-      const from = setup.answer === 'name' ? firstNamingLevel(s) : 1;
+      const from = needsTwo(setup) ? firstNamingLevel(s) : 1;
       const out = [];
       for (let n = from; n <= s.levels.length; n++) out.push(n);
       return out.concat(['custom']);
@@ -175,7 +244,7 @@ const FIELDS = {
   },
   inversions: { label: 'Inversions', values: () => [false, true], text: (v) => (v ? 'on' : 'off') },
   sound: { label: 'Sound', values: () => ['block', 'broken'], text: (v) => v },
-  direction: { label: 'Direction', values: () => ['up', 'down', 'both'], text: (v) => v },
+  direction: { label: 'Direction', values: (s) => s.directions || ['up', 'down', 'both'], text: (v) => v },
   pattern: {
     label: 'Pattern',
     values: () => ['straight', '3rds', '5ths'],
@@ -189,9 +258,19 @@ const FIELDS = {
 };
 
 function firstNamingLevel(s) {
-  for (let n = 1; n <= s.levels.length; n++) if ([].concat(...s.levels.slice(0, n)).length >= 2) return n;
+  for (let n = 1; n <= s.levels.length; n++) if (levelItems(s, n).length >= 2) return n;
   return 1;
 }
+
+/* What a circle's Answer row offers: play or name, unless the subject says.
+ * (Notes heard: play back, or higher or lower; intervals: name, compare,
+ * play.) Everything but playing tells answers apart, so needs two. */
+function answersOf(s, circle) {
+  if (circle === 'play') return ['play'];
+  return (s.answers && s.answers[circle]) || ['play', 'name'];
+}
+const ANSWER_TEXT = { play: 'play', name: 'name', compare: 'compare', hilo: 'higher/lower' };
+const needsTwo = (setup) => setup.answer !== 'play';
 
 /*
  * A setup as stored, made whole: every field this circle shows, each a value
@@ -201,7 +280,9 @@ function firstNamingLevel(s) {
 export function coerceSetup(subject, circle, stored, ctx = {}) {
   const s = subjectOf(subject);
   const src = stored && typeof stored === 'object' ? stored : {};
-  const setup = { ...s.defaults, key: ctx.rootPc == null ? 0 : ctx.rootPc };
+  /* `circle` rides along: which answers a row offers depends on it. */
+  const setup = { ...s.defaults, key: ctx.rootPc == null ? 0 : ctx.rootPc, circle };
+  if (answersOf(s, circle).indexOf(setup.answer) < 0) setup.answer = answersOf(s, circle)[0];
   if (s.fields.read.indexOf('scale') >= 0) {
     setup.scale = MODES[ctx.mode] && ctx.mode !== 'chromatic' ? ctx.mode : 'major';
   }
@@ -233,7 +314,7 @@ export function setupRows(subject, circle, setup) {
   const rows = [];
   for (const f of s.fields[circle]) {
     if (s.hidden && s.hidden(f, circle, setup)) continue;
-    rows.push({ label: FIELDS[f].label, value: FIELDS[f].text(setup[f], s), edit: 'trainer', field: f });
+    rows.push({ label: FIELDS[f].label, value: FIELDS[f].text(setup[f], s, setup), edit: 'trainer', field: f });
     if (f === 'level' && setup.level === 'custom') {
       rows.push({ label: s.name, value: setup.custom.length + ' >', act: 'custom' });
     }
@@ -252,7 +333,7 @@ export function setupRows(subject, circle, setup) {
  */
 export function startBlock(subject, circle, setup) {
   const s = subjectOf(subject);
-  const need = circle !== 'play' && setup.answer === 'name' ? 2 : 1;
+  const need = circle !== 'play' && needsTwo(setup) ? 2 : 1;
   if (itemSet(subject, setup).length >= need) return null;
   return 'tick ' + need + ' ' + s.noun[need === 1 ? 0 : 1];
 }
@@ -270,7 +351,7 @@ export function applySetup(subject, setup, field, delta) {
   /* A new Custom pick starts as the level it was chosen from: the jog came
    * from there, and an empty pick asks nothing. */
   if (field === 'level' && setup.level === 'custom' && !setup.custom.length && before !== 'custom') {
-    setup.custom = [].concat(...s.levels.slice(0, before));
+    setup.custom = levelItems(s, before);
   }
   /* Naming needs two answers: a level of one moves up to the first that has. */
   if (field === 'answer') {
@@ -299,7 +380,7 @@ export function toggleCustom(subject, setup, item) {
 /* What a round asks: the level's items, or the Custom pick. */
 export function itemSet(subject, setup) {
   if (setup.level === 'custom') return setup.custom.slice();
-  return [].concat(...subjectOf(subject).levels.slice(0, setup.level));
+  return levelItems(subjectOf(subject), setup.level);
 }
 
 /* ---- Ids ------------------------------------------------------------------ */
@@ -740,4 +821,160 @@ function progSpec(s, circle, setup, ctx, base) {
   };
   return namingSpec(s, circle, set, prompts, progressionDistance, (q) => progressionById(q).mark,
     'which progression?', { ...base, context, gen: { rootPc: 0, mode: 'chromatic' } });
+}
+
+/* ---- Notes ---- */
+
+const LETTER_PC = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const noteAlter = (name) => (name[1] === '#' ? 1 : name[1] === 'b' ? -1 : 0);
+export const notePc = (name) => (LETTER_PC[name[0]] + noteAlter(name) + 12) % 12;
+/* The key a name is spelled in: a sharp in C# major, a flat in Cb major. */
+const noteFifths = (name) => (noteAlter(name) > 0 ? 7 : noteAlter(name) < 0 ? -7 : 0);
+
+/* Where a level's notes may be: round middle C, its octave, then the whole
+ * staff the pads reach. A Custom pick has the whole range. */
+function noteRange(setup, transpose) {
+  const pads = playableRange(transpose);
+  const all = { lo: Math.max(pads.lo, MIN_PITCH), hi: Math.min(pads.hi, MAX_PITCH) };
+  if (setup.level === 1) return { lo: Math.max(all.lo, 60), hi: Math.min(all.hi, 67) };
+  if (setup.level === 2) return { lo: Math.max(all.lo, 60), hi: Math.min(all.hi, 71) };
+  return all;
+}
+
+/* Two names, how far apart: the semitones between them round the octave,
+ * and a spelling apart counts a little — C# is near Db, not the same. */
+export function noteDistance(a, b) {
+  const d = Math.abs(notePc(a) - notePc(b));
+  return Math.min(d, 12 - d) + (a[0] === b[0] ? 0 : 0.5);
+}
+
+function noteSpec(s, circle, setup, ctx, base0) {
+  const set = itemSet(s.key, setup);
+  const transpose = ctx.transpose == null ? DEFAULT_TRANSPOSE : ctx.transpose;
+  const { lo, hi } = noteRange(setup, transpose);
+  const pool = [];
+  for (let p = lo; p <= hi; p++) {
+    if (!inStaffRange(p)) continue;
+    for (const name of set) {
+      if (notePc(name) !== ((p % 12) + 12) % 12) continue;
+      pool.push({ pitches: [p], item: name, label: name, fifths: noteFifths(name), root: p });
+    }
+  }
+  const base = { ...base0, gen: { rootPc: 0, mode: 'major' }, context: { r: lo + '-' + hi } };
+  if (circle === 'play') return { ...base, kind: 'notes', read: 'name', how: 'name', pool };
+  if (setup.answer === 'play') {
+    if (circle === 'read') return { ...base, kind: 'notes', read: 'staff', how: 'exact', pool };
+    return { ...base, kind: 'notes', hear: true, how: 'name', pool };
+  }
+  if (setup.answer === 'hilo') {
+    /* Two notes of the level, one after the other: is the second higher? */
+    const answers = [{ key: 'higher', label: 'Higher', short: 'Hi' }, { key: 'same', label: 'Same', short: '=' },
+      { key: 'lower', label: 'Lower', short: 'Lo' }];
+    const prompts = () => {
+      const out = [];
+      for (const a of pool) {
+        for (const b of pool) {
+          const answer = b.root > a.root ? 'higher' : b.root < a.root ? 'lower' : 'same';
+          out.push({ answer, judged: b.item, root: b.root, events: melodic([a.root, b.root]), label: a.label + ' then ' + b.label });
+        }
+      }
+      return out;
+    };
+    const exercise = {
+      key: 'trainer-note-hilo', name: s.name, short: s.name, question: 'second note is...', read: false, answers,
+      levels: [{ key: 'trainer', name: '', prompts }],
+    };
+    return { ...base, kind: 'ear', exercise, level: 'trainer', hear: true, pick: true };
+  }
+  /* Read and name: a note on the staff, spelled as its name is. */
+  const prompts = () => pool.map((e) => {
+    const sp = spell(e.root, e.fifths);
+    return {
+      answer: e.item, root: e.root, label: e.item, events: [ev(e.root, 0, NOTE_GAP)],
+      staff: [{ part: 0, notes: [{ pitch: e.root, diatonic: sp.diatonic, alter: sp.alter }] }],
+    };
+  });
+  return namingSpec(s, circle, set, prompts, noteDistance, (q) => q, 'which note?', base);
+}
+
+/* ---- Intervals ---- */
+
+const COMPARE = [
+  { key: 'first', label: 'First bigger', short: '1' },
+  { key: 'same', label: 'Same', short: '=' },
+  { key: 'second', label: 'Second bigger', short: '2' },
+];
+
+/* Two characters for an interval on the answer map: its key, or for a
+ * compound one the key past the octave (b9, 10, d2...). */
+const INT_MARK = {
+  m9: 'b9', M9: '9', m10: 'b0', M10: '10', P11: '11', d12: 'd2', P12: '12', m13: 'b3', M13: '13',
+  m14: 'b4', M14: '14', P15: '15',
+};
+const intMark = (k) => INT_MARK[k] || k;
+
+/* How far apart two intervals are: in semitones. */
+export const intervalDistance = (a, b) => Math.abs(interval(a).semis - interval(b).semis);
+
+/* Where intervals are heard: on the pads when the widest fits, else over the
+ * whole staff — hearing needs no pad (the ear course's rule). */
+function intRange(set, transpose) {
+  const pads = playableRange(transpose);
+  const span = Math.max(...set.map((k) => interval(k).semis));
+  const reach = { lo: Math.max(pads.lo, MIN_PITCH), hi: Math.min(pads.hi, MAX_PITCH) };
+  return reach.hi - reach.lo >= span + 2 ? reach : { lo: MIN_PITCH, hi: MAX_PITCH };
+}
+
+function intSpec(s, circle, setup, ctx, base0) {
+  const set = itemSet(s.key, setup);
+  const transpose = ctx.transpose == null ? DEFAULT_TRANSPOSE : ctx.transpose;
+  const way = setup.direction;
+  const base = { ...base0, gen: { rootPc: 0, mode: 'chromatic' }, context: { d: way } };
+  const read = circle === 'read';
+  if (circle === 'play' || setup.answer === 'play') {
+    /* Both notes, played in turn — low then high for one heard together. */
+    const pads = playableRange(transpose);
+    const pool = [];
+    for (let low = Math.max(pads.lo, MIN_PITCH); low <= Math.min(pads.hi, MAX_PITCH); low++) {
+      for (const k of set) {
+        const iv = interval(k);
+        if (low + iv.semis > Math.min(pads.hi, MAX_PITCH)) continue;
+        const pair = spellLine(low, [0, iv.semis], [0, iv.steps - 1]);
+        if (!pair) continue;
+        const down = way === 'down';
+        const line = down ? [low + iv.semis, low] : [low, low + iv.semis];
+        const anchor = down ? pair[1] : pair[0];
+        const staff = way === 'together'
+          ? [{ part: 0, notes: pair }]
+          : (down ? [pair[1], pair[0]] : pair).map((n) => ({ part: 0, notes: [n] }));
+        pool.push({
+          pitches: line, line, relative: !read, item: k, root: low, way,
+          label: k + (down ? ' below ' : ' above ') + noteLabel(anchor),
+          itemLabel: iv.label,
+          events: intervalEvents(line[0], iv.semis, way),
+          staff,
+        });
+      }
+    }
+    if (circle === 'play') return { ...base, kind: 'notes', read: 'name', pool };
+    if (read) return { ...base, kind: 'notes', read: 'staff', how: 'exact', pool };
+    return { ...base, kind: 'notes', hear: true, pool };
+  }
+  if (setup.answer === 'compare') {
+    /* Two intervals: which is bigger? Filed under the bigger one, the one
+     * the ear had to measure (stats.mjs). */
+    const unit = 'trainer-' + customHash(set);
+    const make = read ? readComparePrompts(unit, set, way, false) : hearComparePrompts(unit, set, way, false);
+    const range = intRange(set, transpose);
+    const exercise = {
+      key: 'trainer-int-compare-' + circle, name: s.name, short: s.name, question: 'which is bigger?', read,
+      answers: COMPARE,
+      levels: [{ key: 'trainer', name: '', staffOnly: read, span: range.hi - range.lo, prompts: () => make(range) }],
+    };
+    return { ...base, kind: 'ear', exercise, level: 'trainer', hear: !read, pick: true };
+  }
+  /* Naming, read or heard, as the courses ask it. */
+  const range = intRange(set, transpose);
+  const prompts = read ? identifyPrompts(set, way) : intervalPrompts(set, way);
+  return namingSpec(s, circle, set, () => prompts(range), intervalDistance, intMark, 'which interval?', base);
 }

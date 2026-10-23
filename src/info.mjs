@@ -379,6 +379,24 @@ function earPage(exKey, levelKey) {
  * which is the point of them.
  */
 const TRAINER_TEXT = {
+  note: {
+    ring: 'Notes, as a trainer. Read a note off the staff, hear one, or find one from its name; Learn holds the reading lines; Stats shows which notes you know.',
+    read: 'A note on the staff. Play it, in the octave it is written, or name it from a short list.',
+    hear: 'A note sounds. Play it back, in any octave, or say whether the second of two is higher, the same, or lower.',
+    play: 'A note\'s name, like F#. Play it: any octave counts.',
+    stats: 'Every note you have been asked, weakest first: how much of it was right read, heard and played.',
+    ladder: 'Level 1 is C to G round middle C; each level adds: A and B; two octaves with ledger lines; the sharps and flats; the enharmonic white keys, E#, Fb, B#, Cb. Custom picks your own.',
+    terms: ['sharp', 'octave', 'level'],
+  },
+  int: {
+    ring: 'Intervals, as a trainer. Read one off the staff, hear one, or play one from its name; Learn holds the melodic drills; Stats shows which intervals you know.',
+    read: 'An interval on the staff. Name it, compare two of them, or play both notes as written.',
+    hear: 'An interval sounds, up, down or together. Name it, compare two, or play it back: any octave, at the right distance.',
+    play: 'An interval\'s name, like M3 above D. Play both notes: any D, and the note a major 3rd above that D.',
+    stats: 'Every interval you have been asked, weakest first: how much of it was right read, heard and played. A comparison counts for the bigger one.',
+    ladder: 'Each level is a set of its own, as the course runs: 2nds; 3rds; the two together; 4th, 5th, octave; everything to the 5th; 6ths and 7ths; everything to the octave; the compound intervals. Custom picks your own.',
+    terms: ['interval', 'compare', 'compound', 'level'],
+  },
   prog: {
     ring: 'Progressions, as a trainer. Read one off the staff, hear one after its home chord, or play one from its numerals; Learn holds the eleven charts; Stats shows which progressions you know.',
     read: 'A progression on the staff. Play it as written, voiced and in a rhythm of your choice, or name which progression it is.',
@@ -422,7 +440,7 @@ export function trainerPage(subject, circle, label) {
   } else {
     sections.push(sec('', CIRCLE_TEXT.common));
   }
-  const name = { scale: 'Scales', chord: 'Chords', prog: 'Progressions' }[subject];
+  const name = { note: 'Notes', int: 'Intervals', scale: 'Scales', chord: 'Chords', prog: 'Progressions' }[subject];
   return page('trainer:' + subject + (circle ? ':' + circle : ''), label || name, sections, t.terms);
 }
 

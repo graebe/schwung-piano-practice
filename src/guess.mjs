@@ -520,7 +520,9 @@ function miss(quiz) {
  */
 function pressLine(quiz, pitch, nowMs) {
   quiz.played.push(pitch);
-  const result = matchScale(quiz.played, quiz.entry.line, quiz.how === 'exact' ? 'exact' : 'any');
+  const result = quiz.entry.relative
+    ? matchShape(quiz.played, quiz.entry.line)
+    : matchScale(quiz.played, quiz.entry.line, quiz.how === 'exact' ? 'exact' : 'any');
   if (result === CORRECT) solve(quiz, nowMs);
   else if (result === WRONG) {
     miss(quiz);
@@ -554,6 +556,23 @@ function pressChords(quiz, pitch, nowMs) {
   return CORRECT;
 }
 
+/*
+ * A line judged by its shape (an interval from its name or by ear): the first
+ * note any octave of the one asked, each after it the same distance from the
+ * first as in the line — an M3 above D is any D and the F# a major 3rd above
+ * that D, not any F#.
+ */
+function matchShape(played, line) {
+  if (played.length > line.length) return WRONG;
+  for (let i = 0; i < played.length; i++) {
+    const ok = i === 0
+      ? (((played[0] - line[0]) % 12) + 12) % 12 === 0
+      : played[i] - played[0] === line[i] - line[0];
+    if (!ok) return WRONG;
+  }
+  return played.length === line.length ? CORRECT : INCOMPLETE;
+}
+
 /* How much of a line or a row of chords is down: notes, or chords. */
 export function lineProgress(quiz) {
   if (!quiz.entry) return 0;
@@ -583,6 +602,8 @@ export function answerKey(quiz, entry) {
     const a = (quiz.answers || []).find((x) => x.key === entry.answer);
     return { key: entry.answer, label: a ? a.label : entry.answer };
   }
+  /* A trainer's entry is filed under its item, as the table files it. */
+  if (entry.item) return { key: entry.item, label: entry.itemLabel || entry.item };
   if (entry.pitches.length === 1) {
     const name = spell(entry.pitches[0], quiz.fifths).label;
     return { key: name, label: name };
@@ -676,6 +697,8 @@ export function optionLabel(quiz, entry) {
  * shows its notes, which is the honest name for it.
  */
 export function entryName(quiz, entry) {
+  /* A trainer's entry names itself: "Db", "M3 above D". */
+  if (entry.item && entry.label) return entry.label;
   if (entry.pitches.length === 1) return spell(entry.pitches[0], quiz.fifths).label;
   return entry.label || nameChord(entry.pitches, quiz.fifths) || chordLabel(entry.pitches, quiz.fifths);
 }

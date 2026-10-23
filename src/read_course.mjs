@@ -102,7 +102,7 @@ function columns(pair, way, part = 0) {
 
 /* ---- Read intervals ------------------------------------------------------------ */
 
-function identifyPrompts(keys, way) {
+export function identifyPrompts(keys, way) {
   const ways = WAYS[way];
   return () => {
     const out = [];
@@ -145,7 +145,7 @@ function lengthOf(events) {
 /* An interval's lower note when its first-heard note is `anchor`. */
 const lowOf = (anchor, semis, way) => (way === 'down' ? anchor - semis : anchor);
 
-function comparePrompts(unitKey, keys, way, fixed) {
+export function comparePrompts(unitKey, keys, way, fixed) {
   return () => {
     const rand = rng(seedOf('read/' + unitKey + '/' + way + (fixed ? '/fix' : '')));
     const ways = WAYS[way];
