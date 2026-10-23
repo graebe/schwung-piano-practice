@@ -99,6 +99,8 @@ function table(screen, s) {
     case SETTINGS:
       if (s.editing) return { keys: ['JOG change', 'CLICK ok'], shift: [QUIT] };
       if (s.start) return { keys: ['CLICK start', 'BACK up'], shift: ['CLICK close', QUIT] };
+      /* Start, but the pick is too small: its row says what is missing. */
+      if (s.blocked) return { keys: ['JOG choose', 'BACK up'], shift: ['CLICK close', QUIT] };
       if (s.tick) return { keys: ['CLICK tick', 'BACK done'], shift: ['CLICK close', QUIT] };
       return { keys: [s.open ? 'CLICK open' : s.action ? 'CLICK do it' : 'CLICK edit', 'BACK up'],
         shift: ['CLICK close', QUIT] };

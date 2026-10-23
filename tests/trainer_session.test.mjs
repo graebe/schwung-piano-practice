@@ -101,39 +101,73 @@ test('a setup is remembered per circle, and kept in the progress file', () => {
   assert.equal(saved.trainers.chord.play.level, 3);
 });
 
-test('Custom: the tick list, its row, and a round of only the picked', () => {
+test('Custom: starts as the level it came from; the tick list; a round of only the picked', () => {
   const h = start();
   openPath(S(h), ['Read']);
   S(h).selectSettingRow(row(h, 'Level'));
-  for (let i = 0; i < 12; i++) S(h).editRow(row(h, 'Level'), 1);
+  S(h).editRow(row(h, 'Level'), 6);
+  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, '2 + minor', 'one step a turn');
+  for (let i = 0; i < 7; i++) S(h).editRow(row(h, 'Level'), 1);   /* 2 -> ... -> 8 -> custom */
+  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, 'custom');
   const at = row(h, 'Chords');
-  assert.equal(S(h).settingsRows()[at].act, 'custom');
+  assert.equal(S(h).settingsRows()[at].value, '27 >', 'chosen from level 8: its whole set ticked');
   S(h).selectSettingRow(at);
   S(h).activate(false);
   assert.equal(S(h).settingsTitle(), 'Chords custom');
-  const ticks = S(h).settingsRows();
-  S(h).selectSettingRow(ticks.findIndex((r) => r.item === 'm7'));
-  S(h).activate(false);
-  S(h).selectSettingRow(ticks.findIndex((r) => r.item === 'dim'));
-  S(h).activate(false);
+  /* Untick all but two. */
+  for (const r of S(h).settingsRows()) {
+    if (r.item === 'm7' || r.item === 'dim') continue;
+    S(h).selectSettingRow(S(h).settingsRows().findIndex((x) => x.item === r.item));
+    S(h).activate(false);
+  }
   S(h).back();
   assert.equal(S(h).settingsTitle(), 'Chords Read');
   assert.equal(S(h).settingsRows()[S(h).settingsCursor].act, 'custom', 'back on the row that opened it');
+  assert.equal(S(h).settingsRows()[S(h).settingsCursor].value, '2 >');
   S(h).selectSettingRow(S(h).settingsRows().length - 1);
   S(h).activate(false);
   const kinds = new Set(S(h).quiz.pool.map((e) => e.qualityId));
   assert.deepEqual([...kinds].sort(), ['dim', 'm7']);
 });
 
-test('an empty Custom pick does not start', () => {
+test('Start waits for enough ticked: one to play, two to name', () => {
   const h = start();
   openPath(S(h), ['Read']);
   S(h).selectSettingRow(row(h, 'Level'));
-  for (let i = 0; i < 12; i++) S(h).editRow(row(h, 'Level'), 1);
+  S(h).editRow(row(h, 'Level'), 1);                      /* 2: maj, min */
+  for (let i = 0; i < 7; i++) S(h).editRow(row(h, 'Level'), 1);
+  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, 'custom');
+  S(h).selectSettingRow(row(h, 'Chords'));
+  S(h).activate(false);
+  const untick = (item) => {
+    S(h).selectSettingRow(S(h).settingsRows().findIndex((x) => x.item === item));
+    S(h).activate(false);
+  };
+  for (const r of S(h).settingsRows().filter((x) => x.value === 'on')) untick(r.item);
+  S(h).back();
+  const startRow = () => S(h).settingsRows()[S(h).settingsRows().length - 1];
+  assert.deepEqual([startRow().value, startRow().disabled], ['tick 1 chord', true]);
+  S(h).selectSettingRow(S(h).settingsRows().length - 1);
+  assert.deepEqual(S(h).hint(), ['JOG choose  BACK up']);
+  S(h).activate(false);
+  assert.equal(S(h).view, SETTINGS, 'nothing starts');
+  assert.ok(h.said().some((t) => /Not yet: tick 1 chord/.test(t)));
+  /* Naming: one ticked is still not enough. */
+  S(h).selectSettingRow(row(h, 'Answer'));
+  S(h).editRow(row(h, 'Answer'), 1);
+  S(h).selectSettingRow(row(h, 'Chords'));
+  S(h).activate(false);
+  untick('maj');
+  S(h).back();
+  assert.equal(startRow().value, 'tick 2 chords');
+  S(h).selectSettingRow(row(h, 'Chords'));
+  S(h).activate(false);
+  untick('min');
+  S(h).back();
+  assert.equal(startRow().value, '>');
   S(h).selectSettingRow(S(h).settingsRows().length - 1);
   S(h).activate(false);
-  assert.equal(S(h).view, SETTINGS);
-  assert.ok(h.said().some((t) => /Pick something first/.test(t)));
+  assert.equal(S(h).view, GUESS_VIEW);
 });
 
 test('Stats: weakest first, a row\'s detail, Back to the ring', () => {

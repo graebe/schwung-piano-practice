@@ -2216,6 +2216,10 @@ export function createSession(fx, opts = {}) {
       return;
     }
     if (r.act === 'start') {
+      if (r.disabled) {
+        announce('Not yet: ' + r.value + '.');
+        return;
+      }
       startTrainer(trainerOpen.subject, trainerOpen.circle);
       return;
     }
@@ -2331,8 +2335,9 @@ export function createSession(fx, opts = {}) {
   /* A round with the setup as it stands; a Custom pick needs something picked. */
   function startTrainer(subject, circle) {
     const setup = trainerSetup(subject, circle);
-    if (!TRAIN.itemSet(subject, setup).length) {
-      announce('Pick something first.');
+    const blocked = TRAIN.startBlock(subject, circle, setup);
+    if (blocked) {
+      announce('Not yet: ' + blocked + '.');
       return;
     }
     if (setup.level === 'custom') {
@@ -2688,7 +2693,8 @@ export function createSession(fx, opts = {}) {
       st.editing = settingsEditing;
       st.action = Boolean(r && r.act);
       st.open = Boolean(r && (r.act === 'advanced' || r.act === 'custom'));
-      st.start = Boolean(r && r.act === 'start');
+      st.start = Boolean(r && r.act === 'start' && !r.disabled);
+      st.blocked = Boolean(r && r.act === 'start' && r.disabled);
       st.tick = Boolean(r && r.act === 'tick');
       st.trainer = settingsGroup === TRAINER_GROUP;
     }

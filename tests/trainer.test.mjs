@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import {
   CIRCLES, MAX_CHOICES, coerceSetup, setupRows, applySetup, customRows, toggleCustom, itemSet,
   customHash, trainerId, parseTrainerId, trainerLabel, trainerSpec, choicesFor, qualityDistance,
-  allItems, subjectOf,
+  allItems, subjectOf, startBlock,
 } from '../src/trainer.mjs';
 import { CHORD_LEVELS, playable, qualityById } from '../src/chords.mjs';
 import { createQuiz, pressPitch, pickChoice, CORRECT, WRONG, EAR } from '../src/guess.mjs';
@@ -219,4 +219,26 @@ test('every quality the trainer names has a two-character mark of its own', () =
   for (const m of marks) assert.ok(m && m.length <= 2, m);
   assert.equal(new Set(marks).size, marks.length);
   assert.equal(subjectOf('nope'), null);
+});
+
+test('a new Custom pick starts as the level it was chosen from; Start needs enough', () => {
+  const s = fresh('read', { level: 3 });
+  for (let i = 0; i < 6; i++) applySetup('chord', s, 'level', 1);
+  assert.equal(s.level, 'custom');
+  assert.deepEqual(s.custom, [].concat(...CHORD_LEVELS), 'from level 8: all of it');
+  const t = fresh('hear', { level: 4 });
+  t.level = 8;
+  t.custom = ['maj'];
+  applySetup('chord', t, 'level', 1);
+  assert.deepEqual(t.custom, ['maj'], 'a pick already made is kept');
+  const u = fresh('read', { level: 'custom', custom: [] });
+  assert.equal(startBlock('chord', 'read', u), 'tick 1 chord');
+  assert.equal(setupRows('chord', 'read', u).at(-1).disabled, true);
+  u.answer = 'name';
+  u.custom = ['maj'];
+  assert.equal(startBlock('chord', 'read', u), 'tick 2 chords');
+  assert.equal(startBlock('chord', 'play', { ...u, answer: 'play' }), null, 'Play plays: one is enough');
+  u.custom = ['maj', 'min'];
+  assert.equal(startBlock('chord', 'read', u), null);
+  assert.equal(setupRows('chord', 'read', u).at(-1).value, '>');
 });

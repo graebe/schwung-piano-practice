@@ -443,7 +443,7 @@ const SCREENS = {
   'pick, eight chord answers on the map': (c) => V.drawPick(c, {
     title: 'CHORDS HEAR', score: '19/20', index: 7,
     options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
-    short: ['M', 'm', 'o', '+', '7', 'M7', 'm7', 'mM'],
+    short: ['M', 'm', '°', '+', '7', 'M7', 'm7', 'mM'],
     colours: ['blue', 'orange', 'cyan', 'pink', 'green', 'yellow', 'purple', 'red'],
     hint: 'which chord?', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
   }),
@@ -531,7 +531,7 @@ test('every footer this module can show fits across the screen', () => {
     { stages: true, stage: 1 }, { stages: true, stage: 2 }, { listening: true }, { paused: true },
     { paused: true, listening: true }, { quiz: true, twoNext: true }, { ear: true, hintsLeft: true },
     { ear: true }, { pick: true, hintsLeft: true }, { pick: true }, { hintsLeft: true, streak: 999 },
-    { streak: 999 }, { editing: true }, { action: true }, { start: true }, { tick: true }, { empty: true },
+    { streak: 999 }, { editing: true }, { action: true }, { start: true }, { tick: true }, { empty: true }, { blocked: true },
     { open: true }];
   for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
     'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim', 'trainer-stats']) {

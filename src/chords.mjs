@@ -119,15 +119,17 @@ const NAMES = {
   '7b5': '7b5', '7b9': '7b9', '7#9': '7#9', '7alt': 'Altered 7th',
 };
 /*
- * Two characters for a cell of the answer map, where a name cannot fit: the
- * lead-sheet marks (M major, m minor, o diminished, + augmented), the
- * suffix where it is short already, and for the rest the part of the suffix
- * that tells it from its neighbours — hd half-diminished, b9 the 7b9.
+ * Two characters for a cell of the answer map, where a name cannot fit (the
+ * jog's choice always shows the whole name under the map). The lead-sheet
+ * symbols as they are written after a root — M, m, ° (in the Move's font),
+ * +, 7, M7, m7, 6/9 as 69, add9 as the pop chart's 2 — and where a symbol is
+ * longer than two, the part that tells it from its neighbours: h7 the
+ * half-diminished 7th, b9 the 7b9, 7s the 7sus4. Each one different.
  */
 const SHORT = {
-  maj: 'M', min: 'm', dim: 'o', aug: '+', sus2: 's2', sus4: 's4', 5: '5',
-  7: '7', maj7: 'M7', m7: 'm7', m7b5: 'hd', dim7: 'o7', 6: '6', m6: 'm6',
-  add9: 'a9', madd9: 'ma', 9: '9', maj9: 'M9', m9: 'm9', 69: '69',
+  maj: 'M', min: 'm', dim: '°', aug: '+', sus2: 's2', sus4: 's4', 5: '5',
+  7: '7', maj7: 'M7', m7: 'm7', m7b5: 'h7', dim7: '°7', 6: '6', m6: 'm6',
+  add9: '2', madd9: 'm2', 9: '9', maj9: 'M9', m9: 'm9', 69: '69',
   '7b5': 'b5', '7#5': '#5', '7b9': 'b9', '7#9': '#9', '7sus4': '7s', '9sus4': '9s', mMaj7: 'mM',
 };
 for (const q of ALL_QUALITIES) {

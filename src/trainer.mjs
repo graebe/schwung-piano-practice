@@ -47,6 +47,7 @@ export const MAX_CHOICES = 8;
 const CHORD = {
   key: 'chord',
   name: 'Chords',
+  noun: ['chord', 'chords'],
   levels: CHORD_LEVELS,
   levelText: ['major', '+ minor', '+ dim aug', '+ sus 5', '+ 7 maj7 m7', '+ m7b5 6ths', '+ 9ths add9',
     '+ altered'],
@@ -161,8 +162,23 @@ export function setupRows(subject, circle, setup) {
       rows.push({ label: s.name, value: setup.custom.length + ' >', act: 'custom' });
     }
   }
-  rows.push({ label: 'Start', value: '>', act: 'start' });
+  const blocked = startBlock(subject, circle, setup);
+  rows.push(blocked
+    ? { label: 'Start', value: blocked, act: 'start', disabled: true }
+    : { label: 'Start', value: '>', act: 'start' });
   return rows;
+}
+
+/*
+ * Why a round cannot start yet, or null when it can: a Custom pick needs
+ * something to ask, and naming needs two things to tell apart. The same rule
+ * for every trainer; the Start row says it ("tick 2 chords").
+ */
+export function startBlock(subject, circle, setup) {
+  const s = subjectOf(subject);
+  const need = circle !== 'play' && setup.answer === 'name' ? 2 : 1;
+  if (itemSet(subject, setup).length >= need) return null;
+  return 'tick ' + need + ' ' + s.noun[need === 1 ? 0 : 1];
 }
 
 /* The jog on a row: the next or previous value, clamped. True when it moved. */
@@ -173,7 +189,13 @@ export function applySetup(subject, setup, field, delta) {
   const at = Math.max(0, values.indexOf(setup[field]));
   const to = Math.max(0, Math.min(values.length - 1, at + (delta > 0 ? 1 : -1)));
   if (to === at && values.indexOf(setup[field]) >= 0) return false;
+  const before = setup[field];
   setup[field] = values[to];
+  /* A new Custom pick starts as the level it was chosen from: the jog came
+   * from there, and an empty pick asks nothing. */
+  if (field === 'level' && setup.level === 'custom' && !setup.custom.length && before !== 'custom') {
+    setup.custom = [].concat(...s.levels.slice(0, before));
+  }
   /* Naming needs two answers: a level of one moves up to the first that has. */
   if (field === 'answer') {
     const levels = valuesOf(s, setup, 'level');
