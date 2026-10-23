@@ -28,10 +28,12 @@ test('the selected pad pulses on the 500 ms phase', () => {
   assert.equal(homePadColors({ count: 5, selected: 1, now: 250, palette: PALETTE })[1], PALETTE.item, 'the others steady');
 });
 
-test('fewer items light fewer pads; a caller-owned array is filled in place', () => {
+test('a smaller ring lights its pads centred under it; a caller-owned array is filled in place', () => {
   const out = new Array(32).fill(9);
   const got = homePadColors({ count: 3, selected: 0, now: 0, palette: PALETTE, out });
   assert.equal(got, out);
-  assert.deepEqual(out.slice(0, 6), [0, 2, 1, 1, 0, 0]);
+  assert.deepEqual(out.slice(0, 6), [0, 0, 2, 1, 1, 0], 'three on columns 2..4');
+  assert.deepEqual(homePadColors({ count: 2, selected: 1, palette: PALETTE }).slice(0, 8), [0, 0, 0, 1, 2, 0, 0, 0], 'two on 3..4');
+  assert.deepEqual(homePadColors({ count: 4, selected: 3, palette: PALETTE }).slice(0, 8), [0, 0, 1, 1, 1, 2, 0, 0], 'four on 2..5');
   assert.equal(homePadColors({ count: 9, palette: PALETTE }).filter((c) => c !== 0).length, 5, 'never more than five');
 });

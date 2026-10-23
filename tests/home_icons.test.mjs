@@ -12,8 +12,10 @@ import { R_SMALL, R_LARGE, circleRows } from '../src/home/render.mjs';
 
 const ALL = { ...ICONS, practiceDrums: PRACTICE_DRUMS, practicePiano: PRACTICE_PIANO };
 
-test('the shared icons are path, quiz, progress and settings; practice is passed in', () => {
-  assert.deepEqual(Object.keys(ICONS), ['path', 'quiz', 'progress', 'settings']);
+test('the shared icons: the home screen\'s and the rings\' one level down; practice is passed in', () => {
+  assert.deepEqual(Object.keys(ICONS), ['path', 'quiz', 'progress', 'settings',
+    'notes', 'kit', 'sticks', 'dice', 'folder', 'staff', 'ear', 'padpick', 'metronome', 'loop',
+    'stairs', 'chord', 'progression', 'song', 'keyletter']);
   assert.ok(Object.isFrozen(ICONS) && Object.isFrozen(PRACTICE_DRUMS) && Object.isFrozen(PRACTICE_PIANO));
 });
 
@@ -43,5 +45,32 @@ test('the six icons are six different pictures at both sizes', () => {
   for (const size of ['small', 'large']) {
     const shapes = Object.values(ALL).map((set) => set[size].join('|'));
     assert.equal(new Set(shapes).size, shapes.length, size);
+  }
+});
+
+/* The rings one level down, as the modules build them. */
+const RINGS = {
+  'practice-drums': ['notes', 'kit', 'sticks', 'dice', 'folder'],
+  'quiz-drums': ['staff', 'ear', 'padpick', 'metronome', 'loop'],
+  'practice-piano': ['stairs', 'chord', 'progression', 'dice', 'song'],
+  'quiz-piano': ['ear', 'staff', 'keyletter'],
+};
+
+test('the icons of one ring are told apart: no two alike, at either size', () => {
+  for (const [ring, keys] of Object.entries(RINGS)) {
+    for (const size of ['small', 'large']) {
+      const shapes = keys.map((k) => ICONS[k][size].join('|'));
+      assert.equal(new Set(shapes).size, keys.length, `${ring} ${size}`);
+      /* Apart by more than a pixel or two: every pair differs in at least 8. */
+      for (let a = 0; a < keys.length; a++) {
+        for (let b = a + 1; b < keys.length; b++) {
+          const x = ICONS[keys[a]][size].join('');
+          const y = ICONS[keys[b]][size].join('');
+          let d = 0;
+          for (let i = 0; i < x.length; i++) d += x[i] !== y[i] ? 1 : 0;
+          assert.ok(d >= 8, `${ring} ${size}: ${keys[a]} and ${keys[b]} differ in ${d} pixels`);
+        }
+      }
+    }
   }
 });

@@ -12,7 +12,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  HOME_X, HOME_Y, HOME_COUNT, HOME_PADS, R_SMALL, R_LARGE, ICON_SWITCH_R, LABEL_Y, GROW_MS, BAND_Y, BAND_H,
+  HOME_X, HOME_Y, HOME_COUNT, HOME_PADS, HOME_MAX, R_SMALL, R_LARGE, ICON_SWITCH_R, LABEL_Y, GROW_MS, BAND_Y, BAND_H,
+  homeLayout, homePads,
   circleRows, circleRuns, compile, rowsToRuns, runsToRects, iconRows,
   createGrow, startGrow, radiusAt, growAt, growing, itemOfPad, drawHome,
 } from '../src/home/render.mjs';
@@ -265,10 +266,100 @@ test('drawHome touches nothing outside y 10..54; no grow means at rest', () => {
 test('fewer items, an unknown icon, no label: drawn as far as they go', () => {
   const c = screen();
   drawHome(c, { items: [{ key: 'a', label: '', icon: 'nope' }, { key: 'b', label: 'B', icon: 'quiz' }], selected: 0 });
-  assert.equal(c.count(HOME_X[0] - 6, HOME_Y - 6, 13, 13), 13 * 13, 'a plain disc');
-  assert.ok(c.count(HOME_X[2] - R_LARGE, HOME_Y - R_LARGE, 25, 25) === 0, 'nothing past the items');
+  const [x0, x1] = homeLayout(2);
+  assert.equal(c.count(x0 - 6, HOME_Y - 6, 13, 13), 13 * 13, 'a plain disc');
+  assert.ok(c.on(x1 - R_SMALL, HOME_Y), 'the second circle where a ring of two puts it');
+  assert.equal(c.count(0, HOME_Y - R_LARGE, x0 - R_LARGE, 2 * R_LARGE + 1), 0, 'nothing left of the ring of two, where a ring of five starts');
   assert.equal(c.texts, undefined, 'no label');
   assert.equal(iconRows('nope', true), null);
+  /* A sixth item and on are not drawn. */
+  const six = screen();
+  drawHome(six, { items: Array.from({ length: 6 }, (_, i) => ({ key: 'k' + i, label: 'x', icon: 'quiz' })), selected: 0 });
+  const five = screen();
+  drawHome(five, { items: Array.from({ length: 5 }, (_, i) => ({ key: 'k' + i, label: 'x', icon: 'quiz' })), selected: 0 });
+  assert.equal(six.count(0, 0, 128, 64), five.count(0, 0, 128, 64));
+});
+
+test('rings of 2 to 5: evenly spaced, symmetric, inside the screen; five is the home screen', () => {
+  assert.equal(HOME_MAX, 5);
+  assert.deepEqual([...homeLayout(5)], [13, 38, 64, 90, 115]);
+  assert.equal(homeLayout(5), HOME_X);
+  assert.deepEqual([...homeLayout(4)], [16, 48, 80, 112]);
+  assert.deepEqual([...homeLayout(3)], [21, 64, 107]);
+  assert.deepEqual([...homeLayout(2)], [32, 96]);
+  for (let n = 2; n <= 5; n++) {
+    const xs = homeLayout(n);
+    assert.equal(xs.length, n);
+    xs.forEach((x, i) => {
+      assert.ok(Math.abs(x + xs[n - 1 - i] - 128) <= 1, `n=${n}: symmetric about the middle`);
+      assert.ok(x - R_LARGE >= 0 && x + R_LARGE <= 127, `n=${n}: a grown circle inside the screen`);
+      if (i) assert.ok(x - xs[i - 1] - R_LARGE - R_SMALL >= 3, `n=${n}: a grown circle clear of its neighbours`);
+    });
+  }
+  assert.deepEqual([...homeLayout(9)], [...homeLayout(5)], 'never more than five');
+});
+
+test('pads per ring: centred in the bottom row', () => {
+  assert.deepEqual([...homePads(5)], [69, 70, 71, 72, 73]);
+  assert.equal(homePads(5), HOME_PADS);
+  assert.deepEqual([...homePads(4)], [70, 71, 72, 73]);
+  assert.deepEqual([...homePads(3)], [70, 71, 72]);
+  assert.deepEqual([...homePads(2)], [71, 72]);
+  for (let n = 2; n <= 5; n++) homePads(n).forEach((note, i) => assert.equal(itemOfPad(note, n), i));
+  assert.equal(itemOfPad(69, 3), -1);
+  assert.equal(itemOfPad(73, 4), 3);
+  assert.equal(itemOfPad(73), 4, 'five unless told');
+});
+
+test('the home screen of five is pixel for pixel what it was before rings of other sizes', () => {
+  /* Hashes recorded from the engine before homeLayout: every circle chosen,
+   * at rest and through a grow, with both practice icons. */
+  const GOLDEN = ['6ef4902d',  '30a0367b',  '19f5f347',  '78dfeb15',  '6ef4902d',  '217b194d',  '43e8d0b3',  '55433c2b',  '4a95be81',  '217b194d',  '59a2afad',  '6b7a45d5',  'e9bab951',  '5d27b341',  '59a2afad',  'ae41fe78',  '9acb65f1',  'eeb34fdd',  '9534cec',  'ae41fe78',  'fe18894b',  'e0aa733e',  '8c63a96a',  '869036cb',  'fe18894b',  'c48741bd',  'a48ad09f',  '9cef165b',  'a8977095',  'c48741bd',  'bd4a5a7d',  '54babc83',  '12a33b13',  '17d1e925',  'bd4a5a7d',  '84930eb9',  '96d2e48d',  '3226aa91',  'ab5f9be5',  '84930eb9',  '9ae3b34',  '944fdb9d',  'f8f1da61',  '1cb68620',  '9ae3b34',  'bf38177f',  'f057f4c6',  '9789d272',  'ecfafa27',  'bf38177f'];
+  const got = [];
+  for (const pr of [PRACTICE_PIANO, PRACTICE_DRUMS]) {
+    const items = ['path', pr, 'quiz', 'progress', 'settings'].map((icon, i) => ({ key: 'k' + i, label: ['Path', 'Practice', 'Quiz', 'Progress', 'Settings'][i], icon }));
+    for (let sel = 0; sel < 5; sel++) {
+      for (const t of [null, 0, 40, 80, 160]) {
+        const px = new Uint8Array(8192);
+        const c = {
+          fillRect(x, y, w, h, v) {
+            for (let yy = y; yy < y + h; yy++) for (let xx = x; xx < x + w; xx++) if (xx >= 0 && yy >= 0 && xx < 128 && yy < 64) px[yy * 128 + xx] = v ? 1 : 0;
+          },
+          text(x, y, str) { for (let i = 0; i < str.length; i++) px[y * 128 + x + i] ^= 1; },
+          textWidth: (str) => str.length * 6 - 1,
+        };
+        const grow = t === null ? null : startGrow(createGrow((sel + 4) % 5), sel, 0);
+        drawHome(c, { items, selected: sel, grow, now: t ?? 0 });
+        let h = 0x811c9dc5;
+        for (const b of px) h = Math.imul(h ^ b, 0x01000193) >>> 0;
+        got.push(h.toString(16));
+      }
+    }
+  }
+  assert.deepEqual(got, GOLDEN);
+});
+
+test('every ring stays under 150 ctx calls, at rest and through every grow', () => {
+  const RINGS = [
+    ['notes', 'kit', 'sticks', 'dice', 'folder'], ['notes', 'kit', 'sticks', 'dice'],
+    ['staff', 'ear', 'padpick', 'metronome', 'loop'],
+    ['stairs', 'chord', 'progression', 'dice', 'song'], ['ear', 'staff', 'keyletter'],
+  ];
+  for (const keys of RINGS) {
+    const items = keys.map((icon) => ({ key: icon, label: 'Hear: subdivision', icon }));
+    let worst = 0;
+    for (let from = 0; from < keys.length; from++) {
+      for (let to = 0; to < keys.length; to++) {
+        const g = startGrow(createGrow(from), to, 0);
+        for (let t = 0; t <= GROW_MS + 10; t += 5) {
+          const c = screen();
+          drawHome(c, { items, grow: g, now: t });
+          worst = Math.max(worst, c.calls);
+        }
+      }
+    }
+    assert.ok(worst < 150, `${keys.join('/')}: worst frame ${worst} calls`);
+  }
 });
 
 test('a frame is cheap: under 150 ctx calls at rest and through every grow', () => {
