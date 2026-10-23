@@ -33,7 +33,7 @@ four short pages greet you. Turn the **jog** to page through them, or
      the path moves on.* See [The options of a row](#the-options-of-a-row).
 
 **Back** on any page closes the welcome. It does not come back by itself;
-**Settings › Help › Welcome again** shows it whenever you like. If you
+**Settings › Advanced › Help › Welcome again** shows it whenever you like. If you
 used Piano Practice before this version, your progress is kept and the
 welcome is skipped.
 
@@ -102,9 +102,12 @@ and from the top of a section to home.
   chord on the pads, or name the pad that lights.
 - **Progress** charts how far you have got, overall, per stage, and for
   everything you have played.
-- **Settings** is a folder of groups: **Learning Path** (where Continue starts),
-  **Practice**, **Sound**, **Pads**, **MIDI**, **Help**. Open a group to
-  change its rows: click a row, turn the jog, click again.
+- **Settings** is one short page of what is yours: **Octave**, **Click**,
+  **Key**, **Scale** and **Start at** (where Continue starts). Click a row,
+  turn the jog, click again. Its last row, **Advanced**, opens the rest in
+  groups: **Practice**, **Sound**, **MIDI** and **Help**. Back goes back a
+  step at a time. On a piece, **SHIFT + CLICK** opens the page, and again
+  on any settings page goes straight back to the piece.
 
 The Learning Path has five **stages**, a few weeks each. Every exercise is played
 two ways: **Guided**, the pad you need lights up, and **Solo**, nothing
@@ -235,7 +238,7 @@ that fit the row are offered, always in this order:
 | **Test out: checkpoint** | a stage with a checkpoint | plays its exam Solo. Pass every step and the path moves on to the next stage |
 | **Show as list** | home, or a map | the same rows as an ordinary list, for this session |
 | **Show as map** | a map shown as a list | the map again (Back does the same) |
-| **Settings...** | every row | opens Settings |
+| **Settings...** | every row | opens the Settings page |
 
 **Turn the jog** to choose, **click** to do it, **Back** to close the
 options without doing anything.
@@ -261,4 +264,4 @@ The first time you see some screens, a one-page tip explains them:
 - your first quiz: *Answer with the lit pads or the jog. MENU: help.*
 
 **Click** or **Back** closes a tip. Each one shows once.
-**Settings › Help › Show tips again** brings them all back.
+**Settings › Advanced › Help › Show tips again** brings them all back.

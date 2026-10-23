@@ -180,7 +180,7 @@ it. When you are right, the notes light on the keyboard, so what you heard is
 connected to where it sits. **Hear** plays the question again; **Help** is a
 ladder of hints — the round still counts, but it records how many you took.
 
-A round is ten, twenty or thirty answers (Settings › Round). Its result is how
+A round is ten, twenty or thirty answers (Settings › Advanced › Practice › Round). Its result is how
 many you got right a minute, beside your best, and how many of your attempts
 were right — two charts, so speed and success can each be read on their own.
 Under them, **Each answer** has a bar per interval, scale, note or chord: how
@@ -217,20 +217,21 @@ you have played, each with its chart.
 
 ## Settings
 
-**Settings** opens the Move's folder of groups: Learning Path, Practice, Sound, Pads,
-MIDI and Help. Open one; **−** and **+** change a row. In the browser **MIDI**
-holds what this browser plays from, since the Move's two MIDI routes do not
-apply here. **Help** has **Show tips again** and **Welcome again**. The most
-useful:
+**Settings** opens the Move's short page: **Octave**, **Click**, **Key**,
+**Scale** and **Start at**; **−** and **+** change a row, there and then. The
+page also holds what this browser plays from (**This browser**), since the
+Move's two MIDI routes do not apply here. **Advanced**, its last row, opens
+the rest in groups, as on the Move; Escape goes back a step at a time.
 
 | | |
 | --- | --- |
-| **Tempo**, **Key**, **Scale**, **Octave** | what the generated drills are made from |
-| **Wait** | stop on a missed note (on) |
-| **Grace** | how late a note may be and still count, in beats |
-| **Click**, **Reference** | a metronome, and the piece played softly as you play it |
-| **Round** | answers per quiz round |
-| **Auto info** | show a lesson's help the first time you open it |
+| **Octave**, **Key**, **Scale** | the pads' octave, and what the free library is made in |
+| **Click** | the metronome |
+| **Start at** | where the Learning Path starts |
+| **Advanced › Practice** | Tempo, Read ahead, Any octave, Wait, Grace, Count in, Names, Half tones, Chords, Round |
+| **Advanced › Sound** | Reference (the piece played softly as you play it), Ref vol, Quiz sounds |
+| **Advanced › MIDI** | where the Move sends the notes (on the page here: This browser) |
+| **Advanced › Help** | Auto info, Show tips again, Welcome again |
 
 ## On a phone or a tablet
 

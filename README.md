@@ -97,7 +97,7 @@ Quiz              Ear      by topic: pitch & melody, intervals, chords, scales &
                   Reading  the interval and scale courses on the staff, notes and chords by staff
                   Keys     notes by alphabet, chords by name, name notes, name chords
 Progress          how far you have got, and how you got there
-Settings          Learning Path, Practice, Sound, Pads, MIDI, Help
+Settings          Octave, Click, Key, Scale, Start at; Advanced: Practice, Sound, MIDI, Help
 ```
 
 Everything with a left and a right hand — every song, every chord lesson — is one row: it opens
@@ -224,10 +224,10 @@ stay open, marked **◌**.
 | **I know this: skip** | a step, or Continue | passes it by. It is marked `»` and stays where it was — open it any time and the skip is forgotten. After Guided it moves on instead: Guided is enough for now, and the step counts as finished at ◐ |
 | **I know it all: skip** | a stage, a unit, an exercise of several steps | skips everything inside |
 | **Undo skip** | a skipped step, or a folder holding one | takes the skips back |
-| **Start the path here** | a stage | Continue starts there; the stages before it count as assumed until you play them. Also **Settings › Learning Path › Start at** |
+| **Start the path here** | a stage | Continue starts there; the stages before it count as assumed until you play them. Also **Settings › Start at** |
 | **Test out: checkpoint** | a stage with a checkpoint | plays the checkpoint, as above |
 | **Show as list** / **Show as map** | home, a map | the same rows as a list for the session, and back |
-| **Settings...** | any row | the settings |
+| **Settings...** | any row | the Settings page |
 
 **Nothing is locked.** Open any stage, unit and step, play anything in the list, go straight to
 Solo — the path only ever recommends. The stage you are in, the unit Continue will open and each
@@ -271,9 +271,9 @@ formula and its notes in C (`Minor 7th: 1 b3 5 b7 — C Eb G Bb`), a scale its p
 semitones (`W W H W W W H`), a progression its chords in C or A minor.
 
 **The first time** you open a kind of practice — the first scale drill, the first song, each hearing
-exercise — its help page shows by itself, once. **Settings › Help › Auto info** turns that off; Menu
+exercise — its help page shows by itself, once. **Settings › Advanced › Help › Auto info** turns that off; Menu
 always brings the page back. A few screens also show a one-card **tip** the first time they appear;
-**Settings › Help › Show tips again** brings those back.
+**Settings › Advanced › Help › Show tips again** brings those back.
 
 Every term an Info page uses is defined from one glossary, the same one Schwung's **Help** viewer
 shows under Piano Practice › Terms:
@@ -1005,7 +1005,7 @@ Four beats count you in, counted down on screen.
 | **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it walks the **level and Guided or Solo** together, one step a detent, clamped at both ends. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
 | **Jog click** | open the highlighted folder or arm the exercise (a song arms its first level not learned); in settings, edit the selected row; on a result, go on to what is next |
 | **Menu** | **help**: what the screen is, its keys, then what the thing in front of you is and its terms. Again to close |
-| **Shift + jog click** | in the list, the highlighted row's **options**; on a piece, settings; on a result, move on past it |
+| **Shift + jog click** | in the list, the highlighted row's **options**; on a piece, the **Settings** page (again, on any settings page: back to the piece); on a result, move on past it |
 | **Shift** (held) | the hint line shows what Shift does on this screen |
 | **Back** | from a running exercise or a result, **back to the start**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
@@ -1041,27 +1041,57 @@ A3–G5 under your hands — untransposed it sits almost entirely below the treb
 
 ### Settings
 
-**Settings**, the last circle of home, is a folder of groups: **Learning Path** (Start at: the stage
-Continue starts from), **Practice**, **Sound**, **Pads** (the octave), **MIDI**, and **Help** (Auto
-info, Show tips again, Welcome again). Open a group, click a row to edit it, turn the jog to change
-the value, click again when done — knobs 1–4 are shortcuts to the four rows on screen. Shift + click
-on a piece opens every setting at once.
+**Settings**, the last circle of home, is **one short page** of what is yours, changed right there:
+click a row to edit it, turn the jog, click again when done — knobs 1–4 are shortcuts to the four
+rows on screen. Its last row, **Advanced**, opens everything else in its groups: **Practice**,
+**Sound**, **MIDI** and **Help**. Back goes back a step at a time (a group, Advanced, the page, where
+you came from). **Shift + click** on a piece opens the page; Shift + click again, on any settings
+page, goes straight back to the piece. Nothing has gone: every setting keeps its value and its place
+in `settings.json`.
+
+**The page**
 
 | Setting | Default | |
 | --- | --- | --- |
-| Any octave | off | accept the right note in the wrong register |
-| Quiz sounds | **on** | a chime for a right answer, a soft uh-oh for a wrong one |
-| Auto info | **on** | a practice's Info page shows by itself the first time you open it |
-| Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid |
-| Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
+| Octave | **+12** | which octave the pads start from: +12 puts A3–G5 under your hands |
+| Click | **on** | the metronome: recorded claves on the module's piano, the brighter one on the downbeat; with MIDI out to an instrument elsewhere, short high notes there instead |
+| Key | **C** | the key the free library is made in (the Learning Path is always in C) |
 | Scale | **Major** | all 22 of Move's own scales, taken from the device's firmware so the pads light the way Move would |
-| Click | on | MIDI metronome (see the caveat above) |
-| Reference | **guided** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — when Guided. `on` keeps it in Solo, `off` never plays it. Listen plays the piece first whatever this says |
-| Names | **guided** | the note names under the notes, when Guided. `always` keeps them in Solo, `off` hides them in both |
+| Start at | **stage 1** | the stage Continue starts from; the ones before it count as assumed until you play them (kept with your progress, not in `settings.json`) |
+| Advanced | › | the rest, below |
+
+**Advanced › Practice**
+
+| Setting | Default | |
+| --- | --- | --- |
+| Tempo | **80** | beats a minute for the generated drills (a song keeps its own); knob 8 changes it on a piece |
+| Read ahead | **24** | pixels a beat: how far ahead the staff shows |
+| Any octave | off | accept the right note in the wrong register |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
 | Grace | **1/4** | how late you may play a note and still be scored a hit, in beats, so the tolerance scales with tempo. A quarter beat is 190 ms at 80bpm — in time. Raise it to 1, 2 or 4 while a piece is new and finding the pad is the work. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself (Wait). Play later than Grace and the scroll still releases — it just scores a miss |
-| Count in | 4 | beats before the first note |
-| MIDI ch | 1 | which channel the Move track listens on |
+| Count in | **4** | beats before the first note |
+| Names | **guided** | the note names under the notes, when Guided. `always` keeps them in Solo, `off` hides them in both |
+| Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid |
+| Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
+| Round | **20** | right answers in a quiz round: 10, 20, 30, or `endless`, which records nothing |
+
+**Advanced › Sound**
+
+| Setting | Default | |
+| --- | --- | --- |
+| Reference | **guided** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — when Guided. `on` keeps it in Solo, `off` never plays it. Listen plays the piece first whatever this says |
+| Ref vol | **70** | how loud the reference line is, 0–127 |
+| Quiz sounds | **on** | a chime for a right answer, a soft uh-oh for a wrong one |
+
+**Advanced › MIDI**
+
+| Setting | Default | |
+| --- | --- | --- |
+| MIDI out | **piano** | where the notes go: the module's own piano, a Move track, USB, or a track and USB |
+| MIDI ch | **all** | the channel sent on; `all` sends on every channel, so a track listening on any one hears it |
+
+**Advanced › Help**: **Auto info** (**on**: a practice's Info page shows by itself the first time
+you open it), **Show tips again** and **Welcome again**.
 
 ## Writing your own exercises
 
