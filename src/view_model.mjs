@@ -30,8 +30,8 @@ import * as AP from './answer_pads.mjs';
 import { chartTotalBeats, beatsPerBar, barBeatOf, keyAt } from './chart.mjs';
 import {
   MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SHEET_VIEW, CARD_VIEW,
+  TRAINER_STATS,
 } from './session.mjs';
-import { groupByKey } from './settings_def.mjs';
 import { iconRows } from './home/render.mjs';
 
 export const VM_VERSION = 2;
@@ -192,7 +192,7 @@ export function navOf(S) {
   const top = CAT.navTop(S.nav);
   return {
     path: S.nav.map((n) => n.node.label),
-    title: top.node.label,
+    title: top.node.title || top.node.label,
     cursor: top.cursor,
     rows: top.node.children.map((row) => {
       const deco = S.decorateRow(row) || {};
@@ -307,21 +307,29 @@ export function quizOf(S) {
   const ear = quiz.kind === GUESS.EAR;
   const hidden = (S.quizHear || ear) && !quiz.solved;
   const st = GUESS.quizStats(quiz);
+  /* A line (a scale, an interval) or a row of chords is drawn as it is
+   * played, as the Move draws it (session.lineState, rowState). */
+  const line = S.lineState();
+  const row = S.rowState();
   return {
     kind: quiz.kind,
-    mode: ear ? 'ear' : S.quizPick ? 'pick' : S.quizHear ? 'hear' : 'play',
-    title: ear ? quiz.exercise.name : null,
+    mode: line ? 'line' : row ? 'row' : ear ? 'ear' : S.quizPick ? 'pick' : S.quizHear ? 'hear' : 'play',
+    /* A trainer's round says its subject and circle; a hearing exercise its name. */
+    title: S.quizTitle() || (ear ? quiz.exercise.name : null),
     question: ear ? quiz.exercise.question || null : null,
     prompt: hidden ? null : quiz.prompt.slice(),
     label: hidden ? null : quiz.label || null,
     /* A Play drill's row, head first. `index` counts prompts from the start, so
      * a prompt keeps its place as the row moves on. A staff drill withholds the
      * name — reading it is the drill — until Help gives it. */
-    read: quiz.read || null,
+    read: line || row ? null : quiz.read || null,
     /* A reading course draws its prompt: one event per column, spelled as the
      * course wrote it, a beat apart and a beat more between two intervals. */
-    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? staffOf(quiz.entry.staff) : null,
-    queue: quiz.read ? quiz.queue.map((e, i) => ({
+    sheet: line ? staffOf(line.staff.slice(0, line.shown))
+      : quiz.exercise && quiz.exercise.read && quiz.entry ? staffOf(quiz.entry.staff) : null,
+    line: line ? { label: line.label, shown: line.shown, total: line.staff.length } : null,
+    row: row ? { tokens: row.tokens.slice(), done: row.done, keyText: row.keyText, label: row.solved ? row.label : null } : null,
+    queue: quiz.read && !line && !row ? quiz.queue.map((e, i) => ({
       index: quiz.asked - 1 + i,
       pitches: e.pitches.slice(),
       name: quiz.read === GUESS.READ_NAME || (i === 0 && quiz.hint > 0) ? GUESS.entryName(quiz, e) : null,
@@ -404,16 +412,26 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     anim: animOf(S, t),
     /* The hint line, as the Move's footer has it: its parts, which take turns. */
     hint: S.hint(),
+    /* A trainer's Stats: its items, weakest first, % right read, heard, played. */
+    trainerStats: view === TRAINER_STATS ? {
+      title: S.trainerStatsTitle(),
+      cursor: S.statsCursor,
+      rows: S.statsRows.map((r) => ({
+        label: r.label, cells: r.cells.slice(), item: r.item,
+        /* Per circle, asked and right: the chart of the row picked. */
+        counts: { read: r.row.read.slice(), hear: r.row.hear.slice(), play: r.row.play.slice() },
+      })),
+    } : null,
     settings: {
       group: S.settingsGroup,
-      title: groupByKey(S.settingsGroup) ? groupByKey(S.settingsGroup).label : 'Settings',
+      title: S.settingsTitle(),
       cursor: S.settingsCursor,
       editing: S.settingsEditing,
       /* `row` is the place on the page; `index` the setting, for a setting;
        * `act` an action a click runs; `edit` something else the jog changes. */
       rows: rows.map((r, i) => ({
         row: i, index: r.index !== undefined ? r.index : -1, label: r.label, value: r.value,
-        act: r.act || null, edit: r.edit || null,
+        act: r.act || null, edit: r.edit || null, disabled: Boolean(r.disabled),
       })),
     },
     can: {

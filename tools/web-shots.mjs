@@ -61,7 +61,7 @@ await page.locator('svg.home[data-ring="Practice"]').waitFor();
 await shoot(page, 'web-ring.png');
 
 /* Listening to a drill: the staff scrolls and the keys light. */
-await openPath(page, ['Scales', 'Major', 'Up & down']);
+await openPath(page, ['Scales', 'Learn', 'Major', 'Up & down']);
 await page.locator('#piece-title').waitFor();
 await page.setViewportSize({ width: 1280, height: 760 });
 await page.getByRole('button', { name: 'Listen' }).click();
@@ -80,14 +80,30 @@ await page.close();
 
 /* A song, ready: its levels above the staff. */
 page = await open({ width: 1280, height: 760 });
-await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+await openPath(page, ['Songs', 'Classics', 'Ode to Joy']);
 await page.locator('.levels .btn').first().waitFor();
 await shoot(page, 'web-ready-song.png');
 await page.close();
 
-/* A hearing drill, answered: where the answer sits on the keys. */
+/* A trainer: its five circles, a setup page, a progression from its numerals. */
 page = await open({ width: 1280, height: 640 });
-await openPath(page, ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']);
+await openPath(page, ['Practice', 'Progressions']);
+await page.locator('svg.home[data-ring="Progressions"]').waitFor();
+await shoot(page, 'web-trainer.png');
+await row(page, 'Play');
+await page.locator('#settings-title').waitFor();
+await shoot(page, 'web-setup.png');
+await page.locator('.setting').getByRole('button', { name: 'Start' }).click();
+await page.locator('.chord-row').waitFor();
+await shoot(page, 'web-progression.png');
+await page.close();
+
+/* A hearing drill, answered: where the answer sits on the keys. Notes ›
+ * Hear, higher or lower. */
+page = await open({ width: 1280, height: 640 });
+await openPath(page, ['Practice', 'Notes', 'Hear']);
+await page.locator('.setting', { hasText: 'Answer' }).getByRole('button', { name: 'More Answer' }).click();
+await page.locator('.setting').getByRole('button', { name: 'Start' }).click();
 await page.locator('.option').first().waitFor();
 for (const option of await page.locator('.option').all()) {
   if (await option.isDisabled()) break;
@@ -95,11 +111,29 @@ for (const option of await page.locator('.option').all()) {
 }
 await page.locator('.kb-key.hit').first().waitFor();
 await shoot(page, 'web-hear.png');
+
+/* Its Stats, after a round: what was asked, weakest first. */
+for (let i = 0; i < 60 && !(await page.locator('.result-screen').count()); i++) {
+  for (const option of await page.locator('.option').all()) {
+    if (await option.isDisabled()) break;
+    await option.click();
+  }
+  await page.waitForTimeout(1500);
+}
+await page.locator('.result-screen').waitFor();
+for (let i = 0; i < 4 && !(await page.locator('svg.home[data-ring="Notes"]').count()); i++) {
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(150);
+}
+await row(page, 'Stats');
+await page.locator('.stats-table tbody tr').first().click();
+await page.locator('.stats-screen .progress-detail figure').waitFor();
+await shoot(page, 'web-stats.png');
 await page.close();
 
 /* A result: a drill played twice, by the lit keys, at a brisk tempo. */
 page = await open({ width: 1280, height: 640 }, { version: 8, autoInfo: false, bpm: 160, countIn: 1 });
-await openPath(page, ['Practice', 'Scales', 'Major', 'Up']);
+await openPath(page, ['Practice', 'Scales', 'Learn', 'Major', 'Up']);
 for (let round = 0; round < 2; round++) {
   await page.getByRole('button', { name: round ? 'Again' : 'Practice' }).click();
   for (let i = 0; i < 80 && !(await page.locator('.result-screen').count()); i++) {
@@ -123,7 +157,7 @@ await page.close();
 
 /* A phone. */
 page = await open({ width: 390, height: 844 });
-await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+await openPath(page, ['Songs', 'Classics', 'Ode to Joy']);
 await page.locator('.levels .btn').first().waitFor();
 await shoot(page, 'web-phone.png');
 

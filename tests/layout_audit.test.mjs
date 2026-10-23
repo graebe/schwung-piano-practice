@@ -64,7 +64,7 @@ function sceneScreen(c, scene, n, now) {
 }
 
 /* Home with this module's five circles, at rest or mid-grow. */
-const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['quiz', 'Quiz', 'quiz'],
+const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['songs', 'Songs', 'song'],
   ['progress', 'Progress', 'progress'], ['settings', 'Settings', 'settings']]
   .map(([key, label, icon]) => ({ key, label, icon }));
 function homeScreen(c, selected, opts = {}) {
@@ -75,9 +75,10 @@ function homeScreen(c, selected, opts = {}) {
 }
 /* The rings one level down, as the session builds them. */
 const ring = (rows) => rows.map(([label, icon]) => ({ key: label, label, icon }));
-const PRACTICE_RING = ring([['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression'],
-  ['Random', 'dice'], ['Songs', 'song']]);
-const QUIZ_RING = ring([['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']]);
+const PRACTICE_RING = ring([['Notes', 'note'], ['Intervals', 'interval'], ['Scales', 'stairs'], ['Chords', 'chord'],
+  ['Progressions', 'progression']]);
+const SONGS_RING = ring([['Classics', 'note'], ['Electronic', 'loop'], ['Techno', 'metronome'], ['Styles', 'chord']]);
+const TRAINER_RING = ring([['Read', 'staff'], ['Hear', 'ear'], ['Play', 'keyletter'], ['Learn', 'book'], ['Stats', 'progress']]);
 
 /*
  * A ctx that draws normally and keeps a transcript of what it was asked to.
@@ -180,6 +181,13 @@ function attempts(n) {
   for (let i = 0; i < n; i++) out.push([i, (i * 37) % 101, 1 + (i % 2), 80, 0]);
   return out;
 }
+
+/* C# major up and back down, on the staff, sharps and all. */
+const LINE = (() => {
+  const up = [[61, 28, 1], [63, 29, 1], [65, 30, 1], [66, 31, 1], [68, 32, 1], [70, 33, 1], [72, 34, 1], [73, 35, 1]]
+    .map(([pitch, diatonic, alter]) => ({ part: 0, notes: [{ pitch, diatonic, alter }] }));
+  return up.concat(up.slice(0, -1).reverse());
+})();
 
 const SCREENS = {
   'exercise result, worst case': (c) => V.drawExerciseResult(c, {
@@ -302,8 +310,9 @@ const SCREENS = {
     decorate: () => ({ label: 'Review', value: 'Name chords advanced', short: '' }),
   }),
   'home, Path selected': (c) => homeScreen(c, 0),
-  'ring, Practice on its longest name': (c) => homeScreen(c, 2, { title: 'PRACTICE', items: PRACTICE_RING, part: 1 }),
-  'ring, Quiz of three, mid-grow': (c) => homeScreen(c, 2, { title: 'QUIZ', items: QUIZ_RING, from: 1, now: 80 }),
+  'ring, Practice on its longest name': (c) => homeScreen(c, 4, { title: 'PRACTICE', items: PRACTICE_RING, part: 1 }),
+  'ring, Songs of four, mid-grow': (c) => homeScreen(c, 2, { title: 'SONGS', items: SONGS_RING, from: 1, now: 80 }),
+  'ring, a trainer\'s five circles': (c) => homeScreen(c, 3, { title: 'PROGRESSIONS', items: TRAINER_RING }),
   'home, Settings selected, its longest hint part': (c) => homeScreen(c, 4, { part: 1 }),
   'home, mid-grow from Practice to Progress': (c) => homeScreen(c, 3, { from: 1, now: 80 }),
   'map, the world': (c) => mapScreen(c, 5, 'island', 1),
@@ -411,6 +420,75 @@ const SCREENS = {
   'settings list, an implausibly long value': (c) => V.drawList(c, 'SETTINGS', [
     { label: 'Read ahead', value: '48 pixels per beat' },
   ], 0, { footer: 'turn change  CLICK ok', editing: true }),
+  /* A trainer's setup at its widest: every row the chord trainer can show,
+   * with the longest value each can take, and the row being edited. */
+  'trainer setup, the widest values, editing': (c) => V.drawList(c, 'CHORDS HEAR', [
+    { label: 'Level', value: '6 + m7b5 6ths' },
+    { label: 'Scale', value: 'Maj Pentatonic' },
+    { label: 'Inversions', value: 'off' },
+    { label: 'Roots', value: 'chromatic' },
+  ], 0, { footer: hintFor('settings', { editing: true })[0], centreFooter: true, editing: true }),
+  'trainer setup, on Start': (c) => V.drawList(c, 'CHORDS READ', [
+    { label: 'Inversions', value: 'off' }, { label: 'Round', value: 'endless' },
+    { label: 'Chords', value: '27 >' }, { label: 'Start', value: '>' },
+  ], 3, { footer: hintFor('settings', { start: true })[0], centreFooter: true }),
+  'trainer custom list': (c) => V.drawList(c, 'CHORDS CUSTOM', [
+    { label: 'Minor-maj 7th', value: 'on' }, { label: 'Aug major 7th', value: 'off' },
+    { label: 'Half-dim 7th', value: 'on' }, { label: 'Power chord', value: 'off' },
+  ], 1, { footer: hintFor('settings', { tick: true })[0], centreFooter: true }),
+  'trainer stats, three-digit cells and long names': (c) => V.drawTrainerStats(c, {
+    title: 'PROGRESSIONS',
+    rows: [
+      { label: 'Minor-maj 7th', cells: [100, 100, 100] },
+      { label: 'Aug major 7th', cells: [null, 7, 100] },
+      { label: 'Half-dim 7th', cells: [0, null, null] },
+      { label: 'Secondary dom', cells: [55, 100, 9] },
+    ],
+    cursor: 1, footer: hintFor('trainer-stats')[0],
+  }),
+  'trainer stats, nothing yet': (c) => V.drawTrainerStats(c, {
+    title: 'CHORDS', rows: [], cursor: 0, footer: hintFor('trainer-stats', { empty: true })[0],
+  }),
+  'pick, eight chord answers on the map': (c) => V.drawPick(c, {
+    title: 'CHORDS HEAR', score: '19/20', index: 7,
+    options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
+    short: ['M', 'm', '°', '+', '7', 'M7', 'm7', 'mM'],
+    colours: ['blue', 'orange', 'cyan', 'pink', 'green', 'yellow', 'purple', 'red'],
+    hint: 'which chord?', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
+  'read pick, a chord on the staff': (c) => V.drawReadPick(c, {
+    title: 'CHORDS READ', score: '19/20',
+    staff: [{ part: 0, notes: [{ pitch: 61, diatonic: 28, alter: 1 }, { pitch: 64, diatonic: 30, alter: 0 },
+      { pitch: 68, diatonic: 32, alter: 1 }, { pitch: 71, diatonic: 34, alter: 0 }] }],
+    option: 'Minor-maj 7th', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
+  /* A scale both ways, fifteen notes, the longest name a scale has. */
+  'line, half played': (c) => V.drawLineView(c, {
+    title: 'SCALES PLAY', score: '19/20', staff: LINE, shown: 7, label: 'C# Lydian augmented',
+    footer: hintFor('guess', { hintsLeft: true, streak: 999 })[0],
+  }),
+  'line, solved': (c) => V.drawLineView(c, {
+    title: 'SCALES HEAR', score: '20/20', staff: LINE, shown: LINE.length, label: 'C# Lydian augmented',
+    solved: true, footer: hintFor('guess', { streak: 999 })[0],
+  }),
+  'line, heard, nothing yet': (c) => V.drawLineView(c, {
+    title: 'SCALES HEAR', score: '0/20', staff: LINE, shown: 0, label: '?', footer: hintFor('guess', {})[0],
+  }),
+  /* The longest row of numerals the ladder has, half played. */
+  'chord row, the twelve-bar blues': (c) => V.drawChordRow(c, {
+    title: 'PROGS PLAY', score: '19/20', done: 5,
+    tokens: ['i7', 'i7', 'i7', 'i7', 'iv7', 'iv7', 'i7', 'i7', 'VI7', 'V7', 'i7', 'V7'],
+    keyText: 'in F# minor', footer: hintFor('guess', { hintsLeft: true, streak: 999 })[0],
+  }),
+  'chord row, jazz, solved': (c) => V.drawChordRow(c, {
+    title: 'PROGS HEAR', score: '20/20', solved: true,
+    tokens: ['iii7', 'vi7', 'ii7', 'V7', 'Imaj7'], label: 'iii-vi-ii-V-I in F# minor',
+    footer: hintFor('guess', {})[0],
+  }),
+  'chord row, heard': (c) => V.drawChordRow(c, {
+    title: 'PROGS HEAR', score: '0/20', tokens: ['?', '?', '?', '?'], keyText: '?',
+    footer: hintFor('guess', {})[0],
+  }),
   'ready': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
   }),
@@ -449,8 +527,17 @@ for (const [name, draw] of Object.entries(SCREENS)) {
 
 /* ---- The specific faults, so a regression names itself ------------------- */
 
+test('a Stats row keeps its whole label: thirteen characters beside the meters', () => {
+  const c = createScreen();
+  const { lefts, labelEnd } = V.statsColumns();
+  assert.ok(c.textWidth('Minor-maj 7th') <= labelEnd - 2, `label room ${labelEnd - 2}px`);
+  /* Each meter sits under its letter, the last a pixel from the edge. */
+  assert.equal(lefts[2] + 5, L.SCREEN_W - 2);
+  for (let i = 1; i < lefts.length; i++) assert.ok(lefts[i] - lefts[i - 1] >= 5 + 4);
+});
+
 test('the name-lane rule is drawn only by the views that have a name lane', () => {
-  const laned = ['reading', 'guess', 'ready'];
+  const laned = ['reading', 'guess', 'ready', 'read pick', 'line', 'chord row'];
   for (const [name, draw] of Object.entries(SCREENS)) {
     const c = probe();
     draw(c);
@@ -480,9 +567,10 @@ test('every footer this module can show fits across the screen', () => {
     { stages: true, stage: 1 }, { stages: true, stage: 2 }, { listening: true }, { paused: true },
     { paused: true, listening: true }, { quiz: true, twoNext: true }, { ear: true, hintsLeft: true },
     { ear: true }, { pick: true, hintsLeft: true }, { pick: true }, { hintsLeft: true, streak: 999 },
-    { streak: 999 }, { editing: true }, { action: true }];
+    { streak: 999 }, { editing: true }, { action: true }, { start: true }, { tick: true }, { empty: true }, { blocked: true },
+    { open: true }];
   for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
-    'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim']) {
+    'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim', 'trainer-stats']) {
     for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
   }
   for (const f of footers) {

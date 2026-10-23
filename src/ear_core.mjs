@@ -155,6 +155,14 @@ export function intervalEvents(anchor, semis, way, at = 0) {
   return melodic([anchor, anchor + semis], at);
 }
 
+/*
+ * Which interval a comparison is about, for the per-item table: the bigger of
+ * the two, the one the ear had to measure — either, when they are the same.
+ */
+export function judgedOf(a, b) {
+  return a.semis >= b.semis ? a.key : b.key;
+}
+
 /* Every root, every interval, played the way the level says. */
 export function intervalPrompts(keys, way) {
   const ways = WAYS[way] || WAYS.up;
@@ -168,7 +176,7 @@ export function intervalPrompts(keys, way) {
           /* Named low to high whichever way it sounds: the interval is the same. */
           const anchor = ways[w] === 'down' ? root + iv.semis : root;
           const events = intervalEvents(anchor, iv.semis, ways[w]);
-          out.push({ answer: iv.key, events, label: names + ' ' + iv.key });
+          out.push({ answer: iv.key, events, label: names + ' ' + iv.key, root, way: ways[w] });
         }
       }
     }

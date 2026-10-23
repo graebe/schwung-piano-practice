@@ -328,6 +328,27 @@ button.status-pill { cursor: pointer; }
 .progress-detail { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
 .progress-detail h2, .progress-detail p { margin: 0; }
 
+/* ------------------------------------------------------- trainer stats -- */
+/* The Move's meters as bars: one per circle, filled by the share right. */
+.stats-table { border-collapse: collapse; width: 100%; font-size: 13px; align-self: start; }
+.stats-table th, .stats-table td { padding: var(--space-1) var(--space-2); text-align: left; border-bottom: 1px solid var(--line-100); }
+.stats-table thead th { color: var(--ink-dim); font-weight: 400; }
+.stats-table tbody tr { cursor: pointer; }
+.stats-table tbody tr.on { background: var(--bg-200); outline: 1px solid var(--uv-deep); }
+.stats-table .row-label { all: unset; cursor: pointer; color: var(--ink); }
+.stats-table td { white-space: nowrap; }
+.stat-bar {
+  display: inline-block; width: 40px; height: 8px; margin-right: var(--space-1); vertical-align: middle;
+  background: var(--line-100);
+}
+.stat-bar > span { display: block; height: 100%; background: var(--uv-deep); }
+
+/* A progression's numerals, each marked as its chord goes down. */
+.chord-row { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
+.chord-token { padding: var(--space-1) var(--space-2); border: 1px solid var(--line-100); color: var(--ink-muted); }
+.chord-token.now { border-color: var(--uv-deep); color: var(--ink); }
+.chord-token.done { background: var(--uv-deep); border-color: var(--uv-deep); color: var(--ink); }
+
 /* ------------------------------------------------------------ settings -- */
 .settings-rows { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
 .setting {

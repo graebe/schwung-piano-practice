@@ -45,7 +45,7 @@ Every unit trains one strand:
 | Exercise | What you do | Why it is there |
 |---|---|---|
 | Notes by alphabet | The screen shows a name (E, A ...). You press that note. | Chord charts, tutorials and other musicians say note names, not pad positions. This turns a name into a place under your hand. |
-| Name notes | A pad lights up. You pick its name. | The same link from the other side: you need it when a video or your own ear tells you what you just played. |
+| Name notes | A note appears on the staff. You pick its name. | The same link from the other side: from the written note to its name, which is how you talk about what you read. |
 
 ### 1.2 Hearing basics (Ear)
 
@@ -93,7 +93,7 @@ Every unit trains one strand:
 | Exercise | What you do | Why it is there |
 |---|---|---|
 | Alphabet, all notes | Names now include sharps and flats (F#, Bb). Press them. | Chords on all twelve roots, and most songs, leave C major. This extends Find the notes to all twelve. |
-| Name all notes | A pad lights. Name it, sharps and flats included. | The same in reverse, and you learn that F# and Gb are one pad with two names. |
+| Name all notes | A note on the staff. Name it, sharps and flats included. | The same in reverse, and you learn that F# and Gb are one pad with two names, written differently. |
 | Chromatic | Every semitone for an octave. | On the grid it is single steps to the right, and every five steps the row above carries on: how simply the Move lays out the twelve notes. |
 | Auld Lang Syne | The tune in A major: three sharps, a third of its notes black keys. | Your first melody with a key signature. The sharps are written once at the start and you have to remember them, as in every real score. |
 
@@ -172,7 +172,7 @@ Every unit trains one strand:
 |---|---|---|
 | I-V-vi-IV | The "four-chord song" progression in C, both hands. | It is behind countless hits; you recognise it the moment you play it. |
 | vi-IV-I-V | The same four chords, starting on the minor one. | Same chords, different start, different mood: darker, more anthemic. Order changes meaning. |
-| Name chords | One of the key's chords lights up. Name it. | The reverse of Chords by name: what you need to write down what you just played or found. |
+| Name chords | One of the key's chords on the staff. Say what kind it is: major, minor or diminished. | The reverse of Chords by name: reading a chord's quality off its shape is what turns notes into harmony. |
 
 ### 2.5 Minor (Scales) · after Major scale, Black keys
 
@@ -435,7 +435,7 @@ Name 8 M9 M10 · Name 8 m9 M10+ · Compare 9ths · Name 8 m9 m10 · Compare 10th
 | 12-bar blues | Twelve bars of I, IV and V7, both hands. | The form behind blues, rock'n'roll and much of jazz. |
 | Slash chords | Chords over a bass note other than their root. | How a moving bass is written under steady chords. You have played them since Pop Ballad; now they get their name. |
 | Common: by name | A chord name from the everyday set (triads, sus, 6ths, 7ths, add9) on any note of the key. Play it. | Everything a pop, soul or jazz chart asks for, now that you know every chord in it. |
-| Common: name it | One of those chords lights up. Name it. | The reverse, so you can write down what you find. |
+| Common: name it | One of those chords on the staff. Say what kind it is. | The reverse, so you can name what you read. |
 | Common: play it | One of those chords sounds. Play it. | Jamming along to a record with the full everyday vocabulary. |
 
 ### 5.3 Advanced chords (Chords) · after Colours
@@ -452,7 +452,7 @@ Name 8 M9 M10 · Name 8 m9 M10+ · Compare 9ths · Name 8 m9 m10 · Compare 10th
 | ii-V-i minor | m7b5, 7b9, m7, both hands. | The minor cadence of jazz and of much dark electronic harmony. |
 | Random chords | Any chord type, both hands. | The complete vocabulary, unrehearsed. |
 | All chords: by name | An extended chord name. Play it. | Real jazz and soul charts look like this. |
-| All chords: name it | An extended chord lights up. Name it. | The reverse. |
+| All chords: name it | An extended chord on the staff. Say what kind it is. | The reverse. |
 | All chords: play | An extended chord sounds. Play it. | Ear and hands at full vocabulary. |
 
 ### 5.4 Scales III (Scales) · after Scales II

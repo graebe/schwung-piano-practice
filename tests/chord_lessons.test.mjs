@@ -4,12 +4,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  CIRCLE, SHELLS, CHORD_FAMILIES, LESSON_NAMES, PROGRESSIONS,
+  CIRCLE, SHELLS, CHORD_FAMILIES, LESSON_NAMES,
   rightHandTones, spellingFor, closeVoicings, chooseVoicing, chordSong,
-  qualityLesson, inversionLesson, slashLesson, progressionLesson,
+  qualityLesson, inversionLesson, slashLesson,
   RANDOM_POOLS, randomChordSong,
 } from '../src/chord_lessons.mjs';
 import { qualityById, ALL_QUALITIES } from '../src/chords.mjs';
+import { LESSON_PROGRESSIONS as PROGRESSIONS, progressionLesson } from '../src/progressions.mjs';
 import { pitchRange, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
 import { availableLevels, projectLevel, LEVELS } from '../src/levels.mjs';
 import { validateExercise } from '../src/exercise_io.mjs';

@@ -1,8 +1,8 @@
 [["write","/data/UserData/schwung/modules/tools/piano-practice/progress.bak.json","{\"version\":1,\"items\":{\"basics/scales/major/up-down\":{\"stages\":[{\"last\":1,\"best\":1,\"passedAt\":1791529200},{\"last\":1,\"best\":1,\"passedAt\":1791529200}],\"plays\":2,\"t\":1791529200,\"skip\":0,\"movedOn\":0,\"rep\":{\"due\":1791615600,\"step\":0,\"at\":0,\"ok\":false},\"h\":[[1791529200,100,1,0,0],
 [1791529200,100,2,0,0]]},\"basics/scales/major/down\":{\"stages\":[{\"last\":1,\"best\":1,\"passedAt\":1791529200},{\"last\":-1,\"best\":0,\"passedAt\":0}],\"plays\":1,\"t\":1791529200,\"skip\":0,\"movedOn\":0,\"rep\":null,\"h\":[[1791529200,100,1,0,0]]}},\"seen\":{},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\"]}"],
 ["announce","Piano Practice. Pick an exercise."],
-["tick",0,"2933471bd485","b87a1db22f63"],
-["tick",1,"2933471bd485","b8a0274287f9"],
+["tick",0,"edfefe222836","b87a1db22f63"],
+["tick",1,"edfefe222836","b8a0274287f9"],
 ["announce","Learning Path."],
 ["tick",6,"fcad8cd7d034","8be30be767a0"],
 ["announce","1 Grid and staff."],
@@ -637,8 +637,8 @@
 ["usb",11,176,120,0],
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
-["announce","Note guesser. Play D."],
-["tick",790,"b31c2a931f50","ff5c41f15196"],
+["announce","Notes, play. Play D."],
+["tick",790,"012830a89f4c","ff5c41f15196"],
 ["tick",800,"-","ff5c41f15196"],
 ["tick",825,"-","ff5c41f15196"],
 ["tick",850,"-","ff5c41f15196"],
@@ -658,4 +658,4 @@
 ["tick",923,"5f44f5b98833","ab3ac653d929"],
 ["tick",924,"f2f100cf755c","1b3791718c7b"],
 ["tick",925,"-","1b3791718c7b"],
-["tick",926,"2933471bd485","e05a4619f8b7"]]
+["tick",926,"edfefe222836","e05a4619f8b7"]]

@@ -43,12 +43,13 @@
  *   { type: 'editRow', row, delta }    a row of the settings page by its place
  *   { type: 'settingRow', row }        point at it; an action row also runs
  *   { type: 'progress', index }        open a Progress row's chart
+ *   { type: 'trainerStats', index }    a row of a trainer's Stats, for its chart
  *
  * Returns what the session answered, for a note: the judgement or the quiz's
  * verdict, which a renderer flashes; otherwise null.
  */
 
-import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS } from './session.mjs';
+import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS, TRAINER_STATS } from './session.mjs';
 import { beatsPerBar } from './chart.mjs';
 
 /* The knob's scrub resolution (ui.js / session.mjs: SCRUB_UNITS_PER_BAR). */
@@ -57,7 +58,7 @@ const SCRUB_UNITS_PER_BAR = 36;
 export const ACTIONS = [
   'noteOn', 'noteOff', 'select', 'open', 'back', 'move', 'options', 'sheet', 'sheetPick', 'cardPick', 'mapGo',
   'homeGo', 'skip', 'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'level',
-  'scrubTo', 'tempo', 'editSetting', 'selectSetting', 'editRow', 'settingRow', 'progress',
+  'scrubTo', 'tempo', 'editSetting', 'selectSetting', 'editRow', 'settingRow', 'progress', 'trainerStats',
 ];
 
 const MIDI = (n) => Number.isInteger(n) && n >= 0 && n <= 127;
@@ -167,6 +168,10 @@ export function applyAction(S, a) {
       S.dirty = true;
       return null;
     }
+    case 'trainerStats':
+      if (S.view !== TRAINER_STATS) return null;
+      S.selectStatsRow(a.index | 0);
+      return null;
     case 'progress':
       if (S.view !== PROGRESS_VIEW && S.view !== PROGRESS_DETAIL) return null;
       S.selectProgress(a.index | 0);

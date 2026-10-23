@@ -21,10 +21,12 @@
  * is what guarantees every chord of every lesson fits the pads.
  */
 
-import { qualityById, chordSymbol } from './chords.mjs';
-import { majorKeyFifths, spell, scaleKey } from './notation.mjs';
+import { qualityById, chordSymbol, closeVoicings, ALL_QUALITIES } from './chords.mjs';
+
+export { closeVoicings };
+import { majorKeyFifths, spell } from './notation.mjs';
 import { pitchRange, DEFAULT_TRANSPOSE } from './padmap.mjs';
-import { rng, MODES } from './generator.mjs';
+import { rng } from './generator.mjs';
 
 /* Roots in falling fifths, the order the cycle is practised in: C F Bb Eb ... */
 export const CIRCLE = [0, 5, 10, 3, 8, 1, 6, 11, 4, 9, 2, 7];
@@ -81,31 +83,6 @@ export function spellingFor(rootPc, quality) {
   return majorKeyFifths(rootPc + homeOffset(quality));
 }
 
-/*
- * Every close-position voicing of `pcs` that fits between `lo` and `hi`, as
- * ascending pitch arrays. `bottomPc`, if given, fixes which tone is lowest —
- * that is how an inversion is asked for.
- */
-export function closeVoicings(pcs, lo, hi, bottomPc = null) {
-  const sorted = pcs.slice().sort((a, b) => a - b);
-  const out = [];
-  for (let k = 0; k < sorted.length; k++) {
-    if (bottomPc != null && sorted[k] !== bottomPc) continue;
-    /* Offsets above the bottom tone, each the next chord tone up. */
-    const shape = [0];
-    for (let n = 1; n < sorted.length; n++) {
-      const pc = sorted[(k + n) % sorted.length];
-      shape.push((((pc - sorted[k]) % 12) + 12) % 12);
-    }
-    const span = shape[shape.length - 1];
-    for (let b = lo; b + span <= hi; b++) {
-      if ((((b - sorted[k]) % 12) + 12) % 12 !== 0) continue;
-      out.push(shape.map((s) => b + s));
-    }
-  }
-  return out;
-}
-
 /* How far a voicing moves from the last one: each note to its nearest. */
 function motion(from, to) {
   let cost = 0;
@@ -152,7 +129,7 @@ export function chooseVoicing(candidates, prev, home) {
  * drill never thins: there the lowest note is the whole point and there is no
  * left hand to cover it.
  */
-function voiceRightHand(tones, rootPc, bassPc, bassBelow, floor, hi, bottomPc, prev) {
+export function voiceRightHand(tones, rootPc, bassPc, bassBelow, floor, hi, bottomPc, prev) {
   const attempts = [tones];
   if (bassBelow && bottomPc == null) {
     const noBass = tones.filter((pc) => pc !== bassPc);
@@ -232,24 +209,9 @@ export function chordSong({
 
 /* ---- The lessons -------------------------------------------------------- */
 
-/*
- * What each quality is called in the list and in the header. Kept to thirteen
- * characters, the most the reading header fits with " L3" after it.
- */
-export const LESSON_NAMES = {
-  maj: 'Major', min: 'Minor', dim: 'Diminished', aug: 'Augmented',
-  sus2: 'Sus2', sus4: 'Sus4', 5: 'Power chord',
-  6: 'Major 6th', m6: 'Minor 6th', 69: '6/9',
-  maj7: 'Major 7th', 7: 'Dominant 7th', m7: 'Minor 7th', m7b5: 'Half-dim 7th',
-  dim7: 'Dim 7th', mMaj7: 'Minor-maj 7th', '7#5': 'Aug 7th', 'maj7#5': 'Aug major 7th',
-  add9: 'Add 9', madd9: 'Minor add 9', add11: 'Add 11', madd11: 'Minor add 11',
-  9: 'Dominant 9th', maj9: 'Major 9th', m9: 'Minor 9th',
-  '7sus2': '7sus2', '7sus4': '7sus4', '9sus4': '9sus4',
-  11: 'Eleventh', m11: 'Minor 11th',
-  13: 'Thirteenth', maj13: 'Major 13th', m13: 'Minor 13th',
-  'maj7#11': 'Lydian maj7', '7#11': 'Lydian dom 7',
-  '7b5': '7b5', '7b9': '7b9', '7#9': '7#9', '7alt': 'Altered 7th',
-};
+/* What each quality is called in the list and in the header: chords.mjs's
+ * names, by id. */
+export const LESSON_NAMES = Object.fromEntries(ALL_QUALITIES.map((q) => [q.id, q.name]));
 
 /* Families in teaching order: each one assumes the ones above it. */
 export const CHORD_FAMILIES = [
@@ -311,57 +273,6 @@ export function inversionLesson(qualityId, transpose = DEFAULT_TRANSPOSE) {
 
 export function slashLesson(transpose = DEFAULT_TRANSPOSE) {
   return chordSong({ id: 'slash-chords', name: 'Slash chords', steps: SLASH, transpose });
-}
-
-/*
- * Progressions, as semitones above the tonic, in the key the Key setting
- * names. A minor progression is spelled in its relative major, the same rule
- * homeOffset applies to a single minor chord — and with harmonic minor's
- * raised 7th on its own letter, so F# minor's V is C# E# G#, not C# F G#.
- *
- * The minor cadence is i-iv-V-i: the V is major, its 3rd the leading tone
- * that pulls home, as every common-practice cadence in minor has it. The
- * minor v of the natural scale is a modal colour, taught after it.
- */
-export const PROGRESSIONS = [
-  { id: 'I-IV-V-I', steps: [[0, 'maj'], [5, 'maj'], [7, 'maj'], [0, 'maj']] },
-  { id: 'I-V-vi-IV', steps: [[0, 'maj'], [7, 'maj'], [9, 'min'], [5, 'maj']] },
-  { id: 'vi-IV-I-V', steps: [[9, 'min'], [5, 'maj'], [0, 'maj'], [7, 'maj']] },
-  { id: 'I-vi-IV-V', steps: [[0, 'maj'], [9, 'min'], [5, 'maj'], [7, 'maj']] },
-  { id: 'ii-V-I', steps: [[2, 'm7'], [7, '7'], [0, 'maj7'], [0, 'maj7']] },
-  { id: 'vi-ii-V-I', steps: [[9, 'm7'], [2, 'm7'], [7, '7'], [0, 'maj7']] },
-  { id: 'i-iv-V-i', minor: true, steps: [[0, 'min'], [5, 'min'], [7, 'maj'], [0, 'min']] },
-  { id: 'i-iv-v-i modal', minor: true, steps: [[0, 'min'], [5, 'min'], [7, 'min'], [0, 'min']] },
-  { id: 'i-VI-III-VII', minor: true, steps: [[0, 'min'], [8, 'maj'], [3, 'maj'], [10, 'maj']] },
-  { id: 'ii-V-i minor', minor: true, steps: [[2, 'm7b5'], [7, '7b9'], [0, 'm7'], [0, 'm7']] },
-  {
-    id: '12-bar blues',
-    beatsPer: 4,
-    repeat: 1,
-    steps: [[0, '7'], [0, '7'], [0, '7'], [0, '7'], [5, '7'], [5, '7'],
-      [0, '7'], [0, '7'], [7, '7'], [5, '7'], [0, '7'], [7, '7']],
-  },
-];
-
-/* A four-chord progression is over in two bars, so it goes round twice. */
-export function progressionLesson(prog, tonicPc = 0, transpose = DEFAULT_TRANSPOSE) {
-  const once = prog.steps.map(([offset, quality]) => ({ root: (tonicPc + offset) % 12, quality }));
-  const repeat = prog.repeat || 2;
-  let steps = [];
-  for (let r = 0; r < repeat; r++) steps = steps.concat(once);
-  const minor = prog.minor ? scaleKey(tonicPc, MODES.harmonicMinor, 'harmonicMinor') : null;
-  const keySig = minor ? minor.fifths : majorKeyFifths(tonicPc);
-  const keyed = spell(tonicPc + 60, minor || keySig).label + ' ' + prog.id;
-  return chordSong({
-    id: 'prog-' + prog.id.replace(/\s+/g, '-') + '-' + tonicPc,
-    name: keyed.length <= 13 ? keyed : prog.id,
-    steps,
-    bpm: 70,
-    beatsPer: prog.beatsPer || 2,
-    keySig,
-    spelling: minor ? minor.map : null,
-    transpose,
-  });
 }
 
 /* ---- Random chords ------------------------------------------------------ */

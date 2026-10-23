@@ -66,13 +66,14 @@ Piano Practice is an independent module for Schwung. It is not made or supported
 
 ## Home and the lesson list
 
-The module opens on **home**: five circles, **Learning Path**, **Practice**, **Quiz**, **Progress** and
+The module opens on **home**: five circles, **Learning Path**, **Practice**, **Songs**, **Progress** and
 **Settings**, each with its picture. The jog chooses (the chosen circle is filled and grows), a
 click opens it, and so does its pad: the five lit pads of the bottom row, left to right, which make
 no sound here. Back from a section comes home with its circle chosen; Back at home leaves.
 
-**Practice** and **Quiz** are rings too: Practice's Scales, Chords, Progressions, Random and Songs,
-and Quiz's Ear, Reading and Keys (on the middle three pads), each with its icon. Back goes home on the
+**Practice** and **Songs** are rings too: Practice's five trainers — Notes, Intervals, Scales, Chords
+and Progressions — and Songs' genres, each with its icon. Each trainer is a ring of its own, the same
+five circles in every one: **Read**, **Hear**, **Play**, **Learn** and **Stats**. Back goes up, on the
 circle you left; deeper folders are lists.
 
 Behind each circle the list is a tree. **Click** opens a folder, **Back** goes up one.
@@ -88,14 +89,12 @@ Learning Path     Continue           the next step, named; or Review, when one i
                   4 Sevenths         ii-V-I, real pieces, dance tracks, function by ear
                   5 Colour           extended chords, compound intervals, every scale
                   Review             finished exercises that are due again, while any are
-Practice          Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
-                  Chords        thirteen families, one lesson per chord quality
-                  Progressions  ten progressions in the Key setting's key
-                  Random        random notes, and random chords from the whole vocabulary
-                  Songs         Classics, Electronic, Techno, Styles (and Other, for your files)
-Quiz              Ear      by topic: pitch & melody, intervals, chords, scales & keys
-                  Reading  the interval and scale courses on the staff, notes and chords by staff
-                  Keys     notes by alphabet, chords by name, name notes, name chords
+Practice          Notes         Read · Hear · Play · Learn (reading lines) · Stats
+                  Intervals     Read · Hear · Play · Learn (step or leap, melody shape) · Stats
+                  Scales        Read · Hear · Play · Learn (a folder per Move scale, two key drills) · Stats
+                  Chords        Read · Hear · Play · Learn (thirteen families, random chords) · Stats
+                  Progressions  Read · Hear · Play · Learn (eleven charts, two key drills) · Stats
+Songs             Classics, Electronic, Techno, Styles (and Other, for your files)
 Progress          how far you have got, and how you got there
 Settings          Octave, Click, Key, Scale, Start at; Advanced: Practice, Sound, MIDI, Help
 ```
@@ -298,6 +297,7 @@ shows under Piano Practice › Terms:
 | **Major, minor** | Interval sizes. A major 3rd is 4 semitones, a minor 3rd 3. Major sounds brighter. |
 | **Perfect** | 4ths, 5ths and octaves: the most stable intervals, neither major nor minor. |
 | **Tritone** | 6 semitones, half an octave. Tense, unresolved. |
+| **Compare** | Two intervals, one after the other: which is bigger, or are they the same? It counts for the bigger one. |
 | **Compound interval** | Wider than an octave: an octave plus a simple interval. A 9th is an octave and a 2nd, a 12th an octave and a 5th. |
 | **Mode** | A scale started from another of its notes: D to D on the white keys is Dorian. Each mode has its own pattern of steps. |
 | **Step** | Two neighbouring notes of the scale, a 2nd apart: C-D. |
@@ -368,21 +368,84 @@ Classics lists them easy to hard. Marys Lamb, London Bridge and Frere Jacques ar
 L3; the Minuet, the Bach Prelude and Fur Elise the hard end. Bach's sixteenths are written as eighths,
 as Für Elise's are.
 
-## Practice
+## Practice: five trainers
 
-Everything in Practice but its Songs is generated from the settings rather than stored: it plays at the **Tempo**
-setting, follows the **Transpose**, and an armed lesson is rebuilt when the **Key** changes.
+Practice is five trainers, from the smallest unit to the largest: **Notes**, **Intervals**,
+**Scales**, **Chords** and **Progressions**. Every one is the same five circles, so a learner who
+knows one knows them all: the subject changes, the way to practise it never does. The tutorial is
+[Practice: five trainers, one way to practise](docs/trainers.md).
 
-### Scales
+| Circle | What it asks |
+| --- | --- |
+| **Read** | off the staff: play it as written, or name it (intervals: or compare two) |
+| **Hear** | by ear: play it back, or name it (notes: higher or lower; intervals: or compare two) |
+| **Play** | from its name: `F#`, `M3 above D`, `D Dorian`, `Am7`, `I-V-vi-IV in D` |
+| **Learn** | the lessons that were there before: scale drills, chord lessons, progression charts |
+| **Stats** | every item asked, weakest first, a meter each for read, heard and played |
 
-A folder for each of Move's 22 scales, each with **Up & down**, **Up**, **Down**, **Thirds** and
-**Fifths**. The **Key** setting picks the root. The folder picks the scale, so Dorian is Dorian
-whatever the Scale setting says.
+**The setup.** Read, Hear and Play open a setup page: rows edited in place as Settings are, and
+**Start** last. It remembers what you set, per trainer and circle.
 
-### Chords
+| Row | What it sets |
+| --- | --- |
+| Answer | play or name (compare; play back or higher/lower), where the circle offers a choice |
+| Level | the trainer's ladder, simple first; **Custom** ticks your own set |
+| Key | the key a round is in, or random; for progressions also **all 12**, round the circle of fifths |
+| Scale, Roots, Inversions | chords: the key's scale, which roots (diatonic, in key, chromatic), inversions on or off |
+| Direction, Pattern | scales: up, down or both; straight, in 3rds or in 5ths |
+| Direction | intervals: up, down or together |
+| Voicing, Rhythm | progressions: root, smooth, bass + chord, guide tones; block, pop 8ths, ballad, offbeat, stabs, waltz |
+| Sound | chords heard: block or broken |
+| Round | 10, 20 or 30 right answers, or endless |
 
-Every chord quality the module can name, each a lesson of its own. A lesson plays its chord on all
-twelve roots in falling fifths, C F B♭ E♭ A♭ D♭ G♭ B E A D G — the order the cycle is practised in.
+Naming needs two things to tell apart, so Start waits until a Custom pick has two (its row says
+what is missing); playing needs one.
+
+**What counts.** Read and played, the written notes exactly. Heard and played back, or played from
+a name, any octave and any voicing: `Am` is A, C and E in any order. A scale or an interval goes
+note by note (an interval from its name keeps its distance: M3 above D is any D and the F♯ a major
+3rd above it); a progression goes chord by chord, each in any voicing. A wrong note starts a scale
+again; a wrong chord is played again.
+
+**Naming** offers at most eight answers: the right one and its nearest near misses, in the level's
+order, on the answer pads.
+
+**Stats.** Every answer of every trainer, and of every Learning Path step that asks one, is filed
+under its item: a note name, an interval, a scale, a chord quality, a progression — by circle, and by
+the root it was asked on. The Stats circle lists them weakest first; a row opens its numbers. What
+you miss comes up more often, in every round of that subject.
+
+### The ladders
+
+| Trainer | Levels |
+| --- | --- |
+| Notes | C–G round middle C · + A B · two octaves, ledger lines · + sharps and flats · + E♯ F♭ B♯ C♭ |
+| Intervals | 2nds · 3rds · 2nds and 3rds · 4th 5th octave · to the 5th · 6ths 7ths · to the octave · compound (each a set of its own, as the course runs) |
+| Scales | major minor · + Dorian Lydian Mixolydian · + harmonic, melodic minor · + Phrygian Locrian · + pentatonics, blues · + whole tone and kin · + diminished · + melodic-minor modes · + harmonic-minor modes · + Bhairav, Hungarian minor, Hirajoshi, In-Sen, Iwato, Kumoi |
+| Chords | maj · + m · + dim aug · + sus2 sus4 5 · + 7 maj7 m7 · + m7b5 dim7 6 m6 · + add9 madd9 9 maj9 m9 6/9 · + 7b5 7#5 7b9 7#9 7sus4 9sus4 mMaj7 |
+| Progressions | cadences (authentic, plagal, half, deceptive) · + I–IV–V–I, Axis · + pop (vi–IV–I–V, 50s, Royal Road) · + minor (i–iv–V–i, i–VI–III–VII, Andalusian, modal) · + jazz basics · + blues · + borrowed and modal · + secondary dominants, tritone sub, backdoor, Pachelbel |
+
+Numerals in a minor progression count in the minor key, as common practice writes them: the
+Andalusian is i–VII–VI–V. A minor progression is spelled in harmonic minor, so F♯ minor's V is
+C♯ E♯ G♯.
+
+### Learn
+
+Each trainer's **Learn** holds the material that was in Practice before it, under the same ids, so
+the Learning Path's steps and your progress are where they were.
+
+**Notes › Learn.** Random reading lines: **All notes** (every pitch the pads reach, black keys
+included), **In key** and **In key, fast** (the Key and Scale settings, in quarters and eighths).
+
+**Intervals › Learn.** **Step or leap** and **Melody shape**: hearing a line move.
+
+**Scales › Learn.** A folder for each of Move's 22 scales, each with **Up & down**, **Up**,
+**Down**, **Thirds** and **Fifths**; the **Key** setting picks the root, the folder the scale. Then
+**Major or minor key** and **Scale degrees**, which hear a key.
+
+**Chords › Learn.** Every chord quality the module can name, a lesson each, on all twelve roots in
+falling fifths, C F B♭ E♭ A♭ D♭ G♭ B E A D G; then **Random chords** (all chords, triads, sevenths:
+sixteen chords, a new set every time).
 
 | Family | Lessons |
 | --- | --- |
@@ -416,33 +479,20 @@ The ladder means something particular here. **L1 RH** is the top voice, the line
 draws. **L1 LH** is the roots round the cycle. **L2** is the shapes. **L3** is both. When the scroll
 stops on a chord, it names the chord — `C13`, `D/F#` — whatever the right hand holds on its own.
 
-### Progressions
-
-I–IV–V–I, I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, vi–ii–V–I, i–iv–V–i, i–iv–v–i modal,
-i–VI–III–VII, ii–V–i in minor, and the 12-bar blues, voiced the same way, in the key the **Key**
-setting names. The list names the shape; the header names it in your key.
+**Progressions › Learn.** I–IV–V–I, I–V–vi–IV, vi–IV–I–V, I–vi–IV–V, ii–V–I, vi–ii–V–I, i–iv–V–i,
+i–iv–v–i modal, i–VI–III–VII, ii–V–i in minor, and the 12-bar blues, voiced the same way, in the key
+the **Key** setting names; then **Home or away** and **Chords in a key**, which hear a key's chords.
 
 The minor cadence is **i–iv–V–i**: its V is major, borrowed from harmonic minor, so its third is the
 leading tone that pulls home (G♯ in A minor, E♯ in F♯ minor), as in every common-practice cadence.
 The **modal** one keeps the natural minor v (E G B in A minor). It's a colour of modal and pop
 music, learned after the cadence.
 
-### Random
-
-| | |
-| --- | --- |
-| All notes | a walk over every pitch the pads reach, black keys included |
-| In key / In key, fast | random lines in the Key and Scale settings, in quarters and in eighths |
-| All chords | sixteen chords, any root, any quality the module knows |
-| Triads / Sevenths | the same, from the four triads or the eight sevenths |
-
-The chord sets have the usual levels, chosen on the ready screen. Each opening draws a new set, and
-a restart replays the one you just played.
-
-Generated drills follow the pads, so a low **Octave** setting puts them below the treble staff the
-Move draws. Then they are drawn an octave (or two, or three) higher, and the clef is marked with
-`8`, `15` or `22` below it, as a treble-8vb clef is written. Every note you are scored on is a note
-you can see.
+Everything in Learn is generated from the settings: it plays at the **Tempo** setting, follows the
+**Octave**, and an armed lesson is rebuilt when the **Key** changes. Generated drills follow the
+pads, so a low **Octave** setting puts them below the treble staff the Move draws. Then they are
+drawn an octave (or two, or three) higher, and the clef is marked with `8`, `15` or `22` below it,
+as a treble-8vb clef is written. Every note you are scored on is a note you can see.
 
 ## Electronic
 
@@ -509,55 +559,28 @@ it turns the song's own tempo for the session, and opened again the study is bac
 Pop Ballad, Indie Anthem, Cinematic, Neo Soul and Funk Clav — original pieces, each written to
 drill a style.
 
-## Note guesser and ear training
+## Rounds
 
-The **Quiz** folder is three folders, one per skill:
-
-| Folder | Holds | You answer by |
-| --- | --- | --- |
-| **Ear** | a sound: the Hearing exercises below | naming it, or playing it back |
-| **Reading** | the listening courses on the staff, then **Notes by staff** and **Chords by staff** | naming it, or playing what is written |
-| **Keys** | **Notes by alphabet** and **Chords by name**: a name to find on the pads; **Name notes** and **Name chords**: a lit pad to name | playing it, or choosing its name with the jog |
-
-The four playing drills, two ways of reading for notes and for chords (Keys has the names,
-Reading the staff):
-
-| Drill | The screen shows | What counts |
-| --- | --- | --- |
-| **Notes by alphabet** | the letter only: `F`, `C#`, `Bb` | that note in any octave |
-| **Notes by staff** | the note on the staff, no name | the written note, in its octave |
-| **Chords by name** | the chord symbol only: `Am`, `G7`, `F#m7b5` | its notes in any octave or inversion |
-| **Chords by staff** | the chord on the staff, no name | the written notes |
-
-Each is a row, like the notes of a song: the one to play is first — boxed when it is a name, on the
-hit line when it is on the staff — and the next ones are already in view to the right. Play it right
-and the row glides on by one. Nothing moves until you do: there is no tempo, so the score is how
-many right answers a minute, as in every quiz.
-
-By example, in **Notes by alphabet** with the row `F  C#  A  E`: any F on the grid answers the
-first, the row moves on, and `C#` is next. In **Chords by name**, `Am` is answered by A, C and E held
-together in any order and octave; in **Chords by staff** only the notes as written count.
-
-The name drills are about finding a pitch on the grid, which is its own skill: the Move's grid is
-isomorphic — one semitone right, five up — so the same pitch appears on several pads and nothing
-resembles a keyboard. The staff drills are about reading, so they show no names. Help (REC) names
-the first one, and a second press lights its pads.
-
-Play and Name follow the **Half tones** and **Chords** settings. The name drills keep the history
-the old **Notes** and **Chords** rows had; the staff drills have their own.
+A round of a trainer is a row, like the notes of a song: the one to play is first — boxed when it is
+a name, on the hit line when it is on the staff — and the next ones are already in view. Play it right
+and the row glides on. Nothing moves until you do: there is no tempo, so the score is how many right
+answers a minute. A scale or an interval from its name fills the staff as you play it; a progression
+shows its numerals, each inverting as its chord goes down.
 
 A chord has to be **held all at once**. Part of it down is *incomplete*, not a mistake — a note that
 isn't in the chord is what makes it wrong. A wrong answer is counted once and the question stays
 until you get it.
 
-**Keys › Name notes** and **Keys › Name chords** run the other way round: a pad lights up — several for a chord
-— and you name it, choosing with the jog and confirming with a click. The two
-wrong options are near misses: a semitone either side for a note, or the same root with a different
-quality for a chord (`Cm7` against `C7` against `Cmaj7`), so answering from a rough sense of high or
-low will not get you through. Note options carry their octave, because on an isomorphic grid the
-same name sits in several places and knowing *which* A♯ you are on is most of the skill.
+The finding drills (Play) are about finding a pitch on the grid, which is its own skill: the Move's
+grid is isomorphic — one semitone right, five up — so the same pitch appears on several pads and
+nothing resembles a keyboard. The staff drills (Read) are about reading, so they show no names.
 
-It is the only drill that goes pad → name, and the only one you can do without playing a note.
+**Changed with the trainers.** The drills that were in the Quiz menu are trainer rounds now, opened
+by the same ids from the Learning Path, Review and Progress, so their history carries on: Notes and
+Chords by alphabet, by name and by staff are Play and Read; **Name notes** and **Name chords**, which
+lit a pad to name, are **Read, name**: the note or chord is on the staff and you name it (a chord by
+its kind: major, minor, diminished...). **Play the chord** and **Play it back** are **Hear, play
+back**, judged by name: any voicing of the chord counts, where it had to be the notes heard.
 
 ### Answering on the pads
 
@@ -584,11 +607,8 @@ something out before you answer. A right answer flashes green, a wrong one red.
 The **jog still works**: turn to choose, click to answer. The answer the jog is on pulses on its
 pad, so screen and pads always agree. When a hint strikes an answer out, its pad goes dark.
 
-**Name** keeps the jog. There the lit pads *are* the question, anywhere on the grid, and an answer
-bar across the bottom row would cover them.
-
-**Hear** is the same quiz with the notation withheld: you hear the note or chord and play it back,
-and the staff shows a `?` until you get it right, then reveals what it was — which is where the
+**Hear, play back** is a round with the notation withheld: you hear the note or chord and play it
+back, and the staff shows a `?` until you get it right, then reveals what it was — which is where the
 teaching is. **Play** repeats it.
 
 **Play** sounds the prompt. **Record** is help, two presses deep, and what each press does depends
@@ -596,16 +616,17 @@ on what the drill is withholding:
 
 | | first press | second press |
 | --- | --- | --- |
-| **Hear** | names it, staff still hidden | lights the pads |
-| **Guess** | sounds the notes | lights the pads |
-| **Pick** | strikes out one wrong option | strikes out the other |
+| **Hear, play back** | names it, staff still hidden | lights the pads |
+| **Play, Read and play** | sounds the notes (names them, read) | lights the pads |
+| **Naming** | plays it again, slower | strikes out a wrong answer |
 
 A hinted answer still counts and keeps your streak — a hint you are afraid to use is a hint that
 does not help you learn — but the round records how many you took, and the result screen shows it.
 Record dims once the help is used up, so the button itself tells you whether there is more.
 
-**Back** during a round returns to the list. From a round's result it starts a **fresh round** of
-the same drill, so trying again is one press; Back once more for the list.
+**Back** during a round returns to its setup. From a round's result it starts a **fresh round** of
+the same setup, so trying again is one press; Back once more for the setup, and again for the
+trainer.
 
 **The answer is never lit on the pads** outside the top rung of help. Lit pads are a playing aid for
 the reading mode, where the music is moving and a hint keeps you with it; in a quiz the hint is the
@@ -615,19 +636,18 @@ answer. The only pad feedback here is what you press — green when right, red w
 
 The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
 what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
-Find them in **Quiz › Ear**, grouped by topic; the Learning Path takes them in the **Ear** units of its
-stages:
+Every trainer's **Hear** asks them, and the Learning Path takes them in the **Ear** units of its
+stages; the drills that hear a key or a line rather than an item sit under the trainers' **Learn**:
 
 ```
-Ear   Pitch & melody   Higher or lower · Play it back · Step or leap · Melody shape
-      Intervals        Identify intervals (course) · Compare intervals (course)
-      Chords           Major/minor chord · Four triads · Seventh chords · Play the chord
-      Scales & keys    Identify scales (course) · Major or minor key · Home or away
-                       · Scale degrees · Chords in a key
+Notes        Hear: play it back · higher or lower
+Intervals    Hear: name · compare · play back       Learn: Step or leap · Melody shape
+Scales       Hear: name · play back                 Learn: Major or minor key · Scale degrees
+Chords       Hear: name · play back
+Progressions Hear: name · play back                 Learn: Home or away · Chords in a key
 ```
 
-Inside an exercise the rows are its levels: *wide*, *close*; *broken*, *block*. Inside a course unit
-they are *up*, *down*, *tog*, and *fix up* … for a fixed root.
+A Learn drill's rows are its levels: *wide*, *close*; *broken*, *block*.
 
 ### How a question works
 
@@ -680,12 +700,13 @@ ids still open the matching course level, so nothing recorded under them is lost
 
 ### The listening courses
 
-Three courses sit in their topics in **Quiz › Ear**: **Identify intervals** and **Compare intervals**
-under Intervals, **Identify scales** under Scales & keys. Each is a numbered list of units that adds
-a little at a time. On the Learning Path they are the **Intervals** units and the scale quizzes of
-the Scales units: an Identify unit heard up, down and together and then read once, a Compare unit
-heard once easy and once in full. Every other level stays in the Quiz menus. Answering works as in
-every Ear exercise: the answer pads, or the jog and a click.
+Three courses run through the Learning Path: **Identify intervals** and **Compare intervals** in
+its **Intervals** units, **Identify scales** in the scale quizzes of its Scales units. Each is a
+numbered list of units that adds a little at a time: an Identify unit heard up, down and together and
+then read once, a Compare unit heard once easy and once in full. A unit opens as the trainer round it
+is — Intervals or Scales, Hear or Read, name or compare — with the unit's set as a Custom pick, and
+the trainers' ladders follow the same order. Answering works as in every naming round: the answer
+pads, or the jog and a click.
 
 **Identify intervals.** One interval; name it. Each unit offers only its own intervals, usually two
 to five, and has three levels: **up**, **down** and **tog** (together).
@@ -761,14 +782,12 @@ natural minor.
 
 ### Reading the same courses
 
-**Quiz › Reading** has the three courses again, unit for unit and level for level and under the same
-names, but you see them instead of hearing them: **Identify intervals**, **Compare intervals** and
-**Identify scales**. The interval, the
-two intervals or the scale is drawn on the staff, and you name it from the same answers. A unit
-read and the same unit heard train one skill from both sides.
+The **Read** circle of Intervals and Scales asks the same, unit for unit, but you see it instead of
+hearing it: the interval, the two intervals or the scale is drawn on the staff, and you name it from
+the same answers. Read and heard train one skill from both sides.
 
 - **Up**, **down** and **tog** are how the notes are drawn: one after the other rising, falling, or
-  stacked. In **Reading › Compare intervals** a bar line separates the two intervals, and **fix** levels start
+  stacked. Comparing, a bar line separates the two intervals, and the Path's **fix** levels start
   both on the same written note.
 - **Count the letters.** An interval's size is the number of letters it spans, both ends counted:
   C to E is C D E, a 3rd. The accidentals then tell major from minor. Every interval is spelled
@@ -1076,9 +1095,7 @@ in `settings.json`.
 | Grace | **1/4** | how late you may play a note and still be scored a hit, in beats, so the tolerance scales with tempo. A quarter beat is 190 ms at 80bpm — in time. Raise it to 1, 2 or 4 while a piece is new and finding the pad is the work. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself (Wait). Play later than Grace and the scroll still releases — it just scores a miss |
 | Count in | **4** | beats before the first note |
 | Names | **guided** | the note names under the notes, when Guided. `always` keeps them in Solo, `off` hides them in both |
-| Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid |
-| Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
-| Round | **20** | right answers in a quiz round: 10, 20, 30, or `endless`, which records nothing |
+| Round | **20** | right answers in a round of the Learning Path's hearing drills: 10, 20, 30, or `endless`, which records nothing. A trainer's round has its own, on its setup page |
 
 **Advanced › Sound**
 

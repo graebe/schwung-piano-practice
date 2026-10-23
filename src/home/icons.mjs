@@ -598,11 +598,104 @@ const KEYLETTER = {
   ],
 };
 
+/* Note (Piano › Practice › Notes): one whole note on a staff line. */
+const NOTE = {
+  small: [
+    '.........',
+    '.........',
+    '...###...',
+    '..#...#..',
+    '#########',
+    '..#...#..',
+    '...###...',
+    '.........',
+    '.........',
+  ],
+  large: [
+    '.............',
+    '.............',
+    '.............',
+    '....#####....',
+    '...#.....#...',
+    '..#.......#..',
+    '#############',
+    '..#.......#..',
+    '...#.....#...',
+    '....#####....',
+    '.............',
+    '.............',
+    '.............',
+  ],
+};
+
+/* Interval (Piano › Practice › Intervals): two noteheads a third apart,
+ * one above the other, bracketed. */
+const INTERVAL = {
+  small: [
+    '.........',
+    '##..###..',
+    '#..#####.',
+    '#...###..',
+    '#........',
+    '#...###..',
+    '#..#####.',
+    '##..###..',
+    '.........',
+  ],
+  large: [
+    '.............',
+    '###..........',
+    '#.....###....',
+    '#....#####...',
+    '#....#####...',
+    '#.....###....',
+    '#............',
+    '#.....###....',
+    '#....#####...',
+    '#....#####...',
+    '#.....###....',
+    '###..........',
+    '.............',
+  ],
+};
+
+/* Book (every trainer's Learn): an open book, its pages meeting at the spine,
+ * a line of text on each. */
+const BOOK = {
+  small: [
+    '.........',
+    '##.....##',
+    '#.##.##.#',
+    '#...#...#',
+    '#.#.#.#.#',
+    '#...#...#',
+    '#.#.#.#.#',
+    '#...#...#',
+    '.###.###.',
+  ],
+  large: [
+    '.............',
+    '.###.....###.',
+    '#...##.##...#',
+    '#.....#.....#',
+    '#.##..#..##.#',
+    '#.....#.....#',
+    '#.##..#..##.#',
+    '#.....#.....#',
+    '#.##..#..##.#',
+    '#.....#.....#',
+    '.###..#..###.',
+    '....##.##....',
+    '.............',
+  ],
+};
+
 export const ICONS = Object.freeze({
   path: PATH, quiz: QUIZ, progress: PROGRESS, settings: SETTINGS,
   notes: NOTES, kit: KIT, sticks: STICKS, dice: DICE, folder: FOLDER,
   staff: STAFF, ear: EAR, padpick: PADPICK, metronome: METRONOME, loop: LOOP,
   stairs: STAIRS, chord: CHORD, progression: PROGRESSION, song: SONG, keyletter: KEYLETTER,
+  note: NOTE, interval: INTERVAL, book: BOOK,
 });
 
 /* Practice, Drums: two sticks crossed in an X over a snare's head, their tips

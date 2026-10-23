@@ -24,12 +24,16 @@ import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './g
 import { inStaffRange } from './notation.mjs';
 import { DEFAULT_TRANSPOSE, padsForPitch } from './padmap.mjs';
 import {
-  QUALITIES, ADVANCED_QUALITIES, buildChord, chordSymbol, qualitySpan, nameChord,
+  QUALITIES, ADVANCED_QUALITIES, nameChord, chordPool, matchChord, qualityById, chordOf,
 } from './chords.mjs';
+import { CORRECT, WRONG, INCOMPLETE } from './verdict.mjs';
+import { matchScale } from './scales.mjs';
 import { buildChoices } from './choices.mjs';
+import { itemHistory } from './stats.mjs';
 import { spell, chordLabel } from './notation.mjs';
 import {
   exerciseByKey, levelByKey, buildEarPool, answersFor, groupByAnswer, pickEntry, slowed,
+  exerciseSubject,
 } from './ear.mjs';
 
 export const NOTES = 'notes';
@@ -52,26 +56,15 @@ export const READ_STAFF = 'staff';
  * the edge and the sixth is already there to glide in behind it. */
 export const LOOKAHEAD = 6;
 
-export const CORRECT = 'correct';
-export const WRONG = 'wrong';
-export const INCOMPLETE = 'incomplete';
+export { CORRECT, WRONG, INCOMPLETE };
 
 /*
  * Everything the quiz can ask, worked out once at the start.
  *
  * Constrained three ways at once: in the key, drawable on the staff, and
- * reachable on a pad. A prompt that fails any of those is unanswerable — it
- * would be invisible, or there would be no pad for it.
- */
-function playable(pitches, transpose) {
-  for (let i = 0; i < pitches.length; i++) {
-    if (!inStaffRange(pitches[i])) return false;
-    if (!padsForPitch(pitches[i], transpose).length) return false;
-  }
-  return true;
-}
-
-/*
+ * reachable on a pad (chords.mjs playable). A prompt that fails any of those
+ * is unanswerable — it would be invisible, or there would be no pad for it.
+ *
  * Pool entries are { pitches, label }. The label is null for notes and for
  * diatonic triads, where the note names say everything there is to say, and a
  * chord symbol for the quality drill — there, naming the chord IS the exercise
@@ -87,25 +80,17 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
       ? QUALITIES.concat(ADVANCED_QUALITIES)
       : QUALITIES;
     /* Roots follow the same setting the note drill uses: chromatic when half
-     * tones are on, otherwise the notes of the key. */
-    const roots = [];
-    if (halfTones) {
-      for (let pitch = lo; pitch <= hi; pitch++) roots.push(pitch);
-    } else {
-      for (let i = 0; i < scale.length; i++) roots.push(scale[i]);
-    }
-    for (let r = 0; r < roots.length; r++) {
-      for (let q = 0; q < qualities.length; q++) {
-        const quality = qualities[q];
-        if (roots[r] + qualitySpan(quality) > hi) continue;
-        const pitches = buildChord(roots[r], quality);
-        if (!playable(pitches, transpose)) continue;
-        /* The quality is what the tally files it under: a few dozen kinds read
-         * better than hundreds of chords. */
-        pool.push({ pitches, label: chordSymbol(roots[r], quality, fifths), quality: quality.suffix || 'maj' });
-      }
-    }
-    return pool;
+     * tones are on, otherwise the notes of the key. The quality is what the
+     * tally files it under: a few dozen kinds read better than hundreds of
+     * chords. */
+    return chordPool({
+      qualities: qualities.map((q) => q.id),
+      roots: halfTones ? 'chromatic' : 'key',
+      rootPc, mode, transpose, fifths,
+    }).map((e) => ({
+      pitches: e.pitches, label: e.label, quality: qualityById(e.qualityId).suffix || 'maj',
+      qualityId: e.qualityId, root: e.root,
+    }));
   }
 
   if (kind === CHORDS) {
@@ -116,7 +101,9 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
       const chord = triadOn(scale, i);
       if (chord.length < 3) continue;
       if (!chord.every((p) => inStaffRange(p))) continue;
-      pool.push({ pitches: chord, label: null });
+      /* A stack of a non-tertian scale is no chord, and no item to file. */
+      const named = chordOf(chord);
+      pool.push(named ? { pitches: chord, label: null, qualityId: named.qualityId, root: named.root } : { pitches: chord, label: null });
     }
     return pool;
   }
@@ -147,18 +134,28 @@ export function createQuiz({
   chordSet = TRIADS,
   fifths = 0,
   pick = false,         /* multiple choice: a pad lights, you name it */
-  exercise = null,      /* EAR: which exercise of ear.mjs, by key */
+  exercise = null,      /* EAR: which exercise of ear.mjs, by key — or a trainer's own */
   level = null,         /* EAR: and which of its levels */
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
   read = null,          /* Play drills: READ_NAME or READ_STAFF */
   history = null,       /* the drill's tally over every round: { key: [asked, right] } */
+  itemTable = null,     /* the per-item table, stats.items: weights by item, per mode */
   seed = 1,
+  /* A trainer's round (trainer.mjs) brings its own: */
+  pool: given = null,   /* the prompts, instead of the ones the kind would build */
+  how = null,           /* 'exact' | 'name': how a played answer is judged */
+  subject = null,       /* what the per-item table files it under */
+  choicesFor = null,    /* entry -> the answers to offer for it, of the exercise's */
+  sequence = false,     /* the pool is asked in its own order, round and round */
 } = {}) {
-  const ear = kind === EAR ? exerciseByKey(exercise) : null;
+  const ear = kind === EAR ? (typeof exercise === 'object' && exercise ? exercise : exerciseByKey(exercise)) : null;
   const earLevel = ear ? levelByKey(ear, level) : null;
-  const pool = ear
-    ? buildEarPool(ear, earLevel.key, transpose)
-    : buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths);
+  let pool = given;
+  if (!pool) {
+    pool = ear
+      ? buildEarPool(ear, earLevel.key, transpose)
+      : buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths);
+  }
   const answers = ear ? answersFor(ear, earLevel) : null;
   const quiz = {
     kind: ear ? EAR : (kind === CHORDS ? CHORDS : NOTES),
@@ -185,6 +182,10 @@ export function createQuiz({
     hint: 0,            /* rungs taken on this prompt */
     hintsUsed: 0,       /* across the round, for the record */
     held: [],
+    /* A line (a scale played note by note): what has been played of it. */
+    played: [],
+    /* A row of chords (a progression played back): the one being played. */
+    chordAt: 0,
     asked: 0,
     correct: 0,
     wrong: 0,
@@ -201,7 +202,12 @@ export function createQuiz({
     /* What the drill has asked before, and how it went: the answers you get
      * wrong come round more often. */
     history: history && typeof history === 'object' ? history : null,
+    itemHistory: null,
     keyCache: new Map(),
+    itemCache: new Map(),
+    /* This round per item, for the per-item table (stats.addItems): { item:
+     * { n: [asked, right], keys: { pc: [a, r] }, ways: { way: [a, r] } } }. */
+    items: {},
     /* Prompts answered wrong, to ask again a few prompts later. */
     reask: [],
     draws: 0,
@@ -214,8 +220,56 @@ export function createQuiz({
     startedAt: null,
     finishedAt: null,
   };
+  quiz.how = how === 'exact' || how === 'name' ? how : null;
+  quiz.sequence = Boolean(sequence);
+  quiz.seqAt = 0;
+  quiz.choicesFor = typeof choicesFor === 'function' ? choicesFor : null;
+  quiz.subject = subject || quizSubject(quiz);
+  quiz.mode = quizMode(quiz);
+  /* What this subject has asked before in this mode, whichever drill asked:
+   * the items you miss come round more often. */
+  if (itemTable && typeof itemTable === 'object' && quiz.subject) {
+    quiz.itemHistory = itemHistory({ items: itemTable }, quiz.subject, quiz.mode);
+  }
   nextPrompt(quiz);
   return quiz;
+}
+
+/*
+ * What the per-item table files this quiz's answers under (stats.mjs): the
+ * subject — notes, chords, or an exercise's own — and the mode. Picking a lit
+ * pad's name and reading the staff are reading; finding a name is playing.
+ */
+export function quizSubject(quiz) {
+  if (quiz.kind === EAR) return exerciseSubject(quiz.exercise);
+  return quiz.kind === CHORDS ? 'chord' : 'note';
+}
+
+export function quizMode(quiz) {
+  if (quiz.kind === EAR) return quiz.exercise.read ? 'read' : 'hear';
+  if (quiz.pick || quiz.read === READ_STAFF) return 'read';
+  return quiz.read === READ_NAME ? 'play' : 'hear';
+}
+
+/*
+ * The item an entry asks about: { item, pc, way }, or null when it is none —
+ * a stack that is no chord, an answer of an exercise with no subject. `pc` is
+ * the prompt root's pitch class where there is one.
+ */
+export function itemOf(quiz, entry) {
+  if (!quiz.subject || !entry) return null;
+  const pcOf = (p) => (p == null ? null : ((p % 12) + 12) % 12);
+  if (quiz.kind === EAR) {
+    const item = entry.judged || entry.answer;
+    if (quiz.subject === 'int' && !entry.judged && !/^[mMPTd]/.test(item)) return null;
+    return { item, pc: pcOf(entry.root), way: entry.way || null };
+  }
+  /* A trainer's entry says what it is. */
+  if (entry.item) return { item: entry.item, pc: pcOf(entry.root), way: entry.way || null };
+  if (quiz.kind === NOTES) {
+    return { item: spell(entry.pitches[0], quiz.fifths).label, pc: pcOf(entry.pitches[0]), way: null };
+  }
+  return entry.qualityId ? { item: entry.qualityId, pc: pcOf(entry.root), way: null } : null;
 }
 
 /* A new question. Never the same one twice running — a repeat reads as the
@@ -249,7 +303,7 @@ export function nextPrompt(quiz) {
   if (quiz.kind === EAR) {
     /* Same list, same order, cursor back on top: the answer's place is
      * something you learn, so it must not move. */
-    quiz.choices = quiz.answers;
+    quiz.choices = quiz.choicesFor ? quiz.choicesFor(chosen) : quiz.answers;
     quiz.choiceIndex = 0;
   } else if (quiz.pick) {
     quiz.choices = buildChoices(quiz.pool, chosen, quiz.rand, PICK_COUNT,
@@ -257,6 +311,8 @@ export function nextPrompt(quiz) {
     quiz.choiceIndex = 0;
   }
   quiz.held = [];
+  quiz.played = [];
+  quiz.chordAt = 0;
   quiz.solved = false;
   quiz.penalised = false;
   quiz.missed = false;
@@ -271,7 +327,10 @@ const promptKey = (e) => e.pitches.join(',') + '|' + (e.label || '');
 function randomEntry(quiz, before) {
   const previous = before ? promptKey(before) : '';
   const same = (e) => promptKey(e) === previous;
-  const draw = quiz.history ? () => weightedEntry(quiz) : () => quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+  if (quiz.sequence) return quiz.pool[quiz.seqAt++ % quiz.pool.length];
+  const draw = quiz.history || quiz.itemHistory
+    ? () => weightedEntry(quiz)
+    : () => quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
   let chosen = draw();
   if (quiz.pool.length > 1) {
     let guard = 8;
@@ -292,10 +351,43 @@ const MISS_WEIGHT = 3;
 export const REASK_MIN = 3;
 export const REASK_SPREAD = 3;
 
-function weightOfKey(quiz, key) {
-  const t = quiz.history && quiz.history[key];
+/* An entry's history: its item's in the table when it is one, else its
+ * answer's in the drill's own tally. */
+function historyOf(quiz, entry) {
+  if (quiz.itemHistory) {
+    const at = entryItem(quiz, entry);
+    if (at) return quiz.itemHistory[at.item];
+  }
+  return quiz.history && quiz.history[entryKey(quiz, entry)];
+}
+
+function weightOf(t) {
   if (!t || !(t[0] > 0)) return 1;
   return 1 + MISS_WEIGHT * ((t[0] - t[1]) / t[0]);
+}
+
+function weightOfEntry(quiz, entry) {
+  return weightOf(historyOf(quiz, entry));
+}
+
+function entryItem(quiz, entry) {
+  if (!quiz.itemCache.has(entry)) quiz.itemCache.set(entry, itemOf(quiz, entry));
+  return quiz.itemCache.get(entry);
+}
+
+/* One answer into the round's per-item count. */
+function countItem(quiz, entry, right) {
+  const at = entryItem(quiz, entry);
+  if (!at) return;
+  const row = quiz.items[at.item] || (quiz.items[at.item] = { n: [0, 0], keys: {}, ways: {} });
+  const bump = (into, k) => {
+    const v = into[k] || (into[k] = [0, 0]);
+    v[0]++;
+    if (right) v[1]++;
+  };
+  bump(row, 'n');
+  if (at.pc != null) bump(row.keys, at.pc);
+  if (at.way) bump(row.ways, at.way);
 }
 
 function entryKey(quiz, entry) {
@@ -309,10 +401,10 @@ function entryKey(quiz, entry) {
 
 function weightedEntry(quiz) {
   let total = 0;
-  for (const e of quiz.pool) total += weightOfKey(quiz, entryKey(quiz, e));
+  for (const e of quiz.pool) total += weightOfEntry(quiz, e);
   let r = quiz.rand() * total;
   for (const e of quiz.pool) {
-    r -= weightOfKey(quiz, entryKey(quiz, e));
+    r -= weightOfEntry(quiz, e);
     if (r < 0) return e;
   }
   return quiz.pool[quiz.pool.length - 1];
@@ -320,8 +412,13 @@ function weightedEntry(quiz) {
 
 /* Hearing draws an answer first, then a prompt for it: the answers weigh. */
 function groupWeights(quiz) {
-  if (!quiz.history) return null;
-  return quiz.groups.map((g) => weightOfKey(quiz, g[0].answer));
+  if (!quiz.history && !quiz.itemHistory) return null;
+  return quiz.groups.map((g) => {
+    const at = quiz.itemHistory ? entryItem(quiz, g[0]) : null;
+    /* A comparison's groups are its answers, not intervals: by the tally. */
+    if (at && !g[0].judged) return weightOf(quiz.itemHistory[at.item]);
+    return weightOf(quiz.history && quiz.history[g[0].answer]);
+  });
 }
 
 /* A missed prompt whose turn has come, unless it would repeat the last one. */
@@ -336,7 +433,7 @@ function dueReask(quiz, before) {
  * After the first hint a hearing prompt plays slower, chords broken first.
  */
 export function promptEvents(quiz) {
-  if (quiz.kind !== EAR || !quiz.entry) return null;
+  if (!quiz.entry || !quiz.entry.events) return null;
   return quiz.hint >= 1 ? slowed(quiz.entry.events) : quiz.entry.events;
 }
 
@@ -346,35 +443,11 @@ function isRight(quiz, option) {
   return option === quiz.entry;
 }
 
-const pc = (pitch) => ((pitch % 12) + 12) % 12;
-
+/* A name has no octave, so a name drill is judged by pitch classes — any F
+ * for "F", A C E in any inversion for "Am"; the staff drills by the written
+ * pitches (chords.mjs matchChord). */
 function evaluate(quiz) {
-  if (quiz.read === READ_NAME) return evaluateByName(quiz);
-  for (let i = 0; i < quiz.held.length; i++) {
-    if (quiz.prompt.indexOf(quiz.held[i]) < 0) return WRONG;
-  }
-  /* Deduplicated on the way in, so equal lengths means the whole chord is
-   * down — which is what makes a chord a chord rather than an arpeggio. */
-  return quiz.held.length === quiz.prompt.length ? CORRECT : INCOMPLETE;
-}
-
-/*
- * A name has no octave, so the answer is its pitch classes: any F for "F", and
- * A, C and E in any octave or inversion for "Am". Still held together, and
- * still nothing outside the chord — a doubled note is fine, a stray one is not.
- */
-function evaluateByName(quiz) {
-  const wanted = quiz.prompt.map(pc);
-  const have = [];
-  for (let i = 0; i < quiz.held.length; i++) {
-    const p = pc(quiz.held[i]);
-    if (wanted.indexOf(p) < 0) return WRONG;
-    if (have.indexOf(p) < 0) have.push(p);
-  }
-  for (let i = 0; i < wanted.length; i++) {
-    if (have.indexOf(wanted[i]) < 0) return INCOMPLETE;
-  }
-  return CORRECT;
+  return matchChord(quiz.held, quiz.prompt, quiz.how || (quiz.read === READ_NAME ? 'name' : 'exact'));
 }
 
 /*
@@ -390,6 +463,8 @@ function evaluateByName(quiz) {
 export function pressPitch(quiz, pitch, nowMs = 0) {
   if (quiz.startedAt === null && nowMs) quiz.startedAt = nowMs;
   if (quiz.solved) return CORRECT;
+  if (quiz.entry && quiz.entry.line) return pressLine(quiz, pitch, nowMs);
+  if (quiz.entry && quiz.entry.chords) return pressChords(quiz, pitch, nowMs);
   /* Two pads can be the same pitch on this grid; count it once. */
   if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
 
@@ -417,6 +492,7 @@ function solve(quiz, nowMs) {
     }
     quiz.tally[key][0]++;
     if (!quiz.missed) quiz.tally[key][1]++;
+    countItem(quiz, quiz.entry, !quiz.missed);
     /* Missed: ask it again a few prompts on (the row already holds the next
      * few, so it lands after them). */
     if (quiz.missed) {
@@ -434,6 +510,75 @@ function miss(quiz) {
   quiz.penalised = true;
   quiz.wrong++;
   quiz.streak = 0;
+}
+
+/*
+ * A line is played note by note, in order (scales.mjs matchScale): exactly,
+ * or any octave when it was asked by name or by ear. A wrong note counts as a
+ * miss and the line starts again from its first note — a scale with a hole in
+ * it is not the scale.
+ */
+function pressLine(quiz, pitch, nowMs) {
+  quiz.played.push(pitch);
+  const result = quiz.entry.relative
+    ? matchShape(quiz.played, quiz.entry.line)
+    : matchScale(quiz.played, quiz.entry.line, quiz.how === 'exact' ? 'exact' : 'any');
+  if (result === CORRECT) solve(quiz, nowMs);
+  else if (result === WRONG) {
+    miss(quiz);
+    quiz.penalised = false;
+    quiz.played = [];
+  }
+  return result;
+}
+
+/*
+ * A row of chords, each judged by name as it goes down (chords.matchChord):
+ * a chord right moves on to the next — what is still held of it no longer
+ * counts — and a wrong one is a miss, the same chord to play again. The row
+ * is right when every chord is; any miss on the way and it is asked again.
+ */
+function pressChords(quiz, pitch, nowMs) {
+  if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
+  const want = quiz.entry.chords[quiz.chordAt];
+  const result = matchChord(quiz.held, want, quiz.how || 'name');
+  if (result === WRONG) {
+    miss(quiz);
+    quiz.penalised = false;
+    quiz.held = [];
+    return WRONG;
+  }
+  if (result === INCOMPLETE) return INCOMPLETE;
+  quiz.chordAt++;
+  quiz.held = [];
+  if (quiz.chordAt < quiz.entry.chords.length) return INCOMPLETE;
+  solve(quiz, nowMs);
+  return CORRECT;
+}
+
+/*
+ * A line judged by its shape (an interval from its name or by ear): the first
+ * note any octave of the one asked, each after it the same distance from the
+ * first as in the line — an M3 above D is any D and the F# a major 3rd above
+ * that D, not any F#.
+ */
+function matchShape(played, line) {
+  if (played.length > line.length) return WRONG;
+  for (let i = 0; i < played.length; i++) {
+    const ok = i === 0
+      ? (((played[0] - line[0]) % 12) + 12) % 12 === 0
+      : played[i] - played[0] === line[i] - line[0];
+    if (!ok) return WRONG;
+  }
+  return played.length === line.length ? CORRECT : INCOMPLETE;
+}
+
+/* How much of a line or a row of chords is down: notes, or chords. */
+export function lineProgress(quiz) {
+  if (!quiz.entry) return 0;
+  if (quiz.entry.line) return quiz.played.length;
+  if (quiz.entry.chords) return quiz.chordAt;
+  return 0;
 }
 
 export function releasePitch(quiz, pitch) {
@@ -457,6 +602,8 @@ export function answerKey(quiz, entry) {
     const a = (quiz.answers || []).find((x) => x.key === entry.answer);
     return { key: entry.answer, label: a ? a.label : entry.answer };
   }
+  /* A trainer's entry is filed under its item, as the table files it. */
+  if (entry.item) return { key: entry.item, label: entry.itemLabel || entry.item };
   if (entry.pitches.length === 1) {
     const name = spell(entry.pitches[0], quiz.fifths).label;
     return { key: name, label: name };
@@ -550,6 +697,8 @@ export function optionLabel(quiz, entry) {
  * shows its notes, which is the honest name for it.
  */
 export function entryName(quiz, entry) {
+  /* A trainer's entry names itself: "Db", "M3 above D". */
+  if (entry.item && entry.label) return entry.label;
   if (entry.pitches.length === 1) return spell(entry.pitches[0], quiz.fifths).label;
   return entry.label || nameChord(entry.pitches, quiz.fifths) || chordLabel(entry.pitches, quiz.fifths);
 }

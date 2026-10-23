@@ -50,7 +50,7 @@ import * as CAT from './catalog.mjs';
 import {
   createSession, OUT_TRACK, OUT_USB, OUT_INTERNAL,
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
-  SHEET_VIEW, CARD_VIEW, ANIM_VIEW,
+  SHEET_VIEW, CARD_VIEW, ANIM_VIEW, TRAINER_STATS,
 } from './session.mjs';
 import { hintPart, ROTATE_MS } from './hints.mjs';
 import { mapPadColors } from './pathmap/leds.mjs';
@@ -688,11 +688,17 @@ function draw() {
         decorate: S.decorateRow,
       });
   } else if (view === SETTINGS) {
-    const group = SET.groupByKey(S.settingsGroup);
-    VIEW.drawList(ctx, group ? group.label.toUpperCase() : 'SETTINGS', S.settingsRows(), S.settingsCursor, {
+    VIEW.drawList(ctx, S.settingsTitle().toUpperCase(), S.settingsRows(), S.settingsCursor, {
       footer: footer(),
       centreFooter: true,
       editing: S.settingsEditing,
+    });
+  } else if (view === TRAINER_STATS) {
+    VIEW.drawTrainerStats(ctx, {
+      title: S.trainerStatsTitle().toUpperCase(),
+      rows: S.statsRows.map((r) => ({ label: r.label, cells: r.cells })),
+      cursor: S.statsCursor,
+      footer: footer(),
     });
   } else if (view === RESULT_VIEW) {
     if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, { ...lastResult, footer: footer() });
@@ -710,7 +716,7 @@ function draw() {
   } else if (view === GUESS_VIEW && S.quizPick && quiz.exercise && quiz.exercise.read) {
     const option = quiz.choices[quiz.choiceIndex];
     VIEW.drawReadPick(ctx, {
-      title: 'READ ' + quiz.exercise.short.toUpperCase(),
+      title: S.quizTitle() || 'READ ' + quiz.exercise.short.toUpperCase(),
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : String(GUESS.quizStats(quiz).correct),
@@ -727,8 +733,8 @@ function draw() {
     if (ear) ask = quiz.solved ? quiz.label : quiz.exercise.question;
     else if (quiz.solved) ask = 'right';
     VIEW.drawPick(ctx, {
-      title: ear ? 'HEAR ' + quiz.exercise.short.toUpperCase()
-        : (quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE'),
+      title: S.quizTitle() || (ear ? 'HEAR ' + quiz.exercise.short.toUpperCase()
+        : (quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE')),
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : String(GUESS.quizStats(quiz).correct),
@@ -742,17 +748,34 @@ function draw() {
       hint: ask,
       footer: footer(),
     });
+  } else if (view === GUESS_VIEW && S.rowState()) {
+    /* A progression played chord by chord: from its numerals, or by ear. */
+    const row = S.rowState();
+    VIEW.drawChordRow(ctx, {
+      ...row,
+      title: S.quizTitle() || 'PLAY',
+      score: quiz.roundSize > 0 ? quiz.correct + '/' + quiz.roundSize : String(GUESS.quizStats(quiz).correct),
+      footer: footer(),
+    });
+  } else if (view === GUESS_VIEW && S.lineState()) {
+    /* A line to play — a scale, an interval — from its name, heard, or read. */
+    VIEW.drawLineView(ctx, {
+      ...S.lineState(),
+      title: S.quizTitle() || 'PLAY',
+      score: quiz.roundSize > 0 ? quiz.correct + '/' + quiz.roundSize : String(GUESS.quizStats(quiz).correct),
+      footer: footer(),
+    });
   } else if (view === GUESS_VIEW && quiz.read) {
     const st = GUESS.quizStats(quiz);
     const staff = quiz.read === GUESS.READ_STAFF;
     VIEW.drawQuizRow(ctx, {
-      queue: quiz.queue.map((e) => ({ pitches: e.pitches, name: GUESS.entryName(quiz, e) })),
+      queue: quiz.queue.map((e) => ({ pitches: e.pitches, name: GUESS.entryName(quiz, e), fifths: e.fifths })),
       read: quiz.read,
       glide: S.quizGlide(),
       fifths: S.keyFifths(),
       solved: quiz.solved,
       hint: quiz.hint,
-      title: (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE') + (staff ? ' STAFF' : ''),
+      title: S.quizTitle() || (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE') + (staff ? ' STAFF' : ''),
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : st.correct + '/' + st.asked,
@@ -767,7 +790,7 @@ function draw() {
       hidden: S.quizHear && !quiz.solved,
       hint: quiz.hint,
       label: quiz.label,
-      title: S.quizHear ? 'HEAR' : (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE'),
+      title: S.quizTitle() || (S.quizHear ? 'HEAR' : (quiz.kind === GUESS.CHORDS ? 'CHORD' : 'NOTE')),
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : st.correct + '/' + st.asked,

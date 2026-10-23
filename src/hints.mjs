@@ -42,6 +42,8 @@ const MAP = 'map';
 const HOME = 'home';
 /* A scene of the Learning Path (pathmap/scenes.mjs): any key skips it. */
 const ANIM = 'anim';
+/* A trainer's Stats: its items, weakest first. */
+const TRAINER_STATS = 'trainer-stats';
 
 /* Shift+Back leaves the module from anywhere (ui.js). */
 const QUIT = 'BACK quit';
@@ -96,8 +98,14 @@ function table(screen, s) {
     }
     case SETTINGS:
       if (s.editing) return { keys: ['JOG change', 'CLICK ok'], shift: [QUIT] };
+      if (s.start) return { keys: ['CLICK start', 'BACK up'], shift: ['CLICK close', QUIT] };
+      /* Start, but the pick is too small: its row says what is missing. */
+      if (s.blocked) return { keys: ['JOG choose', 'BACK up'], shift: ['CLICK close', QUIT] };
+      if (s.tick) return { keys: ['CLICK tick', 'BACK done'], shift: ['CLICK close', QUIT] };
       return { keys: [s.open ? 'CLICK open' : s.action ? 'CLICK do it' : 'CLICK edit', 'BACK up'],
         shift: ['CLICK close', QUIT] };
+    case TRAINER_STATS:
+      return { keys: s.empty ? ['BACK up'] : ['CLICK detail', 'BACK up'], shift: [QUIT] };
     case PROGRESS:
       return { keys: ['CLICK chart', 'BACK up'], shift: [QUIT] };
     case PROGRESS_DETAIL:
@@ -115,16 +123,19 @@ function about(screen, s) {
   switch (screen) {
     case MENU:
       return s.top
-        ? 'Home, as a list: the Learning Path, the free library to practise, the quiz, your progress and the settings. BACK shows the circles again.'
+        ? 'Home, as a list: the Learning Path, Practice with its five trainers, the songs, your progress and the settings. BACK shows the circles again.'
         : 'A folder of the list. A row with > opens another folder; any other row opens what it holds.';
     case HOME:
       if (s.ring === 'basics') {
-        return 'Practice: the free library, as circles: scales, chords, progressions, random drills and songs. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
+        return 'Practice: five trainers, as circles: notes, intervals, scales, chords, progressions, from the smallest unit to the largest. Each has the same five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
       }
-      if (s.ring === 'quiz') {
-        return 'Quiz: short rounds, as circles: Ear, name what you hear; Reading, off the staff; Keys, names and pads. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
+      if (s.ring === 'songs') {
+        return 'Songs: the pieces by genre, as circles. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
       }
-      return 'Home: the Learning Path, the free library to practise, the quiz, your progress and the settings, as five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad.';
+      if (s.ring === 'trainer') {
+        return 'A trainer, as circles: Read off the staff, Hear by ear, Play from a name, Learn the lessons, and Stats, your weakest first. Every subject has the same five. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes up.';
+      }
+      return 'Home: the Learning Path, Practice with its five trainers, the songs, your progress and the settings, as five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad.';
     case MAP:
       return 'The map: a lit pad is a place. Press one to walk there, again to go in; the jog walks too, CLICK goes in, PLAY continues. SHIFT+CLICK shows it as a list.';
     case SHEET:
@@ -147,7 +158,12 @@ function about(screen, s) {
       return s.ear ? 'A listening round: name what you hear.'
         : s.pick ? 'A round of naming: name what the lit pads play.'
           : 'A round: play what is asked, on the pads.';
+    case TRAINER_STATS:
+      return 'What you have played of this subject, weakest first: how much of each was right read, heard and played. CLICK shows one in detail.';
     case SETTINGS:
+      if (s.trainer) {
+        return 'A round\'s setup: what it asks and how. The jog picks a row; CLICK edits it, the jog changes it, CLICK again when done. Start runs the round; the page stays as you left it.';
+      }
       return 'Settings: the few that are yours, the octave, the click, the key and scale, where the path starts; Advanced holds the rest. The jog picks a row; CLICK edits it, the jog changes it, CLICK again when done.';
     case PROGRESS:
       return 'Your progress: overall, each stage, then everything you have played.';

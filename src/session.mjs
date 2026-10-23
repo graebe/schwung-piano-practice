@@ -67,6 +67,7 @@ import { createWalk, walkTo, walkStep, posAt, arrived } from './pathmap/walk.mjs
 import { createGrow, startGrow, growing, itemOfPad, HOME_MAX } from './home/render.mjs';
 import { PRACTICE_PIANO } from './home/icons.mjs';
 import * as SC from './pathmap/scenes.mjs';
+import * as TRAIN from './trainer.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -117,16 +118,19 @@ export const HOME_SCREEN = 'home';
 /* A scene of the Learning Path (pathmap/scenes.mjs): a walk, a flag, a zoom... Any
  * key skips it. */
 export const ANIM_VIEW = 'anim';
+/* A trainer's Stats: its items, weakest first (trainer.mjs, stats.items). */
+export const TRAINER_STATS = 'trainer-stats';
 
 /* Every screen, for whoever must cover them all (hints.mjs, its test). */
 export const VIEWS = [
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
-  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN, ANIM_VIEW,
+  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN, ANIM_VIEW, TRAINER_STATS,
 ];
 
 /* What the session keeps, by name; the host decides where. */
 const SETTINGS_FILE = 'settings.json';
 const STATS_FILE = 'stats.json';
+const STATS_V1_FILE = 'stats.v1.bak.json';
 const PROGRESS_FILE = 'progress.json';
 
 export const backupName = (name) => name.replace(/\.json$/, '.bak.json');
@@ -377,8 +381,16 @@ export function createSession(fx, opts = {}) {
     return isRecordText(backup) ? backup : null;
   }
 
+  /*
+   * A version 1 file is migrated as it is read (stats.migrateTally). Before
+   * the first save overwrites it, the old file is kept as it was — once, under
+   * its own name: the .bak twin is rewritten on every load and would lose it.
+   */
   function loadStats() {
-    stats = STATS.parseStats(loadRecord(STATS_FILE));
+    const text = loadRecord(STATS_FILE);
+    stats = STATS.parseStats(text);
+    if (stats.migrated && text && !readText(STATS_V1_FILE)) writeText(STATS_V1_FILE, text);
+    delete stats.migrated;
   }
 
   /* One write per finished round — small, and rare enough not to need pacing. */
@@ -513,6 +525,19 @@ export function createSession(fx, opts = {}) {
   let settingsOver = 'menu';
   /* The list Settings › Advanced was opened over, to go back to. */
   let settingsBack = null;
+  /* The trainer setup open on the Settings page (settingsGroup 'trainer'):
+   * { subject, circle, custom } — custom while its tick list is shown. */
+  let trainerOpen = null;
+  /* A trainer's round played as a chart (Scales › Read, play): its spec, so
+   * the result files the item and its next is another round. */
+  let armedTrainer = null;
+  /* Where Key = all 12 has got to, per subject: the next chart is the same
+   * progression in the next key round the circle. For the session only. */
+  const trainerWalk = {};
+  /* A trainer's Stats open: its subject, its rows, the cursor. */
+  let statsSubject = null;
+  let statsRows = [];
+  let statsCursor = 0;
 
   let ledDirty = true;
 
@@ -551,48 +576,9 @@ export function createSession(fx, opts = {}) {
     for (let i = 0; i < fileSongs.length; i++) infoEnv.songs[fileSongs[i].chart.id] = fileSongs[i].chart;
   }
 
-  /*
-   * The tree, built again whenever a setting that shapes the generated lessons
-   * changes. The open folders are carried across by path, so turning the key
-   * with Practice › Progressions open leaves you in Practice › Progressions.
-   */
-  /*
-   * The Quiz folder, by skill:
-   *
-   *   Ear      something is played; you name it or play it back
-   *   Reading  the courses on the staff, and notes and chords by staff
-   *   Keys     a name is shown and you find it on the pads (any octave
-   *            counts), or a pad is lit and you name it
-   *
-   * The drills here follow the Half tones and Chords settings, and their ids
-   * do too, so a chromatic round and an in-key round are filed apart.
-   */
-  const QUIZ_READ = [
-    { label: 'Notes by staff', guess: GUESS.NOTES, read: GUESS.READ_STAFF },
-    { label: 'Chords by staff', guess: GUESS.CHORDS, read: GUESS.READ_STAFF },
-  ];
-  const QUIZ_KEYS = [
-    { label: 'Notes by alphabet', guess: GUESS.NOTES, read: GUESS.READ_NAME },
-    { label: 'Chords by name', guess: GUESS.CHORDS, read: GUESS.READ_NAME },
-    { label: 'Name notes', guess: GUESS.NOTES, pick: true },
-    { label: 'Name chords', guess: GUESS.CHORDS, pick: true },
-  ];
-
-  function settingsQuiz(row) {
-    return {
-      kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick), read: row.read || null,
-      halfTones: settings.halfTones, chordSet: settings.chordSet, pinned: false, label: row.label,
-    };
-  }
-
+  /* A quiz's progress id: its drill id, behind quiz:. */
   function quizId(spec) {
     return 'quiz:' + STATS.drillId(spec);
-  }
-
-  /* Rows here and on the Path are the same steps by id, so a level played in
-   * either is the same item in Progress. */
-  function quizRows(rows) {
-    return rows.map((r) => ({ ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true }));
   }
 
   /*
@@ -611,37 +597,49 @@ export function createSession(fx, opts = {}) {
   }
 
   /*
-   * The top of the list, the same in Piano Practice and Drums Practice:
+   * The hearing drills that train a subject without naming its items, as rows
+   * of that trainer's Learn list (their quiz ids unchanged): melody under
+   * Intervals, the tonality drills under Scales and Progressions.
+   */
+  const LEARN_EXTRA = {
+    int: ['steps', 'contour'],
+    scale: ['key-quality', 'degrees'],
+    prog: ['home', 'functions'],
+  };
+  const learnExtra = () => Object.fromEntries(Object.keys(LEARN_EXTRA)
+    .map((s) => [s, LEARN_EXTRA[s].map((k) => PLAN.drillRow(k))]));
+
+  /*
+   * The top of the list, Home's five circles:
    *
-   *   Continue   the next step, or a review that is due
-   *   Path       the stages, then Review while anything is due
-   *   Practice   the free library: scales, chords, progressions, random, songs
-   *   Quiz       Ear, Reading, Keys
+   *   Learning Path   Continue, the stages, then Review while anything is due
+   *   Practice        the five trainers: notes, intervals, scales, chords,
+   *                   progressions
+   *   Songs           the pieces, by genre
    *   Progress
    *   Settings
    */
   function rebuildMenu() {
-    const quizFolders = [
-      PLAN.hearMenu(),
-      PLAN.readMenu(quizRows(QUIZ_READ)),
-      CAT.folder('Keys', quizRows(QUIZ_KEYS), 'keys'),
-    ];
     catalog = CAT.buildCatalog({
       songs: fileSongs,
       categories: fileCategories,
       gen: generatorOptions(),
       /* Continue lives in the Path: PLAY on its map, the first row of its list. */
       lead: [PLAN.programFolder(phases, repetitionRows)],
-      after: [CAT.folder('Quiz', quizFolders, 'quiz')],
       tail: [{ label: 'Progress', progress: true, value: '~' }, settingsFolder()],
+      extra: learnExtra(),
     });
     /* The top of the list is the home screen: five circles; Practice and
-     * Quiz are rings of their own. */
+     * Songs are rings of their own, and each trainer in Practice. */
     ringOf(catalog, HOME_ICONS);
     ringOf(catalog.children.find((r) => r.key === 'basics'), PRACTICE_ICONS);
-    ringOf(catalog.children.find((r) => r.key === 'quiz'), QUIZ_ICONS);
+    ringOf(catalog.children.find((r) => r.key === 'songs'), SONG_ICONS);
+    /* Each trainer is a ring of its own: the same five circles. */
+    for (const row of catalog.children.find((r) => r.key === 'basics').children) {
+      if (row.children && row.children.some((c) => c.trainer)) ringOf(row, TRAINER_ICONS);
+    }
     nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
-    const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN });
+    const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN }, learnExtra());
     CAT.stampChildren([pinned], '');
     programTree = { children: [pinned] };
   }
@@ -717,6 +715,7 @@ export function createSession(fx, opts = {}) {
     const ms = GUESS.roundElapsed(quiz, now());
     const rec = STATS.makeRecord({
       drill, n: quiz.correct, ms, wrong: quiz.wrong, hints: quiz.hintsUsed, at: wallNow(),
+      context: roundContext(),
     });
     const best = STATS.summarise(STATS.forDrill(stats, drill)).best;
     lastResult = {
@@ -733,6 +732,7 @@ export function createSession(fx, opts = {}) {
     };
     STATS.addRecord(stats, rec);
     STATS.addTally(stats, drill, quiz.tally);
+    if (quiz.subject) STATS.addItems(stats, quiz.subject, quiz.mode, quiz.items);
     /* After the append, so the chart's last point is the round you just played.
      * `best` above is deliberately taken before it — that is the number you were
      * trying to beat, not the one you have just set. */
@@ -775,6 +775,23 @@ export function createSession(fx, opts = {}) {
     return '';
   }
 
+  /*
+   * What a round was asked in beyond its id: the key, and for a chord drill
+   * the roots it drew from — the Half tones setting decides them, and it is
+   * not part of a chord drill's id, so the record says.
+   */
+  function roundContext() {
+    if (quizSpec && quizSpec.context) return quizSpec.context;
+    if (!quiz || quiz.kind === GUESS.EAR) return null;
+    const x = { k: quizKey().rootPc };
+    if (quiz.kind === GUESS.CHORDS) {
+      x.r = quizSpec.chordSet === 'types' || quizSpec.chordSet === 'advanced'
+        ? (quizSpec.halfTones ? 'chromatic' : 'key')
+        : 'diatonic';
+    }
+    return x;
+  }
+
   /* The id of whatever was just played: the armed exercise, or the quiz. */
   function currentItemId() {
     if (lastResult && lastResult.kind === 'quiz') return quizSpec ? quizId(quizSpec) : null;
@@ -811,19 +828,29 @@ export function createSession(fx, opts = {}) {
       pick: quizPick,
       exercise: spec.exercise,
       level: spec.level,
-      roundSize: settings.roundSize,
+      pool: spec.pool || null,
+      how: spec.how || null,
+      subject: spec.subject || null,
+      choicesFor: spec.choicesFor || null,
+      sequence: Boolean(spec.sequence),
+      roundSize: spec.roundSize != null ? spec.roundSize : settings.roundSize,
       fifths: keyFifths(),
       read: quizRead(spec),
       /* What this drill has asked before and how it went: the answers you
        * miss come round more often. */
       history: STATS.tallyFor(stats, STATS.drillId(spec)),
+      itemTable: stats.items,
       seed: (wallNow() & 0x7fffffff) || 1,
     });
     quizSolvedAt = 0;
     view = GUESS_VIEW;
     dirty = true;
     ledDirty = true;
-    if (readingCourse()) {
+    if (spec.trainer) {
+      /* Heard: the prompt plays at once, as every hearing drill's does. */
+      if ((quiz.kind === GUESS.EAR && !readingCourse()) || quizHear) hearPrompt();
+      announce(trainerWords());
+    } else if (readingCourse()) {
       /* Reading: the staff is the question, so nothing sounds until you ask. */
       announce(quiz.exercise.name + '. Read it, then jog to the answer and click.');
     } else if (quiz.kind === GUESS.EAR) {
@@ -842,6 +869,23 @@ export function createSession(fx, opts = {}) {
     }
     autoInfo({ id: quizId(spec) });
     showTip(TIPS.QUIZ);
+  }
+
+  /*
+   * What a trainer's round says as it starts: its subject and circle, and
+   * what to do — never the answer. A progression from its numerals says the
+   * numerals and the key, not the progression's name.
+   */
+  function trainerWords() {
+    const s = TRAIN.subjectOf(quizSpec.trainer.subject);
+    const head = s.name + ', ' + quizSpec.trainer.circle + '. ';
+    const row = rowState();
+    if (quiz.read === GUESS.READ_NAME) {
+      return head + 'Play ' + (row ? row.tokens.join(' ') + ' ' + row.keyText : promptName()) + '.';
+    }
+    if (quiz.read === GUESS.READ_STAFF) return head + 'Play what is written.';
+    if (quiz.kind === GUESS.EAR) return head + (readingCourse() ? 'Read it' : 'Listen') + ', then answer.';
+    return head + 'Listen, then play it back.';
   }
 
   /*
@@ -955,6 +999,14 @@ export function createSession(fx, opts = {}) {
       openProgress();
       return;
     }
+    if (row.trainer) {
+      openSetup(row.trainer.subject, row.trainer.circle);
+      return;
+    }
+    if (row.trainerStats) {
+      openTrainerStats(row.trainerStats);
+      return;
+    }
     checkPhase = null;
     if (row.continueRow) {
       openContinue();
@@ -975,10 +1027,6 @@ export function createSession(fx, opts = {}) {
     armedUnit = null;
     if (row.repId) {
       openItem(row.repId);
-      return;
-    }
-    if (row.guess) {
-      startQuiz(settingsQuiz(row));
       return;
     }
     if (row.levels) {
@@ -1036,6 +1084,7 @@ export function createSession(fx, opts = {}) {
   function openStep(step, unit, forceStage) {
     armedUnit = unit || PLAN.unitOf(phases, step.id);
     if (step.quiz) {
+      if (openPreset(step.id, PLAN.stepTitle(step), true)) return;
       startQuiz({ ...step.quiz, pinned: true, gen: PLAN.PROGRAM_GEN, label: PLAN.stepTitle(step) });
       return;
     }
@@ -1066,7 +1115,13 @@ export function createSession(fx, opts = {}) {
   /* Anything by its id: a repetition, or what Next lands on. */
   function openItem(id) {
     const inProgram = Boolean(PLAN.findStep(phases, id));
+    const trained = TRAIN.parseTrainerId(id);
+    if (trained) {
+      openTrainerItem(trained, itemTitle(id));
+      return;
+    }
     if (id.indexOf('quiz:') === 0) {
+      if (openPreset(id, itemTitle(id), inProgram)) return;
       const spec = PLAN.quizFromId(id);
       if (spec) startQuiz({ ...spec, pinned: true, gen: inProgram ? PLAN.PROGRAM_GEN : null, label: itemTitle(id) });
       return;
@@ -1080,6 +1135,7 @@ export function createSession(fx, opts = {}) {
   function armLeaf(node, forceStage) {
     /* Opened again, a song starts at its written tempo. */
     sessionTempo = null;
+    armedTrainer = null;
     if (!armNode(node, forceStage)) return;
     announce(chart.name + '. ' + (stage === 2 ? 'Solo' : 'Guided') + '. Press play to start.');
     autoInfo({ id: armedId, label: chart.name });
@@ -1186,11 +1242,21 @@ export function createSession(fx, opts = {}) {
    * came from, or wherever Continue would send you.
    */
   function goNext() {
+    /* A trainer's chart from Practice: the next is another scale. */
+    if (lastResult && lastResult.kind === 'exercise' && armedTrainer && !armedTrainer.pinned) {
+      startTrainer(armedTrainer.spec.trainer.subject, armedTrainer.spec.trainer.circle);
+      return;
+    }
+    /* A trainer's round from Practice: the next is another, as set up. */
+    if (lastResult && lastResult.kind === 'quiz' && quizSpec && quizSpec.trainer && !quizSpec.pinned) {
+      againQuiz();
+      return;
+    }
     const id = currentItemId();
     const it = PROG.item(progress, id);
     if (it && PROG.stagePassed(it, 1) && !PROG.isFinished(it)) {
       if (lastResult && lastResult.kind === 'quiz') {
-        startQuiz(quizSpec);
+        againQuiz();
       } else {
         stage = 2;
         armRun();
@@ -1247,7 +1313,7 @@ export function createSession(fx, opts = {}) {
   /* Back from a result: to the start of the same thing, to try it again. */
   function retryFromResult() {
     if (lastResult && lastResult.kind === 'quiz') {
-      startQuiz(quizSpec);
+      againQuiz();
       return;
     }
     stage = PROG.recommendedStage(PROG.item(progress, armedId));
@@ -1484,6 +1550,15 @@ export function createSession(fx, opts = {}) {
       timing: SCORE.timingSummary(run),
     };
     lastResult.twoNext = twoNext();
+    /* A trainer's chart: one item, right when the run passed. */
+    if (armedTrainer) {
+      const { spec } = armedTrainer;
+      const right = score >= PROG.PASS ? 1 : 0;
+      STATS.addItems(stats, spec.trainer.subject, spec.trainer.circle,
+        { [spec.item]: { n: [1, right], keys: { [spec.root]: [1, right] } } });
+      saveStats();
+      lastResult.twoNext = false;
+    }
     armRun();
     view = RESULT_VIEW;
     dirty = true;
@@ -1858,7 +1933,11 @@ export function createSession(fx, opts = {}) {
     if (view === GUESS_VIEW && quizSpec) return { id: quizId(quizSpec), label: quizSpec.label };
     if (view === RESULT_VIEW) return { kind: 'result' };
     if (view === PROGRESS_VIEW || view === PROGRESS_DETAIL) return { kind: 'progress' };
+    if (view === SETTINGS && settingsGroup === TRAINER_GROUP && trainerOpen) {
+      return { id: 'basics/' + trainerOpen.subject + '-trainer/' + trainerOpen.circle, label: settingsTitle() };
+    }
     if (view === SETTINGS) return { kind: 'settings', group: settingsGroup };
+    if (view === TRAINER_STATS) return { id: 'basics/' + statsSubject + '-trainer/stats', label: trainerStatsTitle() };
     if (view === SHEET_VIEW) return { kind: 'sheet', label: sheet ? sheet.title : '' };
     if (view === CARD_VIEW) return { kind: card && card.kind === 'welcome' ? 'welcome' : 'tip' };
     return null;
@@ -2014,7 +2093,23 @@ export function createSession(fx, opts = {}) {
    *   Shift + click on any of them: straight back there.
    */
   function settingsRows() {
+    if (settingsGroup === TRAINER_GROUP && trainerOpen) {
+      const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
+      return trainerOpen.custom
+        ? TRAIN.customRows(trainerOpen.subject, setup)
+        : TRAIN.setupRows(trainerOpen.subject, trainerOpen.circle, setup);
+    }
     return SET.groupRows(settingsGroup, settings, { start: PLAN.startIndex(progress, phases) + 1 });
+  }
+
+  /* What the page is called: a group's name, or a trainer's and its circle. */
+  function settingsTitle() {
+    if (settingsGroup === TRAINER_GROUP && trainerOpen) {
+      const s = TRAIN.subjectOf(trainerOpen.subject);
+      return s.name + ' ' + (trainerOpen.custom ? 'custom' : TRAIN.CIRCLE_LABEL[trainerOpen.circle]);
+    }
+    const g = SET.groupByKey(settingsGroup);
+    return g ? g.label : 'Settings';
   }
 
   /* A page: 'main', or a group of Advanced. `over` says where the main page
@@ -2066,6 +2161,20 @@ export function createSession(fx, opts = {}) {
   /* Back from a page: a group to Advanced's list, the page to its origin. */
   function closeSettings() {
     settingsEditing = false;
+    if (settingsGroup === TRAINER_GROUP && trainerOpen && trainerOpen.custom) {
+      /* The tick list goes back to its setup, on the row that opened it. */
+      trainerOpen.custom = false;
+      settingsCursor = Math.max(0, settingsRows().findIndex((r) => r.act === 'custom'));
+      dirty = true;
+      return;
+    }
+    if (settingsGroup === TRAINER_GROUP) {
+      settingsGroup = SET.MAIN_GROUP.key;
+      view = MENU;
+      dirty = true;
+      ledDirty = true;
+      return;
+    }
     if (!onMain()) view = MENU;
     else view = settingsOver === 'piece' && chart ? READY : MENU;
     dirty = true;
@@ -2090,6 +2199,12 @@ export function createSession(fx, opts = {}) {
       editSetting(r.index, delta);
       return;
     }
+    if (r.edit === 'trainer') {
+      const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
+      if (TRAIN.applySetup(trainerOpen.subject, setup, r.field, delta)) saveTrainerSetup(setup);
+      dirty = true;
+      return;
+    }
     if (r.edit === 'start') {
       const at = clamp(PLAN.startIndex(progress, phases) + (delta > 0 ? 1 : -1), 0, phases.length - 1);
       if (at !== PLAN.startIndex(progress, phases)) startHere(phases[at]);
@@ -2108,6 +2223,27 @@ export function createSession(fx, opts = {}) {
     }
     if (r.act === 'advanced') {
       openAdvanced();
+      return;
+    }
+    if (r.act === 'start') {
+      if (r.disabled) {
+        announce('Not yet: ' + r.value + '.');
+        return;
+      }
+      startTrainer(trainerOpen.subject, trainerOpen.circle);
+      return;
+    }
+    if (r.act === 'custom') {
+      trainerOpen.custom = true;
+      settingsCursor = 0;
+      dirty = true;
+      return;
+    }
+    if (r.act === 'tick') {
+      const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
+      TRAIN.toggleCustom(trainerOpen.subject, setup, r.item);
+      saveTrainerSetup(setup);
+      dirty = true;
       return;
     }
     if (r.act === 'tips') {
@@ -2154,10 +2290,15 @@ export function createSession(fx, opts = {}) {
      * and calling one here used to throw the moment you turned the key knob with
      * a quiz open. */
     if ((res.rebuild || res.key === 'halfTones' || res.key === 'chordSet') &&
-        view === GUESS_VIEW && quiz) {
+        view === GUESS_VIEW && quiz && !(quizSpec && quizSpec.trainer)) {
       /* A step of the program keeps the options it pinned; a Quiz row follows. */
       startQuiz(quizSpec.pinned ? quizSpec
         : { ...quizSpec, halfTones: settings.halfTones, chordSet: settings.chordSet });
+    } else if (res.rebuild && armedTrainer && armedTrainer.spec.remake
+      && CTRL.shouldRebuildChart(view, chart && chart.source)) {
+      /* A trainer's chart is no row of the tree: it is made again from its spec. */
+      chart = { ...armedTrainer.spec.remake({ bpm: settings.bpm, transpose: settings.transpose }), source: 'generated' };
+      armRun();
     } else if (res.rebuild && CTRL.shouldRebuildChart(view, chart && chart.source)) {
       const row = armedId ? findLeaf(armedId) : null;
       if (row && row.build) {
@@ -2169,6 +2310,247 @@ export function createSession(fx, opts = {}) {
     ledDirty = true;
     dirty = true;
   }
+  /* ---- The trainers ------------------------------------------------------------ */
+  /*
+   * Practice › Chords is a ring of five circles (catalog.trainerFolder). Read,
+   * Hear and Play open their setup on the Settings page — the same rows, the
+   * same jog and click — and its last row, Start, runs a round on the quiz
+   * engine (trainer.mjs trainerSpec). A setup is remembered per subject and
+   * circle in the progress file, so the page opens as it was left. Back from
+   * a round is its setup; from the setup, the ring.
+   */
+  const TRAINER_GROUP = 'trainer';
+
+  function trainerSetup(subject, circle) {
+    const all = progress.trainers || (progress.trainers = {});
+    const mine = all[subject] || (all[subject] = {});
+    const setup = TRAIN.coerceSetup(subject, circle, mine[circle], settings);
+    mine[circle] = setup;
+    return setup;
+  }
+
+  function saveTrainerSetup(setup) {
+    progress.trainers[trainerOpen.subject][trainerOpen.circle] = setup;
+    saveProgress();
+  }
+
+  /* A circle's setup page, the cursor on Start: the usual next thing is to go. */
+  function openSetup(subject, circle) {
+    trainerOpen = { subject, circle, custom: false };
+    settingsGroup = TRAINER_GROUP;
+    settingsOver = 'menu';
+    settingsEditing = false;
+    settingsCursor = settingsRows().length - 1;
+    view = SETTINGS;
+    dirty = true;
+    ledDirty = true;
+    announce(settingsTitle() + '.');
+  }
+
+  /* A round with the setup as it stands; a Custom pick needs something picked. */
+  function startTrainer(subject, circle) {
+    const setup = trainerSetup(subject, circle);
+    const blocked = TRAIN.startBlock(subject, circle, setup);
+    if (blocked) {
+      announce('Not yet: ' + blocked + '.');
+      return;
+    }
+    if (setup.level === 'custom') {
+      /* So a Review of this pick can find what it was. */
+      const sets = progress.trainers[subject].sets || (progress.trainers[subject].sets = {});
+      sets[TRAIN.customHash(setup.custom)] = setup.custom.slice();
+    }
+    trainerOpen = { subject, circle, custom: false };
+    settingsGroup = SET.MAIN_GROUP.key;
+    runTrainer(TRAIN.trainerSpec(subject, circle, setup, trainerCtx(subject, circle)));
+  }
+
+  /* What a round is drawn with: the octave, the tempo, a fresh seed, and the
+   * circle's history in the per-item table, so a missed item comes up more. */
+  function trainerCtx(subject, circle) {
+    return {
+      transpose: settings.transpose,
+      bpm: settings.bpm,
+      seed: (wallNow() & 0x7fffffff) || 1,
+      history: STATS.itemHistory(stats, subject, circle),
+      walk: trainerWalk[subject] || null,
+    };
+  }
+
+  /* A round on its engine: a quiz, or a chart on the ready screen. */
+  function runTrainer(spec, pinned = false, label = null) {
+    if (!spec.chart) {
+      startQuiz(pinned ? { ...spec, pinned: true, label } : spec);
+      return;
+    }
+    allNotesOff();
+    quizSpec = null;
+    armedUnit = null;
+    sessionTempo = null;
+    const node = { id: 'quiz:' + spec.trainer.id, label: label || spec.chart.name,
+      build: () => ({ ...spec.chart, source: 'generated' }) };
+    if (!armNode(node)) return;
+    armedTrainer = { spec, pinned };
+    if (spec.walk) trainerWalk[spec.trainer.subject] = spec.walk;
+    announce(chart.name + '. Read it. Press play to start.');
+  }
+
+  /*
+   * A trainer's round by its id — from Review, Continue or Progress: the
+   * circle's setup as it was left, with the id's answer and level. A Custom
+   * pick is found by its hash among the picks played; one that cannot be
+   * found does not open. Pinned: the setup page is not changed by it.
+   */
+  function openTrainerItem(t, label) {
+    const setup = { ...trainerSetup(t.subject, t.circle) };
+    if (t.circle !== 'play') setup.answer = t.answer;
+    setup.level = t.level;
+    if (t.level === 'custom') {
+      const sets = (progress.trainers[t.subject] && progress.trainers[t.subject].sets) || {};
+      if (!sets[t.hash]) return;
+      setup.custom = sets[t.hash].slice();
+    }
+    runTrainer(TRAIN.trainerSpec(t.subject, t.circle, setup, trainerCtx(t.subject, t.circle)), true, label);
+  }
+
+  /*
+   * An old drill's id, opened as the trainer round it now is (trainer.mjs
+   * presetOf) — and filed under its own id still, so a path step keeps its
+   * tick and a drill its history. A step of the path asks in C major, as
+   * the curriculum teaches; anywhere else in the settings' key. False for a
+   * drill that has no trainer round: it opens as it always has.
+   */
+  function openPreset(id, label, inProgram) {
+    const preset = TRAIN.presetOf(id);
+    if (!preset) return false;
+    const key = inProgram ? PLAN.PROGRAM_GEN : settings;
+    const setup = TRAIN.coerceSetup(preset.subject, preset.circle, preset.setup,
+      { rootPc: key.rootPc, mode: key.mode });
+    const spec = TRAIN.trainerSpec(preset.subject, preset.circle, setup, trainerCtx(preset.subject, preset.circle));
+    spec.trainer = { ...spec.trainer, id: id.replace(/^quiz:/, '') };
+    runTrainer(spec, true, label);
+    return true;
+  }
+
+  /* Another round of what was just played: a trainer's is drawn again, a
+   * random key with it; anything else runs as it was. */
+  function againQuiz() {
+    if (quizSpec && quizSpec.trainer && !quizSpec.pinned) {
+      startTrainer(quizSpec.trainer.subject, quizSpec.trainer.circle);
+      return;
+    }
+    startQuiz(quizSpec);
+  }
+
+  /* ---- A trainer's Stats ---- */
+  /*
+   * Every item of the subject that has been asked, weakest first, with how
+   * much of it was right when read, heard and played. A row's click opens its
+   * detail: per circle asked and right, and per key.
+   */
+  const pct = (v) => (v && v[0] ? Math.round((100 * v[1]) / v[0]) : null);
+
+  function openTrainerStats(subject) {
+    statsSubject = subject;
+    const s = TRAIN.subjectOf(subject);
+    statsRows = STATS.itemRows(stats, subject).map((r) => ({
+      label: s.itemLabel(r.item),
+      cells: [pct(r.read), pct(r.hear), pct(r.play)],
+      item: r.item,
+      row: r,
+    }));
+    statsCursor = 0;
+    view = TRAINER_STATS;
+    dirty = true;
+    ledDirty = true;
+    announce(s.name + ' stats. ' + (statsRows.length ? 'Weakest first.' : 'Nothing played yet.'));
+  }
+
+  /* A trainer's round is titled as its circle is: CHORDS READ, the same words
+   * as its setup page, whichever engine runs it. Null for any other quiz. */
+  function quizTitle() {
+    if (!quizSpec || !quizSpec.trainer) return null;
+    const s = TRAIN.subjectOf(quizSpec.trainer.subject);
+    return ((s.short || s.name) + ' '
+      + TRAIN.CIRCLE_LABEL[quizSpec.trainer.circle]).toUpperCase();
+  }
+
+  /*
+   * A line to play — a scale, an interval — as the Move and the page draw it:
+   * its staff, how much of it shows, and the name lane. Its name is the
+   * prompt when asked by name; heard, "?" (help names it); read, the staff
+   * is the question and the name waits for the answer. Null for any other
+   * prompt.
+   */
+  function lineState() {
+    if (!quiz || !quiz.entry || !quiz.entry.line) return null;
+    const byName = quiz.read === GUESS.READ_NAME;
+    const read = quiz.read === GUESS.READ_STAFF;
+    let label = '?';
+    if (byName || quiz.solved || (!read && quiz.hint > 0)) label = quiz.entry.label;
+    else if (read) label = '';
+    const total = quiz.entry.staff.length;
+    return {
+      staff: quiz.entry.staff,
+      shown: read || quiz.solved ? total : quiz.played.length,
+      label,
+      solved: quiz.solved,
+    };
+  }
+
+  /*
+   * A row of chords to play — a progression from its numerals or by ear:
+   * the numerals ("?" heard, until help or the answer), how many are down,
+   * the name lane's key or "?", and the progression once played.
+   */
+  function rowState() {
+    if (!quiz || !quiz.entry || !quiz.entry.chords) return null;
+    const byName = quiz.read === GUESS.READ_NAME;
+    const hidden = !byName && quiz.hint === 0 && !quiz.solved;
+    return {
+      tokens: quiz.entry.tokens.map((w) => (hidden ? '?' : w)),
+      done: GUESS.lineProgress(quiz),
+      keyText: byName ? quiz.entry.keyText : '?',
+      label: quiz.entry.label,
+      solved: quiz.solved,
+    };
+  }
+
+  function trainerStatsTitle() {
+    return TRAIN.subjectOf(statsSubject).name;
+  }
+
+  /* A row of the Stats list, as the page picks one: the cursor on it. */
+  function selectStatsRow(i) {
+    statsCursor = clamp(i, 0, Math.max(0, statsRows.length - 1));
+    dirty = true;
+  }
+
+  /* One item's page, over the Stats list. */
+  function openStatsDetail() {
+    const r = statsRows[statsCursor];
+    if (!r) return;
+    const line = (name, v) => name + ': ' + (v[0] ? v[1] + ' of ' + v[0] + ' right' : 'not asked yet');
+    const keyed = Object.keys(r.row.keys || {})
+      .map((pc) => ({ pc: Number(pc), v: r.row.keys[pc] }))
+      .sort((a, b) => a.pc - b.pc)
+      .map((k) => GEN.PC_NAMES[k.pc] + ' ' + k.v[1] + '/' + k.v[0]);
+    const paragraphs = [
+      { text: 'By circle', head: true },
+      { text: line('Read', r.row.read), head: false },
+      { text: line('Hear', r.row.hear), head: false },
+      { text: line('Play', r.row.play), head: false },
+    ];
+    if (keyed.length) {
+      paragraphs.push({ text: '', head: false }, { text: 'By root', head: true }, { text: keyed.join('  '), head: false });
+    }
+    info = { title: r.label, paragraphs, back: TRAINER_STATS };
+    view = INFO_VIEW;
+    dirty = true;
+    ledDirty = true;
+    announce(r.label + '.');
+  }
+
   /* ---- The options sheet ----------------------------------------------------- */
   /*
    * Shift + jog-click on a row: what can be done with it besides opening it
@@ -2388,7 +2770,8 @@ export function createSession(fx, opts = {}) {
     if (view === MENU) {
       st.top = nav.length <= 1;
       /* Which ring the circles are: home, Practice or Quiz (its help). */
-      st.ring = nav.length <= 1 ? 'home' : CAT.navTop(nav).node.key || '';
+      const ring = CAT.navTop(nav).node;
+      st.ring = nav.length <= 1 ? 'home' : ring.children.some((c) => c.trainer) ? 'trainer' : ring.key || '';
     }
     if (view === READY) {
       st.stages = Boolean(armedId);
@@ -2413,8 +2796,13 @@ export function createSession(fx, opts = {}) {
       const r = settingsRows()[settingsCursor];
       st.editing = settingsEditing;
       st.action = Boolean(r && r.act);
-      st.open = Boolean(r && r.act === 'advanced');
+      st.open = Boolean(r && (r.act === 'advanced' || r.act === 'custom'));
+      st.start = Boolean(r && r.act === 'start' && !r.disabled);
+      st.blocked = Boolean(r && r.act === 'start' && r.disabled);
+      st.tick = Boolean(r && r.act === 'tick');
+      st.trainer = settingsGroup === TRAINER_GROUP;
     }
+    if (view === TRAINER_STATS) st.empty = !statsRows.length;
     if (view === CARD_VIEW && card) {
       st.pages = card.pages.length;
       st.choice = Boolean(card.pages[card.page].choices);
@@ -2433,7 +2821,8 @@ export function createSession(fx, opts = {}) {
   function listTitle() {
     const row = CAT.navCurrent(nav);
     const deco = row && row.continueRow ? decorateRow(row) : null;
-    return deco && deco.title ? deco.title : CAT.navTop(nav).node.label;
+    const top = CAT.navTop(nav).node;
+    return deco && deco.title ? deco.title : top.title || top.label;
   }
 
   /* ---- The Path map ---------------------------------------------------------- */
@@ -2483,9 +2872,11 @@ export function createSession(fx, opts = {}) {
    * only grown content could cause. Icons are keyed by the row's key, or
    * its label where it has none.
    */
-  const HOME_ICONS = { program: 'path', basics: PRACTICE_PIANO, quiz: 'quiz', progress: 'progress', settings: 'settings' };
-  const PRACTICE_ICONS = { Scales: 'stairs', Chords: 'chord', Progressions: 'progression', Random: 'dice', Songs: 'song' };
-  const QUIZ_ICONS = { hear: 'ear', read: 'staff', keys: 'keyletter' };
+  const HOME_ICONS = { program: 'path', basics: PRACTICE_PIANO, songs: 'song', progress: 'progress', settings: 'settings' };
+  /* The subjects: no picture of theirs is a circle's of a trainer. */
+  const PRACTICE_ICONS = { Notes: 'note', Intervals: 'interval', Scales: 'stairs', Chords: 'chord', Progressions: 'progression' };
+  const SONG_ICONS = { classics: 'note', electronic: 'loop', techno: 'metronome', styles: 'chord', other: 'folder' };
+  const TRAINER_ICONS = { read: 'staff', hear: 'ear', play: 'keyletter', Learn: 'book', stats: 'progress' };
 
   const rowKey = (r) => r.key || (r.progress ? 'progress' : r.label);
 
@@ -2997,6 +3388,11 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
+    if (view === TRAINER_STATS) {
+      statsCursor = clamp(statsCursor + (delta > 0 ? 1 : -1), 0, Math.max(0, statsRows.length - 1));
+      dirty = true;
+      return;
+    }
     if (view === PROGRESS_DETAIL) {
       if (progressRows.length > 1) {
         progressCursor = (progressCursor + (delta > 0 ? 1 : -1) + progressRows.length)
@@ -3049,13 +3445,14 @@ export function createSession(fx, opts = {}) {
 
   /* An answer was given, by the jog or by its pad. */
   function answered(res) {
+    /* Read and named: now heard, so the picture gets its sound — before the
+     * cue, since a replay starts over and would cut the chime. */
+    if (res === GUESS.CORRECT && readingCourse()) hearPrompt();
     playCue(res);
     if (res === GUESS.CORRECT) {
       quizSolvedAt = now();
-      /* Heard, named, now shown: where it sits on the grid. Read and named:
-       * now heard, so the picture gets its sound. */
+      /* Heard, named, now shown: where it sits on the grid. */
       if (quiz.kind === GUESS.EAR) fx.reveal(quiz.prompt, EAR_ADVANCE_MS);
-      if (readingCourse()) hearPrompt();
     }
     dirty = true;
     ledDirty = true;
@@ -3085,6 +3482,10 @@ export function createSession(fx, opts = {}) {
     if (view === PROGRESS_VIEW && !shiftHeld) {
       if (progressRows.length) view = PROGRESS_DETAIL;
       dirty = true;
+      return;
+    }
+    if (view === TRAINER_STATS) {
+      openStatsDetail();
       return;
     }
     switch (CTRL.jogClickAction(view, shiftHeld)) {
@@ -3133,7 +3534,7 @@ export function createSession(fx, opts = {}) {
       return;
     }
     if (view === RESULT_VIEW) {
-      if (lastResult.kind === 'quiz') startQuiz(quizSpec);
+      if (lastResult.kind === 'quiz') againQuiz();
       else startRun(true);
       return;
     }
@@ -3154,7 +3555,7 @@ export function createSession(fx, opts = {}) {
     if (skipScene()) return;
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
     if (view === RESULT_VIEW) {
-      if (lastResult.kind === 'quiz') startQuiz(quizSpec);
+      if (lastResult.kind === 'quiz') againQuiz();
       else startRun(false);
       return;
     }
@@ -3226,10 +3627,16 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
-    if (view === PROGRESS_VIEW) {
+    if (view === PROGRESS_VIEW || view === TRAINER_STATS) {
       view = MENU;
       dirty = true;
       ledDirty = true;
+      return;
+    }
+    /* A trainer's round goes back to its setup, as it was left. */
+    if (view === GUESS_VIEW && quizSpec && quizSpec.trainer && !quizSpec.pinned) {
+      allNotesOff();
+      openSetup(quizSpec.trainer.subject, quizSpec.trainer.circle);
       return;
     }
     /* A map folder (or home) shown as its list goes back to the picture first. */
@@ -3258,6 +3665,14 @@ export function createSession(fx, opts = {}) {
     /* Back from a ready screen lands on the folder it was opened from — for a
      * song, its ladder: having just played the right hand, the next thing you
      * want is the left hand of the same piece, one rung away. */
+    /* A trainer's chart goes back to its setup too. */
+    if (view === READY && armedTrainer && !armedTrainer.pinned) {
+      const t = armedTrainer.spec.trainer;
+      armedTrainer = null;
+      allNotesOff();
+      openSetup(t.subject, t.circle);
+      return;
+    }
     if (view === READY || view === GUESS_VIEW) {
       allNotesOff();
       view = MENU;
@@ -3484,6 +3899,8 @@ export function createSession(fx, opts = {}) {
     editRow,
     selectRow,
     openSheet,
+    openItem,
+    selectStatsRow,
     pickSheet,
     pickCard,
     /* The Settings page over the list, as the web page's top bar opens it. */
@@ -3506,6 +3923,11 @@ export function createSession(fx, opts = {}) {
     armLevel,
     selectProgress,
     settingsRows,
+    settingsTitle,
+    trainerStatsTitle,
+    quizTitle,
+    lineState,
+    rowState,
     decorateRow,
     progressDetail,
     keyFifths,
@@ -3546,6 +3968,9 @@ export function createSession(fx, opts = {}) {
     get sheet() { return sheet; },
     get card() { return card; },
     get settingsGroup() { return settingsGroup; },
+    get statsRows() { return statsRows; },
+    get statsCursor() { return statsCursor; },
+    get trainerOpen() { return trainerOpen; },
     get lastResult() { return lastResult; },
     get progressRows() { return progressRows; },
     get progressCursor() { return progressCursor; },

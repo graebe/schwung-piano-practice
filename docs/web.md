@@ -53,13 +53,13 @@ The window has four parts:
 | **The hint bar** | what the keys do on this screen, what the thing under the pointer does, and what just happened |
 
 The page opens on **home**, as the Move does: five circles, **Learning Path**,
-**Practice**, **Quiz**, **Progress** and **Settings**, drawn from the Move's
+**Practice**, **Songs**, **Progress** and **Settings**, drawn from the Move's
 own pictures. Click a circle, or its row below, to open it; the arrow keys
 choose (the chosen circle grows) and Enter opens. Behind each circle the list
 is a tree: click a folder to open it, **Back** (or Escape) to go up, and Back
-from a section returns home with its circle chosen. **Practice** and **Quiz**
-are rings of their own, five and three circles spaced as on the Move; their
-folders below are lists.
+from a section returns home with its circle chosen. **Practice**, each of its
+trainers and **Songs** are rings of their own, spaced by their count as on the
+Move; their folders below are lists.
 
 ![The Practice ring](media/web-ring.png)
 [Finding your way](finding-your-way.md) walks through it.
@@ -158,38 +158,46 @@ date and tempo; *The numbers* opens them as a table.
 | **Next** | Solo if you have just passed Guided, otherwise the next step of the Learning Path |
 | **Move on** | count Guided as enough (or skip), and go on |
 
-## Quizzes
+## Trainers
 
-**Quiz** has three folders, each a different skill:
+**Practice** is five trainers — Notes, Intervals, Scales, Chords and
+Progressions — each the same five circles: **Read**, **Hear**, **Play**,
+**Learn** and **Stats**.
 
-- **Ear** — something is played; say what it was. Grouped by topic: Pitch &
-  melody, Intervals, Chords, Scales & keys. The three courses sit in their
-  topic: **Identify intervals** (2nds to two octaves) and **Compare intervals**
-  (which of two is bigger, from a fixed or a random root) under Intervals,
-  **Identify scales** (major and minor, then the modes) under Scales & keys.
-- **Reading** — the same three courses on the staff: read an interval, compare
-  two, read a scale, and choose the answer. **Hear** plays what is written,
-  and the first listen counts as help. Then **Notes by staff** and **Chords by
-  staff**: a row of notation, only the written notes count.
-- **Keys** — **Notes by alphabet** and **Chords by name** show only the name,
-  and any octave or inversion counts: play the first and the row moves on.
-  **Name notes** and **Name chords** light a key; choose its name. **Help**
-  names the first one, then lights its keys.
+![A trainer's five circles](media/web-trainer.png)
 
-![A hearing drill](media/web-hear.png)
+**Read**, **Hear** and **Play** open a setup page: the rows a round asks for,
+each with **−** and **+**, and **Start** last. It remembers what you set.
 
-In **Ear**, each answer has a colour — the colour its pad has on the Move.
-Choose one; a wrong answer is counted once and the question stays until you get
-it. When you are right, the notes light on the keyboard, so what you heard is
-connected to where it sits. **Hear** plays the question again; **Help** is a
-ladder of hints — the round still counts, but it records how many you took.
+![A setup page](media/web-setup.png)
 
-A round is ten, twenty or thirty answers (Settings › Advanced › Practice › Round). Its result is how
-many you got right a minute, beside your best, and how many of your attempts
-were right — two charts, so speed and success can each be read on their own.
-Under them, **Each answer** has a bar per interval, scale, note or chord: how
-often it was right first time over every round, with a mark where this round
-put it. Progress shows the same bars for a drill between rounds.
+A round of naming offers its answers as buttons, each in the colour its pad
+has on the Move. Choose one; a wrong answer is counted once and the question
+stays until you get it. When you are right, the notes light on the keyboard,
+so what you heard is connected to where it sits. **Hear** plays the question
+again; **Help** is a ladder of hints — the round still counts, but it records
+how many you took.
+
+![A hearing round](media/web-hear.png)
+
+A round of playing is a row, as on the Move: names to find, notes on the staff,
+a scale filling the staff as you play it, or a progression's numerals, each
+marked as its chord goes down.
+
+![A progression from its numerals](media/web-progression.png)
+
+A round is ten, twenty or thirty right answers (the setup's **Round**). Its
+result is how many you got right a minute, beside your best, and how many of
+your attempts were right. Under them, **Each answer** has a bar per note,
+interval, scale, chord or progression: how often it was right first time over
+every round, with a mark where this round put it.
+
+**Stats** lists everything the trainer has asked, weakest first, a bar each for
+read, heard and played; click a row for its chart.
+
+![A trainer's Stats](media/web-stats.png)
+
+The walk-through is [Practice: five trainers](trainers.md).
 
 ## The Learning Path and Progress
 
@@ -234,7 +242,7 @@ the rest in groups, as on the Move; Escape goes back a step at a time.
 | **Octave**, **Key**, **Scale** | the pads' octave, and what the free library is made in |
 | **Click** | the metronome |
 | **Start at** | where the Learning Path starts |
-| **Advanced › Practice** | Tempo, Read ahead, Any octave, Wait, Grace, Count in, Names, Half tones, Chords, Round |
+| **Advanced › Practice** | Tempo, Read ahead, Any octave, Wait, Grace, Count in, Names, Round |
 | **Advanced › Sound** | Reference (the piece played softly as you play it), Ref vol, Quiz sounds |
 | **Advanced › MIDI** | where the Move sends the notes (on the page here: This browser) |
 | **Advanced › Help** | Auto info, Show tips again, Welcome again |

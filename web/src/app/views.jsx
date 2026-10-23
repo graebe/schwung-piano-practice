@@ -374,7 +374,8 @@ export function QuizView(props) {
   const title = () => {
     const quiz = q();
     if (!quiz) return '';
-    if (quiz.mode === 'ear') return quiz.title;
+    /* A trainer's round, or a hearing exercise: its own title. */
+    if (quiz.title) return quiz.title;
     const what = quiz.kind === 'chords' ? 'chord' : 'note';
     if (quiz.mode === 'pick') return `Name the ${what}`;
     if (quiz.mode === 'hear') return `Hear the ${what}`;
@@ -382,6 +383,8 @@ export function QuizView(props) {
   };
   const ask = () => {
     const quiz = q();
+    if (quiz.mode === 'line') return quiz.line.label || 'Play what is written, note by note.';
+    if (quiz.mode === 'row') return quiz.row.label || quiz.row.keyText;
     if (quiz.mode === 'ear') return quiz.solved ? quiz.label || '' : quiz.question || 'Listen, then answer.';
     if (quiz.mode === 'pick') return quiz.solved ? 'Right.' : 'Which is lit?';
     if (quiz.mode === 'hear') return quiz.solved ? 'That was it.' : 'Listen, then play it back.';
@@ -438,6 +441,16 @@ export function QuizView(props) {
                             label={`The ${q().kind === 'chords' ? 'chord' : 'note'} to play`} />
               </Show>
             </div>
+          </Show>
+          <Show when={q().row}>
+            {/* A progression played chord by chord: its numerals, each marked as
+              * its chord goes down; heard, "?" until it is played. */}
+            <ol class="chord-row" aria-label="The chords to play, in turn">
+              <For each={q().row.tokens}>{(w, i) => (
+                <li class="chord-token t-value" classList={{ done: q().solved || i() < q().row.done, now: !q().solved && i() === q().row.done }}
+                    data-done={q().solved || i() < q().row.done ? 'yes' : 'no'}>{w}</li>
+              )}</For>
+            </ol>
           </Show>
           <Show when={q().sheet}>
             <div class="quiz-staff quiz-row">
@@ -630,7 +643,14 @@ export function SettingsView(props) {
                 ? { type: 'selectSetting', index: row.index } : { type: 'settingRow', row: row.row })}>
             <span class="row-label">{row.label}</span>
             <Show when={!row.act} fallback={
-              <Button info={row.label} onClick={(e) => { e.stopPropagation(); props.dispatch({ type: 'settingRow', row: row.row }); }}>{row.label}</Button>
+              <>
+                {/* A tick, a Custom pick's count, or why Start waits: its value. */}
+                <Show when={row.value && row.value !== '>'}>
+                  <span class="pp-value setting-value">{row.value}</span>
+                </Show>
+                <Button info={row.label} disabled={row.disabled}
+                        onClick={(e) => { e.stopPropagation(); props.dispatch({ type: 'settingRow', row: row.row }); }}>{row.label}</Button>
+              </>
             }>
               <Button title={`Less ${row.label}`} ariaLabel={`Less ${row.label}`}
                       onClick={() => edit(row, -1)}>−</Button>
@@ -645,6 +665,64 @@ export function SettingsView(props) {
         * does not have; and with the Settings page, the first one opened. */}
       <Show when={s().group === 'main' || s().group === 'midi'}>{props.extra}</Show>
     </section>
+  );
+}
+
+/* ---- A trainer's Stats --------------------------------------------------------- */
+
+/*
+ * Every item of the trainer asked so far, weakest first, with how much of it
+ * was right read, heard and played — a bar each, as the Move's meters — and
+ * the row picked as a chart: per circle, right of asked.
+ */
+export function TrainerStatsView(props) {
+  const st = () => props.vm().trainerStats;
+  const share = (c) => (c[0] ? c[1] / c[0] : null);
+  const picked = () => st() && st().rows[st().cursor];
+  const answers = () => (picked() ? ['read', 'hear', 'play'].map((k) => ({
+    label: k[0].toUpperCase() + k.slice(1), allAsked: picked().counts[k][0], allRight: picked().counts[k][1],
+  })).filter((a) => a.allAsked > 0) : []);
+  return (
+    <Show when={st()}>
+      <section class="screen stats-screen" aria-labelledby="stats-title">
+        <header class="screen-head">
+          <h1 id="stats-title" class="t-title">{st().title} · stats</h1>
+          <p class="t-hint">Weakest first: right of asked, read · heard · played</p>
+        </header>
+        <Show when={st().rows.length} fallback={<p class="t-hint">Nothing played yet.</p>}>
+          <div class="progress-layout">
+            <table class="stats-table">
+              <thead><tr><th scope="col">{st().title}</th><th scope="col">Read</th><th scope="col">Hear</th><th scope="col">Play</th></tr></thead>
+              <tbody>
+                <For each={st().rows}>{(row, i) => (
+                  <tr classList={{ on: i() === st().cursor }} data-item={row.item}
+                      onClick={() => props.dispatch({ type: 'trainerStats', index: i() })}>
+                    <th scope="row"><button class="row-label" type="button">{row.label}</button></th>
+                    <For each={['read', 'hear', 'play']}>{(k, c) => (
+                      <td>
+                        <Show when={share(row.counts[k]) !== null} fallback={<span class="t-hint" aria-label="not asked">–</span>}>
+                          <span class="stat-bar" role="img" aria-label={`${row.cells[c()]}% right of ${row.counts[k][0]}`}>
+                            <span style={{ width: `${Math.round(share(row.counts[k]) * 100)}%` }} />
+                          </span>
+                          <span class="t-value">{row.cells[c()]}%</span>
+                        </Show>
+                      </td>
+                    )}</For>
+                  </tr>
+                )}</For>
+              </tbody>
+            </table>
+            <div class="progress-detail">
+              <Show when={answers().length}>
+                <h2 class="t-label">{picked().label}</h2>
+                <AnswersChart answers={answers()} />
+              </Show>
+            </div>
+          </div>
+        </Show>
+        <div class="transport"><Button onClick={() => props.dispatch({ type: 'back' })} info="Back to the trainer">Back</Button></div>
+      </section>
+    </Show>
   );
 }
 

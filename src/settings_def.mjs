@@ -153,7 +153,7 @@ export const GROUPS = [
   {
     key: 'practice', label: 'Practice',
     settings: ['bpm', 'pxPerBeat', 'anyOctave', 'waitForNote', 'graceBeats', 'countIn',
-      'names', 'halfTones', 'chordSet', 'roundSize'],
+      'names', 'roundSize'],
   },
   { key: 'sound', label: 'Sound', settings: ['reference', 'refVel', 'quizSounds'] },
   { key: 'midi', label: 'MIDI', settings: ['midiOut', 'midiCh'] },
@@ -162,6 +162,14 @@ export const GROUPS = [
     rows: [{ act: 'tips', label: 'Show tips again' }, { act: 'welcome', label: 'Welcome again' }],
   },
 ];
+
+/*
+ * Settings no page shows any more. Half tones and Chords chose what the Quiz
+ * rows asked; the trainers' setup pages ask that now (Roots, Level), each its
+ * own. Kept in the table so a stored value is read and written back as it
+ * was — a settings file is never quietly rewritten.
+ */
+export const RETIRED = ['halfTones', 'chordSet'];
 
 export function groupByKey(key) {
   if (key === MAIN_GROUP.key) return MAIN_GROUP;

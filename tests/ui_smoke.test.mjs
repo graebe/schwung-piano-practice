@@ -106,7 +106,7 @@ const KNOB1 = 71;
  * the jog clamps, so the end of it is always Settings — rather
  * than by counting rows that the next lesson added would move.
  */
-const TOP = { path: 0, practice: 1, quiz: 2, progress: 3, settings: 4 };
+const TOP = { path: 0, practice: 1, songs: 2, progress: 3, settings: 4 };
 const jog = (n) => {
   for (let i = 0; i < Math.abs(n); i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, n > 0 ? 1 : 127));
 };
@@ -121,27 +121,56 @@ const click = () => {
  * Rows here keep their old numbering: 0 notes by name, 1 notes by staff,
  * 2-3 Ear, 4-5 Name notes and chords.
  */
-const QUIZ_PATHS = [[2, 0], [1, 3], [0, 1, 0], [0, 17, 0], [2, 2], [2, 3]];
-function openQuiz(row) {
+/*
+ * Practice › a trainer › a circle: its setup page, on Start. Subjects and
+ * circles by their place in the rings.
+ */
+const SUBJECT = { notes: 0, intervals: 1, scales: 2, chords: 3, progs: 4 };
+const CIRCLE = { read: 0, hear: 1, play: 2 };
+function openSetup(subject, circle) {
   globalThis.init();
-  jog(TOP.quiz);
+  jog(TOP.practice);
   click();
-  for (const step of QUIZ_PATHS[row]) {
-    jog(step);
-    click();
-  }
+  jog(subject);
+  click();
+  jog(circle);
+  click();
+}
+/* On a setup page, from Start: the row `up` above it turned `by`, then Start again. */
+function turnRow(up, by) {
+  jog(-up);
+  click();
+  jog(by);
+  click();
+  jog(up);
+}
+/* The rounds the tests play, each a trainer's circle as set up. */
+const ROUNDS = [
+  () => openSetup(SUBJECT.notes, CIRCLE.play),                                        /* a note by name */
+  () => openSetup(SUBJECT.notes, CIRCLE.read),                                        /* a note on the staff */
+  () => openSetup(SUBJECT.intervals, CIRCLE.hear),                                    /* an interval, named */
+  () => openSetup(SUBJECT.chords, CIRCLE.hear),                                       /* a chord, played back */
+  () => { openSetup(SUBJECT.notes, CIRCLE.read); turnRow(3, 1); },                    /* a note, named */
+  () => { openSetup(SUBJECT.chords, CIRCLE.read); turnRow(7, 1); },                   /* a chord, named */
+];
+function openQuiz(row) {
+  ROUNDS[row]();
+  click();                                                                            /* Start */
 }
 function openProgress() {
   globalThis.init();
   jog(TOP.progress);
   click();
 }
-/* Practice › Scales › Major, highlight on its first drill, Up & down. */
+/* Practice › Scales › Learn › Major, highlight on its first drill, Up & down. */
 function toScale() {
   globalThis.init();
   jog(TOP.practice);
   click();
-  click();
+  jog(2);                                     /* past Notes and Intervals */
+  click();                                    /* Scales: the trainer's ring */
+  jog(3);
+  click();                                    /* Learn */
   click();
 }
 function armScale() {
@@ -227,7 +256,7 @@ test('the jog and every knob can be turned in every view', async () => {
    * Shift + click opens the Settings page; every row of it and of every group
    * of Advanced must be editable without throwing -- every setting there is.
    */
-  const { MAIN, GROUPS, SETTINGS_COUNT } = await import(new URL('../src/settings_def.mjs', import.meta.url));
+  const { MAIN, GROUPS, SETTINGS_COUNT, RETIRED } = await import(new URL('../src/settings_def.mjs', import.meta.url));
   const press = (cc) => { globalThis.onMidiMessageInternal(CC(cc, 127)); globalThis.tick(); };
   const editRows = (n) => {
     let edited = 0;
@@ -261,7 +290,7 @@ test('the jog and every knob can be turned in every view', async () => {
     globalThis.tick();
   }
   screen.restore();
-  assert.equal(edited, SETTINGS_COUNT, 'every setting edited, on the page or in its group');
+  assert.equal(edited, SETTINGS_COUNT - RETIRED.length, 'every setting edited, on the page or in its group');
 });
 
 test('knob touches and stray MIDI are ignored, not crashed on', () => {
@@ -386,10 +415,8 @@ test('a song opens its levels, and a level arms', () => {
   };
 
   globalThis.init();
-  jog(TOP.practice);
-  click();
-  jog(4);                                                 /* Songs */
-  click();
+  jog(TOP.songs);
+  click();                                                /* Songs: a ring of its genres */
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* Classics */
   assert.match(screen(), /CLASSICS/, 'the category opens under its own name');
   /* To the bottom of Classics — the jog clamps, so this lands on its last
@@ -433,7 +460,7 @@ test('a song opens its levels, and a level arms', () => {
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   const top = screen();
-  assert.match(top, /^PIANO Practice /, 'home, on the circle it left: ' + top);
+  assert.match(top, /^PIANO Songs /, 'home, on the circle it left: ' + top);
 });
 
 /*
@@ -455,9 +482,11 @@ test('a chord lesson opens from Practice and arms at both hands', () => {
   globalThis.init();
   jog(TOP.practice);
   open();                        /* Practice */
-  jog(1);
-  open();                        /* Chords */
-  assert.match(screen(), /CHORDS/);
+  jog(3);
+  open();                        /* Chords: the trainer's ring */
+  jog(3);
+  open();                        /* Learn */
+  assert.match(screen(), /^CHORDS 1\/14 Triads/);
   jog(4);
   open();                        /* Sevenths */
   assert.match(screen(), /Major 7th/);
@@ -492,7 +521,10 @@ test('a second source on the same pitch is heard, and does not cut the first', a
   globalThis.init();
   jog(TOP.practice);
   click();                                              /* the Practice ring */
-  click();                                              /* Scales, a list: the pads are the piano */
+  jog(2);                                     /* past Notes and Intervals */
+  click();                                              /* Scales: the trainer's ring */
+  jog(3);
+  click();                                              /* Learn, a list: the pads are the piano */
   globalThis.tick();
   const struck = () => { const n = hostCalls.notes.slice(); hostCalls.notes.length = 0; return n; };
   struck();
@@ -921,7 +953,7 @@ test('Continue names the next step in the Path\'s list, and the options skip it'
   assert.match(skipped, /NAME NOTES \| 1\/6 \| Continue \| Name notes/, 'the step after the skipped one: ' + skipped);
 
   const quiz = screen.frame(click);                     /* Continue */
-  assert.match(quiz, /NAME NOTE/, 'the step opens directly: ' + quiz);
+  assert.match(quiz, /NOTES READ/, 'the step opens directly, as the trainer round it is now: ' + quiz);
   screen.restore();
 });
 
@@ -985,12 +1017,12 @@ test('home lights the five circles\' pads only; a pad opens its circle without a
   assert.match(screen.frame(), /^PIANO \| Learning Path/);
   globalThis.onMidiMessageInternal([0x90, 71, 100]);
   globalThis.onMidiMessageInternal([0x80, 71, 0]);
-  assert.match(screen.frame(), /^QUIZ /, 'pad 71 opens Quiz');
+  assert.match(screen.frame(), /^SONGS /, 'pad 71 opens Songs');
   advanceMs(500);
   assert.deepEqual(hostCalls.notes, [], 'a pad on home sounds nothing');
-  assert.match(screen.frame(BACK_PRESS), /^PIANO \| Quiz/, 'Back: home, its circle selected');
+  assert.match(screen.frame(BACK_PRESS), /^PIANO \| Songs/, 'Back: home, its circle selected');
   for (let i = 0; i < 5; i++) globalThis.tick();
-  assert.ok([HOME_PALETTE.selected, HOME_PALETTE.selectedDim].includes(globalThis.__leds[71]), 'Quiz\'s pad bright');
+  assert.ok([HOME_PALETTE.selected, HOME_PALETTE.selectedDim].includes(globalThis.__leds[71]), 'Songs\' pad bright');
   delete globalThis.__leds;
   screen.restore();
   thawClock();
@@ -1032,7 +1064,10 @@ test('on the map a pad walks there, a second press goes in, and pads make no sou
   BACK_PRESS();
   jog(TOP.practice);
   click();
+  jog(2);                                     /* past Notes and Intervals */
   click();                                              /* Practice › Scales */
+  jog(3);
+  click();                                              /* its Learn, a list */
   /* In a list the pads are the piano again. */
   globalThis.onMidiMessageInternal([0x90, PAD, 100]);
   globalThis.onMidiMessageInternal([0x80, PAD, 0]);
@@ -1142,48 +1177,43 @@ test('Back from a quiz result is a fresh round', () => {
   const screen = capture();
   assert.match(footerParts(screen), /CLICK (next|Solo)  REC again/, 'the round should be over');
   const after = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
-  assert.match(after, /NOTE/, 'a new round of the same drill: ' + after);
-  assert.match(after, /0\/20/);
+  assert.match(after, /NOTES PLAY/, 'a new round of the same drill: ' + after);
+  assert.match(after, /0\/10/);
   screen.restore();
   thawClock();
 });
 
-test('the Quiz folder is Ear, Reading and Keys, and each opens its drills', () => {
+test('Practice is the five trainers, each the same five circles', () => {
   const screen = capture();
   globalThis.init();
-  jog(TOP.quiz);
-  const quiz = screen.frame(click);
-  assert.match(quiz, /^QUIZ \| Ear \| JOG choose/, 'Quiz is a ring of three: ' + quiz);
-  const ear = screen.frame(click);
-  assert.match(ear, /EAR \| 1\/4 \| Pitch & melody .*\| Intervals .*\| Chords .*\| Scales & keys/, 'Ear is by topic: ' + ear);
-  globalThis.onMidiMessageInternal(CC(BACK, 127));
-  jog(1);
-  screen.frame(click);                                  /* Reading */
-  jog(3);
-  assert.match(screen.frame(click), /NOTE STAFF/, 'Notes by staff opens the staff row');
-  globalThis.onMidiMessageInternal(CC(BACK, 127));
-  globalThis.onMidiMessageInternal(CC(BACK, 127));
-  jog(1);
-  const keys = screen.frame(click);
-  assert.match(keys, /KEYS \| 1\/4 \| Notes by alphabet .*\| Chords by name .*\| Name notes .*\| Name chords/, keys);
-  assert.match(screen.frame(click), /NOTE\b(?! STAFF)/, 'Notes by alphabet opens the name row');
-  globalThis.onMidiMessageInternal(CC(BACK, 127));
-  jog(2);
-  const pick = screen.frame(click);
-  assert.match(pick, /NAME NOTE/, 'Keys › Name notes is the lit-pad drill: ' + pick);
+  jog(TOP.practice);
+  const practice = screen.frame(click);
+  assert.match(practice, /^PRACTICE \| Notes \| JOG choose/, 'Practice is a ring of five: ' + practice);
+  for (const [i, name] of ['NOTES', 'INTERVALS', 'SCALES', 'CHORDS', 'PROGRESSIONS'].entries()) {
+    jog(i ? 1 : 0);
+    const ring = screen.frame(click);
+    assert.match(ring, new RegExp('^' + name + ' \\| Read \\| JOG choose'), ring);
+    globalThis.onMidiMessageInternal(CC(BACK, 127));
+    globalThis.tick();
+  }
   screen.restore();
 });
 
-/* Ear › Intervals › Identify intervals › 2 3rds › up: two answers, on pads 2
- * and 5 of the bottom row. */
-const THIRDS = { path: [1, 0, 1, 0], pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
+/* Intervals › Hear, named, level 2 (3rds) up: two answers, on pads 2 and 5 of
+ * the bottom row. */
+const THIRDS = { pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
+function openThirds() {
+  openSetup(SUBJECT.intervals, CIRCLE.hear);
+  turnRow(3, 1);                                     /* Level 2 */
+  click();                                           /* Start */
+}
 
 test('an answer pad answers without a sound, and the bar shows the answers', async () => {
   const { ANSWER_COLOURS } = await import(new URL('../src/answer_pads.mjs', import.meta.url));
   freezeClock();
   globalThis.__leds = {};
   const screen = capture();
-  openHearing(THIRDS.path);
+  openThirds();
   advanceMs(2000);                                   /* let the prompt play out */
   assert.ok([ANSWER_COLOURS[0].bright, ANSWER_COLOURS[0].dim].includes(globalThis.__leds[PAD + 2]),
     'the first answer, pulsing under the jog');
@@ -1217,41 +1247,19 @@ test('pressing the right answer pad scores it, a wrong one counts against you', 
   freezeClock();
   const screen = capture();
   for (let round = 0; round < 3; round++) {
-    openHearing(THIRDS.path);
+    openThirds();
     advanceMs(2000);
     let solved = false;
     for (const col of THIRDS.pads) {
       globalThis.onMidiMessageInternal([0x90, PAD + col, 100]);
       globalThis.onMidiMessageInternal([0x80, PAD + col, 0]);
       globalThis.tick();
-      if (/1\/20/.test(screen.frame())) { solved = true; break; }
+      if (/1\/10/.test(screen.frame())) { solved = true; break; }
     }
     assert.ok(solved, 'one of the two pads is the answer');
   }
   screen.restore();
   thawClock();
-});
-
-test('Name has no answer bar: its lit question stays pressable and the jog answers', async () => {
-  const { ANSWER_COLOURS } = await import(new URL('../src/answer_pads.mjs', import.meta.url));
-  globalThis.__leds = {};
-  const screen = capture();
-  openQuiz(4);                                        /* Keys › Name notes */
-  for (let i = 0; i < 5; i++) globalThis.tick();
-  const colours = new Set(ANSWER_COLOURS.flatMap((c) => [c.bright, c.dim]));
-  for (let col = 0; col < 8; col++) {
-    assert.ok(!colours.has(globalThis.__leds[PAD + col]), `pad ${col} is not an answer pad`);
-  }
-  assert.match(screen.frame(), /JOG pick/, 'the jog answers here');
-  /* Every pad sounds, the bottom row included. */
-  hostCalls.notes.length = 0;
-  globalThis.onMidiMessageInternal([0x90, PAD + 1, 100]);
-  globalThis.tick();
-  assert.equal(hostCalls.notes.length, 1, 'the bottom row is keys');
-  globalThis.onMidiMessageInternal([0x80, PAD + 1, 0]);
-  globalThis.tick();
-  screen.restore();
-  delete globalThis.__leds;
 });
 
 /* ---- Info, and the answer cues --------------------------------------------- */
@@ -1293,8 +1301,10 @@ test('a long Info page scrolls with the jog, and a chord page shows its formula'
   globalThis.init();
   jog(TOP.practice);
   click();                                              /* Practice */
-  jog(1);
-  click();                                              /* Chords */
+  jog(3);
+  click();                                              /* Chords: the trainer */
+  jog(3);
+  click();                                              /* Learn */
   click();                                              /* Triads */
   jog(1);                                               /* Minor */
   const first = screen.frame(MENU_PRESS);
@@ -1327,8 +1337,11 @@ test('the first time a kind of practice is opened, its Info comes first, once', 
     globalThis.init();
     jog(TOP.practice);
     click();
-    click();
-    click();                                            /* Practice › Scales › Major */
+    jog(2);                                     /* past Notes and Intervals */
+    click();                                            /* Practice › Scales */
+    jog(3);
+    click();                                            /* Learn */
+    click();                                            /* Major */
     const first = screen.frame(click);                  /* Up & down */
     assert.match(first, /INFO/, 'shown by itself: ' + first);
     assert.match(first, /A piece, armed/, 'the screen first');
@@ -1346,8 +1359,8 @@ test('an answer sounds a chime when right and an uh-oh when wrong', () => {
     freezeClock();
     const heard = new Set();
     for (let round = 0; round < 6 && heard.size < 2; round++) {
-      openQuiz(4);                                      /* Keys › Name notes: jog and click */
-      for (let tries = 0; tries < 3; tries++) {
+      openQuiz(4);                                      /* Notes › Read, named: jog and click */
+      for (let tries = 0; tries < 8; tries++) {
         hostCalls.notes.length = 0;
         globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
         advanceMs(500);
@@ -1368,7 +1381,8 @@ test('an answer sounds a chime when right and an uh-oh when wrong', () => {
 
 test('with Quiz sounds off, an answer is silent', () => {
   freezeClock();
-  openQuiz(4);
+  openThirds();                                       /* heard: the prompt plays first */
+  advanceMs(3000);
   hostCalls.notes.length = 0;
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   advanceMs(500);
@@ -1384,36 +1398,13 @@ test('unloading is clean, and resume does not throw', () => {
 
 /* Quiz › Ear is the first row of the Quiz folder; its exercises are numbered. */
 /* Quiz › Ear, then one jog position per level of the path, each clicked. */
-function openHearing(path) {
-  globalThis.init();
-  jog(TOP.quiz);
-  click();
-  click();
-  for (const at of path) {
-    jog(at);
-    click();
-  }
-}
-
-/* Every drill in Quiz › Ear as a jog path to its first level: an exercise's
- * first level, a course's first unit's, a one-level exercise itself. */
-async function hearPaths() {
-  const { hearMenu } = await import(new URL('../src/program.mjs', import.meta.url));
-  const paths = [];
-  const first = (node, path) => (node.children ? first(node.children[0], path.concat(0)) : path);
-  hearMenu().children.forEach((topic, t) => topic.children.forEach((item, i) => {
-    paths.push({ label: item.label, path: first(item, [t, i]) });
-  }));
-  return paths;
-}
-
 const noteOns = () => hostCalls.notes.join(',').split(',').filter((n) => n && !n.endsWith(':0'));
 
 test('a hearing drill plays a line, takes its answer from the jog, and shows what it was', () => {
   freezeClock();
   const screen = capture();
   hostCalls.notes.length = 0;
-  openHearing(THIRDS.path);
+  openThirds();
 
   /* Melodic: one note now, the second a beat later. */
   advanceMs(200);
@@ -1422,7 +1413,7 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
   assert.equal(noteOns().length, 2, 'then the second');
 
   const asked = screen.frame();
-  assert.match(asked, /HEAR 3RDS/, asked);
+  assert.match(asked, /INTERVALS HEAR/, asked);
   assert.match(asked, /which interval\?/);
   assert.match(asked, /Major 3rd/);
   assert.match(asked, /Minor 3rd/);
@@ -1440,7 +1431,7 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
   advanceMs(1600);
   const next = screen.frame();
   assert.match(next, /which interval\?/);
-  assert.match(next, /1\/20/);
+  assert.match(next, /1\/10/);
   assert.ok(noteOns().length >= 1, 'the next prompt sounds by itself');
   screen.restore();
   thawClock();
@@ -1448,7 +1439,10 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
 
 test('hearing help: Record replays slower, then strikes an answer; Play repeats', () => {
   freezeClock();
-  openHearing([2, 1, 1]);                     /* Chords › Four triads › block */
+  openSetup(SUBJECT.chords, CIRCLE.hear);     /* Chords › Hear, named: four triads, block */
+  turnRow(8, 1);
+  turnRow(7, 1);
+  click();
   advanceMs(3000);
   hostCalls.notes.length = 0;
   globalThis.onMidiMessageInternal(CC(PLAY, 127));
@@ -1467,15 +1461,14 @@ test('hearing help: Record replays slower, then strikes an answer; Play repeats'
   thawClock();
 });
 
-test('every hearing exercise and course opens and sounds without throwing', async () => {
+test('every trainer\'s Hear opens and sounds without throwing', () => {
   freezeClock();
-  const all = await hearPaths();
-  assert.equal(all.length, 15, 'twelve exercises and three courses');
-  for (const { label, path } of all) {
+  for (const [name, subject] of Object.entries(SUBJECT)) {
     hostCalls.notes.length = 0;
-    openHearing(path);
+    openSetup(subject, CIRCLE.hear);
+    click();                                          /* Start */
     advanceMs(400);
-    assert.ok(noteOns().length >= 1, `${label} played nothing`);
+    assert.ok(noteOns().length >= 1, `${name} played nothing`);
     globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
     globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
     globalThis.onMidiMessageInternal(CC(RECORD, 127));

@@ -6,13 +6,14 @@ import { readFileSync } from 'node:fs';
 
 import {
   FOLDER, folder, lazyFolder, isFolder, songNode, basics, randomFolder, buildCatalog,
-  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt, stampChildren,
+  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt, stampChildren, findById,
 } from '../src/catalog.mjs';
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
 import { MODES, playableRange } from '../src/generator.mjs';
 import { chartTotalBeats, beatsPerBar } from '../src/chart.mjs';
 import { SCREEN_W } from '../src/layout.mjs';
-import { CHORD_FAMILIES, PROGRESSIONS } from '../src/chord_lessons.mjs';
+import { CHORD_FAMILIES } from '../src/chord_lessons.mjs';
+import { LESSON_PROGRESSIONS as PROGRESSIONS } from '../src/progressions.mjs';
 
 const twoHands = {
   id: 'song', name: 'Song', bpm: 90, timeSig: [4, 4], keySig: 0, source: 'file',
@@ -34,6 +35,8 @@ const labels = (node) => node.children.map((c) => c.label);
 function leavesOf(node, path = [], out = []) {
   node.children.forEach((child, i) => {
     if (isFolder(child)) leavesOf(child, path.concat(i), out);
+    /* A trainer's circles open a setup or its Stats, not a chart. */
+    else if (child.trainer || child.trainerStats) return;
     else if (child.levels) child.levels.forEach((lv, l) => out.push({ node: lv, path: path.concat(i, l) }));
     else out.push({ node: child, path: path.concat(i) });
   });
@@ -80,12 +83,45 @@ test('isFolder is false for leaves and for nothing', () => {
 
 /* ---- The tree ------------------------------------------------------------ */
 
-test('Basics holds scales, chords, progressions and the random drills', () => {
+test('Practice is the five trainers, each the five circles, its lessons under Learn', () => {
   const b = basics({});
-  assert.deepEqual(labels(b), ['Scales', 'Chords', 'Progressions', 'Random']);
-  assert.equal(b.children[0].children.length, Object.keys(MODES).length, 'one folder per Move scale');
-  assert.deepEqual(labels(b.children[1]), CHORD_FAMILIES.map((f) => f.name));
-  assert.deepEqual(labels(b.children[2]), PROGRESSIONS.map((p) => p.id));
+  assert.deepEqual(labels(b), ['Notes', 'Intervals', 'Scales', 'Chords', 'Progressions']);
+  for (const ring of b.children) assert.deepEqual(labels(ring), ['Read', 'Hear', 'Play', 'Learn', 'Stats'], ring.label);
+  assert.deepEqual(labels(b.children[0].children[3]), ['All notes', 'In key', 'In key, fast'], 'Random reading');
+  assert.equal(b.children[2].children[3].children.length, Object.keys(MODES).length, 'one folder per Move scale');
+  assert.deepEqual(labels(b.children[3].children[3]), CHORD_FAMILIES.map((f) => f.name).concat(['Random chords']));
+  assert.deepEqual(labels(b.children[3].children[3].children.at(-1)), ['All chords', 'Triads', 'Sevenths']);
+  assert.deepEqual(labels(b.children[4].children[3]), PROGRESSIONS.map((p) => p.id));
+});
+
+test('the rows of Practice › Random keep their ids where they now live', () => {
+  const b = basics({});
+  stampChildren([b], '');
+  const notes = b.children[0].children[3];
+  assert.deepEqual(notes.children.map((r) => r.id), ['basics/random/all-notes', 'basics/random/in-key', 'basics/random/in-key-fast']);
+  const chords = b.children[3].children[3].children.at(-1);
+  assert.deepEqual(chords.children.map((r) => r.id), ['basics/random/all-chords', 'basics/random/triads', 'basics/random/sevenths']);
+  assert.ok(findById({ children: [b] }, 'basics/random/triads/2r'));
+  /* A caller's rows join a Learn list as given. */
+  const x = basics({}, { int: [{ label: 'Step', value: '', key: 'quiz:ear:steps:key', absolute: true }] });
+  assert.deepEqual(labels(x.children[1].children[3]), ['Step']);
+});
+
+test('a trainer keeps its lessons under their old ids', () => {
+  const b = basics({});
+  stampChildren([b], '');
+  const ring = b.children[3];
+  assert.equal(ring.id, 'basics/chord-trainer');
+  assert.deepEqual(ring.children.map((c) => c.id), [
+    'basics/chord-trainer/read', 'basics/chord-trainer/hear', 'basics/chord-trainer/play',
+    'basics/chords', 'basics/chord-trainer/stats',
+  ]);
+  assert.equal(ring.children[3].children[0].id, 'basics/chords/triads');
+  assert.ok(findById({ children: [b] }, 'basics/chords/triads/chord-maj/1l'));
+  assert.deepEqual(ring.children.slice(0, 3).map((c) => c.trainer), [
+    { subject: 'chord', circle: 'read' }, { subject: 'chord', circle: 'hear' }, { subject: 'chord', circle: 'play' },
+  ]);
+  assert.equal(ring.children[4].trainerStats, 'chord');
 });
 
 test('Random has every note, notes in key, and chords from every quality', () => {
@@ -132,7 +168,7 @@ test('every Basics lesson is regenerated from the settings, never fixed like a f
 });
 
 test('a progression follows the key it was built in', () => {
-  const prog = (rootPc) => basics({ rootPc }).children[2].children[0].levels[3].build();
+  const prog = (rootPc) => basics({ rootPc }).children[4].children[3].children[0].levels[3].build();
   assert.notDeepEqual(prog(0).events, prog(7).events);
   assert.match(prog(7).name, /^G /);
 });
@@ -151,14 +187,13 @@ test('categories come in manifest order, empty ones are left out, tail goes last
     categories: [{ id: 'a', name: 'Ay' }, { id: 'empty', name: 'Empty' }, { id: 'b', name: 'Bee' }],
     tail: [{ label: 'Tail' }],
   });
-  assert.deepEqual(labels(root), ['Practice', 'Tail']);
+  assert.deepEqual(labels(root), ['Practice', 'Songs', 'Tail']);
   const practice = root.children[0];
   assert.equal(practice.id, 'basics', 'Practice keeps the ids Basics gave its rows');
-  assert.deepEqual(labels(practice), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
-  assert.deepEqual(labels(practice.children[4]), ['Ay', 'Bee']);
+  assert.deepEqual(labels(root.children[1]), ['Ay', 'Bee']);
 });
 
-const songsOf = (root) => root.children[0].children.find((c) => c.label === 'Songs');
+const songsOf = (root) => root.children.find((c) => c.label === 'Songs');
 
 test('a file with no category, or an unknown one, lands in Other', () => {
   const root = buildCatalog({
@@ -185,7 +220,7 @@ test('back to a folder that lost a row lands on a row it still has', () => {
 });
 
 test('with no songs at all there is no Songs folder', () => {
-  assert.deepEqual(labels(buildCatalog({}).children[0]), ['Scales', 'Chords', 'Progressions', 'Random']);
+  assert.deepEqual(labels(buildCatalog({})), ['Practice']);
 });
 
 test('a manifest from before categories still lists every file', () => {

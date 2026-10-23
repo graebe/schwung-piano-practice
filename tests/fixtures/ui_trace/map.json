@@ -1,7 +1,7 @@
 [["write","/data/UserData/schwung/modules/tools/piano-practice/progress.bak.json","{\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\"]}"],
 ["announce","Piano Practice. Pick an exercise."],
-["tick",0,"2933471bd485","b87a1db22f63"],
-["tick",1,"2933471bd485","b8a0274287f9"],
+["tick",0,"edfefe222836","b87a1db22f63"],
+["tick",1,"edfefe222836","b8a0274287f9"],
 ["announce","Learning Path."],
 ["tick",6,"ed1dc3b2b856","8be30be767a0"],
 ["tick",23,"b0b9d3097e60","1b3791718c7b"],
@@ -130,8 +130,8 @@
 ["usb",11,176,120,0],
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
-["announce","Note guesser. Play F."],
-["tick",174,"84aa6f33169d","ff5c41f15196"],
+["announce","Notes, play. Play F."],
+["tick",174,"2052a9164109","ff5c41f15196"],
 ["tick",175,"-","ff5c41f15196"],
 ["tick",200,"-","ff5c41f15196"],
 ["dsp","panic","1"],
@@ -142,4 +142,4 @@
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
 ["tick",206,"13c6b0872569","3bd0e2ea26ac"],
-["tick",208,"2933471bd485","e05a4619f8b7"]]
+["tick",208,"edfefe222836","e05a4619f8b7"]]

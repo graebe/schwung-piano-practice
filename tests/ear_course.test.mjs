@@ -3,7 +3,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { COURSES, SCALES, SAMPLE, rotate, courseOf } from '../src/ear_course.mjs';
+import { COURSES, SAMPLE, courseOf } from '../src/ear_course.mjs';
+import { rotate, scaleById } from '../src/scales.mjs';
 import {
   exerciseByKey, exerciseNumber, answersFor, buildEarPool, levelRange, earRange, promptLength, INTERVALS,
 } from '../src/ear.mjs';
@@ -178,17 +179,17 @@ test('fixed-root levels come first, as the course runs them, where a unit has bo
 
 test('modes come from rotating their parent', () => {
   assert.deepEqual(rotate([0, 2, 4, 5, 7, 9, 11], 1), MODES.dorian);
-  assert.deepEqual(SCALES.locrian.steps, MODES.locrian);
-  assert.deepEqual(SCALES.phrygianDominant.steps, [0, 1, 4, 5, 7, 8, 10]);
-  assert.deepEqual(SCALES.phrygianDominant.steps, MODES.phrygianDominant);
-  assert.deepEqual(SCALES.dorianFlat2.steps, [0, 1, 3, 5, 7, 9, 10]);
-  assert.deepEqual(SCALES.lydianDominant.steps, [0, 2, 4, 6, 7, 9, 10]);
-  assert.deepEqual(SCALES.altered.steps, MODES.superLocrian);
+  assert.deepEqual(scaleById('locrian').steps, MODES.locrian);
+  assert.deepEqual(scaleById('phrygianDominant').steps, [0, 1, 4, 5, 7, 8, 10]);
+  assert.deepEqual(scaleById('phrygianDominant').steps, MODES.phrygianDominant);
+  assert.deepEqual(scaleById('dorianFlat2').steps, [0, 1, 3, 5, 7, 9, 10]);
+  assert.deepEqual(scaleById('lydianDominant').steps, [0, 2, 4, 6, 7, 9, 10]);
+  assert.deepEqual(scaleById('altered').steps, MODES.superLocrian);
 });
 
 test('no two answers of a unit are the same scale', () => {
   for (const ex of units('scales')) {
-    const shapes = ex.answers.map((a) => SCALES[a.key].steps.join());
+    const shapes = ex.answers.map((a) => scaleById(a.key).steps.join());
     assert.equal(new Set(shapes).size, shapes.length, ex.key);
   }
 });
@@ -201,7 +202,7 @@ test('a scale runs from its root through the octave, up or down', () => {
         const root = lv.key === 'up' ? line[0] : line.at(-1);
         assert.equal(Math.abs(line.at(-1) - line[0]), 12);
         assert.deepEqual(line.slice(lv.key === 'up' ? 0 : 1, lv.key === 'up' ? -1 : undefined)
-          .map((p) => p - root).sort((a, b) => a - b), SCALES[e.answer].steps);
+          .map((p) => p - root).sort((a, b) => a - b), scaleById(e.answer).steps);
       }
     }
   }

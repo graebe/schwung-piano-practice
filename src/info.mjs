@@ -28,7 +28,8 @@
 
 import { MODES, MODE_LABELS } from './generator.mjs';
 import { qualityById } from './chords.mjs';
-import { CHORD_FAMILIES, PROGRESSIONS, LESSON_NAMES } from './chord_lessons.mjs';
+import { CHORD_FAMILIES, LESSON_NAMES } from './chord_lessons.mjs';
+import { LESSON_PROGRESSIONS } from './progressions.mjs';
 import { exerciseByKey, levelByKey, answersFor } from './ear.mjs';
 import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
@@ -53,6 +54,7 @@ export const TERMS = {
   majmin: ['Major, minor', 'Interval sizes. A major 3rd is 4 semitones, a minor 3rd 3. Major sounds brighter.'],
   perfect: ['Perfect', '4ths, 5ths and octaves: the most stable intervals, neither major nor minor.'],
   tritone: ['Tritone', '6 semitones, half an octave. Tense, unresolved.'],
+  compare: ['Compare', 'Two intervals, one after the other: which is bigger, or are they the same? It counts for the bigger one.'],
   compound: ['Compound interval', 'Wider than an octave: an octave plus a simple interval. A 9th is an octave and a 2nd, a 12th an octave and a 5th.'],
   mode: ['Mode', 'A scale started from another of its notes: D to D on the white keys is Dorian. Each mode has its own pattern of steps.'],
   step: ['Step', 'Two neighbouring notes of the scale, a 2nd apart: C-D.'],
@@ -218,10 +220,10 @@ function chordPage(family, lesson, level, label) {
 
 /* The progression's chords in C (or A minor), from its steps. */
 function progressionInC(prog) {
-  const tonic = prog.minor ? 9 : 0;
+  const tonic = (prog.mode === 'minor') ? 9 : 0;
   return prog.steps.map(([deg, qid]) => {
     const q = qualityById(qid);
-    const root = spellFromC(String(degreeNumberOf(deg, prog.minor) || 1), (tonic + deg) % 12);
+    const root = spellFromC(String(degreeNumberOf(deg, (prog.mode === 'minor')) || 1), (tonic + deg) % 12);
     return root + (q ? q.suffix : '');
   }).join(' ');
 }
@@ -237,10 +239,10 @@ function degreeNumberOf(semis, minor) {
 }
 
 function progressionPage(progId, level, label) {
-  const prog = PROGRESSIONS.find((p) => p.id.replace(/\s+/g, '-') === progId);
+  const prog = LESSON_PROGRESSIONS.find((p) => p.id.replace(/\s+/g, '-') === progId);
   const sections = [];
   if (prog) {
-    sections.push(sec(prog.id, 'In ' + (prog.minor ? 'A minor' : 'C') + ': ' + progressionInC(prog) +
+    sections.push(sec(prog.id, 'In ' + ((prog.mode === 'minor') ? 'A minor' : 'C') + ': ' + progressionInC(prog) +
       '. Here it is in the Key setting\'s key.'));
   }
   sections.push(sec('', 'Voiced as a pianist would: the left hand plays roots, the right hand moves to the nearest shape of the next chord.'));
@@ -370,7 +372,82 @@ function earPage(exKey, levelKey) {
 }
 
 /* The quiz rows: Keys and Reading, notes or chords; hearing play-back. */
+/* ---- The trainers ---------------------------------------------------------- */
+
+/*
+ * A trainer's pages: the ring, each circle, and a round of it. The words
+ * are the subject's; the five circles say the same thing in every trainer,
+ * which is the point of them.
+ */
+const TRAINER_TEXT = {
+  note: {
+    ring: 'Notes, as a trainer. Read a note off the staff, hear one, or find one from its name; Learn holds the reading lines; Stats shows which notes you know.',
+    read: 'A note on the staff. Play it, in the octave it is written, or name it from a short list.',
+    hear: 'A note sounds. Play it back, in any octave, or say whether the second of two is higher, the same, or lower.',
+    play: 'A note\'s name, like F#. Play it: any octave counts.',
+    stats: 'Every note you have been asked, weakest first: how much of it was right read, heard and played.',
+    ladder: 'Level 1 is C to G round middle C; each level adds: A and B; two octaves with ledger lines; the sharps and flats; the enharmonic white keys, E#, Fb, B#, Cb. Custom picks your own.',
+    terms: ['sharp', 'octave', 'level'],
+  },
+  int: {
+    ring: 'Intervals, as a trainer. Read one off the staff, hear one, or play one from its name; Learn holds the melodic drills; Stats shows which intervals you know.',
+    read: 'An interval on the staff. Name it, compare two of them, or play both notes as written.',
+    hear: 'An interval sounds, up, down or together. Name it, compare two, or play it back: any octave, at the right distance.',
+    play: 'An interval\'s name, like M3 above D. Play both notes: any D, and the note a major 3rd above that D.',
+    stats: 'Every interval you have been asked, weakest first: how much of it was right read, heard and played. A comparison counts for the bigger one.',
+    ladder: 'Each level is a set of its own, as the course runs: 2nds; 3rds; the two together; 4th, 5th, octave; everything to the 5th; 6ths and 7ths; everything to the octave; the compound intervals. Custom picks your own.',
+    terms: ['interval', 'compare', 'compound', 'level'],
+  },
+  prog: {
+    ring: 'Progressions, as a trainer. Read one off the staff, hear one after its home chord, or play one from its numerals; Learn holds the eleven charts; Stats shows which progressions you know.',
+    read: 'A progression on the staff. Play it as written, voiced and in a rhythm of your choice, or name which progression it is.',
+    hear: 'The home chord, then a progression. Play its chords back, each in any voicing, or name it from a short list.',
+    play: 'A progression in numerals, like I-V-vi-IV, and its key. Play its chords in turn, each in any voicing. Key all 12 walks it round the circle of fifths, a key a time.',
+    stats: 'Every progression you have been asked, weakest first: how much of it was right read, heard and played. Right means the whole progression.',
+    ladder: 'Level 1 is the four cadences, how a phrase ends; each level adds: the foundations; pop; minor; jazz basics; the blues; borrowed and modal chords; secondary dominants and jazz substitutes. Custom picks your own.',
+    terms: ['progression', 'numerals', 'voicing', 'level'],
+  },
+  scale: {
+    ring: 'Scales, as a trainer. Read a scale off the staff, hear one, or play one from its name; Learn holds the scale drills, one folder a scale; Stats shows which scales you know and which you do not yet.',
+    read: 'A scale on the staff. Play it as it is written, a chart with its pattern, or name it from a short list.',
+    hear: 'A scale sounds, from its root. Play it back, note by note in any octave, or name it from a short list.',
+    play: 'A scale\'s name, like D Dorian. Play it note by note from its root, up, down or both; any octave counts. A wrong note starts it again.',
+    stats: 'Every scale you have been asked, weakest first: how much of it was right read, heard and played.',
+    ladder: 'Level 1 is major and minor; each level adds: Dorian, Lydian, Mixolydian; harmonic and melodic minor; Phrygian and Locrian; the pentatonics and the blues; whole tone and its kin; the diminished scales; the modes of melodic minor; of harmonic minor; and six scales from India, Hungary and Japan. Custom picks your own.',
+    terms: ['scale', 'mode', 'tonic', 'level'],
+  },
+  chord: {
+    ring: 'Chords, as a trainer. Read a chord off the staff, hear one, or play one from its name; Learn holds the lessons by family; Stats shows which chords you know and which you do not yet.',
+    read: 'A chord on the staff. Play exactly what is written, every note in its octave, or name it from a short list.',
+    hear: 'A chord sounds. Play it back, any voicing of it counts, or name it from a short list.',
+    play: 'A chord\'s name, like Am7. Play it: any octave and any inversion counts, nothing else held with it.',
+    stats: 'Every chord you have been asked, weakest first: how much of it was right read, heard and played.',
+    ladder: 'Level 1 is the major chord; each level adds: minor; diminished and augmented; sus and power chords; the three common 7ths; half-diminished, dim7 and the 6ths; ninths and add9; the altered dominants. Custom picks your own.',
+    terms: ['chord', 'quality', 'inversion', 'level'],
+  },
+};
+
+const CIRCLE_TEXT = {
+  setup: 'The setup: what a round asks and how. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round.',
+  common: 'The same five circles in every trainer: Read, Hear, Play, Learn, Stats.',
+};
+
+export function trainerPage(subject, circle, label) {
+  const t = TRAINER_TEXT[subject];
+  if (!t) return null;
+  const sections = [sec('', t[circle] || t.ring)];
+  if (circle === 'read' || circle === 'hear' || circle === 'play') {
+    sections.push(sec('', CIRCLE_TEXT.setup), sec('', t.ladder));
+  } else {
+    sections.push(sec('', CIRCLE_TEXT.common));
+  }
+  const name = { note: 'Notes', int: 'Intervals', scale: 'Scales', chord: 'Chords', prog: 'Progressions' }[subject];
+  return page('trainer:' + subject + (circle ? ':' + circle : ''), label || name, sections, t.terms);
+}
+
 function quizPage(drill, label) {
+  const trained = /^([a-z]+):(read|hear|play):[a-z]+:(L\d+|C-[0-9a-z]{6})$/.exec(drill);
+  if (trained) return trainerPage(trained[1], trained[2], label);
   const [mode, kind, set] = drill.split(':');
   if (mode === 'ear') return earPage(kind, set);
   if (mode === 'hear') return earPage(kind === 'chords' ? 'playback-chords' : 'playback-notes', set);
@@ -413,25 +490,19 @@ function songPage(songId, level, env, label) {
 }
 
 const FOLDERS = {
-  basics: ['Practice', 'The free library: scales, chords, progressions and random drills, all made from your settings (Key, Scale, Tempo), and the songs. Nothing here is in an order; play what you like.', ['key', 'scale']],
-  'basics/scales': ['Scales', 'One folder per scale, each with five drills: up and down, up, down, in 3rds and in 5ths.', ['scale', 'tone', 'semitone']],
-  'basics/chords': ['Chords', 'Thirteen families, one lesson per chord quality, each on all twelve roots.', ['chord', 'quality', 'formula']],
-  'basics/progressions': ['Progressions', 'Ten common chord progressions in the Key setting\'s key.', ['progression', 'numerals']],
-  'basics/random': ['Random', 'Random notes and chords, a new set every time.', ['key', 'chord']],
-  'basics/songs': ['Songs', 'Pieces by style: Classics, Electronic, Techno, Styles, and Other for files you added.', ['level']],
-  quiz: ['Quiz', 'Short timed rounds, by skill. Ear: name what you hear. Reading: name or play what is on the staff. Keys: find a named note or chord on the pads, or name a lit pad.', ['hint']],
-  'quiz/hear': ['Ear', 'Ear training by topic: pitch and melody, intervals, chords, scales and keys. Each topic has its courses first, then its exercises.', ['interval', 'chord']],
-  'quiz/hear/pitch': ['Pitch & melody', 'Higher or lower, step or leap, the shape of a line, and finding a note you heard on the pads.', ['step', 'contour']],
-  'quiz/hear/intervals': ['Intervals', 'Two courses: name an interval, from 2nds to two octaves; and compare two, from a fixed or a random root.', ['interval', 'compound']],
-  'quiz/hear/chords': ['Chords', 'Major or minor, the four triads, seventh chords, and finding a chord you heard on the pads.', ['triad', 'seventh']],
-  'quiz/hear/keys': ['Scales & keys', 'Name a scale by its sound, tell major from minor in a tune, hear when a line comes home, name a degree, and the chords of a key.', ['scale', 'mode', 'key']],
-  'quiz/read': ['Reading', 'The listening courses again, on the staff: name an interval, compare two, name a scale. Then notes and chords by staff: play what is written.', ['interval', 'scale']],
-  'quiz/keys': ['Keys', 'Where the names are on the pads: play a note or chord by its name, any octave; or name the pad that lights.', ['octave', 'sharp']],
-  'basics/songs/classics': ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
-  'basics/songs/electronic': ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
-  'basics/songs/techno': ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
-  'basics/songs/styles': ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
-  'basics/songs/other': ['Other', 'Exercises you added yourself.', []],
+  basics: ['Practice', 'Five trainers, from the smallest unit to the largest: notes, intervals, scales, chords, progressions. Each has the same five circles: Read, Hear, Play, Learn and Stats. Nothing here is in an order; practise what you like.', ['interval', 'scale', 'chord', 'progression']],
+  'basics/scales': ['Scales', 'One folder per scale, each with five drills: up and down, up, down, in 3rds and in 5ths. Then two drills that hear a key: major or minor, and the degrees of the scale.', ['scale', 'tone', 'semitone', 'degree']],
+  'basics/chords': ['Chords', 'Thirteen families, one lesson per chord quality, each on all twelve roots; then random chords, a new set every time.', ['chord', 'quality', 'formula']],
+  'basics/chords/random-chords': ['Random chords', 'Sixteen chords, a new set every time: of every quality, the triads, or the sevenths.', ['chord', 'triad', 'seventh']],
+  'basics/progressions': ['Progressions', 'Eleven common chord progressions in the Key setting\'s key. Then two drills that hear the chords of a key: does a line end at home, and which chord follows I.', ['progression', 'numerals', 'tonic']],
+  'basics/note-trainer/learn': ['Notes', 'Reading lines on a scrolling staff: random notes in the key, in quarters or eighths, or every note the pads reach.', ['key', 'sharp']],
+  'basics/int-trainer/learn': ['Intervals', 'Melodic hearing: does a line step or leap, and which way does it go.', ['step', 'leap', 'contour']],
+  songs: ['Songs', 'Pieces by style: Classics, Electronic, Techno, Styles, and Other for files you added.', ['level']],
+  'songs/classics': ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
+  'songs/electronic': ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
+  'songs/techno': ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
+  'songs/styles': ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
+  'songs/other': ['Other', 'Exercises you added yourself.', []],
   'program/repetition': ['Review', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score. Continue offers them too, one review and then one new step.', ['score']],
   settings: ['Settings', 'One short page: Octave, Click, Key, Scale and where the Learning Path starts, changed right there. Advanced holds the rest, in groups: Practice, Sound, MIDI and Help.', []],
 };
@@ -527,7 +598,12 @@ export function infoFor(target, env = {}) {
     const [song, level] = id.slice(5).split('/');
     return songPage(song, level, env, label);
   }
+  /* A folder with words of its own first: a Learn list, Random chords. */
+  const folder = FOLDERS[id];
+  if (folder) return page('folder:' + id, folder[0], [sec('', folder[1])], folder[2]);
   const parts = id.split('/');
+  const ring = parts[0] === 'basics' && /^([a-z]+)-trainer$/.exec(parts[1] || '');
+  if (ring) return trainerPage(ring[1], parts[2] || null, label);
   if (parts[0] === 'basics' && parts[1] === 'scales' && parts[2]) return scalePage(parts[2], parts[3], label);
   if (parts[0] === 'basics' && parts[1] === 'chords' && parts[2]) return chordPage(parts[2], parts[3], parts[4], label);
   if (parts[0] === 'basics' && parts[1] === 'progressions' && parts[2]) return progressionPage(parts[2], parts[3], label);
@@ -540,9 +616,6 @@ export function infoFor(target, env = {}) {
     }
   }
   if (parts[0] === 'program' && parts[1] !== 'repetition') return programPage(parts, env);
-
-  const folder = FOLDERS[id];
-  if (folder) return page('folder:' + id, folder[0], [sec('', folder[1])], folder[2]);
   return null;
 }
 

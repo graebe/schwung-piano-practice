@@ -10,66 +10,32 @@
  */
 
 import { scaleKey } from './notation.mjs';
+import { MODES, MODE_LABELS, scaleById } from './scales.mjs';
 import { DEFAULT_TRANSPOSE, MIDI_BASE_NOTE, ABS_SEMI_LO, ABS_SEMI_HI } from './padmap.mjs';
 
 /*
- * Move's own scales, all twenty-two of them.
- *
- * Not a list I chose: these are the names in the device's firmware
- * (`strings /opt/move/MoveOriginal`), so the module highlights the same pads
- * Move would for the same setting. Ordered familiar-first, because the jog
- * walks the list and major is the default; chromatic sits last as the
- * "no filtering" end of it.
- *
- * `pentatonic` was renamed `majorPent` when the rest arrived — see the v6
- * settings migration in ui.js, which exists because a stored value that is no
- * longer in the list is dropped silently.
+ * Move's own scales, all twenty-two, and what the settings row prints for
+ * each: one list with the ear course's scales now, in scales.mjs. Re-exported
+ * here because everything that generates from a scale already imports this.
  *
  * NOT all of these are seven-note scales, and the chord drills notice:
  * triadOn stacks every other degree, which is a real augmented triad in whole
  * tone and three adjacent semitones in chromatic. nameChord returns null
  * there, so the drill shows notes without claiming a name.
  */
-export const MODES = {
-  major: [0, 2, 4, 5, 7, 9, 11],
-  minor: [0, 2, 3, 5, 7, 8, 10],
-  dorian: [0, 2, 3, 5, 7, 9, 10],
-  mixolydian: [0, 2, 4, 5, 7, 9, 10],
-  lydian: [0, 2, 4, 6, 7, 9, 11],
-  phrygian: [0, 1, 3, 5, 7, 8, 10],
-  locrian: [0, 1, 3, 5, 6, 8, 10],
-  majorPent: [0, 2, 4, 7, 9],
-  minorPent: [0, 3, 5, 7, 10],
-  minorBlues: [0, 3, 5, 6, 7, 10],
-  harmonicMinor: [0, 2, 3, 5, 7, 8, 11],
-  melodicMinor: [0, 2, 3, 5, 7, 9, 11],
-  wholeTone: [0, 2, 4, 6, 8, 10],
-  superLocrian: [0, 1, 3, 4, 6, 8, 10],
-  phrygianDominant: [0, 1, 4, 5, 7, 8, 10],
-  bhairav: [0, 1, 4, 5, 7, 8, 11],
-  hungarianMinor: [0, 2, 3, 6, 7, 8, 11],
-  hirajoshi: [0, 2, 3, 7, 8],
-  inSen: [0, 1, 5, 7, 10],
-  iwato: [0, 1, 5, 6, 10],
-  kumoi: [0, 2, 3, 7, 9],
-  chromatic: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
-};
+export { MODES, MODE_LABELS };
 
-/*
- * What the settings row prints. Three of the real names are too wide: the row
- * leaves ~90px beside its label, and "Minor Pentatonic" and "Phrygian
- * Dominant" are past it, which would truncate the LABEL rather than the value.
- */
-export const MODE_LABELS = {
-  major: 'Major', minor: 'Minor', dorian: 'Dorian', mixolydian: 'Mixolydian',
-  lydian: 'Lydian', phrygian: 'Phrygian', locrian: 'Locrian',
-  majorPent: 'Maj Pentatonic', minorPent: 'Min Pentatonic', minorBlues: 'Minor Blues',
-  harmonicMinor: 'Harmonic Min', melodicMinor: 'Melodic Min',
-  wholeTone: 'Whole Tone', superLocrian: 'Super Locrian',
-  phrygianDominant: 'Phryg Dom', bhairav: 'Bhairav',
-  hungarianMinor: 'Hungarian Min', hirajoshi: 'Hirajoshi',
-  inSen: 'In-Sen', iwato: 'Iwato', kumoi: 'Kumoi', chromatic: 'Chromatic',
-};
+/* A scale's steps and its short name, by id: Move's scales and the course's
+ * alike (a scale trainer asks for Lydian dominant too); major for an unknown
+ * id, as the Scale setting has always fallen back. */
+function stepsOf(mode) {
+  return (scaleById(mode) || scaleById('major')).steps;
+}
+
+function labelOf(mode) {
+  const sc = scaleById(mode);
+  return sc ? sc.short : mode;
+}
 
 export const PC_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -95,7 +61,7 @@ export function rng(seed) {
 
 /* Ascending scale pitches of `mode` rooted on `rootPc`, inside [lo, hi]. */
 export function scalePitches(rootPc, mode, lo, hi) {
-  const ivs = MODES[mode] || MODES.major;
+  const ivs = stepsOf(mode);
   const out = [];
   for (let pitch = lo; pitch <= hi; pitch++) {
     const rel = (((pitch - rootPc) % 12) + 12) % 12;
@@ -137,7 +103,7 @@ export function fitsTriad(pitches, index) {
  * is Eb Ab Bb, F# major has its E#) and the signature it would carry.
  */
 export function keyForScale(rootPc, mode) {
-  return scaleKey(rootPc, MODES[mode] || MODES.major, mode);
+  return scaleKey(rootPc, stepsOf(mode), mode);
 }
 
 function makeChart(id, name, bpm, key, events, extra = {}) {
@@ -159,7 +125,7 @@ export function scaleRun({
 } = {}) {
   const { lo, hi } = playableRange(transpose);
   const all = scalePitches(rootPc, mode, lo, hi);
-  const degrees = (MODES[mode] || MODES.major).length;
+  const degrees = stepsOf(mode).length;
   let start = 0;
   if (startPitch != null) {
     start = all.findIndex((p) => p >= startPitch);
@@ -187,7 +153,7 @@ export function scaleRun({
   /* The display label, not the id: the header has room for "C# Phryg Dom",
    * and "C# phrygianDominant scale" ran off the end of it. */
   const key = keyForScale(rootPc, mode);
-  const name = `${key.root} ${MODE_LABELS[mode] || mode}`;
+  const name = `${key.root} ${labelOf(mode)}`;
   return makeChart(`scale-${rootPc}-${mode}-${direction}-${octaves}`, name, bpm, key, events);
 }
 
@@ -231,7 +197,7 @@ export function triadDrill({
 } = {}) {
   const { lo, hi } = playableRange(transpose);
   const all = scalePitches(rootPc, mode, lo, hi);
-  const size = (MODES[mode] || MODES.major).length;
+  const size = stepsOf(mode).length;
   /* Root the set as high as the range allows while still leaving room for the
    * top tone of the highest chord — otherwise stepInScale() clamps and IV and
    * V collapse into unisons. */

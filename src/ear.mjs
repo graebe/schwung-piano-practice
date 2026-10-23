@@ -43,11 +43,8 @@ const CADENCE_STEP = 750;
 
 /* ---- Chords ----------------------------------------------------------------- */
 
-const CHORD_LABELS = {
-  maj: 'Major', min: 'Minor', dim: 'Diminished', aug: 'Augmented',
-  maj7: 'Major 7th', 7: 'Dominant 7th', m7: 'Minor 7th', m7b5: 'Half-dim 7th',
-};
-const chordAnswers = (ids) => ids.map((id) => ({ key: id, label: CHORD_LABELS[id] }));
+/* Answers are the qualities' own names (chords.mjs), keyed by their ids. */
+const chordAnswers = (ids) => ids.map((id) => ({ key: id, label: qualityById(id).name }));
 
 /* Root position, then the first and second inversions: the same chord with
  * its lowest note moved up an octave, once and twice. */
@@ -71,7 +68,7 @@ function chordPrompts(ids, voicing) {
         const shapes = voicing === 'inversions' ? inversions(buildChord(root, quality)) : [buildChord(root, quality)];
         for (let s = 0; s < shapes.length; s++) {
           const events = voicing === 'broken' ? broken(shapes[s]) : together(shapes[s]);
-          out.push({ answer: ids[q], events, label });
+          out.push({ answer: ids[q], events, label, root });
         }
       }
     }
@@ -366,6 +363,24 @@ export function levelByKey(exercise, key) {
   return exercise.levels.find((l) => l.key === key) || exercise.levels[0];
 }
 
+/*
+ * The subject an exercise's answers are items of in the per-item table
+ * (stats.mjs): the chord exercises' qualities, the interval and scale
+ * courses' intervals and scales, read or heard. Null for the rest — Higher
+ * or lower, a scale degree — whose answers are no item.
+ */
+const CHORD_EXERCISES = ['triads', 'four-triads', 'sevenths'];
+export function exerciseSubject(exercise) {
+  if (!exercise) return null;
+  if (CHORD_EXERCISES.indexOf(exercise.key) >= 0) return 'chord';
+  const course = COURSES.concat(READ_COURSES).find((c) => c.exercises.indexOf(exercise) >= 0);
+  if (!course) return null;
+  const key = course.twin || course.key;
+  if (key === 'intervals' || key === 'compare') return 'int';
+  if (key === 'scales') return 'scale';
+  return null;
+}
+
 /* A naming drill asks for an answer; the others send you to the pads. */
 export function isNaming(exercise) {
   return Boolean(exercise && !exercise.levels[0].quiz);
@@ -420,7 +435,9 @@ export function buildEarPool(exercise, levelKey, transpose = DEFAULT_TRANSPOSE) 
     const pitches = pitchesOf(raw[i].events);
     if (pitches.some((p) => p < range.lo || p > range.hi)) continue;
     const entry = { answer: raw[i].answer, events: raw[i].events, pitches, label: raw[i].label };
-    if (raw[i].staff) entry.staff = raw[i].staff;
+    /* What the per-item table files it under (stats.mjs): the root, the way
+     * an interval went, the interval a comparison judged. */
+    for (const k of ['staff', 'root', 'way', 'judged']) if (raw[i][k] != null) entry[k] = raw[i][k];
     pool.push(entry);
   }
   return pool;

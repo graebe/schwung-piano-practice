@@ -344,6 +344,7 @@ test('every ring stays under 150 ctx calls, at rest and through every grow', () 
     ['notes', 'kit', 'sticks', 'dice', 'folder'], ['notes', 'kit', 'sticks', 'dice'],
     ['staff', 'ear', 'padpick', 'metronome', 'loop'],
     ['stairs', 'chord', 'progression', 'dice', 'song'], ['ear', 'staff', 'keyletter'],
+    ['note', 'interval', 'stairs', 'chord', 'progression'], ['staff', 'ear', 'keyletter', 'book', 'progress'],
   ];
   for (const keys of RINGS) {
     const items = keys.map((icon) => ({ key: icon, label: 'Hear: subdivision', icon }));

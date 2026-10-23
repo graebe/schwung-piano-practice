@@ -547,10 +547,12 @@ function drawStaffRow(ctx, state) {
     if (x > L.SCREEN_W + L.HEAD_W) break;
     const notes = [];
     const state0 = i === 0 && state.solved ? 'hit' : 'pending';
+    /* A prompt may bring its own spelling: the note trainer's Db is not C#. */
+    const f = queue[i].fifths != null ? queue[i].fifths : fifths;
     for (let n = 0; n < queue[i].pitches.length; n++) {
       const pitch = queue[i].pitches[n];
       if (!inStaffRange(pitch)) continue;
-      notes.push({ y: pitchToY(pitch, fifths), alter: spell(pitch, fifths).alter, state: state0 });
+      notes.push({ y: pitchToY(pitch, f), alter: spell(pitch, f).alter, state: state0 });
     }
     if (notes.length) R.drawEntry(ctx, { x, notes, label: '' });
   }
@@ -1183,6 +1185,83 @@ export function drawReadPick(ctx, state) {
 }
 
 /*
+ * A line to play — a scale, from its name or by ear — drawn as it is played:
+ * the notes so far appear where the whole line will stand, so the staff fills
+ * left to right and a wrong note (the line starts again) empties it; read
+ * off the staff, all of it shows from the start (session.lineState). The
+ * name lane holds the name, "?" while it is still to be heard.
+ *
+ *   state = { title, score, staff: [{ part, notes }], shown, label, solved, footer }
+ */
+export function drawLineView(ctx, state) {
+  ctx.clear();
+  R.drawStaff(ctx);
+  const columns = state.staff || [];
+  const xs = readColumnsX(columns);
+  const shown = Math.min(state.shown || 0, columns.length);
+  for (let i = 0; i < shown; i++) drawReadColumn(ctx, xs[i], columns[i].notes);
+  ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
+  R.drawClef(ctx);
+  R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: true });
+  const text = truncate(ctx, state.label || '?', L.TEXT_MAX_PX - 4);
+  const x = (L.SCREEN_W - ctx.textWidth(text)) >> 1;
+  if (state.solved) {
+    ctx.fillRect(x - 2, L.NAME_LANE_Y - 1, ctx.textWidth(text) + 4, L.TEXT_H + 1, 1);
+    ctx.text(x, L.NAME_LANE_Y, text, 0);
+  } else {
+    ctx.text(x, L.NAME_LANE_Y, text, 1);
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
+ * A row of chords to play — a progression from its numerals, or heard and
+ * played back. The numerals stand where the staff is, in lines, as a chart
+ * reads; each one inverts as its chord goes down, so the row shows how far
+ * you are. Heard, each is a "?" until the row is played (session.rowState):
+ * you hear how many chords there are, not which. The name lane says the key
+ * (from the numerals), or the progression once it is played.
+ *
+ *   state = { title, score, tokens, done, keyText, label, solved, footer }
+ */
+export function drawChordRow(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: true });
+  const words = state.tokens;
+  const gap = ctx.textWidth(' ') + 2;
+  const lines = [[]];
+  let width = 0;
+  for (const w of words) {
+    const ww = ctx.textWidth(w) + 4;
+    if (width && width + gap + ww > L.SCREEN_W - 4) { lines.push([]); width = 0; }
+    width += (width ? gap : 0) + ww;
+    lines[lines.length - 1].push(w);
+  }
+  const lineH = L.TEXT_H + 4;
+  const top = L.HEADER_H + 2 + Math.max(0, ((L.NAME_RULE_Y - L.HEADER_H - 2) - lines.length * lineH) >> 1);
+  let at = 0;
+  lines.forEach((line, row) => {
+    const total = line.reduce((n, w) => n + ctx.textWidth(w) + 4, 0) + gap * (line.length - 1);
+    let x = (L.SCREEN_W - total) >> 1;
+    const y = top + row * lineH;
+    for (const w of line) {
+      const ww = ctx.textWidth(w) + 4;
+      const done = state.solved || at < (state.done || 0);
+      if (done) ctx.fillRect(x, y - 1, ww, L.TEXT_H + 2, 1);
+      else if (at === (state.done || 0)) ctx.drawRect(x, y - 2, ww, L.TEXT_H + 4, 1);
+      ctx.text(x + 2, y, w, done ? 0 : 1);
+      x += ww + gap;
+      at++;
+    }
+  });
+  const lane = truncate(ctx, state.solved ? (state.label || '') : (state.keyText || '?'), L.TEXT_MAX_PX - 4);
+  ctx.text((L.SCREEN_W - ctx.textWidth(lane)) >> 1, L.NAME_LANE_Y, lane, 1);
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
  * An Info page: what a practice is and the words it uses. Wrapped text,
  * scrolled a line at a time with the jog, headings underlined, and a bar at
  * the right edge saying how much there is and where you are in it.
@@ -1431,6 +1510,75 @@ export function infoLines(ctx, paragraphs) {
 }
 
 /* Scrolling list used for both the exercise picker and the settings page. */
+/*
+ * A trainer's Stats: its items, weakest first, and how much of each was right
+ * read, heard and played — a meter each under R H P.
+ *
+ * A meter, not a number: three percentages a row would leave a label ten
+ * characters, and "Minor-maj 7th" or "Phrygian vamp" would be cut. A meter is
+ * as wide as a letter, so it sits exactly under its letter in the header, and
+ * the label keeps the rest of the row. It is an outline the height of a line,
+ * filled from the bottom by the share right: empty is none right, full is all.
+ * A circle never asked is a dash, not an empty meter: nothing asked is not the
+ * same as nothing right. The numbers are one click away, on the row's page.
+ *
+ *   state = { title, rows: [{ label, cells: [r, h, p] }], cursor, footer }
+ *   cells are percents 0..100, or null for never asked
+ */
+export const STATS_COLUMNS = ['R', 'H', 'P'];
+const METER_W = 5;
+const METER_GAP = 4;
+
+/* Where each meter's left edge is, and where the label must end. */
+export function statsColumns() {
+  const lefts = [];
+  for (let i = 0; i < STATS_COLUMNS.length; i++) {
+    lefts.push(L.SCREEN_W - 2 - (STATS_COLUMNS.length - i) * METER_W - (STATS_COLUMNS.length - 1 - i) * METER_GAP);
+  }
+  return { lefts, labelEnd: lefts[0] - 4 };
+}
+
+/* One meter in the text row at `y` (a glyph's 7 rows): outline, and the
+ * inside filled from the bottom by the share. */
+export function drawMeter(ctx, x, y, percent, v) {
+  if (percent == null) {
+    ctx.fillRect(x + 1, y + 3, METER_W - 2, 1, v);
+    return;
+  }
+  ctx.drawRect(x, y, METER_W, 7, v);
+  const fill = Math.round((Math.max(0, Math.min(100, percent)) * 5) / 100);
+  if (fill) ctx.fillRect(x + 1, y + 6 - fill, METER_W - 2, fill, v);
+}
+
+export function drawTrainerStats(ctx, state) {
+  const lineH = 9;
+  const top = 11;
+  const perPage = 4;
+  ctx.clear();
+  const { lefts, labelEnd } = statsColumns();
+  R.drawChrome(ctx, { left: fitWords(ctx, state.title, labelEnd - 2) });
+  STATS_COLUMNS.forEach((c, i) => ctx.text(lefts[i], 0, c, 0));
+  const rows = state.rows;
+  if (!rows.length) {
+    const say = 'Nothing played yet';
+    ctx.text((L.SCREEN_W - ctx.textWidth(say)) >> 1, top + lineH, say, 1);
+  }
+  const cursor = state.cursor;
+  const first = Math.max(0, Math.min(cursor - (perPage >> 1), rows.length - perPage));
+  for (let i = 0; i < perPage; i++) {
+    const idx = first + i;
+    if (idx < 0 || idx >= rows.length) break;
+    const y = top + i * lineH;
+    const selected = idx === cursor;
+    if (selected) ctx.fillRect(0, y - 1, L.SCREEN_W, lineH, 1);
+    const v = selected ? 0 : 1;
+    ctx.text(2, y, truncate(ctx, rows[idx].label, labelEnd - 2), v);
+    rows[idx].cells.forEach((cell, c) => drawMeter(ctx, lefts[c], y, cell, v));
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
 export function drawList(ctx, title, rows, cursor, opts = {}) {
   const lineH = 9;
   const top = 11;

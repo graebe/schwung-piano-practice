@@ -42,7 +42,7 @@ export function emptyProgress() {
    * is which Info pages have been shown, by page key. `program` is what the
    * learner chose on the Path: the stage Continue starts from. `tips` is the
    * first-visit tips already shown, by key (tips.mjs), the welcome among them. */
-  return { version: PROGRESS_VERSION, items: {}, seen: {}, program: { start: 0 }, tips: [], rev: 0 };
+  return { version: PROGRESS_VERSION, items: {}, seen: {}, program: { start: 0 }, tips: [], trainers: {}, rev: 0 };
 }
 
 function emptyStage() {
@@ -101,6 +101,7 @@ export function parseProgress(text) {
   if (obj && typeof obj === 'object' && Array.isArray(obj.tips)) {
     out.tips = obj.tips.filter((k, i, all) => typeof k === 'string' && all.indexOf(k) === i);
   }
+  out.trainers = readTrainers(obj && obj.trainers);
   if (!obj || typeof obj !== 'object' || !obj.items || typeof obj.items !== 'object') return out;
   for (const id in obj.items) {
     const src = obj.items[id];
@@ -125,10 +126,36 @@ export function parseProgress(text) {
 }
 
 export function serialiseProgress(progress) {
-  return JSON.stringify({
+  const out = {
     version: PROGRESS_VERSION, items: progress.items, seen: progress.seen, program: progress.program,
     tips: progress.tips || [],
-  });
+  };
+  /* Only once a trainer has been set up: a file without one reads as before. */
+  if (progress.trainers && Object.keys(progress.trainers).length) out.trainers = progress.trainers;
+  return JSON.stringify(out);
+}
+
+/*
+ * The trainers' setups, as the learner left them: { subject: { circle: setup,
+ * sets: { hash: [items] } } }. Kept as plain data — trainer.coerceSetup makes
+ * a stored setup whole when it is used — but only objects of objects, so a
+ * damaged entry cannot reach it.
+ */
+const TRAINER_SUBJECTS = ['note', 'int', 'scale', 'chord', 'prog'];
+function readTrainers(raw) {
+  const out = {};
+  if (!raw || typeof raw !== 'object') return out;
+  for (const subject of TRAINER_SUBJECTS) {
+    const src = raw[subject];
+    if (!src || typeof src !== 'object' || Array.isArray(src)) continue;
+    const mine = {};
+    for (const k of Object.keys(src)) {
+      const v = src[k];
+      if (v && typeof v === 'object' && !Array.isArray(v)) mine[k] = JSON.parse(JSON.stringify(v));
+    }
+    out[subject] = mine;
+  }
+  return out;
 }
 
 /* ---- The Path's one stored choice ------------------------------------------ */
