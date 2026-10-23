@@ -60,6 +60,8 @@ is a tree: click a folder to open it, **Back** (or Escape) to go up, and Back
 from a section returns home with its circle chosen. **Practice** and **Quiz**
 are rings of their own, five and three circles spaced as on the Move; their
 folders below are lists.
+
+![The Practice ring](media/web-ring.png)
 [Finding your way](finding-your-way.md) walks through it.
 
 **Info** (or I) is the Move's Menu: help for whatever is in front of you —
@@ -222,6 +224,8 @@ you have played, each with its chart.
 page also holds what this browser plays from (**This browser**), since the
 Move's two MIDI routes do not apply here. **Advanced**, its last row, opens
 the rest in groups, as on the Move; Escape goes back a step at a time.
+
+![Settings](media/web-settings.png)
 
 | | |
 | --- | --- |
