@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import * as SC from '../src/scenes.mjs';
 import { layoutPlaces } from '../src/pathmap/layout.mjs';
 import { walkDuration, STORY_MS_PER_CELL } from '../src/pathmap/walk.mjs';
+import { BANNER_MS } from '../src/pathmap/anim.mjs';
 
 const map = { layout: layoutPlaces(5) };
 
@@ -47,6 +48,7 @@ test('a frame that comes late runs through every scene it passed, in one step', 
 test('a celebration with fireworks runs longer than a flag', () => {
   assert.ok(SC.sceneMs({ kind: SC.CELEBRATE, fireworks: true }) > SC.sceneMs({ kind: SC.CELEBRATE }));
   assert.equal(SC.sceneMs({ kind: SC.STAR, ms: 42 }), 42, 'a scene may set its own time');
+  assert.equal(SC.sceneMs({ kind: SC.BANNER }), BANNER_MS, 'a banner runs the engine\'s length');
   assert.equal(SC.sceneMs({ kind: 'nope' }), 0);
 });
 

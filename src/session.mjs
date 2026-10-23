@@ -2565,7 +2565,7 @@ export function createSession(fx, opts = {}) {
     }, now());
     if (first) {
       view = ANIM_VIEW;
-      announce(first.say);
+      if (first.say) announce(first.say);
     }
     dirty = true;
     ledDirty = true;
@@ -2574,7 +2574,7 @@ export function createSession(fx, opts = {}) {
   function serviceScenes(t) {
     const was = player.current;
     const cur = SC.stepScenes(player, t);
-    if (cur && cur !== was) announce(cur.say);
+    if (cur && cur !== was && cur.say) announce(cur.say);
     dirty = true;
     ledDirty = true;
   }
@@ -2643,6 +2643,9 @@ export function createSession(fx, opts = {}) {
     const done = (st) => st === 'done';
     const settled = (st) => st === 'done' || st === 'skipped';
     story.place = after.places.findIndex((st, i) => done(st) && !done(before.places[i]));
+    /* The fort among them: the checkpoint passed. */
+    const fort = MP.unitPlaces(progress, phases, before.phase).targets.findIndex((tg) => tg.check);
+    story.checkpoint = fort >= 0 && done(after.places[fort]) && !done(before.places[fort]);
     const j = after.stages.findIndex((st, i) => done(st) && !done(before.stages[i]));
     story.stageDone = j >= 0 ? phases[j] : null;
     story.pathDone = after.stages.every(settled) && !before.stages.every(settled);
@@ -2654,9 +2657,10 @@ export function createSession(fx, opts = {}) {
   /*
    * The scenes between a take that finished something and the next step:
    *   a place done, next in another place     flag, walk there
-   *   a stage done (or a place, next on       flag with fireworks, zoom out,
-   *     another island)                       sail, zoom in, walk to the place
-   *   the whole path done                     ... zoom out, finale (then the
+   *   a stage done (or a place, next on       flag with fireworks (and for a
+   *     another island)                       stage its banner), zoom out,
+   *                                           sail, zoom in, walk to the place
+   *   the whole path done                     ... zoom out, its banner, finale (then the
    *                                           world map, not the next step)
    * Next in the same place, or nothing done: none.
    */
@@ -2673,6 +2677,11 @@ export function createSession(fx, opts = {}) {
       kind: SC.CELEBRATE, map: island, at: doneAt, fireworks: stage, was: story.was[doneAt] || 'started',
       say: stage ? 'Stage ' + from.n + ' complete.' : 'Unit done.',
     }];
+    if (stage) {
+      scenes.push(story.checkpoint
+        ? { kind: SC.BANNER, map: island, at: doneAt, text: 'CHECKPOINT PASSED', say: 'Checkpoint passed.' }
+        : { kind: SC.BANNER, map: island, at: doneAt, text: 'STAGE COMPLETE' });
+    }
     if (nextPhase === from && !story.pathDone) {
       const to = placeOfUnit(island, nextUnit);
       if (to >= 0 && to !== doneAt) scenes.push(walkScene(island, doneAt, to, 'Walking to ' + island.places[to].label + '.'));
@@ -2683,7 +2692,9 @@ export function createSession(fx, opts = {}) {
     const fromAt = placeOfPhase(world, from);
     scenes.push({ kind: SC.ZOOM, dir: 'out', map: world, island, at: fromAt, say: 'World map.' });
     if (story.pathDone) {
-      scenes.push({ kind: SC.FINALE, map: world, at: fromAt, say: 'Learning Path complete.' });
+      scenes.push({ kind: SC.BANNER, map: world, at: fromAt, text: 'LEARNING PATH COMPLETE',
+        say: 'Learning Path complete.' });
+      scenes.push({ kind: SC.FINALE, map: world, at: fromAt });
       return scenes;
     }
     const toAt = placeOfPhase(world, nextPhase);

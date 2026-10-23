@@ -455,7 +455,7 @@ function paintPads() {
     const kind = scene ? scene.kind : null;
     if (kind === 'celebrate' && t < SWEEP_MS) {
       sweepColors({ t, palette: PAD.ANIM_PALETTE, out: padColorBuf });
-    } else if ((kind === 'celebrate' && scene.fireworks) || kind === 'finale' || kind === 'star') {
+    } else if ((kind === 'celebrate' && scene.fireworks) || kind === 'banner' || kind === 'finale' || kind === 'star') {
       sparkleColors({ t, seed: 5, palette: PAD.ANIM_PALETTE, out: padColorBuf });
     } else if (on && on.map) {
       mapPadColors({ places: on.map.places, layout: on.map.layout, walk: scene.walk || scene.stand || null,

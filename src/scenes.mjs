@@ -11,6 +11,8 @@
  *   celebrate  a place is done: its flag rises; `fireworks` for a stage
  *   zoom       into an island from the world (`dir: 'in'`), or out of one
  *   star       a burst round the result's big score (`over: 'result'`)
+ *   banner     a strip across the map with the news (`text`): STAGE
+ *              COMPLETE, CHECKPOINT PASSED, LEARNING PATH COMPLETE
  *   finale     the whole Learning Path done: every flag, fireworks over all
  *
  * A player holds the queue and what to do after it (`then`). Every scene
@@ -21,14 +23,15 @@
  */
 
 import { createWalk, walkTo, walkDuration, STORY_MS_PER_CELL } from './pathmap/walk.mjs';
-import { FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS } from './pathmap/anim.mjs';
+import { FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS, BANNER_MS } from './pathmap/anim.mjs';
 
 export const WALK = 'walk';
 export const CELEBRATE = 'celebrate';
 export const ZOOM = 'zoom';
 export const STAR = 'star';
 export const FINALE = 'finale';
-export const KINDS = Object.freeze([WALK, CELEBRATE, ZOOM, STAR, FINALE]);
+export const BANNER = 'banner';
+export const KINDS = Object.freeze([WALK, CELEBRATE, ZOOM, STAR, FINALE, BANNER]);
 
 /*
  * How long each kind runs, in ms: the engine's own lengths (pathmap/anim.mjs).
@@ -43,6 +46,7 @@ export const SCENE_MS = Object.freeze({
   [ZOOM]: ZOOM_MS,
   [STAR]: STAR_MS,
   [FINALE]: FINALE_MS,
+  [BANNER]: BANNER_MS,
 });
 export const WALK_HOLD_MS = 250;
 

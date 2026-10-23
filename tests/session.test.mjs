@@ -1153,7 +1153,9 @@ function sceneKinds(h) {
   let last = null;
   for (let i = 0; i < 400 && h.session.view === 'anim'; i++) {
     const sc = h.session.scene;
-    if (sc !== last) seen.push(sc.kind + (sc.dir ? '-' + sc.dir : '') + (sc.fireworks ? '+fireworks' : ''));
+    if (sc !== last) {
+      seen.push(sc.kind + (sc.dir ? '-' + sc.dir : '') + (sc.fireworks ? '+fireworks' : '') + (sc.text ? ' ' + sc.text : ''));
+    }
     last = sc;
     h.run(50);
   }
@@ -1277,8 +1279,10 @@ test('a stage done: fireworks over its fort, out to the world, the sail, into th
   assert.equal(h.session.view, RESULT_VIEW);
   h.session.activate(false);
   const kinds = sceneKinds(h);
-  assert.deepEqual(kinds.slice(0, 4), ['celebrate+fireworks', 'zoom-out', 'walk', 'zoom-in'], kinds.join(', '));
+  assert.deepEqual(kinds.slice(0, 5),
+    ['celebrate+fireworks', 'banner CHECKPOINT PASSED', 'zoom-out', 'walk', 'zoom-in'], kinds.join(', '));
   assert.ok(h.said().includes('Stage 1 complete.'));
+  assert.ok(h.said().includes('Checkpoint passed.'));
   assert.ok(h.said().includes('World map.'));
   assert.ok(h.said().includes('Sailing to 2 Four chords.'), h.said().slice(-6).join(' / '));
   assert.ok(h.said().includes('2 Four chords.'));
@@ -1318,7 +1322,8 @@ test('the whole Learning Path done: the finale on the world map, then the world 
   h.run(700);
   h.session.activate(false);
   const kinds = sceneKinds(h);
-  assert.deepEqual(kinds, ['celebrate+fireworks', 'zoom-out', 'finale'], kinds.join(', '));
+  assert.deepEqual(kinds, ['celebrate+fireworks', 'banner STAGE COMPLETE', 'zoom-out', 'banner LEARNING PATH COMPLETE',
+    'finale'], kinds.join(', '));
   assert.ok(h.said().includes('Learning Path complete.'));
   assert.equal(h.session.view, MENU);
   assert.ok(h.session.onMap(), 'the world map');

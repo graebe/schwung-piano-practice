@@ -25,8 +25,8 @@ import { wrapLines } from './info.mjs';
 import { drawMap } from './pathmap/render.mjs';
 import { createWalk } from './pathmap/walk.mjs';
 import { cellCentre } from './pathmap/layout.mjs';
-import { flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, FLAG_MS } from './pathmap/anim.mjs';
-import { ZOOM, CELEBRATE, FINALE } from './scenes.mjs';
+import { flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, banner, FLAG_MS } from './pathmap/anim.mjs';
+import { ZOOM, CELEBRATE, FINALE, BANNER } from './scenes.mjs';
 import { drawHome } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
 
@@ -1268,6 +1268,7 @@ export function drawMapScreen(ctx, state) {
  *              then the map without its route and fireworks over the place
  *   zoom       the world's island growing to fill the map (in), or shrinking
  *              back into its cell (out); the title names the island
+ *   banner     the map without its route, the news across it
  *   finale     the world, every flag waving, fireworks over every island
  *
  * At its end each frame is its map as it stands: what a skip lands on.
@@ -1302,6 +1303,9 @@ export function drawScene(ctx, state) {
     const args = { cell: world.layout.cells[scene.at], place: world.places[scene.at] };
     if (scene.dir === 'in') zoomIn(ctx, args, t);
     else zoomOut(ctx, args, t);
+  } else if (scene.kind === BANNER) {
+    drawMapScreen(ctx, { ...base, route: false });
+    banner(ctx, { text: scene.text }, t);
   } else if (scene.kind === FINALE) {
     drawMapScreen(ctx, base);
     finale(ctx, { layout: map.layout, places: map.places, seed: 7 }, t);
