@@ -195,6 +195,11 @@ function driver(host) {
     for (let i = 0; i < Math.abs(delta); i++) cc(KNOB1 + k, delta > 0 ? 1 : 127);
     tick();
   };
+  /* A settings knob turned `values` values: ten units each (knob_accel.mjs). */
+  const turn = (k, values) => {
+    for (let i = 0; i < Math.abs(values) * 10; i++) cc(KNOB1 + k, values > 0 ? 1 : 127);
+    tick();
+  };
   const shiftWith = (n) => { cc(SHIFT, 127); press(n); cc(SHIFT, 0); tick(); };
   /*
    * A player who reads the pads. With guide pads on (stage 1) the next note's
@@ -245,7 +250,7 @@ function driver(host) {
   const toTop = () => {
     for (let i = 0; i < 8 && !host.screen().startsWith('PIANO | '); i++) press(BACK);
   };
-  return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, playChart, toTop, host };
+  return { tick, run, midi, cc, press, jog, click, pad, knob, turn, shiftWith, follow, playChart, toTop, host };
 }
 
 const QUIET = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false, roundSize: 10 });
@@ -314,7 +319,7 @@ const SCENARIOS = {
     d.jog(60); d.click();                         /* Settings: the page */
     d.click(); d.jog(1); d.click();              /* Octave up: a rebuild */
     d.jog(2); d.click(); d.jog(-1); d.click();    /* Key down a semitone */
-    d.knob(0, 1); d.knob(1, 2); d.knob(2, -1);    /* the knobs: the rows on screen */
+    d.turn(0, 1); d.turn(1, 2); d.turn(2, -1);    /* the knobs: the rows on screen */
     d.jog(60); d.click(); d.run(100);             /* Advanced */
     d.click(); d.click(); d.jog(1); d.click();    /* Practice: Tempo up */
     d.toTop(); d.run(1200);                       /* the throttled save lands */
@@ -381,7 +386,7 @@ const SCENARIOS = {
       d.jog(-60); d.jog(1); d.click();
       d.jog(-60); d.jog(subject); d.click();
       d.jog(-60); d.jog(circle); d.click();
-      if (answer) d.knob(0, answer);              /* knob 1: the answer */
+      if (answer) d.turn(0, answer);              /* knob 1: the answer */
       d.press(PLAY); d.run(600);
     };
     const leave = () => d.toTop();
@@ -556,8 +561,8 @@ const SCENARIOS = {
     d.jog(1); d.click(); d.run(200);              /* Practice */
     d.jog(3); d.click(); d.run(200);              /* Chords: the trainer's ring */
     d.click(); d.run(100);                        /* Read: its knobs */
-    d.knob(0, 1);                                 /* knob 1, Answer: name (Level 2) */
-    d.knob(1, 1);                                 /* knob 2, Level 3 */
+    d.turn(0, 1);                                 /* knob 1, Answer: name (Level 2) */
+    d.turn(1, 1);                                 /* knob 2, Level 3 */
     d.press(PLAY); d.run(400);                    /* PLAY starts */
     for (let i = 0; i < 30; i++) { d.jog(1); d.click(); d.run(1500); }
     d.run(1000); d.click(); d.run(400);           /* the result's next: another round */
@@ -576,8 +581,8 @@ const SCENARIOS = {
     d.press(PLAY); d.run(1500);                   /* again */
     d.press(RECORD); d.run(400);                  /* help */
     d.press(BACK); d.run(100);                    /* the knobs */
-    d.knob(0, 1);                                 /* Answer: name */
-    d.knob(6, 1);                                 /* Sound: broken */
+    d.turn(0, 1);                                 /* Answer: name */
+    d.turn(6, 1);                                 /* Sound: broken */
     d.press(PLAY); d.run(2500);
     for (let i = 0; i < 4; i++) { d.pad(i, 60); d.run(1500); }
     d.press(BACK); d.press(BACK); d.run(100);
@@ -594,8 +599,8 @@ const SCENARIOS = {
     for (const p of [0, 2, 3]) d.pad(p, 60);      /* a wrong note in it */
     d.press(RECORD); d.run(4500);                 /* help: again, slower */
     d.press(BACK); d.run(100);
-    d.knob(0, 1);                                 /* Answer: name */
-    d.knob(3, 2);                                 /* Direction: both */
+    d.turn(0, 1);                                 /* Answer: name */
+    d.turn(3, 2);                                 /* Direction: both */
     d.press(PLAY); d.run(8000);
     for (let i = 0; i < 6; i++) { d.jog(1); d.click(); d.run(1500); }
     d.press(BACK); d.press(BACK); d.run(100);
@@ -630,7 +635,7 @@ const SCENARIOS = {
     d.pad(1, 80);                                 /* a wrong note */
     d.press(RECORD); d.run(5000);                 /* help: again, slower */
     d.press(BACK); d.run(100);
-    d.knob(0, 1);                                 /* Answer: name */
+    d.turn(0, 1);                                 /* Answer: name */
     d.press(PLAY); d.run(5000);
     for (let i = 0; i < 6; i++) { d.jog(1); d.click(); d.run(1500); }
     d.press(BACK); d.press(BACK); d.run(100);
@@ -643,13 +648,13 @@ const SCENARIOS = {
     d.jog(1); d.click(); d.run(200);
     d.jog(4); d.click(); d.run(200);
     d.jog(2); d.click(); d.run(100);              /* Play: its knobs */
-    d.knob(2, 20);                                /* knob 3, Key: all 12 */
+    d.turn(2, 20);                                /* knob 3, Key: all 12 */
     d.press(PLAY); d.run(400);
     for (const p of [3, 7, 10, 8, 12, 15]) d.pad(p, 60);
     d.run(600);
     d.press(BACK); d.press(BACK); d.run(100);
     d.jog(-2); d.click(); d.run(100);             /* Read */
-    d.knob(5, 1);                                 /* knob 6, Rhythm: pop 8ths */
+    d.turn(5, 1);                                 /* knob 6, Rhythm: pop 8ths */
     d.press(PLAY); d.run(300);                    /* a chart on its ready screen */
     d.press(PLAY); d.run(3000);                   /* listen */
     d.press(BACK); d.press(BACK); d.run(100);     /* its setup */
@@ -670,10 +675,10 @@ const SCENARIOS = {
     d.click(); d.run(100);                        /* Level is Custom: its tick list */
     d.jog(1); d.click(); d.run(60);               /* Minor ticked */
     d.press(BACK); d.run(200);                    /* the knobs, ready */
-    for (let k = 0; k < 8; k++) { d.knob(k, 1); d.run(60); }
+    for (let k = 0; k < 8; k++) { d.turn(k, 1); d.run(60); }
     d.midi([0x90, 4, 100]); d.run(60);            /* knob 5 touched */
     d.jog(1); d.run(60); d.jog(-3); d.run(60);    /* the jog walks the focus */
-    d.knob(1, -1); d.run(60);                     /* Level 10 */
+    d.turn(1, -1); d.run(60);                     /* Level 10 */
     d.press(PLAY); d.run(2000);                   /* a round */
     d.press(BACK); d.run(200);                    /* the knobs again, focus kept */
     d.shiftWith(JOG_CLICK); d.run(100);           /* as a list */
@@ -688,7 +693,7 @@ const SCENARIOS = {
     d.jog(4); d.click(); d.run(200);              /* Stats, nothing yet */
     d.press(BACK); d.run(100);
     d.jog(-3); d.click(); d.run(100);             /* Hear */
-    d.knob(0, 1);                                 /* Answer: name */
+    d.turn(0, 1);                                 /* Answer: name */
     d.press(PLAY); d.run(2500);
     for (let i = 0; i < 40 && d.host.screen().startsWith('CHORDS HEAR'); i++) {
       d.jog(1); d.click(); d.run(1500);

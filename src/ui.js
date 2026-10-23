@@ -942,9 +942,10 @@ function inSong() {
 }
 
 function onKnob(index, delta) {
-  /* A trainer's setup: knob n is setting n, one value a detent. */
+  /* A trainer's setup: knob n is setting n, a value per ten units turned
+   * (knob_accel.mjs). */
   if (S.view === TRAINER_SETUP) {
-    S.knobTurn(index + 1, delta > 0 ? 1 : -1);
+    S.knobTurn(index + 1, delta);
     return;
   }
   if (inSong()) {
@@ -967,12 +968,8 @@ function onKnob(index, delta) {
     const row = settingsPageTop() + index;
     const rows = S.settingsRows();
     if (index >= SETTINGS_PER_PAGE || row >= rows.length || rows[row].act) return;
-    S.selectSettingRow(row);
-    /* Key and octave wrap through a lot of values; one step per event or a
-     * flick sends them spinning. */
-    const def = SET.SETTINGS_DEF[rows[row].index];
-    const step = !def || def.type === 'wrap' || def.type === 'list' || def.type === 'enum';
-    S.editRow(row, step ? (delta > 0 ? 1 : -1) : delta);
+    /* A value per ten units, one at most an event: a flick never spins. */
+    S.settingsKnob(row, delta);
   }
 }
 

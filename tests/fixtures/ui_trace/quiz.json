@@ -623,6 +623,7 @@
 ["tick",2721,"0cff1ed28c84","030367e4b360"],
 ["announce","Notes Read. Turn the knobs; Play starts."],
 ["tick",2725,"8c6d6d66fb20","57c3baa1d5bb"],
+["announce","Knob 1, Answer: play."],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{\"quiz:int:hear:name:L1\":{\"stages\":[{\"last\":-1,\"best\":0,\"passedAt\":0},{\"last\":0.5882352941176471,\"best\":0.5882352941176471,\"passedAt\":0}],\"plays\":1,\"t\":1791532833,\"skip\":0,\"movedOn\":0,\"rep\":null,\"h\":[[1791532833,59,2,0,0]]}},\"seen\":{},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\",\"cells\"],\"trainers\":{\"note\":{\"play\":{\"answer\":\"play\",\"level\":1,\"round\":10,\"key\":0,\"circle\":\"play\",\"custom\":[]},\"read\":{\"answer\":\"name\",\"level\":1,\"round\":10,\"key\":0,\"circle\":\"read\",\"custom\":[]}},\"int\":{\"hear\":{\"answer\":\"name\",\"level\":1,\"direction\":\"up\",\"round\":10,\"key\":0,\"circle\":\"hear\",\"custom\":[]}}}}"],
 ["announce","Answer name."],
 ["tick",2727,"b6f8835acbf2","57c3baa1d5bb"],

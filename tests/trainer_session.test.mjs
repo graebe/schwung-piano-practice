@@ -81,13 +81,13 @@ test('knobs: each turns its own setting; a touch names one; the jog walks the us
   assert.ok(h.said().some((t) => /^Knob 5, Roots: diatonic/.test(t)));
   for (const [n, field, want] of [[1, 'answer', 'nm'], [2, 'level', 'L3'], [3, 'key', 'C#'], [4, 'scale', 'm'],
     [5, 'roots', 'ik'], [6, 'inversions', 'on'], [7, 'sound', 'bn'], [8, 'round', '20']]) {
-    S(h).knobTurn(n, 1);
+    S(h).knobStep(n, 1);
     const k = S(h).knobSetup().knobs[n - 1];
     assert.equal(k.field, field);
     assert.equal(k.short, want, field);
     assert.equal(S(h).knobSetup().focus, n);
   }
-  S(h).knobTurn(1, -1);                              /* back to play: Level stays at 2 */
+  S(h).knobStep(1, -1);                              /* back to play: Level stays at 2 */
   const saved = JSON.parse(h.files.get('progress.json')).trainers.chord.hear;
   assert.equal(saved.round, 20);
   /* The jog: over the knobs in use only. Chords › Play has no knob 1 or 7. */
@@ -100,8 +100,8 @@ test('knobs: each turns its own setting; a touch names one; the jog walks the us
   assert.equal(S(h).knobSetup().focus, 8, 'clamped');
   for (let i = 0; i < 9; i++) S(h).moveSelection(-1);
   assert.equal(S(h).knobSetup().focus, 2, 'never the empty 1');
-  S(h).knobTurn(1, 1);
-  S(h).knobTurn(7, 1);
+  S(h).knobStep(1, 1);
+  S(h).knobStep(7, 1);
   assert.equal(S(h).knobSetup().focus, 2, 'an empty knob does nothing');
 });
 
@@ -124,8 +124,8 @@ test('Back: the round to its knobs, focus kept; the knobs to the ring; the ring 
 test('a setup is remembered per circle, and kept in the progress file', () => {
   const h = start();
   openPath(S(h), ['Play']);
-  S(h).knobTurn(2, 1);
-  S(h).knobTurn(2, 1);
+  S(h).knobStep(2, 1);
+  S(h).knobStep(2, 1);
   S(h).back();
   openPath(S(h), ['Play']);
   assert.equal(S(h).knobSetup().knobs[1].text, '3  maj m dim aug');
@@ -139,9 +139,9 @@ test('a setup is remembered per circle, and kept in the progress file', () => {
 test('Custom: a click opens the tick list, Back returns to the knobs; a round of only the picked', () => {
   const h = start();
   openPath(S(h), ['Read']);
-  S(h).knobTurn(2, 6);
+  S(h).knobStep(2, 6);
   assert.equal(S(h).knobSetup().knobs[1].short, 'L2', 'one step a detent');
-  for (let i = 0; i < 7; i++) S(h).knobTurn(2, 1);       /* 2 -> ... -> 8 -> custom */
+  for (let i = 0; i < 7; i++) S(h).knobStep(2, 1);       /* 2 -> ... -> 8 -> custom */
   assert.equal(S(h).knobSetup().knobs[1].short, 'Cu');
   assert.deepEqual(S(h).hint(), ['KNOB set  PLAY start', 'CLICK custom']);
   S(h).activate(false);
@@ -164,8 +164,8 @@ test('Custom: a click opens the tick list, Back returns to the knobs; a round of
 test('PLAY waits for enough ticked: one to play, two to name; the Play LED goes dark', () => {
   const h = start();
   openPath(S(h), ['Read']);
-  S(h).knobTurn(2, 1);
-  for (let i = 0; i < 7; i++) S(h).knobTurn(2, 1);
+  S(h).knobStep(2, 1);
+  for (let i = 0; i < 7; i++) S(h).knobStep(2, 1);
   S(h).activate(false);
   const untick = (item) => {
     S(h).selectSettingRow(S(h).settingsRows().findIndex((x) => x.item === item));
@@ -181,7 +181,7 @@ test('PLAY waits for enough ticked: one to play, two to name; the Play LED goes 
   assert.equal(S(h).view, TRAINER_SETUP, 'nothing starts');
   assert.ok(h.said().some((t) => /Not yet: tick 1 chord/.test(t)));
   /* Naming: one ticked is still not enough. */
-  S(h).knobTurn(1, 1);
+  S(h).knobStep(1, 1);
   S(h).knobTouch(2);
   S(h).activate(false);
   untick('maj');
@@ -213,7 +213,7 @@ test('Shift + click shows the setup as a list, Start last; Back is the knobs aga
 test('Stats: weakest first, a row\'s detail, Back to the ring', () => {
   const h = start();
   openPath(S(h), ['Hear']);
-  S(h).knobTurn(1, 1);
+  S(h).knobStep(1, 1);
   S(h).playButton();
   /* Miss every minor chord once. */
   playRound(h, (q) => q.entry.answer === 'min');
@@ -328,7 +328,7 @@ test('Progressions: Key all 12 walks the circle, a chart a key; Learn keeps its 
   assert.equal(S(h).nav[S(h).nav.length - 1].node.children[0].id, 'basics/progressions/I-IV-V-I');
   S(h).back();
   openPath(S(h), ['Read']);
-  for (let i = 0; i < 13; i++) S(h).knobTurn(3, 1);   /* Key: all 12 */
+  for (let i = 0; i < 13; i++) S(h).knobStep(3, 1);   /* Key: all 12 */
   assert.equal(S(h).knobSetup().knobs[2].short, 'al');
   S(h).playButton();
   assert.equal(S(h).view, 'ready');
@@ -420,4 +420,29 @@ test('the page gets a line, a row of chords, a setup and Stats as the Move draws
   assert.equal(vm.screen, TRAINER_STATS);
   assert.deepEqual(vm.trainerStats.rows, []);
   assert.equal(applyAction(S(h), { type: 'trainerStats', index: 3 }), null);
+});
+
+test('a knob on the Move moves its setting a value per ten units; Settings too', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  const level = () => S(h).knobSetup().knobs.find((k) => k.field === 'level').short;
+  const n = S(h).knobSetup().knobs.find((k) => k.field === 'level').n;
+  for (let i = 0; i < 9; i++) { S(h).knobTurn(n, 1); h.run(20); }
+  assert.equal(level(), 'L1', 'nine units: nothing yet');
+  assert.equal(S(h).knobSetup().focus, n, 'but the knob is in focus');
+  S(h).knobTurn(n, 1);
+  assert.equal(level(), 'L2', 'the tenth: one value');
+  S(h).knobTurn(n, 40);
+  assert.equal(level(), 'L3', 'a flick: one value, no more');
+  h.run(700);
+  for (let i = 0; i < 9; i++) S(h).knobTurn(n, -1);
+  assert.equal(level(), 'L3', 'turning back starts the count again');
+  /* Settings: the same feel. */
+  for (let i = 0; i < 6; i++) S(h).back();
+  S(h).openSettingsPage();
+  const before = S(h).settingsRows()[0].value;
+  for (let i = 0; i < 9; i++) S(h).settingsKnob(0, 1);
+  assert.equal(S(h).settingsRows()[0].value, before, 'nine units on a Settings row: nothing');
+  S(h).settingsKnob(0, 1);
+  assert.notEqual(S(h).settingsRows()[0].value, before, 'the tenth: one value');
 });

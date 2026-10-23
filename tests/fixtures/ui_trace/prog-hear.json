@@ -84,6 +84,7 @@
 ["usb",11,176,64,0],
 ["announce","Progressions Hear. Turn the knobs; Play starts."],
 ["tick",564,"b3fb23763eb2","6e7808a6b6a5"],
+["announce","Knob 1, Answer: play."],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\",\"cells\"],\"trainers\":{\"prog\":{\"hear\":{\"answer\":\"name\",\"level\":1,\"voicing\":\"smooth\",\"rhythm\":\"block\",\"round\":10,\"key\":0,\"circle\":\"hear\",\"custom\":[]}}}}"],
 ["announce","Answer name."],
 ["tick",571,"b937b846413c","6e7808a6b6a5"],

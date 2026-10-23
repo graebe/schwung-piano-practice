@@ -172,7 +172,7 @@ export function applyAction(S, a) {
     /* A trainer's knob screen: a knob turned one step, a knob pointed at,
      * PLAY, and the Custom tick list (a click on knob 2 on the Move). */
     case 'knob':
-      if (S.view === TRAINER_SETUP && a.delta) S.knobTurn(a.n | 0, a.delta > 0 ? 1 : -1);
+      if (S.view === TRAINER_SETUP && a.delta) S.knobStep(a.n | 0, a.delta > 0 ? 1 : -1);
       return null;
     case 'focusKnob':
       S.knobTouch(a.n | 0);

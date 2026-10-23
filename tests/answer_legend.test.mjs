@@ -124,11 +124,11 @@ test('every trainer\'s Read and Hear, with every answer that names, ties each an
           const h = fakeHost();
           h.session.init();
           openPath(h.session, ['Practice', name, TRAIN.CIRCLE_LABEL[circle]]);
-          for (let i = 0; i < answers.length; i++) h.session.knobTurn(1, -1);
-          for (let i = 0; i < a; i++) h.session.knobTurn(1, 1);
-          if (level === 'top') for (let i = 0; i < 20; i++) h.session.knobTurn(2, 1);
-          h.session.knobTurn(2, -1);
-          if (level === 1) for (let i = 0; i < 20; i++) h.session.knobTurn(2, -1);
+          for (let i = 0; i < answers.length; i++) h.session.knobStep(1, -1);
+          for (let i = 0; i < a; i++) h.session.knobStep(1, 1);
+          if (level === 'top') for (let i = 0; i < 20; i++) h.session.knobStep(2, 1);
+          h.session.knobStep(2, -1);
+          if (level === 1) for (let i = 0; i < 20; i++) h.session.knobStep(2, -1);
           h.session.playButton();
           const where = `${name} ${circle} ${answers[a].value} level ${level}`;
           if (h.session.view !== GUESS_VIEW) { faults.push(`${where}: no round`); continue; }

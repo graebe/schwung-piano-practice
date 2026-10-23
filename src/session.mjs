@@ -68,6 +68,7 @@ import { createGrow, startGrow, growing, itemOfPad, HOME_MAX } from './home/rend
 import { PRACTICE_PIANO } from './home/icons.mjs';
 import * as SC from './pathmap/scenes.mjs';
 import * as TRAIN from './trainer.mjs';
+import { createKnobAccumulator } from './knob_accel.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -2195,6 +2196,15 @@ export function createSession(fx, opts = {}) {
   }
 
   /* A row of the page changed by the jog or a knob. */
+  /* A Settings row's knob turned on the Move, by `units`: a value per ten. */
+  function settingsKnob(row, units) {
+    if (view !== SETTINGS) return;
+    selectSettingRow(row);
+    const step = settingsAccel.feed('settings:' + row, units, now());
+    if (step) editRow(row, step);
+    dirty = true;
+  }
+
   function editRow(row, delta) {
     const r = settingsRows()[row];
     if (!r || !delta) return;
@@ -2377,8 +2387,25 @@ export function createSession(fx, opts = {}) {
     };
   }
 
-  /* Knob n (1..8) turned: its setting, one value a detent, and the focus. */
-  function knobTurn(n, delta) {
+  /*
+   * The settings knobs, calmed (knob_accel.mjs): a hardware knob moves its
+   * setting one value per ten units turned. The page's − and + are a value
+   * a click (knobStep, editRow).
+   */
+  const settingsAccel = createKnobAccumulator();
+
+  /* Knob n turned on the Move, by `units`: a value per ten of them. */
+  function knobTurn(n, units) {
+    if (view !== TRAINER_SETUP || !units) return;
+    const k = knobSetup().knobs[n - 1];
+    if (!k || !k.field) return;
+    const step = settingsAccel.feed('setup:' + n, units, now());
+    if (step) knobStep(n, step);
+    else knobTouch(n, true);
+  }
+
+  /* Knob n's setting one value on (+1) or back (-1), and the focus. */
+  function knobStep(n, delta) {
     if (view !== TRAINER_SETUP || !delta) return;
     const k = knobSetup().knobs[n - 1];
     if (!k || !k.field) return;
@@ -2391,12 +2418,14 @@ export function createSession(fx, opts = {}) {
     ledDirty = true;
   }
 
-  /* Knob n touched: it is named, nothing changes. */
-  function knobTouch(n) {
+  /* Knob n touched (or turned less than a value): named, nothing changes. */
+  function knobTouch(n, quiet = false) {
     if (view !== TRAINER_SETUP) return;
     const k = knobSetup().knobs[n - 1];
     if (!k || !k.field) return;
+    const was = knobFocus[knobKey()];
     knobFocus[knobKey()] = n;
+    if (quiet && was === n) return;
     announce('Knob ' + n + ', ' + k.label + ': ' + k.text + '.');
     dirty = true;
   }
@@ -4071,6 +4100,8 @@ export function createSession(fx, opts = {}) {
     selectStatsRow,
     knobSetup,
     knobTurn,
+    knobStep,
+    settingsKnob,
     knobTouch,
     pickSheet,
     pickCard,

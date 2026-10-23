@@ -137,8 +137,10 @@ function openSetup(subject, circle) {
   click();
 }
 /* On the knob screen: knob n turned `by` detents. */
+/* Knob n turned `by` values: ten units each, a settings knob's step
+ * (knob_accel.mjs), one event a unit. */
 function turnKnob(n, by) {
-  for (let i = 0; i < Math.abs(by); i++) globalThis.onMidiMessageInternal(CC(KNOB1 + n - 1, by > 0 ? 1 : 127));
+  for (let i = 0; i < Math.abs(by) * 10; i++) globalThis.onMidiMessageInternal(CC(KNOB1 + n - 1, by > 0 ? 1 : 127));
   globalThis.tick();
 }
 const startRound = () => { globalThis.onMidiMessageInternal(CC(PLAY, 127)); globalThis.tick(); };
