@@ -219,6 +219,12 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
   await openPath(page, SCALE);
   await expect(page.locator('#piece-title')).toHaveText(/C Major/i);
   await expect(page.locator('.staff-wrap svg')).toBeVisible();
+  /* The Move's ready box names knob 8 and the tempo; so does the page. */
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8:  80 bpm');
+  await page.getByRole('button', { name: 'Faster' }).click();
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8:  85 bpm');
+  await page.getByRole('button', { name: 'Slower' }).click();
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8:  80 bpm');
   await page.getByRole('button', { name: 'Solo', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Solo', exact: true })).toHaveClass(/on/);
   await page.getByRole('button', { name: 'Guided', exact: true }).click();
@@ -238,8 +244,13 @@ test('a song is one row: it opens ready, and its level is chosen there', async (
   await expect(page.locator('.move-hint')).toContainText('JOG level');
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('ready-song.png', { fullPage: true });
+  /* The song's own tempo, for the session: slower, and kept by its levels. */
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8:  72 bpm');
+  await page.getByRole('button', { name: 'Slower' }).click();
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8:  67 bpm');
   await levels.nth(3).click();
   await expect(page.locator('#piece-title')).toHaveText(/ode to joy l3/i);
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8:  67 bpm', { message: 'L3 of the same song keeps it' });
   await expect(levels.nth(3)).toHaveClass(/on/);
   await page.keyboard.press('ArrowLeft');                  /* the jog: L3 Guided to L2 Solo */
   await expect(levels.nth(2)).toHaveClass(/on/);

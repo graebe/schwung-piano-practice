@@ -10,7 +10,7 @@
 ["announce","Major."],
 ["tick",6,"d54a32a3af42","5e88855ed025"],
 ["announce","C Major. Guided. Press play to start."],
-["tick",8,"3dcdb66f8b92","43853d57b728"],
+["tick",8,"53d2f3f7dc96","43853d57b728"],
 ["announce","Listening."],
 ["tick",10,"0e520c350663","793c19018899"],
 ["tick",11,"0e520c350663","793c19018899"],
@@ -428,5 +428,5 @@
 ["usb",11,176,123,0],
 ["usb",11,176,64,0],
 ["announce","Back to the start."],
-["tick",334,"3dcdb66f8b92","ff5c41f15196"],
+["tick",334,"53d2f3f7dc96","ff5c41f15196"],
 ["tick",350,"-","43853d57b728"]]

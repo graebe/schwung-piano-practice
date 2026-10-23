@@ -138,7 +138,7 @@ function about(screen, s) {
         ? 'A question: pick the answer that fits you. You can change your mind in the settings.'
         : 'A card, shown once. Settings > Advanced > Help shows the tips and the welcome again.';
     case READY:
-      return 'A piece, armed and waiting. REC plays it and scores you; PLAY lets you listen first. The jog picks Guided, with the pads lit, or Solo, reading alone.';
+      return 'A piece, armed and waiting. REC plays it and scores you; PLAY lets you listen first. The jog picks Guided, with the pads lit, or Solo, reading alone. Knob 8 sets the tempo, shown in the box; knob 1 scrubs.';
     case RUNNING:
       return 'The piece is running. Play each note as it reaches the line.';
     case SUMMARY:

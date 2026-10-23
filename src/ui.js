@@ -959,7 +959,7 @@ function onKnob(index, delta) {
       if (S.scrubAllowed()) S.scrubBy(delta);
       return;
     }
-    if (index === KNOB_COUNT - 1) S.editSetting(SET.settingIndex('bpm'), delta);
+    if (index === KNOB_COUNT - 1) S.tempoKnob(delta);
     return;
   }
   if (S.view === SETTINGS) {

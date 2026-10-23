@@ -1078,6 +1078,8 @@ export function createSession(fx, opts = {}) {
   /* Arm a playable row on the first stage you have not yet passed, or on the
    * stage a check asks for. */
   function armLeaf(node, forceStage) {
+    /* Opened again, a song starts at its written tempo. */
+    sessionTempo = null;
     if (!armNode(node, forceStage)) return;
     announce(chart.name + '. ' + (stage === 2 ? 'Solo' : 'Guided') + '. Press play to start.');
     autoInfo({ id: armedId, label: chart.name });
@@ -1094,6 +1096,8 @@ export function createSession(fx, opts = {}) {
     armedLevel = armedPiece ? armedPiece.levels.indexOf(node) : 0;
     chart = built;
     if (chart.source !== 'file') chart.bpm = settings.bpm;
+    /* Another level of the same song keeps the tempo turned to for it. */
+    else if (sessionTempo && sessionTempo.key === (armedPiece || armedId)) chart.bpm = sessionTempo.bpm;
     stage = forceStage || PROG.recommendedStage(PROG.item(progress, armedId));
     armRun();
     view = READY;
@@ -1252,6 +1256,43 @@ export function createSession(fx, opts = {}) {
     dirty = true;
     ledDirty = true;
     announce('Back to the start. ' + (stage === 2 ? 'Solo' : 'Guided') + '.');
+  }
+
+  /*
+   * Knob 8: the tempo. A generated drill is made at the Tempo setting, so
+   * there it edits the setting (saved, as before). A song keeps the tempo it
+   * was written at, so there it turns the song's own tempo for the session:
+   * to learn it slowly and build it up. That is never saved -- not into the
+   * song, the settings or the progress -- and opening the song again starts
+   * at its written tempo; its other levels keep it while it stays armed.
+   * The range is the Tempo setting's (40..200): one knob, one range, slow
+   * enough for any first reading and as fast as any drill goes. A take at a
+   * slower tempo is judged as every take is: 90% passes at any tempo
+   * (progress.mjs PASS); its tempo is kept with the attempt, as always.
+   */
+  let sessionTempo = null;
+
+  function tempoKnob(delta) {
+    if (!delta) return;
+    if (!chart || chart.source !== 'file' || (view !== READY && view !== RUNNING)) {
+      editSetting(SET.settingIndex('bpm'), delta);
+      return;
+    }
+    const def = SET.SETTINGS_DEF[SET.settingIndex('bpm')];
+    const bpm = clamp(chart.bpm + delta, def.min, def.max);
+    if (bpm === chart.bpm) return;
+    /* Running, the playhead keeps its place: the clock is re-anchored at the
+     * new tempo where it stands (or where it was paused). */
+    if (view === RUNNING) {
+      const at = paused ? pausedAtMs : now();
+      const beats = msToBeats(at - runStartMs, chart.bpm);
+      runStartMs = at - beatsToMs(beats, bpm);
+    }
+    chart.bpm = bpm;
+    if (run) SCORE.setRunTempo(run, bpm, settings.graceBeats);
+    sessionTempo = { key: armedPiece || armedId, bpm };
+    dirty = true;
+    ledDirty = true;
   }
 
   function armRun() {
@@ -3436,6 +3477,7 @@ export function createSession(fx, opts = {}) {
     silence: allNotesOff,
     scrubBy,
     scrubAllowed,
+    tempoKnob,
     editSetting,
     selectSetting,
     selectSettingRow,

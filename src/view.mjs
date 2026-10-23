@@ -256,11 +256,34 @@ export function drawReadingView(ctx, state) {
  * (controls.mjs), which is the signal that actually gets read.
  */
 /*
- * Four rows taller than it was, to hold a third line. At the old geometry a
- * row at +26 ended on screen row 51 — outside a box ending at 46, and across
- * the name rule at 47.
+ * The box: the controls and the level side by side, and under a rule the
+ * tempo, centred -- what knob 8 changes, which nothing else on the screen
+ * said. One rhythm throughout: two clear rows inside the border above the
+ * first control, below the last one down to the rule, above and below the
+ * tempo; and the LEVEL value (its digit, and the G or S that hangs a row
+ * below it) two rows under its title and two above the rule.
+ *
+ *   y+3 / +12 / +21   listen, practise, scrub    | LEVEL; its value at +12
+ *   y+30              the rule
+ *   y+33              Knob 8:  92 bpm
+ *   y+42              the border
+ *
+ * It starts at the staff area's top (y 10, clear of the header) and ends on
+ * row 52, two clear rows above the bottom line's band (55). While it is up
+ * the name lane is hidden, the whole width of it -- its letters and its
+ * rule would otherwise show beside and under the box; scrubbed away from
+ * the start, the box goes and the names come back.
  */
-export const READY_BOX = { x: 12, y: 15, w: 104, h: 32 };
+export const READY_BOX = { x: 12, y: 10, w: 104, h: 43 };
+export const READY_TEMPO_RULE = 30;
+export const READY_TEMPO_Y = 33;
+export const READY_LEVEL_Y = 12;
+
+/* The tempo row: the knob, and the bpm in a three-digit field so the number
+ * stays put as it crosses 99. */
+export function tempoRow(bpm) {
+  return 'Knob 8: ' + String(Math.round(bpm || 0)).padStart(3, ' ') + ' bpm';
+}
 
 /*
  * The ready screen's box, split: the three controls on the left, the LEVEL
@@ -276,14 +299,14 @@ function drawLevelBox(ctx, level) {
   const b = READY_BOX;
   const x0 = READY_SPLIT_X + 1;
   const w = b.x + b.w - x0 - 1;
-  ctx.fillRect(READY_SPLIT_X, b.y + 1, 1, b.h - 2, 1);
+  ctx.fillRect(READY_SPLIT_X, b.y + 1, 1, READY_TEMPO_RULE - 1, 1);
   ctx.text(x0 + 1, b.y + 3, 'LEVEL', 1);
   const lv = level.levels[level.index];
   if (lv && lv.learned) R.drawMark(ctx, b.x + b.w - 2 - R.MARK_W, b.y + 2, 'done', 1);
   const digit = String((lv && lv.step ? lv.step.replace(/\D/g, '') : '') || level.index + 1);
   const dw = R.bigTextWidth(digit, LEVEL_SCALE);
   const dx = x0 + ((w - dw) >> 1);
-  const dy = b.y + 12;
+  const dy = b.y + READY_LEVEL_Y;
   R.drawBigText(ctx, dx, dy, digit, LEVEL_SCALE);
   const tagY = dy + R.bigDigitHeight(LEVEL_SCALE) - L.TEXT_H + 1;
   ctx.text(dx + dw + 2, tagY, level.stage === 2 ? 'S' : 'G', 1);
@@ -346,6 +369,9 @@ export function drawReadyView(ctx, state) {
    */
   if ((state.songBeats || 0) <= 0) {
     const b = READY_BOX;
+    /* The name lane goes while the box is up: under and beside it its
+     * letters and rule would peek out. */
+    ctx.fillRect(0, L.NAME_RULE_Y, L.SCREEN_W, L.NAME_LANE_Y + L.TEXT_H - L.NAME_RULE_Y, 0);
     ctx.fillRect(b.x, b.y, b.w, b.h, 0);
     ctx.drawRect(b.x, b.y, b.w, b.h, 1);
 
@@ -356,14 +382,20 @@ export function drawReadyView(ctx, state) {
     /* The words share one column, 3 px clear of the widest glyph (scrub). */
     const gx = b.x + 3;
     const tx = gx + R.SCRUB_W + 3;
-    R.drawPlayGlyph(ctx, gx, b.y + 4, gh);
-    ctx.text(tx, b.y + 4, state.playLabel || 'listen', 1);
-    R.drawRecordGlyph(ctx, gx, b.y + 13, gh);
-    ctx.text(tx, b.y + 13, state.recLabel || 'practise', 1);
-    R.drawScrubGlyph(ctx, gx, b.y + 22);
-    ctx.text(tx, b.y + 22, state.scrubLabel || 'scrub', 1);
+    R.drawPlayGlyph(ctx, gx, b.y + 3, gh);
+    ctx.text(tx, b.y + 3, state.playLabel || 'listen', 1);
+    R.drawRecordGlyph(ctx, gx, b.y + 12, gh);
+    ctx.text(tx, b.y + 12, state.recLabel || 'practise', 1);
+    R.drawScrubGlyph(ctx, gx, b.y + 21);
+    ctx.text(tx, b.y + 21, state.scrubLabel || 'scrub', 1);
 
     if (state.level) drawLevelBox(ctx, state.level);
+
+    /* Under a rule, full width: the tempo, and the knob that sets it. */
+    ctx.fillRect(b.x + 1, b.y + READY_TEMPO_RULE, b.w - 2, 1, 1);
+    const bpm = state.bpm !== undefined ? state.bpm : state.chart ? state.chart.bpm : 0;
+    const row = truncate(ctx, tempoRow(bpm), b.w - 6);
+    ctx.text(b.x + ((b.w - ctx.textWidth(row)) >> 1), b.y + READY_TEMPO_Y, row, 1);
   }
 
   /* Where the notes are going is in the header (rightLabel, above), on the one

@@ -1482,3 +1482,84 @@ test('a ring of more than five is drawn as its list', () => {
   node.children.length = extra.length;
   assert.ok(h.session.onHome(), 'five again: a ring');
 });
+
+/* ---- Knob 8 on a song: its tempo, for the session --------------------------- */
+
+const openOde = (h) => {
+  openPath(h.session, ['Practice', 'Songs', 'Classics']);
+  const rows = h.session.nav.at(-1).node.children;
+  h.session.selectRow(rows.findIndex((r) => r.key === 'song:ode-to-joy'));
+  h.session.activate(false);
+  assert.equal(h.session.view, READY);
+};
+
+test('knob 8 on a song turns its tempo for the session: the row and the playback follow, nothing is saved', () => {
+  const h = fakeHost();
+  h.session.init();
+  openOde(h);
+  const written = h.session.chart.bpm;
+  h.run(1200);
+  h.session.flushSettings(false);                /* what was pending before the knob */
+  const before = { writes: h.log.filter((e) => e[0] === 'write').length, setting: h.session.settings.bpm };
+  h.session.tempoKnob(-12);
+  assert.equal(h.session.chart.bpm, written - 12, 'the song\'s own tempo, turned');
+  assert.equal(h.session.settings.bpm, before.setting, 'the drills\' Tempo setting is not touched');
+  h.run(2000);
+  h.session.flushSettings(false);
+  assert.equal(h.log.filter((e) => e[0] === 'write').length, before.writes, 'nothing written for the tempo');
+  /* Playback at the turned tempo: beats per second as the knob says. */
+  h.session.playButton();
+  const t0 = h.ms;
+  const b0 = h.session.songBeats;
+  h.run(3000);
+  const rate = (h.session.songBeats - b0) / ((h.ms - t0) / 60000);
+  assert.ok(Math.abs(rate - (written - 12)) < 1, `plays at ${written - 12} bpm: ${rate.toFixed(1)}`);
+  /* Running, it turns where the playhead stands. */
+  const at = h.session.songBeats;
+  h.session.tempoKnob(+30);
+  h.run(10);
+  assert.ok(Math.abs(h.session.songBeats - at) < 0.05, 'no jump: the clock re-anchored');
+  /* Opened again: the written tempo. */
+  h.session.back();
+  h.session.back();
+  openPath(h.session, []);
+  const rows = h.session.nav.at(-1).node.children;
+  h.session.selectRow(rows.findIndex((r) => r.key === 'song:ode-to-joy'));
+  h.session.activate(false);
+  assert.equal(h.session.chart.bpm, written, 're-armed: as written');
+  assert.ok(!JSON.stringify(h.files.get('progress.json') || '').includes('"tempo"'), 'nothing of it in progress');
+});
+
+test('a song\'s turned tempo stays with its other levels; the range is the Tempo setting\'s', () => {
+  const h = fakeHost();
+  h.session.init();
+  openOde(h);
+  h.session.tempoKnob(-500);
+  assert.equal(h.session.chart.bpm, 40, 'clamped at 40');
+  h.session.armLevel(2);
+  assert.equal(h.session.chart.bpm, 40, 'L2 of the same song keeps it');
+  h.session.tempoKnob(+500);
+  assert.equal(h.session.chart.bpm, 200, 'clamped at 200');
+});
+
+test('a slower take is judged as any take: 90% passes, and the attempt keeps its tempo', () => {
+  const h = fakeHost();
+  h.session.init();
+  openOde(h);
+  const written = h.session.chart.bpm;
+  h.session.tempoKnob(-20);
+  playThroughFromHere(h);
+  if (h.session.view === 'anim') h.run(700);
+  assert.equal(h.session.view, RESULT_VIEW);
+  const it = PROG.item(h.session.progress, h.session.armedId);
+  assert.ok(PROG.stagePassed(it, h.session.lastResult.stage), 'passed at the slower tempo');
+  assert.equal(it.h.at(-1)[3], written - 20, 'its tempo kept with the attempt ([t, percent, stage, bpm])');
+});
+
+test('knob 8 on a drill edits the Tempo setting, as before', () => {
+  const h = fakeHost();
+  armScale(h);
+  h.session.tempoKnob(5);
+  assert.equal(h.session.settings.bpm, 85);
+  assert.equal(h.session.chart.bpm, 85, 'the drill rebuilt at it');
+});
