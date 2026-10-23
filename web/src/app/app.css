@@ -191,6 +191,7 @@ button.status-pill { cursor: pointer; }
 .scrub input[type='range']:focus-visible::-webkit-slider-thumb { box-shadow: var(--glow-focus); }
 .scrub input:disabled { opacity: 0.35; cursor: default; }
 .tempo { display: flex; align-items: center; gap: var(--space-1); }
+.tempo-knob { margin-left: var(--space-2); white-space: nowrap; }
 .pp-value {
   min-width: 4ch;
   text-align: center;

@@ -219,6 +219,12 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
   await openPath(page, SCALE);
   await expect(page.locator('#piece-title')).toHaveText(/C Major/i);
   await expect(page.locator('.staff-wrap svg')).toBeVisible();
+  /* The Move's ready box names knob 8 and the tempo; so does the page. */
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8: 80 bpm');
+  await page.getByRole('button', { name: 'Faster' }).click();
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8: 85 bpm');
+  await page.getByRole('button', { name: 'Slower' }).click();
+  await expect(page.locator('.tempo-knob')).toHaveText('Knob 8: 80 bpm');
   await page.getByRole('button', { name: 'Solo', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Solo', exact: true })).toHaveClass(/on/);
   await page.getByRole('button', { name: 'Guided', exact: true }).click();

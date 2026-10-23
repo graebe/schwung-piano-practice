@@ -340,6 +340,10 @@ export function PracticeView(props) {
           <Button title="Slower" ariaLabel="Slower" onClick={() => props.dispatch({ type: 'tempo', delta: -5 })}>−</Button>
           <span class="pp-value">{vm().chart ? vm().chart.bpm : ''}</span>
           <Button title="Faster" ariaLabel="Faster" onClick={() => props.dispatch({ type: 'tempo', delta: 5 })}>+</Button>
+          {/* As the Move's ready box says it: the knob that sets the tempo. */}
+          <Show when={vm().screen === 'ready' && vm().chart}>
+            <span class="t-hint tempo-knob" data-info="On the Move, knob 8 sets the tempo">Knob 8: {vm().chart.bpm} bpm</span>
+          </Show>
         </div>
         <Show when={stats() && running() && !listening()}>
           <p class="score t-value" aria-live="polite">
