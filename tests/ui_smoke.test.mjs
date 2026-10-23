@@ -401,6 +401,13 @@ test('a song opens its levels, and a level arms', () => {
   const ready = screen();
   assert.match(ready, /LEVEL/, 'the ready screen, with its LEVEL box: ' + ready);
 
+  /* Knob 8 turns the song's own tempo, for the session: the row follows. */
+  const written = Number(/Knob 8: +(\d+) bpm/.exec(ready)[1]);
+  for (let i = 0; i < 12; i++) globalThis.onMidiMessageInternal(CC(KNOB1 + 7, 127));
+  assert.match(screen(), new RegExp(`Knob 8: +${written - 12} bpm`), 'the song slowed by twelve');
+  for (let i = 0; i < 12; i++) globalThis.onMidiMessageInternal(CC(KNOB1 + 7, 1));
+  assert.match(screen(), new RegExp(`Knob 8: +${written} bpm`), 'and back');
+
   /* The jog walks the level: 1 Guided, 1 Solo, then the second level. */
   globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
   globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));

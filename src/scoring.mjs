@@ -38,6 +38,19 @@ export const MISSED = 'missed';
  * eventually fumbled out would count as a clean hit.
  */
 
+/*
+ * A run's tempo changed under it (knob 8 on a song): its windows are in
+ * beats, worked out from milliseconds at the tempo, so they follow it.
+ */
+export function setRunTempo(run, bpm, graceBeats = 0) {
+  run.bpm = bpm;
+  run.good = msToBeats(run.windows.goodMs, bpm);
+  run.perfect = msToBeats(run.windows.perfectMs, bpm);
+  run.early = 2 * msToBeats(run.windows.goodMs, bpm);
+  run.late = Math.max(msToBeats(run.windows.lateMs, bpm), graceBeats || 0);
+  return run;
+}
+
 export function createRun(chart, opts = {}) {
   const windows = { ...DEFAULT_WINDOWS, ...(opts.windows || {}) };
   const bpm = opts.bpm || chart.bpm || 90;

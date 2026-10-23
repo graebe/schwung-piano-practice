@@ -49,7 +49,6 @@
  */
 
 import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS } from './session.mjs';
-import { settingIndex } from './settings_def.mjs';
 import { beatsPerBar } from './chart.mjs';
 
 /* The knob's scrub resolution (ui.js / session.mjs: SCRUB_UNITS_PER_BAR). */
@@ -147,7 +146,8 @@ export function applyAction(S, a) {
       return null;
     }
     case 'tempo':
-      if (a.delta) S.editSetting(settingIndex('bpm'), a.delta);
+      /* Knob 8's: a song's own tempo for the session, a drill's setting. */
+      if (a.delta) S.tempoKnob(a.delta);
       return null;
     case 'editSetting':
       if (a.delta) S.editSetting(a.index | 0, a.delta);
