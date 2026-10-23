@@ -632,8 +632,8 @@ export function SettingsView(props) {
         )}</For>
       </ul>
       {/* The browser's own inputs belong with MIDI, whose Move rows a browser
-        * does not have; and with every setting at once, from a piece. */}
-      <Show when={!s().group || s().group === 'midi'}>{props.extra}</Show>
+        * does not have; and with the Settings page, the first one opened. */}
+      <Show when={s().group === 'main' || s().group === 'midi'}>{props.extra}</Show>
     </section>
   );
 }

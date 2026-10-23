@@ -10,9 +10,11 @@ import { viewModel, encodeViewModel } from '../../src/view_model.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 
 const SCALE = ['Practice', 'Scales', 'Major', 'Up & down'];
-/* Settings is a folder of groups; a group opens the page with its rows. */
+/* Settings is one short page; Advanced on it lists the groups, each a page. */
 async function openSettings(page, group) {
   await page.getByRole('button', { name: 'Settings' }).click();
+  if (!group) return;
+  await page.locator('.setting').getByRole('button', { name: 'Advanced' }).click();
   await page.locator('.row', { hasText: new RegExp(`^${group}`) }).click();
 }
 /* A lit key's spoken name ("C sharp 4") as the options print it ("C#4"). */
@@ -130,23 +132,33 @@ test('the Learning Path is a map: click an island to walk there, again to go in,
 /* A scene lasts a third of a second: a picture of it is taken as it plays and
  * attached to the report, not held to a baseline, which could only catch it
  * by luck. The screens either side of it are baselines. */
-/* That any key or pad skips a scene is held by the session's tests: a third
- * of a second is too short to aim a click at from here without a race. */
-test('an island zooms in from the world, and Back zooms out', async ({ page }, info) => {
+/*
+ * A zoom lasts a third of a second: a loaded machine can be past it before an
+ * assertion looks. So the page itself notes every scene it shows (a
+ * MutationObserver set up first), and the test reads that after the screen
+ * has settled on the map. That any key or pad skips a scene is held by the
+ * session's tests: a click aimed at a third of a second would race.
+ */
+test('an island zooms in from the world, and Back zooms out', async ({ page }) => {
   await openPath(page, ['Learning Path']);
-  const first = page.locator('.map .place-hit').first();
-  await first.click();                                    /* the avatar is there: in */
-  await expect(page.locator('.anim-screen')).toHaveAttribute('data-kind', 'zoom');
-  await expect(page.locator('.anim-zoom-in')).toHaveCount(1);
-  await expect(page.locator('#anim-title')).toHaveText('1 Grid and staff.');
-  await info.attach('zoom-in', { body: await page.screenshot(), contentType: 'image/png' });
+  await page.evaluate(() => {
+    window.__scenes = [];
+    new MutationObserver(() => {
+      const s = document.querySelector('.anim-screen');
+      if (!s) return;
+      const entry = [s.getAttribute('data-kind'), document.querySelector('.anim-zoom-in') ? 'in'
+        : document.querySelector('.anim-zoom-out') ? 'out' : '', (document.querySelector('#anim-title') || {}).textContent];
+      if (JSON.stringify(window.__scenes.at(-1)) !== JSON.stringify(entry)) window.__scenes.push(entry);
+    }).observe(document.body, { subtree: true, childList: true, attributes: true, characterData: true });
+  });
+  await page.locator('.map .place-hit').first().click();  /* the avatar is there: in */
   await expect(page.locator('#map-title')).toHaveText(/1 Grid and staff/);   /* then the island */
   await expect(page.locator('.map-places .row').first()).toHaveText(/1\.1 Find the notes/);
   await page.keyboard.press('Escape');
-  await expect(page.locator('.anim-zoom-out')).toHaveCount(1);
-  await expect(page.locator('#anim-title')).toHaveText('World map.');
-  await info.attach('zoom-out', { body: await page.screenshot(), contentType: 'image/png' });
   await expect(page.locator('#map-title')).toHaveText('Learning Path');
+  const seen = await page.evaluate(() => window.__scenes);
+  expect(seen).toContainEqual(['zoom', 'in', '1 Grid and staff.']);
+  expect(seen).toContainEqual(['zoom', 'out', 'World map.']);
 });
 
 test('the options of a row: Test out: checkpoint plays the exam Solo', async ({ page }) => {
@@ -225,8 +237,7 @@ test('practising from the computer keyboard: a right note scores, a wrong one is
   const grace = page.locator('.setting', { hasText: 'Grace' });
   for (let i = 0; i < 3; i++) await grace.getByRole('button', { name: 'More Grace' }).click();
   await expect(grace.locator('.setting-value')).toHaveText('1');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');   /* the group, Advanced, the page */
   await openPath(page, SCALE);
   await page.keyboard.press('Space');                      /* practise */
   await expect(page.locator('.practice-head .t-hint')).toContainText('bar 1', { timeout: 6000 });
@@ -268,8 +279,7 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
   const round = page.locator('.setting', { hasText: 'Round' });
   await round.getByRole('button', { name: 'Less Round' }).click();
   await expect(round.locator('.setting-value')).toHaveText('10');
-  await page.keyboard.press('Escape');
-  await page.keyboard.press('Escape');
+  for (let i = 0; i < 3; i++) await page.keyboard.press('Escape');
   await openPath(page, ['Quiz', 'Keys', 'Name notes']);
   await expect(page.locator('#quiz-title')).toHaveText(/name the note/i);
   for (let i = 0; i < 40; i++) {
@@ -341,6 +351,24 @@ test('Chords by name: chord symbols in the row', async ({ page }) => {
   const names = await page.locator('.name-row-name').allTextContents();
   expect(names.length).toBeGreaterThanOrEqual(6);
   for (const n of names) expect(n.trim()).toMatch(/^[A-G][#b]?(m|dim|aug)?$|^[A-G][#b]? /);
+});
+
+test('Settings is one short page, Advanced the rest; Back from Advanced is the page', async ({ page }) => {
+  await openSettings(page);
+  await expect(page.locator('#settings-title')).toHaveText('Settings');
+  await expect(page.locator('.setting .row-label')).toHaveText(['Octave', 'Click', 'Key', 'Scale', 'Start at', 'Advanced']);
+  await expect(page.locator('.settings-screen')).toContainText('This browser', { message: 'the browser\'s own inputs' });
+  const octave = page.locator('.setting', { hasText: 'Octave' });
+  await octave.getByRole('button', { name: 'More Octave' }).click();
+  await expect(octave.locator('.setting-value')).toHaveText('+13', { message: 'edited in place' });
+  await page.locator('.setting').getByRole('button', { name: 'Advanced' }).click();
+  await expect(page.locator('#list-title')).toHaveText(/advanced/i);
+  await expect(page.locator('.app-crumb')).toHaveText('Settings › Advanced');
+  await expect(page.locator('.row .row-label')).toHaveText(['Practice', 'Sound', 'MIDI', 'Help']);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#settings-title')).toHaveText('Settings');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.home-screen')).toBeVisible();
 });
 
 test('settings are remembered across a reload', async ({ page }) => {
