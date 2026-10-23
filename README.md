@@ -120,7 +120,8 @@ the ready screen's **LEVEL** box, on the right of its controls, shows the level 
 level is learned. Turn the **jog** and you walk the levels and their two ways together: 1 Guided,
 1 Solo, 2 Guided, 2 Solo... The bottom line names it — `L2 RH chords  Solo` — and takes turns with
 the keys. A new level starts again from bar 1. A step of the Learning Path, Continue and Review arm the
-level they name.
+level they name. Under the controls and the LEVEL box the ready box ends with **Knob 8** and the tempo
+— `Knob 8:  72 bpm` — the knob that sets it; every drill's ready screen has that row.
 
 | | | |
 | --- | --- | --- |

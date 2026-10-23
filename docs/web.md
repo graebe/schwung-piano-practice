@@ -138,7 +138,8 @@ key; an open notehead is a hit, a red ✗ a miss.
 While the music is stopped, the **Start at** slider picks the bar to begin
 from. A run that does not start at the top is practice on a passage: it is not
 recorded. **−** and **+** change the tempo of generated drills; a song keeps the
-tempo it was written at.
+tempo it was written at. Beside them the ready view says it as the Move's ready
+box does: *Knob 8: 80 bpm*, the knob that sets the tempo on the Move.
 
 ## Results
 
