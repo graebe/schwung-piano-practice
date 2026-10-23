@@ -554,3 +554,68 @@ test('the old drills map as the plan\'s table has them', () => {
   }
   assert.ok(exerciseByKey('contour'));
 });
+
+/* ---- The knobs ----------------------------------------------------------------- */
+
+import { knobsOf, knobValues, KNOB_OF, KNOBS, SUBJECTS } from '../src/trainer.mjs';
+
+test('knobsOf: eight slots, every setting on its fixed knob, never two on one', () => {
+  for (const subject of Object.keys(SUBJECTS)) {
+    for (const circle of CIRCLES) {
+      const s = SUBJECTS[subject];
+      const fields = s.fields[circle];
+      const knobs = new Set(fields.map((f) => KNOB_OF[f]));
+      assert.equal(knobs.size, fields.length, `${subject}/${circle}: two settings on one knob`);
+      for (const answer of circle === 'play' ? ['play'] : (s.answers && s.answers[circle]) || ['play', 'name']) {
+        const setup = { ...coerceSetup(subject, circle, null, { rootPc: 0, mode: 'major' }), answer };
+        const slots = knobsOf(subject, circle, setup);
+        assert.equal(slots.length, KNOBS);
+        slots.forEach((k, i) => {
+          assert.equal(k.n, i + 1);
+          if (!k.field) return;
+          assert.equal(KNOB_OF[k.field], k.n, `${subject}/${circle}: ${k.field}`);
+          assert.ok(k.pos >= 0 && k.pos <= 1);
+          assert.ok(k.short.length >= 1 && k.short.length <= 2, `${k.field}: "${k.short}"`);
+          assert.ok(k.text.length > 0);
+        });
+        for (const f of fields) {
+          const shown = !(s.hidden && s.hidden(f, circle, setup));
+          assert.equal(slots[KNOB_OF[f] - 1].field === f, shown, `${subject}/${circle}: ${f} on knob ${KNOB_OF[f]}`);
+        }
+        if (circle === 'play') assert.equal(slots[0].field, null, 'Play has no answer: knob 1 empty');
+      }
+    }
+  }
+  assert.equal(knobsOf('note', 'read', coerceSetup('note', 'read', null))[2].field, null, 'Notes have no key');
+  assert.equal(knobsOf('int', 'hear', coerceSetup('int', 'hear', null))[2].field, null, 'nor Intervals');
+});
+
+test('every value of every knob has a short, unique within its knob; pos runs 0 to 1', () => {
+  for (const subject of Object.keys(SUBJECTS)) {
+    for (const circle of CIRCLES) {
+      const setup = coerceSetup(subject, circle, null, { rootPc: 0, mode: 'major' });
+      for (const f of SUBJECTS[subject].fields[circle]) {
+        const all = knobValues(subject, circle, setup, f);
+        const shorts = all.map((v) => v.short);
+        for (const sh of shorts) assert.ok(sh && sh.length <= 2, `${subject}/${f}: "${sh}"`);
+        assert.equal(new Set(shorts).size, shorts.length, `${subject}/${f}: ${shorts}`);
+        const first = { ...setup, [f]: all[0].value };
+        const last = { ...setup, [f]: all[all.length - 1].value };
+        if (f === 'level' && all[all.length - 1].value === 'custom') last.custom = allItems(subject).slice(0, 2);
+        /* A knob a setting hides (Pattern when naming) has no pointer to check. */
+        const at0 = knobsOf(subject, circle, first).find((k) => k.field === f);
+        const at1 = knobsOf(subject, circle, last).find((k) => k.field === f);
+        if (at0) assert.equal(at0.pos, 0);
+        if (at1 && all.length > 1) assert.equal(at1.pos, 1);
+      }
+    }
+  }
+});
+
+test('the Level knob\'s detail lists what the level asks', () => {
+  const s = { ...coerceSetup('chord', 'read', null), level: 3 };
+  assert.equal(knobsOf('chord', 'read', s)[1].text, '3  maj m dim aug');
+  const c = { ...s, level: 'custom', custom: [] };
+  assert.equal(knobsOf('chord', 'read', c)[1].text, 'custom  nothing ticked');
+  assert.equal(knobsOf('int', 'hear', coerceSetup('int', 'hear', null))[1].text, '1  m2 M2');
+});

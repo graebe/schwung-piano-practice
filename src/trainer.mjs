@@ -220,6 +220,7 @@ const FIELDS = {
     label: 'Answer',
     values: (s, setup) => answersOf(s, setup.circle),
     text: (v, s, setup) => (v === 'play' && s.key === 'note' && setup.circle === 'hear' ? 'play back' : ANSWER_TEXT[v]),
+    short: (v) => ({ name: 'nm', play: 'pl', compare: 'cp', hilo: 'hl' })[v],
   },
   level: {
     label: 'Level',
@@ -230,34 +231,120 @@ const FIELDS = {
       return out.concat(['custom']);
     },
     text: (v, s) => (v === 'custom' ? 'custom' : v + ' ' + s.levelText[v - 1]),
+    short: (v) => (v === 'custom' ? 'Cu' : v < 10 ? 'L' + v : String(v)),
   },
   key: {
     label: 'Key',
     values: (s) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'random'].concat(s.allKeys ? ['all'] : []),
     text: (v) => (v === 'random' ? 'random' : v === 'all' ? 'all 12' : PC_NAMES[v]),
+    short: (v) => (v === 'random' ? 'rn' : v === 'all' ? 'al' : PC_NAMES[v]),
   },
-  voicing: { label: 'Voicing', values: () => VOICINGS, text: (v) => VOICING_TEXT[v] },
-  rhythm: { label: 'Rhythm', values: () => RHYTHMS, text: (v) => RHYTHM_TEXT[v] },
-  scale: { label: 'Scale', values: () => SCALE_IDS, text: (v) => MODE_LABELS[v] || v },
+  voicing: {
+    label: 'Voicing', values: () => VOICINGS, text: (v) => VOICING_TEXT[v],
+    short: (v) => ({ root: 'rt', smooth: 'sm', bass: 'bc', guide: 'gt' })[v],
+  },
+  rhythm: {
+    label: 'Rhythm', values: () => RHYTHMS, text: (v) => RHYTHM_TEXT[v],
+    short: (v) => ({ block: 'bl', pop: 'p8', ballad: 'ba', offbeat: 'of', stabs: 'sb', waltz: 'wz' })[v],
+  },
+  scale: {
+    label: 'Scale', values: () => SCALE_IDS, text: (v) => MODE_LABELS[v] || v,
+    short: (v) => scaleById(v).mark,
+  },
   roots: {
     label: 'Roots',
     values: () => ['diatonic', 'key', 'chromatic'],
     text: (v) => ({ diatonic: 'diatonic', key: 'in key', chromatic: 'chromatic' })[v],
+    short: (v) => ({ diatonic: 'dt', key: 'ik', chromatic: 'ch' })[v],
   },
-  inversions: { label: 'Inversions', values: () => [false, true], text: (v) => (v ? 'on' : 'off') },
-  sound: { label: 'Sound', values: () => ['block', 'broken'], text: (v) => v },
-  direction: { label: 'Direction', values: (s) => s.directions || ['up', 'down', 'both'], text: (v) => v },
+  inversions: {
+    label: 'Inversions', values: () => [false, true], text: (v) => (v ? 'on' : 'off'),
+    short: (v) => (v ? 'on' : 'of'),
+  },
+  sound: {
+    label: 'Sound', values: () => ['block', 'broken'], text: (v) => v,
+    short: (v) => ({ block: 'bk', broken: 'bn' })[v],
+  },
+  direction: {
+    label: 'Direction', values: (s) => s.directions || ['up', 'down', 'both'], text: (v) => v,
+    short: (v) => ({ up: 'up', down: 'dn', both: 'bo', together: 'tg' })[v],
+  },
   pattern: {
     label: 'Pattern',
     values: () => ['straight', '3rds', '5ths'],
     text: (v) => ({ straight: 'straight', '3rds': 'in 3rds', '5ths': 'in 5ths' })[v],
+    short: (v) => ({ straight: 'st', '3rds': '3r', '5ths': '5t' })[v],
   },
   round: {
     label: 'Round',
     values: () => [10, 20, 30, 0],
     text: (v) => (v ? String(v) : 'endless'),
+    /* No infinity in the Move's font: endless is "en". */
+    short: (v) => (v ? String(v) : 'en'),
   },
 };
+
+/* ---- The knobs ------------------------------------------------------------ */
+
+/*
+ * The setup as a row of eight knobs, mirroring the hardware. Each setting has
+ * the same knob in every trainer, so a learner who knows one knows all:
+ * Answer 1, Level 2, Key 3, then the subject's own on 4 to 7, Round 8.
+ * A knob this circle does not use stays empty.
+ */
+export const KNOBS = 8;
+export const KNOB_OF = {
+  answer: 1, level: 2, key: 3, scale: 4, direction: 4, roots: 5, pattern: 5, voicing: 5,
+  inversions: 6, rhythm: 6, sound: 7, round: 8,
+};
+
+/* A level's items, as the detail line lists them. */
+function itemShort(s, id) {
+  if (s.key === 'chord') return qualityById(id).suffix || 'maj';
+  if (s.key === 'scale') return scaleById(id).short;
+  if (s.key === 'prog') return progressionById(id).name;
+  return id;
+}
+
+/* The detail line's full value: a level lists what it asks. */
+function detailText(s, setup, field) {
+  if (field !== 'level') return FIELDS[field].text(setup[field], s, setup);
+  const items = itemSet(s.key, setup).map((id) => itemShort(s, id)).join(' ');
+  if (setup.level === 'custom') return 'custom  ' + (items || 'nothing ticked');
+  return setup.level + '  ' + items;
+}
+
+/*
+ * The eight slots of a circle's setup: { n, field, label, short, text, pos,
+ * count } for a knob in use — `pos` 0..1 across its values, for the pointer —
+ * and { n, field: null } for one this circle leaves empty.
+ */
+export function knobsOf(subject, circle, setup) {
+  const s = subjectOf(subject);
+  const slots = [];
+  for (let n = 1; n <= KNOBS; n++) slots.push({ n, field: null });
+  for (const f of s.fields[circle]) {
+    if (s.hidden && s.hidden(f, circle, setup)) continue;
+    const values = valuesOf(s, setup, f);
+    const at = Math.max(0, values.indexOf(setup[f]));
+    slots[KNOB_OF[f] - 1] = {
+      n: KNOB_OF[f],
+      field: f,
+      label: FIELDS[f].label,
+      short: FIELDS[f].short(setup[f], s, setup),
+      text: detailText(s, setup, f),
+      pos: values.length > 1 ? at / (values.length - 1) : 0,
+      count: values.length,
+    };
+  }
+  return slots;
+}
+
+/* Every value a knob can show, for its tests: [{ value, short }]. */
+export function knobValues(subject, circle, setup, field) {
+  const s = subjectOf(subject);
+  return valuesOf(s, setup, field).map((v) => ({ value: v, short: FIELDS[field].short(v, s, setup) }));
+}
 
 function firstNamingLevel(s) {
   for (let n = 1; n <= s.levels.length; n++) if (levelItems(s, n).length >= 2) return n;
