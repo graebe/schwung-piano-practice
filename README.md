@@ -298,6 +298,7 @@ shows under Piano Practice › Terms:
 | **Major, minor** | Interval sizes. A major 3rd is 4 semitones, a minor 3rd 3. Major sounds brighter. |
 | **Perfect** | 4ths, 5ths and octaves: the most stable intervals, neither major nor minor. |
 | **Tritone** | 6 semitones, half an octave. Tense, unresolved. |
+| **Compare** | Two intervals, one after the other: which is bigger, or are they the same? It counts for the bigger one. |
 | **Compound interval** | Wider than an octave: an octave plus a simple interval. A 9th is an octave and a 2nd, a 12th an octave and a 5th. |
 | **Mode** | A scale started from another of its notes: D to D on the white keys is Dorian. Each mode has its own pattern of steps. |
 | **Step** | Two neighbouring notes of the scale, a 2nd apart: C-D. |

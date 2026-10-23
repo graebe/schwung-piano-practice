@@ -200,11 +200,11 @@ test('the session files a round in the table and keeps the old file once', () =>
   h.files.set('stats.json', V1);
   h.session.init();
   assert.equal(h.files.get('stats.v1.bak.json'), V1, 'the version 1 file is kept before anything is saved');
-  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
+  h.session.openItem('quiz:pick:notes:half');
   for (let i = 0; i < 60 && h.session.view === GUESS_VIEW; i++) {
     const q = h.session.quiz;
-    h.session.answer(q.choices.findIndex((c) => c.pitches.join() === q.prompt.join()));
-    h.run(500);
+    h.session.answer(q.choices.findIndex((c) => c.key === q.entry.answer));
+    h.run(1600);
   }
   assert.notEqual(h.session.view, GUESS_VIEW, 'the round is over');
   const saved = JSON.parse(h.files.get('stats.json'));

@@ -54,6 +54,7 @@ export const TERMS = {
   majmin: ['Major, minor', 'Interval sizes. A major 3rd is 4 semitones, a minor 3rd 3. Major sounds brighter.'],
   perfect: ['Perfect', '4ths, 5ths and octaves: the most stable intervals, neither major nor minor.'],
   tritone: ['Tritone', '6 semitones, half an octave. Tense, unresolved.'],
+  compare: ['Compare', 'Two intervals, one after the other: which is bigger, or are they the same? It counts for the bigger one.'],
   compound: ['Compound interval', 'Wider than an octave: an octave plus a simple interval. A 9th is an octave and a 2nd, a 12th an octave and a 5th.'],
   mode: ['Mode', 'A scale started from another of its notes: D to D on the white keys is Dorian. Each mode has its own pattern of steps.'],
   step: ['Step', 'Two neighbouring notes of the scale, a 2nd apart: C-D.'],
@@ -489,25 +490,19 @@ function songPage(songId, level, env, label) {
 }
 
 const FOLDERS = {
-  basics: ['Practice', 'The free library: scales, chords, progressions and random drills, all made from your settings (Key, Scale, Tempo), and the songs. Nothing here is in an order; play what you like.', ['key', 'scale']],
-  'basics/scales': ['Scales', 'One folder per scale, each with five drills: up and down, up, down, in 3rds and in 5ths.', ['scale', 'tone', 'semitone']],
-  'basics/chords': ['Chords', 'Thirteen families, one lesson per chord quality, each on all twelve roots.', ['chord', 'quality', 'formula']],
-  'basics/progressions': ['Progressions', 'Ten common chord progressions in the Key setting\'s key.', ['progression', 'numerals']],
-  'basics/random': ['Random', 'Random notes and chords, a new set every time.', ['key', 'chord']],
-  'basics/songs': ['Songs', 'Pieces by style: Classics, Electronic, Techno, Styles, and Other for files you added.', ['level']],
-  quiz: ['Quiz', 'Short timed rounds, by skill. Ear: name what you hear. Reading: name or play what is on the staff. Keys: find a named note or chord on the pads, or name a lit pad.', ['hint']],
-  'quiz/hear': ['Ear', 'Ear training by topic: pitch and melody, intervals, chords, scales and keys. Each topic has its courses first, then its exercises.', ['interval', 'chord']],
-  'quiz/hear/pitch': ['Pitch & melody', 'Higher or lower, step or leap, the shape of a line, and finding a note you heard on the pads.', ['step', 'contour']],
-  'quiz/hear/intervals': ['Intervals', 'Two courses: name an interval, from 2nds to two octaves; and compare two, from a fixed or a random root.', ['interval', 'compound']],
-  'quiz/hear/chords': ['Chords', 'Major or minor, the four triads, seventh chords, and finding a chord you heard on the pads.', ['triad', 'seventh']],
-  'quiz/hear/keys': ['Scales & keys', 'Name a scale by its sound, tell major from minor in a tune, hear when a line comes home, name a degree, and the chords of a key.', ['scale', 'mode', 'key']],
-  'quiz/read': ['Reading', 'The listening courses again, on the staff: name an interval, compare two, name a scale. Then notes and chords by staff: play what is written.', ['interval', 'scale']],
-  'quiz/keys': ['Keys', 'Where the names are on the pads: play a note or chord by its name, any octave; or name the pad that lights.', ['octave', 'sharp']],
-  'basics/songs/classics': ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
-  'basics/songs/electronic': ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
-  'basics/songs/techno': ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
-  'basics/songs/styles': ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
-  'basics/songs/other': ['Other', 'Exercises you added yourself.', []],
+  basics: ['Practice', 'Five trainers, from the smallest unit to the largest: notes, intervals, scales, chords, progressions. Each has the same five circles: Read, Hear, Play, Learn and Stats. Nothing here is in an order; practise what you like.', ['interval', 'scale', 'chord', 'progression']],
+  'basics/scales': ['Scales', 'One folder per scale, each with five drills: up and down, up, down, in 3rds and in 5ths. Then two drills that hear a key: major or minor, and the degrees of the scale.', ['scale', 'tone', 'semitone', 'degree']],
+  'basics/chords': ['Chords', 'Thirteen families, one lesson per chord quality, each on all twelve roots; then random chords, a new set every time.', ['chord', 'quality', 'formula']],
+  'basics/chords/random-chords': ['Random chords', 'Sixteen chords, a new set every time: of every quality, the triads, or the sevenths.', ['chord', 'triad', 'seventh']],
+  'basics/progressions': ['Progressions', 'Eleven common chord progressions in the Key setting\'s key. Then two drills that hear the chords of a key: does a line end at home, and which chord follows I.', ['progression', 'numerals', 'tonic']],
+  'basics/note-trainer/learn': ['Notes', 'Reading lines on a scrolling staff: random notes in the key, in quarters or eighths, or every note the pads reach.', ['key', 'sharp']],
+  'basics/int-trainer/learn': ['Intervals', 'Melodic hearing: does a line step or leap, and which way does it go.', ['step', 'leap', 'contour']],
+  songs: ['Songs', 'Pieces by style: Classics, Electronic, Techno, Styles, and Other for files you added.', ['level']],
+  'songs/classics': ['Classics', 'Folk tunes and classics, easy first, each at four levels.', ['level', 'hands']],
+  'songs/electronic': ['Electronic', 'The chord progressions of famous tracks - never their melodies - and five style pieces.', ['progression', 'level']],
+  'songs/techno': ['Techno', 'Fourteen chord studies, simple to complex: stabs, pads, parallel shapes.', ['progression', 'level']],
+  'songs/styles': ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
+  'songs/other': ['Other', 'Exercises you added yourself.', []],
   'program/repetition': ['Review', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score. Continue offers them too, one review and then one new step.', ['score']],
   settings: ['Settings', 'One short page: Octave, Click, Key, Scale and where the Learning Path starts, changed right there. Advanced holds the rest, in groups: Practice, Sound, MIDI and Help.', []],
 };
@@ -603,6 +598,9 @@ export function infoFor(target, env = {}) {
     const [song, level] = id.slice(5).split('/');
     return songPage(song, level, env, label);
   }
+  /* A folder with words of its own first: a Learn list, Random chords. */
+  const folder = FOLDERS[id];
+  if (folder) return page('folder:' + id, folder[0], [sec('', folder[1])], folder[2]);
   const parts = id.split('/');
   const ring = parts[0] === 'basics' && /^([a-z]+)-trainer$/.exec(parts[1] || '');
   if (ring) return trainerPage(ring[1], parts[2] || null, label);
@@ -618,9 +616,6 @@ export function infoFor(target, env = {}) {
     }
   }
   if (parts[0] === 'program' && parts[1] !== 'repetition') return programPage(parts, env);
-
-  const folder = FOLDERS[id];
-  if (folder) return page('folder:' + id, folder[0], [sec('', folder[1])], folder[2]);
   return null;
 }
 

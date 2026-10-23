@@ -37,7 +37,9 @@ import { rng, PC_NAMES, playableRange, scalePitches, keyForScale } from './gener
 import {
   spellLine, noteLabel, identifyPrompts, comparePrompts as readComparePrompts,
 } from './read_course.mjs';
-import { SCALE_GAP, comparePrompts as hearComparePrompts } from './ear_course.mjs';
+import { SCALE_GAP, COURSES, comparePrompts as hearComparePrompts } from './ear_course.mjs';
+import { READ_COURSES } from './read_course.mjs';
+import { exerciseByKey, resolveLegacy } from './ear.mjs';
 import { INTERVALS, interval, intervalPrompts, intervalEvents, melodic } from './ear_core.mjs';
 import { inStaffRange } from './notation.mjs';
 import {
@@ -977,4 +979,85 @@ function intSpec(s, circle, setup, ctx, base0) {
   const range = intRange(set, transpose);
   const prompts = read ? identifyPrompts(set, way) : intervalPrompts(set, way);
   return namingSpec(s, circle, set, () => prompts(range), intervalDistance, intMark, 'which interval?', base);
+}
+
+/* ---- The drills before the trainers ---------------------------------------- */
+
+/*
+ * The trainer round an old drill's id now opens: { subject, circle, setup }
+ * (setup as stored, made whole by coerceSetup), or null for a drill that
+ * stays as it was — the melodic and tonality drills under the Learn circles.
+ *
+ * The id itself never changes: a Learning Path step, a Review or a progress
+ * row still files its rounds under it (the session sets the spec's id back
+ * to it). What changes is the round it opens, as the plan's table has it:
+ * chords by staff are Read, play; by name Play; by ear Hear, play; naming
+ * the lit pads is Read, name from the staff now (the release notes say so);
+ * the hearing and reading courses are Hear or Read, name or compare, with the
+ * unit's set as a Custom pick and its way as the direction.
+ */
+const OLD_SETS = {
+  triads: { roots: 'diatonic', level: 3 },
+  types: { roots: 'key', level: 6 },
+  advanced: { roots: 'key', level: 8 },
+};
+const OLD_CIRCLE = {
+  staff: ['read', 'play'], guess: ['play', 'play'], hear: ['hear', 'play'], pick: ['read', 'name'],
+};
+const WAY = (w) => (w === 'down' || w === 'together' ? w : 'up');
+
+const courseOf = (ex) => COURSES.concat(READ_COURSES).find((c) => c.exercises.indexOf(ex) >= 0) || null;
+
+export function presetOf(id) {
+  const parts = String(id).replace(/^quiz:/, '').split(':');
+  if (parts.length !== 3) return null;
+  const [mode, kind, set] = parts;
+  if (OLD_CIRCLE[mode]) {
+    const [circle, answer] = OLD_CIRCLE[mode];
+    if (kind === 'notes') {
+      return { subject: 'note', circle, setup: { answer, level: set === 'half' ? 4 : 3 } };
+    }
+    if (kind === 'chords' && OLD_SETS[set]) {
+      return { subject: 'chord', circle, setup: { answer, ...OLD_SETS[set] } };
+    }
+    return null;
+  }
+  if (mode !== 'ear') return null;
+  const [exKey, lv] = resolveLegacy(kind, set);
+  const ex = exerciseByKey(exKey);
+  if (!ex || !ex.levels.some((l) => l.key === lv)) return null;
+  const custom = (items, extra = {}) => ({ level: 'custom', custom: items, ...extra });
+  const sound = (l) => ({ sound: l === 'broken' ? 'broken' : 'block', inversions: l === 'inversions' });
+  switch (exKey) {
+    case 'direction': return { subject: 'note', circle: 'hear', setup: { answer: 'hilo', level: 3 } };
+    case 'playback-notes': return { subject: 'note', circle: 'hear', setup: { answer: 'play', level: lv === 'half' ? 4 : 3 } };
+    case 'playback-chords':
+      return OLD_SETS[lv] ? { subject: 'chord', circle: 'hear', setup: { answer: 'play', ...OLD_SETS[lv] } } : null;
+    case 'triads':
+      return { subject: 'chord', circle: 'hear', setup: custom(['maj', 'min'], { answer: 'name', roots: 'chromatic', ...sound(lv) }) };
+    case 'four-triads':
+      return { subject: 'chord', circle: 'hear', setup: { answer: 'name', level: 3, roots: 'chromatic', ...sound(lv) } };
+    case 'sevenths':
+      return {
+        subject: 'chord', circle: 'hear',
+        setup: custom(lv === 'four' ? ['7', 'maj7', 'm7', 'm7b5'] : ['7', 'maj7', 'm7'],
+          { answer: 'name', roots: 'chromatic', sound: 'broken' }),
+      };
+    default: break;
+  }
+  const course = courseOf(ex);
+  if (!course) return null;
+  const which = course.twin || course.key;
+  const circle = ex.read ? 'read' : 'hear';
+  const keys = ex.answers ? ex.answers.map((a) => a.key) : [];
+  if (which === 'intervals') {
+    return { subject: 'int', circle, setup: custom(keys, { answer: 'name', direction: WAY(lv) }) };
+  }
+  if (which === 'compare') {
+    return { subject: 'int', circle, setup: custom(ex.set, { answer: 'compare', direction: WAY(lv.replace('fix-', '')) }) };
+  }
+  if (which === 'scales') {
+    return { subject: 'scale', circle, setup: custom(keys, { answer: 'name', direction: lv === 'down' ? 'down' : 'up' }) };
+  }
+  return null;
 }

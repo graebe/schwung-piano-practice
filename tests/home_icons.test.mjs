@@ -52,8 +52,7 @@ test('the six icons are six different pictures at both sizes', () => {
 const RINGS = {
   'practice-drums': ['notes', 'kit', 'sticks', 'dice', 'folder'],
   'quiz-drums': ['staff', 'ear', 'padpick', 'metronome', 'loop'],
-  'practice-piano': ['stairs', 'chord', 'progression', 'dice', 'song'],
-  'quiz-piano': ['ear', 'staff', 'keyletter'],
+  'songs-piano': ['note', 'loop', 'metronome', 'chord'],
   /* Practice as five trainers, and the five circles every trainer has. */
   'subjects-piano': ['note', 'interval', 'stairs', 'chord', 'progression'],
   'trainer-piano': ['staff', 'ear', 'keyletter', 'book', 'progress'],

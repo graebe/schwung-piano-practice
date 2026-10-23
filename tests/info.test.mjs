@@ -38,7 +38,7 @@ function everyNode(node, out = []) {
   return out;
 }
 
-const QUIZ_IDS = ['quiz', 'quiz/hear', 'quiz/read', 'quiz/keys'];
+const QUIZ_IDS = [];
 for (const kind of ['notes', 'chords']) {
   for (const pick of [false, true]) {
     for (const opts of kind === 'notes'

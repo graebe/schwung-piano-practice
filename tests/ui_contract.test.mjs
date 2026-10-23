@@ -630,19 +630,12 @@ test('a scrub lights the note it lands on, and only while the music is parked', 
     'and resuming hands the pads back to the reading-first rule');
 });
 
-test('the quiz is three folders by skill — Ear, Reading, Keys — and the row picks notes or chords', () => {
-  const read = code.match(/const QUIZ_READ = \[([\s\S]*?)\n\s*\];/)[1];
-  const keys = code.match(/const QUIZ_KEYS = \[([\s\S]*?)\n\s*\];/)[1];
-  for (const rows of [read, keys]) {
-    assert.match(rows, /guess: GUESS\.NOTES/);
-    assert.match(rows, /guess: GUESS\.CHORDS/);
-  }
-  assert.match(keys, /pick: true/, 'naming a lit pad is a Keys drill');
-  assert.match(read, /read: GUESS\.READ_STAFF/);
-  assert.doesNotMatch(read, /pick|hear|READ_NAME/, 'Reading is off the staff');
-  assert.match(code, /if \(row\.guess\)[\s\S]{0,100}startQuiz\(settingsQuiz\(row\)\)/);
+test('Home is five circles: Learning Path, Practice of five trainers, Songs, Progress, Settings', () => {
   const menu = fnBody(code, 'rebuildMenu');
-  assert.match(menu, /PLAN\.hearMenu\(\),\s*PLAN\.readMenu\(quizRows\(QUIZ_READ\)\),\s*CAT\.folder\('Keys'/, 'in that order');
+  assert.doesNotMatch(menu, /Quiz|hearMenu|readMenu/, 'Quiz is dissolved');
+  assert.match(menu, /extra: learnExtra\(\)/, 'the hearing drills join the trainers\' Learn lists');
+  assert.match(code, /const HOME_ICONS = \{ program: 'path', basics: PRACTICE_PIANO, songs: 'song', progress: 'progress', settings: 'settings' \}/);
+  assert.match(code, /if \(openPreset\(id, itemTitle\(id\), inProgram\)\) return;/, 'an old drill opens its trainer round');
 });
 
 test('leaving the guesser silences it', () => {
@@ -666,7 +659,7 @@ test('the quiz rebuilds itself on a key change, rather than calling a build it h
   const edit = fnBody(code, 'editSetting');
   /* All three: dropping quizPick turned a Pick quiz into a Guess quiz the
    * moment the key changed. */
-  assert.match(edit, /view === GUESS_VIEW && quiz\)[\s\S]{0,160}startQuiz\(quizSpec\.pinned \? quizSpec/);
+  assert.match(edit, /view === GUESS_VIEW && quiz && !\(quizSpec && quizSpec\.trainer\)\)[\s\S]{0,160}startQuiz\(quizSpec\.pinned \? quizSpec/);
   assert.match(edit, /row && row\.build/, 'and the exercise path is guarded too');
 });
 

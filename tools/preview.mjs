@@ -28,8 +28,8 @@
  *   npm run preview -- --view map --places 5|7|8                the Path map: piano's
  *                                    world (5), drums' world (7), a piano island (8)
  *   npm run preview -- --view home --selected 2 --t 60          the home screen, mid-grow
- *   npm run preview -- --view home --items quiz-piano --selected 1   a ring one level down
- *                                    (practice-drums|quiz-drums|practice-piano|quiz-piano)
+ *   npm run preview -- --view home --items trainer-piano --selected 1   a ring one level down
+ *                                    (practice-drums|quiz-drums|practice-piano|trainer-piano|songs-piano)
  *   npm run preview -- --view map --map drums                   a drums island (7)
  *   npm run preview -- --view map --map done                    fill levels, avatar on a flag
  *   npm run preview -- --view map --kind island --map drums|piano   one stage's island
@@ -247,8 +247,9 @@ const HOME_ITEMS = [
 const RINGS = {
   'practice-drums': { title: 'PRACTICE', items: [['Subdivisions', 'notes'], ['Grooves', 'kit'], ['Rudiments', 'sticks'], ['Random', 'dice'], ['Other', 'folder']] },
   'quiz-drums': { title: 'QUIZ', items: [['Guess: drum', 'staff'], ['Hear: drum', 'ear'], ['Pick: drum', 'padpick'], ['Hear: subdivision', 'metronome'], ['Pick: groove', 'loop']] },
-  'practice-piano': { title: 'PRACTICE', items: [['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression'], ['Random', 'dice'], ['Songs', 'song']] },
-  'quiz-piano': { title: 'QUIZ', items: [['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']] },
+  'practice-piano': { title: 'PRACTICE', items: [['Notes', 'note'], ['Intervals', 'interval'], ['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression']] },
+  'trainer-piano': { title: 'CHORDS', items: [['Read', 'staff'], ['Hear', 'ear'], ['Play', 'keyletter'], ['Learn', 'book'], ['Stats', 'progress']] },
+  'songs-piano': { title: 'SONGS', items: [['Classics', 'note'], ['Electronic', 'loop'], ['Techno', 'metronome'], ['Styles', 'chord']] },
 };
 
 if (view === 'home') {

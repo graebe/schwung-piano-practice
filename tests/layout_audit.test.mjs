@@ -64,7 +64,7 @@ function sceneScreen(c, scene, n, now) {
 }
 
 /* Home with this module's five circles, at rest or mid-grow. */
-const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['quiz', 'Quiz', 'quiz'],
+const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['songs', 'Songs', 'song'],
   ['progress', 'Progress', 'progress'], ['settings', 'Settings', 'settings']]
   .map(([key, label, icon]) => ({ key, label, icon }));
 function homeScreen(c, selected, opts = {}) {
@@ -75,9 +75,10 @@ function homeScreen(c, selected, opts = {}) {
 }
 /* The rings one level down, as the session builds them. */
 const ring = (rows) => rows.map(([label, icon]) => ({ key: label, label, icon }));
-const PRACTICE_RING = ring([['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression'],
-  ['Random', 'dice'], ['Songs', 'song']]);
-const QUIZ_RING = ring([['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']]);
+const PRACTICE_RING = ring([['Notes', 'note'], ['Intervals', 'interval'], ['Scales', 'stairs'], ['Chords', 'chord'],
+  ['Progressions', 'progression']]);
+const SONGS_RING = ring([['Classics', 'note'], ['Electronic', 'loop'], ['Techno', 'metronome'], ['Styles', 'chord']]);
+const TRAINER_RING = ring([['Read', 'staff'], ['Hear', 'ear'], ['Play', 'keyletter'], ['Learn', 'book'], ['Stats', 'progress']]);
 
 /*
  * A ctx that draws normally and keeps a transcript of what it was asked to.
@@ -309,8 +310,9 @@ const SCREENS = {
     decorate: () => ({ label: 'Review', value: 'Name chords advanced', short: '' }),
   }),
   'home, Path selected': (c) => homeScreen(c, 0),
-  'ring, Practice on its longest name': (c) => homeScreen(c, 2, { title: 'PRACTICE', items: PRACTICE_RING, part: 1 }),
-  'ring, Quiz of three, mid-grow': (c) => homeScreen(c, 2, { title: 'QUIZ', items: QUIZ_RING, from: 1, now: 80 }),
+  'ring, Practice on its longest name': (c) => homeScreen(c, 4, { title: 'PRACTICE', items: PRACTICE_RING, part: 1 }),
+  'ring, Songs of four, mid-grow': (c) => homeScreen(c, 2, { title: 'SONGS', items: SONGS_RING, from: 1, now: 80 }),
+  'ring, a trainer\'s five circles': (c) => homeScreen(c, 3, { title: 'PROGRESSIONS', items: TRAINER_RING }),
   'home, Settings selected, its longest hint part': (c) => homeScreen(c, 4, { part: 1 }),
   'home, mid-grow from Practice to Progress': (c) => homeScreen(c, 3, { from: 1, now: 80 }),
   'map, the world': (c) => mapScreen(c, 5, 'island', 1),

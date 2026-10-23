@@ -163,12 +163,12 @@ test('info opens and closes the Info page', () => {
 test('quiz: hear, hint and answer', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
+  h.session.openItem('quiz:pick:notes:half');
   assert.equal(h.session.view, GUESS_VIEW);
   applyAction(h.session, { type: 'hint' });
   assert.equal(h.session.quiz.hint, 1);
   const q = h.session.quiz;
-  const right = q.choices.findIndex((c) => c.pitches.join() === q.prompt.join());
+  const right = q.choices.findIndex((c) => c.key === q.entry.answer);
   applyAction(h.session, { type: 'hear' });
   assert.equal(applyAction(h.session, { type: 'answer', index: right }), 'correct');
 });
@@ -180,11 +180,11 @@ test('next, retry and skip act on a result, and only there', () => {
   applyAction(h.session, { type: 'skip' });
   applyAction(h.session, { type: 'retry' });
   assert.equal(h.session.view, MENU, 'nothing happens off a result');
-  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
+  h.session.openItem('quiz:pick:notes:half');
   for (let i = 0; i < 40 && h.session.view === GUESS_VIEW; i++) {
     const q = h.session.quiz;
-    applyAction(h.session, { type: 'answer', index: q.choices.findIndex((c) => c.pitches.join() === q.prompt.join()) });
-    h.run(500);
+    applyAction(h.session, { type: 'answer', index: q.choices.findIndex((c) => c.key === q.entry.answer) });
+    h.run(1600);
   }
   assert.equal(h.session.view, 'anim', 'learned at the first go: a star over the result');
   applyAction(h.session, { type: 'skip' });
@@ -253,11 +253,11 @@ test('homeGo opens a circle of the ring on screen; off a ring it does nothing', 
   const h = fakeHost();
   h.session.init();
   applyAction(h.session, { type: 'homeGo', index: 2 });
-  assert.equal(h.session.nav.at(-1).node.label, 'Quiz');
+  assert.equal(h.session.nav.at(-1).node.label, 'Songs');
   applyAction(h.session, { type: 'homeGo', index: 2 });
-  assert.equal(h.session.nav.at(-1).node.label, 'Keys', 'Quiz is a ring too: its third circle');
+  assert.equal(h.session.nav.at(-1).node.label, 'Techno', 'Songs is a ring too: its third circle');
   applyAction(h.session, { type: 'homeGo', index: 0 });
-  assert.equal(h.session.nav.at(-1).node.label, 'Keys', 'a list: nothing');
+  assert.equal(h.session.nav.at(-1).node.label, 'Techno', 'a list: nothing');
   applyAction(h.session, { type: 'back' });
   applyAction(h.session, { type: 'back' });
   assert.equal(h.session.nav[0].cursor, 2, 'back on home, the circle it left selected');

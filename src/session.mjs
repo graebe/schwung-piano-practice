@@ -576,48 +576,9 @@ export function createSession(fx, opts = {}) {
     for (let i = 0; i < fileSongs.length; i++) infoEnv.songs[fileSongs[i].chart.id] = fileSongs[i].chart;
   }
 
-  /*
-   * The tree, built again whenever a setting that shapes the generated lessons
-   * changes. The open folders are carried across by path, so turning the key
-   * with Practice › Progressions open leaves you in Practice › Progressions.
-   */
-  /*
-   * The Quiz folder, by skill:
-   *
-   *   Ear      something is played; you name it or play it back
-   *   Reading  the courses on the staff, and notes and chords by staff
-   *   Keys     a name is shown and you find it on the pads (any octave
-   *            counts), or a pad is lit and you name it
-   *
-   * The drills here follow the Half tones and Chords settings, and their ids
-   * do too, so a chromatic round and an in-key round are filed apart.
-   */
-  const QUIZ_READ = [
-    { label: 'Notes by staff', guess: GUESS.NOTES, read: GUESS.READ_STAFF },
-    { label: 'Chords by staff', guess: GUESS.CHORDS, read: GUESS.READ_STAFF },
-  ];
-  const QUIZ_KEYS = [
-    { label: 'Notes by alphabet', guess: GUESS.NOTES, read: GUESS.READ_NAME },
-    { label: 'Chords by name', guess: GUESS.CHORDS, read: GUESS.READ_NAME },
-    { label: 'Name notes', guess: GUESS.NOTES, pick: true },
-    { label: 'Name chords', guess: GUESS.CHORDS, pick: true },
-  ];
-
-  function settingsQuiz(row) {
-    return {
-      kind: row.guess, hear: Boolean(row.hear), pick: Boolean(row.pick), read: row.read || null,
-      halfTones: settings.halfTones, chordSet: settings.chordSet, pinned: false, label: row.label,
-    };
-  }
-
+  /* A quiz's progress id: its drill id, behind quiz:. */
   function quizId(spec) {
     return 'quiz:' + STATS.drillId(spec);
-  }
-
-  /* Rows here and on the Path are the same steps by id, so a level played in
-   * either is the same item in Progress. */
-  function quizRows(rows) {
-    return rows.map((r) => ({ ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true }));
   }
 
   /*
@@ -636,41 +597,49 @@ export function createSession(fx, opts = {}) {
   }
 
   /*
-   * The top of the list, the same in Piano Practice and Drums Practice:
+   * The hearing drills that train a subject without naming its items, as rows
+   * of that trainer's Learn list (their quiz ids unchanged): melody under
+   * Intervals, the tonality drills under Scales and Progressions.
+   */
+  const LEARN_EXTRA = {
+    int: ['steps', 'contour'],
+    scale: ['key-quality', 'degrees'],
+    prog: ['home', 'functions'],
+  };
+  const learnExtra = () => Object.fromEntries(Object.keys(LEARN_EXTRA)
+    .map((s) => [s, LEARN_EXTRA[s].map((k) => PLAN.drillRow(k))]));
+
+  /*
+   * The top of the list, Home's five circles:
    *
-   *   Continue   the next step, or a review that is due
-   *   Path       the stages, then Review while anything is due
-   *   Practice   the free library: scales, chords, progressions, random, songs
-   *   Quiz       Ear, Reading, Keys
+   *   Learning Path   Continue, the stages, then Review while anything is due
+   *   Practice        the five trainers: notes, intervals, scales, chords,
+   *                   progressions
+   *   Songs           the pieces, by genre
    *   Progress
    *   Settings
    */
   function rebuildMenu() {
-    const quizFolders = [
-      PLAN.hearMenu(),
-      PLAN.readMenu(quizRows(QUIZ_READ)),
-      CAT.folder('Keys', quizRows(QUIZ_KEYS), 'keys'),
-    ];
     catalog = CAT.buildCatalog({
       songs: fileSongs,
       categories: fileCategories,
       gen: generatorOptions(),
       /* Continue lives in the Path: PLAY on its map, the first row of its list. */
       lead: [PLAN.programFolder(phases, repetitionRows)],
-      after: [CAT.folder('Quiz', quizFolders, 'quiz')],
       tail: [{ label: 'Progress', progress: true, value: '~' }, settingsFolder()],
+      extra: learnExtra(),
     });
     /* The top of the list is the home screen: five circles; Practice and
-     * Quiz are rings of their own. */
+     * Songs are rings of their own, and each trainer in Practice. */
     ringOf(catalog, HOME_ICONS);
     ringOf(catalog.children.find((r) => r.key === 'basics'), PRACTICE_ICONS);
-    ringOf(catalog.children.find((r) => r.key === 'quiz'), QUIZ_ICONS);
+    ringOf(catalog.children.find((r) => r.key === 'songs'), SONG_ICONS);
     /* Each trainer is a ring of its own: the same five circles. */
     for (const row of catalog.children.find((r) => r.key === 'basics').children) {
       if (row.children && row.children.some((c) => c.trainer)) ringOf(row, TRAINER_ICONS);
     }
     nav = nav.length ? CAT.navRestore(catalog, CAT.navPath(nav)) : CAT.navStart(catalog);
-    const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN });
+    const pinned = CAT.basics({ ...generatorOptions(), ...PLAN.PROGRAM_GEN }, learnExtra());
     CAT.stampChildren([pinned], '');
     programTree = { children: [pinned] };
   }
@@ -1039,10 +1008,6 @@ export function createSession(fx, opts = {}) {
       openItem(row.repId);
       return;
     }
-    if (row.guess) {
-      startQuiz(settingsQuiz(row));
-      return;
-    }
     if (row.levels) {
       armLeaf(row.levels[firstOpenLevel(row)]);
       return;
@@ -1098,6 +1063,7 @@ export function createSession(fx, opts = {}) {
   function openStep(step, unit, forceStage) {
     armedUnit = unit || PLAN.unitOf(phases, step.id);
     if (step.quiz) {
+      if (openPreset(step.id, PLAN.stepTitle(step), true)) return;
       startQuiz({ ...step.quiz, pinned: true, gen: PLAN.PROGRAM_GEN, label: PLAN.stepTitle(step) });
       return;
     }
@@ -1134,6 +1100,7 @@ export function createSession(fx, opts = {}) {
       return;
     }
     if (id.indexOf('quiz:') === 0) {
+      if (openPreset(id, itemTitle(id), inProgram)) return;
       const spec = PLAN.quizFromId(id);
       if (spec) startQuiz({ ...spec, pinned: true, gen: inProgram ? PLAN.PROGRAM_GEN : null, label: itemTitle(id) });
       return;
@@ -2302,7 +2269,7 @@ export function createSession(fx, opts = {}) {
      * and calling one here used to throw the moment you turned the key knob with
      * a quiz open. */
     if ((res.rebuild || res.key === 'halfTones' || res.key === 'chordSet') &&
-        view === GUESS_VIEW && quiz) {
+        view === GUESS_VIEW && quiz && !(quizSpec && quizSpec.trainer)) {
       /* A step of the program keeps the options it pinned; a Quiz row follows. */
       startQuiz(quizSpec.pinned ? quizSpec
         : { ...quizSpec, halfTones: settings.halfTones, chordSet: settings.chordSet });
@@ -2423,6 +2390,25 @@ export function createSession(fx, opts = {}) {
       setup.custom = sets[t.hash].slice();
     }
     runTrainer(TRAIN.trainerSpec(t.subject, t.circle, setup, trainerCtx(t.subject, t.circle)), true, label);
+  }
+
+  /*
+   * An old drill's id, opened as the trainer round it now is (trainer.mjs
+   * presetOf) — and filed under its own id still, so a path step keeps its
+   * tick and a drill its history. A step of the path asks in C major, as
+   * the curriculum teaches; anywhere else in the settings' key. False for a
+   * drill that has no trainer round: it opens as it always has.
+   */
+  function openPreset(id, label, inProgram) {
+    const preset = TRAIN.presetOf(id);
+    if (!preset) return false;
+    const key = inProgram ? PLAN.PROGRAM_GEN : settings;
+    const setup = TRAIN.coerceSetup(preset.subject, preset.circle, preset.setup,
+      { rootPc: key.rootPc, mode: key.mode });
+    const spec = TRAIN.trainerSpec(preset.subject, preset.circle, setup, trainerCtx(preset.subject, preset.circle));
+    spec.trainer = { ...spec.trainer, id: id.replace(/^quiz:/, '') };
+    runTrainer(spec, true, label);
+    return true;
   }
 
   /* Another round of what was just played: a trainer's is drawn again, a
@@ -2818,9 +2804,10 @@ export function createSession(fx, opts = {}) {
    * only grown content could cause. Icons are keyed by the row's key, or
    * its label where it has none.
    */
-  const HOME_ICONS = { program: 'path', basics: PRACTICE_PIANO, quiz: 'quiz', progress: 'progress', settings: 'settings' };
-  const PRACTICE_ICONS = { Scales: 'stairs', Chords: 'chord', Progressions: 'progression', Random: 'dice', Songs: 'song' };
-  const QUIZ_ICONS = { hear: 'ear', read: 'staff', keys: 'keyletter' };
+  const HOME_ICONS = { program: 'path', basics: PRACTICE_PIANO, songs: 'song', progress: 'progress', settings: 'settings' };
+  /* The subjects: no picture of theirs is a circle's of a trainer. */
+  const PRACTICE_ICONS = { Notes: 'note', Intervals: 'interval', Scales: 'stairs', Chords: 'chord', Progressions: 'progression' };
+  const SONG_ICONS = { classics: 'note', electronic: 'loop', techno: 'metronome', styles: 'chord', other: 'folder' };
   const TRAINER_ICONS = { read: 'staff', hear: 'ear', play: 'keyletter', Learn: 'book', stats: 'progress' };
 
   const rowKey = (r) => r.key || (r.progress ? 'progress' : r.label);
@@ -3390,13 +3377,14 @@ export function createSession(fx, opts = {}) {
 
   /* An answer was given, by the jog or by its pad. */
   function answered(res) {
+    /* Read and named: now heard, so the picture gets its sound — before the
+     * cue, since a replay starts over and would cut the chime. */
+    if (res === GUESS.CORRECT && readingCourse()) hearPrompt();
     playCue(res);
     if (res === GUESS.CORRECT) {
       quizSolvedAt = now();
-      /* Heard, named, now shown: where it sits on the grid. Read and named:
-       * now heard, so the picture gets its sound. */
+      /* Heard, named, now shown: where it sits on the grid. */
       if (quiz.kind === GUESS.EAR) fx.reveal(quiz.prompt, EAR_ADVANCE_MS);
-      if (readingCourse()) hearPrompt();
     }
     dirty = true;
     ledDirty = true;

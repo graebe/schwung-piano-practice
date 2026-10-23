@@ -321,3 +321,22 @@ test('Progressions: heard and played back, chord by chord, filed under hear', ()
   const items = JSON.parse(h.files.get('stats.json')).items.prog;
   assert.equal(Object.values(items).reduce((n, r) => n + r.hear[1], 0), 10);
 });
+
+/* ---- The Learning Path's steps ----------------------------------------------- */
+
+test('a path step that was a quiz opens its trainer round, and keeps its tick', () => {
+  const h = fakeHost();
+  S(h).init();
+  /* Find the notes › Name notes: a lit pad named, before the trainers. */
+  S(h).openItem('quiz:pick:notes:key');
+  assert.equal(S(h).quizTitle(), 'NOTES READ', 'Read, name now: off the staff');
+  playRound(h);
+  assert.equal(S(h).view, RESULT_VIEW);
+  const it = S(h).progress.items['quiz:pick:notes:key'];
+  assert.ok(it && it.stages.some((st) => st.best > 0), 'filed under the step\'s own id');
+  assert.ok(!S(h).progress.items['quiz:note:read:name:L3'], 'not under a trainer id');
+  /* Kept drills still open as they were. */
+  S(h).openItem('quiz:ear:home:major');
+  assert.equal(S(h).quizTitle(), null);
+  assert.equal(S(h).quiz.exercise.key, 'home');
+});

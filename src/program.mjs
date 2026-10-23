@@ -30,9 +30,7 @@
  */
 
 import { item, isFinished, stagePassed, programStart } from './progress.mjs';
-import { EXERCISES, TOPICS, exerciseByKey, isNaming, resolveLegacy } from './ear.mjs';
-import { COURSES } from './ear_course.mjs';
-import { READ_COURSES } from './read_course.mjs';
+import { exerciseByKey, isNaming, resolveLegacy } from './ear.mjs';
 import { folder, slug, stampChildren } from './catalog.mjs';
 import { buildPhases, levelSteps, N, C, EAR } from './curriculum.mjs';
 
@@ -349,7 +347,7 @@ export function stepsUnder(node) {
   return out;
 }
 
-/* ---- Quiz › Ear and Quiz › Reading ---------------------------------------- */
+/* ---- The hearing drills under the trainers' Learn ------------------------ */
 
 /* An exercise in a list: a folder of its levels, or, with one level, the
  * level itself, named as the exercise. */
@@ -359,25 +357,8 @@ function levelsRow(ex, name = ex.name) {
   return folder(name, steps.map(stepRow), ex.key);
 }
 
-/* A course: its units, numbered, since a course is a sequence. */
-function courseFolder(course) {
-  return folder(course.name, course.exercises.map((ex, i) => levelsRow(ex, (i + 1) + ' ' + ex.name)), course.key);
-}
-
-/*
- * Quiz › Ear, by topic: pitch and melody, intervals, chords, scales and
- * keys, each with its courses first and then its exercises, easiest first.
- * Its key stays `hear`, so the ids under it do not move.
- */
-export function hearMenu() {
-  return folder('Ear', TOPICS.map((t) => folder(t.name,
-    COURSES.filter((c) => c.topic === t.key).map(courseFolder)
-      .concat(EXERCISES.filter((e) => e.topic === t.key).map((e) => levelsRow(e))),
-    t.key)), 'hear');
-}
-
-/* Quiz › Reading: the courses again, on the staff, under the same names, and
- * after them whatever else reads off the staff (the caller's by-staff drills). */
-export function readMenu(extra = []) {
-  return folder('Reading', READ_COURSES.map(courseFolder).concat(extra), 'read');
+/* A hearing drill as a row of a trainer's Learn list, by its key: under the
+ * quiz ids it has always had, wherever the list is. */
+export function drillRow(key) {
+  return levelsRow(exerciseByKey(key));
 }

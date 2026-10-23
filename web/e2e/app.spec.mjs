@@ -236,7 +236,7 @@ test('arming a drill: the staff, its stage, and Listen lighting the keys', async
 });
 
 test('a song is one row: it opens ready, and its level is chosen there', async ({ page }) => {
-  await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+  await openPath(page, ['Songs', 'Classics', 'Ode to Joy']);
   await expect(page.locator('#piece-title')).toHaveText(/ode to joy/i);
   const levels = page.locator('.levels .btn');
   await expect(levels).toHaveCount(4);
@@ -564,7 +564,7 @@ function moveState() {
   };
   const S = createSession(fx);
   S.init();
-  for (const label of ['Practice', 'Songs', 'Classics', 'Marys Lamb']) {
+  for (const label of ['Songs', 'Classics', 'Marys Lamb']) {
     const top = S.nav[S.nav.length - 1];
     S.selectRow(top.node.children.findIndex((r) => r.label === label));
     S.activate(false);

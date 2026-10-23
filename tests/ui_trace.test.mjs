@@ -300,11 +300,11 @@ const SCENARIOS = {
    * edit that rebuilds. */
   navigate: { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
-    d.jog(1); d.click(); d.jog(2); d.click();     /* Practice › Progressions: a trainer */
+    d.jog(1); d.click(); d.jog(4); d.click();     /* Practice › Progressions: a trainer */
     d.jog(3); d.click();                          /* its Learn: the charts */
     d.press(BACK); d.press(BACK); d.press(BACK);
-    d.click(); d.jog(4); d.click(); d.jog(1); d.click(); d.jog(1);           /* Practice › Songs › Electronic */
-    d.press(BACK); d.press(BACK); d.press(BACK);
+    d.jog(1); d.click(); d.jog(1); d.click(); d.jog(1);   /* Songs › Electronic */
+    d.press(BACK); d.press(BACK);
     d.jog(60); d.click();                         /* Settings: the page */
     d.click(); d.jog(1); d.click();              /* Octave up: a rebuild */
     d.jog(2); d.click(); d.jog(-1); d.click();    /* Key down a semitone */
@@ -316,7 +316,7 @@ const SCENARIOS = {
 
   /* Practice › Scales › Major › Up & down: listen, pause, scrub, resume, restart. */
   listen: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(1); d.click(); d.click();               /* Practice › Scales: the trainer */
+    d.jog(1); d.click(); d.jog(2); d.click();     /* Practice › Scales: the trainer */
     d.jog(3); d.click(); d.click(); d.click();    /* Learn › Major › Up & down */
     d.press(PLAY); d.run(4000);
     d.press(PLAY); d.run(200);                    /* pause */
@@ -329,7 +329,7 @@ const SCENARIOS = {
   /* The same drill practised, played from the guide pads to its result, then
    * again with a few wrong pads and a wait; then on from the result. */
   practice: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(1); d.click(); d.click();
+    d.jog(1); d.click(); d.jog(2); d.click();
     d.jog(3); d.click(); d.click(); d.click();
     d.press(RECORD); d.follow(26000);
     d.run(1000);
@@ -362,35 +362,46 @@ const SCENARIOS = {
    *   Name notes         the same, through to its result and the stats it writes
    *   Reading            Identify intervals › 1 2nds › up, on the staff, by jog
    */
+  /*
+   * What Quiz held, as the trainers have it now: a note by name, played with
+   * every pad and helped; notes off the staff, heard and helped; intervals
+   * named by ear with the jog to the result; a note named off the staff with
+   * help, on to the next round; a note heard and played back.
+   */
   quiz: { settings: QUIET, progress: WELCOMED, play(d) {
-    const open = (path) => {
-      d.jog(-60); d.jog(2); d.click();
-      for (const step of path) { d.jog(step); d.click(); }
-      d.run(600);
+    /* Practice › subject › circle: its setup on Start, `turn` rows above it
+     * turned one value on, then Start. */
+    const open = (subject, circle, turn = 0) => {
+      d.jog(-60); d.jog(1); d.click();
+      d.jog(-60); d.jog(subject); d.click();
+      d.jog(-60); d.jog(circle); d.click();
+      if (turn) { d.jog(-turn); d.click(); d.jog(1); d.click(); d.jog(turn); }
+      d.click(); d.run(600);
     };
     const leave = () => d.toTop();
     const answerWithJog = (n) => { for (let i = 0; i < n; i++) { d.jog(1); d.click(); d.run(1500); } };
 
-    open([2, 0]);
+    open(0, 2);                                   /* Notes › Play */
     d.press(RECORD); d.press(RECORD);
     for (let p = 0; p < 32; p++) d.pad(p, 40);
     d.run(600); leave();
 
-    open([1, 4]);
+    open(0, 0);                                   /* Notes › Read, played */
     d.press(PLAY); d.press(RECORD); d.press(RECORD); d.run(400);
     for (const p of [0, 4, 7]) d.pad(p, 60);
     leave();
 
-    open([0, 0, 0, 0]);
+    open(1, 1);                                   /* Intervals › Hear, named */
     answerWithJog(30); d.run(1000); leave();
 
-    open([2, 2]);
+    open(0, 0, 3);                                /* Notes › Read, named */
     d.press(RECORD); d.run(200);
     answerWithJog(30); d.run(1000); d.click(); d.run(300); leave();
 
-    open([1, 0, 0, 0]);
+    open(0, 1);                                   /* Notes › Hear, played back */
     d.press(PLAY); d.run(1500);
-    answerWithJog(30); d.run(1000); leave();
+    for (let i = 0; i < 6; i++) { d.pad(i * 5, 60); d.run(600); }
+    leave();
   } },
 
   /* Factory settings: the first Info page opens by itself, quiz sounds on. */
@@ -399,7 +410,8 @@ const SCENARIOS = {
     d.jog(1); d.press(MENU); d.jog(3); d.jog(-1); d.press(MENU);
     d.click(); d.run(300); d.press(MENU); d.press(BACK);
     d.press(BACK);
-    d.jog(1); d.click(); d.jog(2); d.click(); d.click(); d.run(800);   /* a quiz, sounds on */
+    d.toTop(); d.jog(-60); d.jog(1); d.click();  /* Practice */
+    d.click(); d.jog(2); d.click(); d.click(); d.run(800);   /* Notes › Play, sounds on */
     for (let i = 0; i < 4; i++) { d.pad(i * 7, 60); d.run(900); }
   } },
 
@@ -511,20 +523,21 @@ const SCENARIOS = {
    */
   rings: { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
-    d.jog(1); d.click(); d.run(200);              /* the Practice ring */
+    d.jog(1); d.click(); d.run(200);              /* the Practice ring: five trainers */
     for (let i = 0; i < 4; i++) { d.jog(1); d.run(60); }
-    d.jog(-4); d.run(200);                        /* back to Scales */
+    d.jog(-4); d.run(200);                        /* back to Notes */
     d.press(MENU); d.press(MENU);                 /* its help, closed */
-    d.pad(5, 60); d.run(200);                     /* pad 73: Songs, silent */
-    d.press(BACK); d.run(200);                    /* the ring, on Songs */
+    d.pad(4, 60); d.run(200);                     /* pad 72: Chords, silent */
+    d.pad(3, 60); d.run(200);                     /* its pad 71: Play's setup */
+    d.press(BACK); d.press(BACK); d.run(200);     /* the Chords ring, then Practice on Chords */
     d.shiftWith(JOG_CLICK); d.click(); d.run(100);   /* Show as list */
     d.jog(-1); d.run(100);
     d.press(BACK); d.run(200);                    /* the circles again */
     d.press(BACK); d.run(200);                    /* home, on Practice */
-    d.jog(1); d.click(); d.run(200);              /* the Quiz ring: three */
-    d.pad(1, 60); d.run(200);                     /* pad 69: no circle of three */
-    d.pad(4, 60); d.run(200);                     /* pad 72: Keys */
-    d.press(BACK); d.press(BACK); d.run(200);     /* the ring on Keys, home on Quiz */
+    d.jog(1); d.click(); d.run(200);              /* the Songs ring: four */
+    d.pad(1, 60); d.run(200);                     /* pad 69: no circle of four? */
+    d.pad(3, 60); d.run(200);
+    d.press(BACK); d.press(BACK); d.run(200);
   } },
 
   /*
@@ -535,7 +548,7 @@ const SCENARIOS = {
   'chord-read': { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(200);              /* Practice */
-    d.jog(1); d.click(); d.run(200);              /* Chords: the trainer's ring */
+    d.jog(3); d.click(); d.run(200);              /* Chords: the trainer's ring */
     d.click(); d.run(100);                        /* Read: its setup, on Start */
     d.jog(-7); d.click(); d.jog(1); d.click();    /* Answer: name */
     d.jog(1); d.click(); d.jog(1); d.click();     /* Level 3 */
@@ -550,7 +563,7 @@ const SCENARIOS = {
   'chord-hear': { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(200);
-    d.jog(1); d.click(); d.run(200);
+    d.jog(3); d.click(); d.run(200);
     d.jog(1); d.click(); d.run(100);              /* Hear: its setup */
     d.click(); d.run(1500);                       /* Start: play it back */
     for (const p of [0, 4, 7, 12]) d.pad(p, 60);
@@ -569,7 +582,7 @@ const SCENARIOS = {
   'scale-hear': { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(200);              /* Practice */
-    d.click(); d.run(200);                        /* Scales: the trainer's ring */
+    d.jog(2); d.click(); d.run(200);              /* Scales: the trainer's ring */
     d.jog(1); d.click(); d.run(100);              /* Hear: its setup */
     d.click(); d.run(4500);                       /* Start: listen */
     for (const p of [0, 2, 3]) d.pad(p, 60);      /* a wrong note in it */
@@ -586,7 +599,7 @@ const SCENARIOS = {
   'scale-play': { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(200);
-    d.click(); d.run(200);
+    d.jog(2); d.click(); d.run(200);
     d.jog(2); d.click(); d.run(100);              /* Play: its setup */
     d.click(); d.run(400);                        /* Start: C major, by name */
     for (const p of [3, 5, 7, 8, 10, 12, 14, 15]) d.pad(p, 60);   /* C D E F G A B C */
@@ -604,7 +617,7 @@ const SCENARIOS = {
   'prog-hear': { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(200);              /* Practice */
-    d.jog(2); d.click(); d.run(200);              /* Progressions: the trainer's ring */
+    d.jog(4); d.click(); d.run(200);              /* Progressions: the trainer's ring */
     d.jog(1); d.click(); d.run(100);              /* Hear: its setup */
     d.click(); d.run(5000);                       /* Start: listen */
     for (const p of [3, 7, 10]) d.pad(p, 80);     /* a chord */
@@ -622,7 +635,7 @@ const SCENARIOS = {
   'prog-play': { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(200);
-    d.jog(2); d.click(); d.run(200);
+    d.jog(4); d.click(); d.run(200);
     d.jog(2); d.click(); d.run(100);              /* Play: its setup */
     d.jog(-2); d.click(); d.jog(20); d.click();   /* Key: all 12 */
     d.jog(20); d.click(); d.run(400);             /* Start */
@@ -641,7 +654,7 @@ const SCENARIOS = {
   'trainer-stats': { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
     d.jog(1); d.click(); d.run(200);
-    d.jog(1); d.click(); d.run(200);
+    d.jog(3); d.click(); d.run(200);
     d.jog(4); d.click(); d.run(200);              /* Stats, nothing yet */
     d.press(BACK); d.run(100);
     d.jog(-3); d.click(); d.run(100);             /* Hear */

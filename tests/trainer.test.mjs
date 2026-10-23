@@ -488,3 +488,69 @@ test('an interval from its name: any octave of the first note, the second at its
   assert.equal(notePc('B#'), 0);
   assert.equal(notePc('Cb'), 11);
 });
+
+/* ---- Old drill ids --------------------------------------------------------- */
+
+import { presetOf } from '../src/trainer.mjs';
+import { EXERCISES, exerciseByKey } from '../src/ear.mjs';
+import { COURSES } from '../src/ear_course.mjs';
+import { READ_COURSES } from '../src/read_course.mjs';
+import { buildProgram, allSteps } from '../src/program.mjs';
+
+test('every old drill id opens a trainer round, or stays the drill it was', () => {
+  /* The drills that hear a key or a melody, not an item: kept, under Learn. */
+  const KEPT = ['steps', 'contour', 'key-quality', 'home', 'degrees', 'functions'];
+  const ids = [];
+  for (const mode of ['guess', 'staff', 'pick', 'hear']) {
+    for (const set of ['key', 'half']) ids.push(`quiz:${mode}:notes:${set}`);
+    for (const set of ['triads', 'types', 'advanced']) ids.push(`quiz:${mode}:chords:${set}`);
+  }
+  for (const ex of EXERCISES.concat(...COURSES.concat(READ_COURSES).map((c) => c.exercises))) {
+    for (const lv of ex.levels) ids.push(`quiz:ear:${ex.key}:${lv.key}`);
+  }
+  for (const step of allSteps(buildProgram())) if (step.quiz) ids.push(step.id);
+  for (const id of new Set(ids)) {
+    const preset = presetOf(id);
+    const exKey = id.split(':')[2];
+    if (!preset) {
+      assert.ok(KEPT.indexOf(exKey) >= 0, `${id} has no trainer round`);
+      continue;
+    }
+    const setup = coerceSetup(preset.subject, preset.circle, preset.setup, { rootPc: 0, mode: 'major' });
+    assert.equal(startBlock(preset.subject, preset.circle, setup), null, `${id}: it can start`);
+    const quiz = createQuiz({ ...trainerSpec(preset.subject, preset.circle, setup, { seed: 1 }), seed: 1 });
+    assert.ok(quiz.pool.length > 0, `${id}: it asks something`);
+  }
+});
+
+test('the old drills map as the plan\'s table has them', () => {
+  const at = (id) => { const p = presetOf(id); return [p.subject, p.circle, p.setup.answer]; };
+  assert.deepEqual(at('quiz:staff:chords:triads'), ['chord', 'read', 'play']);
+  assert.deepEqual(at('quiz:guess:chords:types'), ['chord', 'play', 'play']);
+  assert.deepEqual(at('quiz:hear:chords:advanced'), ['chord', 'hear', 'play']);
+  assert.deepEqual(at('quiz:pick:chords:triads'), ['chord', 'read', 'name'], 'naming a lit pad is Read, name now');
+  assert.deepEqual(at('quiz:ear:four-triads:block'), ['chord', 'hear', 'name']);
+  assert.deepEqual(presetOf('quiz:staff:chords:triads').setup, { answer: 'play', roots: 'diatonic', level: 3 });
+  assert.deepEqual(presetOf('quiz:guess:chords:types').setup, { answer: 'play', roots: 'key', level: 6 });
+  assert.deepEqual(presetOf('quiz:guess:chords:advanced').setup, { answer: 'play', roots: 'key', level: 8 });
+  assert.deepEqual(at('quiz:staff:notes:key'), ['note', 'read', 'play']);
+  assert.deepEqual(at('quiz:pick:notes:half'), ['note', 'read', 'name']);
+  assert.deepEqual(at('quiz:guess:notes:key'), ['note', 'play', 'play']);
+  assert.deepEqual(at('quiz:hear:notes:key'), ['note', 'hear', 'play']);
+  assert.deepEqual(at('quiz:ear:playback-notes:half'), ['note', 'hear', 'play']);
+  assert.deepEqual(at('quiz:ear:direction:narrow'), ['note', 'hear', 'hilo']);
+  assert.equal(presetOf('quiz:guess:notes:key').setup.level, 3);
+  assert.equal(presetOf('quiz:guess:notes:half').setup.level, 4);
+  const id3 = presetOf('quiz:ear:id-3rds:together');
+  assert.deepEqual([id3.subject, id3.circle, id3.setup.answer, id3.setup.direction, id3.setup.custom], ['int', 'hear', 'name', 'together', ['m3', 'M3']]);
+  const rd = presetOf('quiz:ear:rd-cmp-6ths:fix-down');
+  assert.deepEqual([rd.subject, rd.circle, rd.setup.answer, rd.setup.direction], ['int', 'read', 'compare', 'down']);
+  const sc = presetOf('quiz:ear:sc-pent:down');
+  assert.deepEqual([sc.subject, sc.circle, sc.setup.custom, sc.setup.direction], ['scale', 'hear', ['majorPent', 'minorPent'], 'down']);
+  assert.equal(presetOf('quiz:ear:rd-sc-pent:up').circle, 'read');
+  assert.equal(presetOf('quiz:ear:thirds:up').subject, 'int', 'an id the courses replaced follows them');
+  for (const kept of ['quiz:ear:home:major', 'quiz:ear:functions:iv-v', 'quiz:ear:steps:key', 'nonsense', 'quiz:ear:nope:x']) {
+    assert.equal(presetOf(kept), null, kept);
+  }
+  assert.ok(exerciseByKey('contour'));
+});

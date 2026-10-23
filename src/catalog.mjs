@@ -10,12 +10,12 @@
  * whose children are its levels, where it used to be a second list with its
  * own state and its own Back rules.
  *
- *   ...lead     what the caller puts first: Continue and the Path
- *   Practice    the free library, generated here: Scales, Chords,
- *               Progressions, Random, then Songs
- *     Songs     one folder per category in index.json, in its order, and
+ *   ...lead     what the caller puts first: the Path
+ *   Practice    the five trainers, generated here: Notes, Intervals,
+ *               Scales, Chords, Progressions
+ *   Songs       one folder per category in index.json, in its order, and
  *               Other: files whose category is missing or unknown
- *   ...after    the Quiz
+ *   ...after    anything the caller puts after Songs
  *   ...tail     Progress and Settings
  *
  * Practice keeps the key `basics`, which is what its rows' ids start with, so
@@ -232,15 +232,31 @@ export function trainerFolder(subject, label, learn, learnId) {
 }
 
 /*
- * Practice (the folder was Basics, and keeps its key). What the settings
- * decide — the key, the transpose — is captured when the tree is built, which
- * the session does again whenever one of them changes. `more` is appended:
- * the Songs folder.
+ * Practice (the folder was Basics, and keeps its key): five trainers, from
+ * the smallest unit to the largest — Notes, Intervals, Scales, Chords,
+ * Progressions — each the same five circles (trainerFolder). What the
+ * settings decide — the key, the transpose — is captured when the tree is
+ * built, which the session does again whenever one of them changes.
+ *
+ * Each trainer's Learn holds the material that was there before it, under
+ * the ids it always had: the scale drills, the chord lessons, the
+ * progression charts; the random reading lines (Notes) and random chord sets
+ * (Chords), which Practice › Random held; and `extra`, the caller's rows per
+ * subject — the hearing drills that train a subject without naming it (Step
+ * or leap, Home or away...), which the session builds from the program.
  */
-export function basics(gen = {}, more = []) {
+export function basics(gen = {}, extra = {}) {
   const transpose = gen.transpose == null ? DEFAULT_TRANSPOSE : gen.transpose;
+  const more = (subject) => extra[subject] || [];
   const scales = () => Object.keys(MODES).map((mode) =>
-    folder(MODE_LABELS[mode], leaves(scaleDrills({ ...gen, mode })), mode));
+    folder(MODE_LABELS[mode], leaves(scaleDrills({ ...gen, mode })), mode)).concat(more('scale'));
+
+  /* Practice › Random is gone; its rows keep their ids where they now live. */
+  const random = randomFolder(gen).children.map((row) => {
+    row.key = 'basics/random/' + slug(row.label);
+    row.absolute = true;
+    return row;
+  });
 
   const families = () => CHORD_FAMILIES.map((fam) => lazyFolder(fam.name, () => {
     let songs;
@@ -248,7 +264,7 @@ export function basics(gen = {}, more = []) {
     else if (fam.inversions) songs = fam.inversions.map((q) => inversionLesson(q, transpose));
     else songs = fam.qualities.map((q) => qualityLesson(q, transpose));
     return songs.map((song) => generated(songNode(song)));
-  }));
+  })).concat([folder('Random chords', random.slice(3), 'random-chords')]);
 
   const progressions = () => LESSON_PROGRESSIONS.map((p) => {
     const node = generated(songNode(progressionLesson(p, gen.rootPc || 0, transpose)));
@@ -258,14 +274,22 @@ export function basics(gen = {}, more = []) {
     /* Case kept: I-IV-V-I and i-iv-v-i are different progressions. */
     node.key = p.id.replace(/\s+/g, '-');
     return node;
-  });
+  }).concat(more('prog'));
 
   return folder('Practice', [
+    trainerFolder('note', 'Notes', folder('Notes', random.slice(0, 3).concat(more('note'))), 'basics/note-trainer/learn'),
+    trainerFolder('int', 'Intervals', folder('Intervals', more('int')), 'basics/int-trainer/learn'),
     trainerFolder('scale', 'Scales', lazyFolder('Scales', scales), 'basics/scales'),
-    trainerFolder('chord', 'Chords', lazyFolder('Chords', families), 'basics/chords'),
+    trainerFolder('chord', 'Chords', holding(lazyFolder('Chords', families), 'basics/random/'), 'basics/chords'),
     trainerFolder('prog', 'Progressions', lazyFolder('Progressions', progressions), 'basics/progressions'),
-    randomFolder(gen),
-  ].concat(more), 'basics');
+  ], 'basics');
+}
+
+/* A lazy folder that holds rows under ids not its own (moved ones, stamped
+ * absolute): findById looks inside it for those too. */
+function holding(node, ...prefixes) {
+  node.holds = prefixes;
+  return node;
 }
 
 /* A bundled song's id is its manifest id alone, wherever it is filed. */
@@ -282,11 +306,12 @@ export function fileSongNode(chart) {
  *   categories  [{ id, name }] — display order
  *   gen         generator options from the settings
  *   lead        nodes before Practice
- *   after       nodes straight after Practice
+ *   after       nodes straight after Songs
  *   tail        nodes appended at the end
+ *   extra       rows for the trainers' Learn lists, by subject (basics)
  */
 export function buildCatalog({
-  songs = [], categories = [], gen = {}, lead = [], after = [], tail = [],
+  songs = [], categories = [], gen = {}, lead = [], after = [], tail = [], extra = {},
 } = {}) {
   const known = {};
   for (let i = 0; i < categories.length; i++) known[categories[i].id] = [];
@@ -301,8 +326,9 @@ export function buildCatalog({
     if (rows.length) shelves.push(folder(categories[i].name, rows, categories[i].id));
   }
   if (other.length) shelves.push(folder('Other', other, 'other'));
-  const more = shelves.length ? [folder('Songs', shelves, 'songs')] : [];
-  const children = lead.concat([basics(gen, more)], after);
+  /* Songs is its own place on Home, after Practice: the pieces, by genre. */
+  const songsRow = shelves.length ? [folder('Songs', shelves, 'songs')] : [];
+  const children = lead.concat([basics(gen, extra)], songsRow, after);
   /* The top of the list, named for the instrument as Drums Practice names its. */
   const root = folder('Piano', children.concat(tail));
   /* Its rows are stamped without a prefix; its own id only names it to a cache. */
@@ -442,7 +468,9 @@ export function findById(root, id) {
         continue;
       }
       if (child.untracked) continue;
-      if (isLazy(child) && !(child.id && id.indexOf(child.id + '/') === 0)) continue;
+      const mine = (child.id && id.indexOf(child.id + '/') === 0)
+        || (child.holds && child.holds.some((p) => id.indexOf(p) === 0));
+      if (isLazy(child) && !mine) continue;
       const hit = walk(child, depth + 1);
       if (hit) return hit;
     }

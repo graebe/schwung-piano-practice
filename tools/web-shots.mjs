@@ -80,7 +80,7 @@ await page.close();
 
 /* A song, ready: its levels above the staff. */
 page = await open({ width: 1280, height: 760 });
-await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+await openPath(page, ['Songs', 'Classics', 'Ode to Joy']);
 await page.locator('.levels .btn').first().waitFor();
 await shoot(page, 'web-ready-song.png');
 await page.close();
@@ -123,7 +123,7 @@ await page.close();
 
 /* A phone. */
 page = await open({ width: 390, height: 844 });
-await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+await openPath(page, ['Songs', 'Classics', 'Ode to Joy']);
 await page.locator('.levels .btn').first().waitFor();
 await shoot(page, 'web-phone.png');
 

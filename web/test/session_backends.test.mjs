@@ -77,12 +77,11 @@ test('the browser session starts on the list and publishes view models', () => {
   l.backend.start();
   assert.ok(l.running, 'it ticks');
   assert.equal(seen.at(-1).screen, 'menu');
-  assert.deepEqual(seen.at(-1).nav.rows.map((r) => r.label), ['Learning Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
-  assert.deepEqual(seen.at(-1).home.items.map((it) => it.key), ['program', 'basics', 'quiz', 'progress', 'settings']);
+  assert.deepEqual(seen.at(-1).nav.rows.map((r) => r.label), ['Learning Path', 'Practice', 'Songs', 'Progress', 'Settings']);
+  assert.deepEqual(seen.at(-1).home.items.map((it) => it.key), ['program', 'basics', 'songs', 'progress', 'settings']);
   assert.deepEqual(seen.at(-1).hint, ['JOG choose', 'CLICK open  PAD open', 'MENU help'],
     'the hint line travels with the picture');
   assert.equal(seen.at(-1).announcement.text, 'Piano Practice. Pick an exercise.');
-  select(l, 'Practice');
   select(l, 'Songs');
   assert.ok(l.backend.viewModel.nav.rows.some((r) => r.label === 'Classics'), 'the bundled songs are there');
   assert.ok(l.backend.capabilities.audio);
@@ -178,7 +177,8 @@ test('a storage that refuses (private mode) does not stop practice', () => {
 test('a heard answer is revealed on the keyboard for a while, then not', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']) select(l, label);
+  /* Notes › Hear, higher or lower: what Quiz › Ear › Higher or lower was. */
+  l.backend.session.openItem('quiz:ear:direction:wide');
   l.advance(1500);
   const q = l.backend.session.quiz;
   for (let i = 0; i < q.choices.length && !q.solved; i++) l.backend.dispatch({ type: 'answer', index: i });

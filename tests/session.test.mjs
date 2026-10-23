@@ -28,9 +28,9 @@ test('init opens the lesson list, from the files and the settings it is given', 
   h.session.init();
   assert.equal(h.session.view, MENU);
   const rows = h.session.nav[0].node.children.map((r) => r.label);
-  assert.deepEqual(rows, ['Learning Path', 'Practice', 'Quiz', 'Progress', 'Settings']);
+  assert.deepEqual(rows, ['Learning Path', 'Practice', 'Songs', 'Progress', 'Settings']);
   assert.ok(h.session.onHome(), 'drawn as the home screen');
-  const songs = h.session.nav[0].node.children[1].children.find((r) => r.label === 'Songs');
+  const songs = h.session.nav[0].node.children[2];
   assert.ok(songs.children.some((r) => r.label === 'Classics'), 'the bundled songs are read through fx');
   assert.equal(h.session.settings.roundSize, 10, 'settings.json is read through fx');
   assert.equal(h.session.settings.midiOut, OUT_INTERNAL);
@@ -286,8 +286,8 @@ test('a rebuild inside Advanced keeps the list where it is', () => {
   const h = fakeHost();
   h.session.init();
   openSettings(h.session, 'practice');
-  const half = h.session.settingsRows().findIndex((r) => r.label === 'Half tones');
-  h.session.editRow(half, 1);                       /* Half tones: the menu is rebuilt */
+  /* A knob on the Key while a group is open: the menu is rebuilt under it. */
+  h.session.editSetting(settingIndex('rootPc'), 1);
   h.session.back();
   assert.deepEqual(h.session.nav.map((n) => n.node.label), ['Piano', 'Settings', 'Advanced']);
   h.session.back();
@@ -324,10 +324,17 @@ test('changing the MIDI channel silences the old one before the host moves', () 
   assert.ok(silenceAt >= 0 && silenceAt < changedAt);
 });
 
-test('a Play quiz: the right note is correct, a wrong one counted once', () => {
+/* The Quiz menu is gone; its drills' ids open the trainer rounds they are now
+ * (trainer.presetOf), as Review, Continue and a path step open them. */
+function openOld(id) {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Reading', 'Notes by staff']);
+  h.session.openItem(id);
+  return h;
+}
+
+test('a Play quiz: the right note is correct, a wrong one counted once', () => {
+  const h = openOld('quiz:staff:notes:key');
   assert.equal(h.session.view, GUESS_VIEW);
   const prompt = h.session.quiz.prompt.slice();
   const wrong = h.session.play(prompt[0] + 1, 90);
@@ -338,78 +345,62 @@ test('a Play quiz: the right note is correct, a wrong one counted once', () => {
   assert.equal(h.session.quiz.wrong, 1);
 });
 
-test('Keys and Reading hold the four drills: notes and chords, each by name and by staff', () => {
-  const h = fakeHost();
-  h.session.init();
-  for (const [folder, label, kind, read] of [
-    ['Keys', 'Notes by alphabet', GUESS.NOTES, GUESS.READ_NAME],
-    ['Reading', 'Notes by staff', GUESS.NOTES, GUESS.READ_STAFF],
-    ['Keys', 'Chords by name', GUESS.CHORDS, GUESS.READ_NAME],
-    ['Reading', 'Chords by staff', GUESS.CHORDS, GUESS.READ_STAFF],
+test('the four play drills open as trainer rounds: notes and chords, by name and by staff', () => {
+  for (const [id, kind, read, title] of [
+    ['quiz:guess:notes:key', GUESS.NOTES, GUESS.READ_NAME, 'NOTES PLAY'],
+    ['quiz:staff:notes:half', GUESS.NOTES, GUESS.READ_STAFF, 'NOTES READ'],
+    ['quiz:guess:chords:types', GUESS.CHORDS, GUESS.READ_NAME, 'CHORDS PLAY'],
+    ['quiz:staff:chords:triads', GUESS.CHORDS, GUESS.READ_STAFF, 'CHORDS READ'],
   ]) {
-    openPath(h.session, ['Quiz', folder, label]);
-    assert.equal(h.session.view, GUESS_VIEW, label);
-    assert.equal(h.session.quiz.kind, kind, label);
-    assert.equal(h.session.quiz.read, read, label);
-    assert.equal(h.session.quiz.queue.length, GUESS.LOOKAHEAD, label + ': the next ones are queued');
-    h.session.back();
-    h.session.back();
-    h.session.back();
+    const h = openOld(id);
+    assert.equal(h.session.view, GUESS_VIEW, id);
+    assert.equal(h.session.quiz.kind, kind, id);
+    assert.equal(h.session.quiz.read, read, id);
+    assert.equal(h.session.quizTitle(), title, id);
+    assert.equal(h.session.quiz.queue.length, GUESS.LOOKAHEAD, id + ': the next ones are queued');
   }
 });
 
-test('the quiz is by skill, and its drills keep their ids', () => {
-  const h = fakeHost();
-  h.session.init();
-  openPath(h.session, ['Quiz']);
-  assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => r.label), ['Ear', 'Reading', 'Keys']);
-  openPath(h.session, ['Keys']);
-  assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => [r.label, r.id]), [
-    ['Notes by alphabet', 'quiz:guess:notes:half'], ['Chords by name', 'quiz:guess:chords:triads'],
-    ['Name notes', 'quiz:pick:notes:half'], ['Name chords', 'quiz:pick:chords:triads'],
-  ]);
-  h.session.back();
-  openPath(h.session, ['Reading']);
-  const reading = h.session.nav.at(-1).node.children;
-  assert.deepEqual(reading.slice(-2).map((r) => r.id), ['quiz:staff:notes:half', 'quiz:staff:chords:triads']);
-  assert.equal(reading[0].id, 'quiz/read/' + reading[0].key, 'the courses keep the Read ids');
+test('an old drill\'s round is filed under its own id, so its history carries on', () => {
+  const h = openOld('quiz:guess:notes:half');
+  for (let i = 0; i < 40 && h.session.view === GUESS_VIEW; i++) {
+    const q = h.session.quiz;
+    if (!q.solved) { h.session.play(q.prompt[0], 90); h.session.release(q.prompt[0]); }
+    h.run(600);
+  }
+  assert.ok(h.session.progress.items['quiz:guess:notes:half'], 'its progress id');
+  const saved = JSON.parse(h.files.get('stats.json'));
+  assert.ok(saved.records.some((r) => r.d === 'guess:notes:half'), 'its drill id');
+  assert.ok(Object.values(saved.items.note).some((r) => r.play[0] > 0), 'and the table, under play');
 });
 
 test('Notes by alphabet takes the note in any octave', () => {
-  const h = fakeHost();
-  h.session.init();
-  openPath(h.session, ['Quiz', 'Keys', 'Notes by alphabet']);
+  const h = openOld('quiz:guess:notes:key');
   const [p] = h.session.quiz.prompt;
   const res = h.session.play(p >= 72 ? p - 12 : p + 12, 90);
   assert.equal(res.res, GUESS.CORRECT);
 });
 
 test('Notes by staff wants the written octave', () => {
-  const h = fakeHost();
-  h.session.init();
-  openPath(h.session, ['Quiz', 'Reading', 'Notes by staff']);
+  const h = openOld('quiz:staff:notes:key');
   const [p] = h.session.quiz.prompt;
   const res = h.session.play(p >= 72 ? p - 12 : p + 12, 90);
   assert.equal(res.res, GUESS.WRONG);
 });
 
 test('Chords by name takes an inversion; Chords by staff does not', () => {
-  for (const [folder, label, want] of [['Keys', 'Chords by name', GUESS.CORRECT], ['Reading', 'Chords by staff', GUESS.WRONG]]) {
-    const h = fakeHost();
-    h.session.init();
-    openPath(h.session, ['Quiz', folder, label]);
+  for (const [id, want] of [['quiz:guess:chords:triads', GUESS.CORRECT], ['quiz:staff:chords:triads', GUESS.WRONG]]) {
+    const h = openOld(id);
     const chord = h.session.quiz.prompt.slice().sort((a, b) => a - b);
     const inverted = [...chord.slice(1), chord[0] + 12];
     let res = null;
     for (const p of inverted) res = h.session.play(p, 90);
-    assert.equal(res.res, want, label);
+    assert.equal(res.res, want, id);
   }
 });
 
 test('a right answer glides the row on, then the next prompt is the one that was queued', () => {
-  const h = fakeHost();
-  h.session.init();
-  openPath(h.session, ['Quiz', 'Reading', 'Notes by staff']);
+  const h = openOld('quiz:staff:notes:key');
   const q = h.session.quiz;
   const next = q.queue[1];
   assert.equal(h.session.quizGlide(), 0, 'at rest');
@@ -427,29 +418,28 @@ test('a right answer glides the row on, then the next prompt is the one that was
 });
 
 test('a staff drill never says the answer out loud; a name drill does', () => {
-  const said = (label) => {
-    const h = fakeHost();
-    h.session.init();
-    openPath(h.session, ['Quiz', label === 'Notes by staff' ? 'Reading' : 'Keys', label]);
+  const said = (id) => {
+    const h = openOld(id);
     const name = GUESS.entryName(h.session.quiz, h.session.quiz.entry);
     const lines = h.log.filter((e) => e[0] === 'say').map((e) => e[1]);
     return lines.some((t) => t.includes('Play ' + name));
   };
-  assert.equal(said('Notes by staff'), false);
-  assert.equal(said('Notes by alphabet'), true);
+  assert.equal(said('quiz:staff:notes:key'), false);
+  assert.equal(said('quiz:guess:notes:key'), true);
 });
 
-test('a Name quiz answers by option, and a round runs to its result', () => {
-  const h = fakeHost();
-  h.session.init();
-  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
+test('Name notes is Read, name now: a note on the staff, named by option, a round to its result', () => {
+  const h = openOld('quiz:pick:notes:half');
   assert.ok(h.session.quizPick);
+  assert.equal(h.session.quizTitle(), 'NOTES READ');
+  assert.ok(h.session.quiz.entry.staff, 'read off the staff, not a lit pad');
   for (let i = 0; i < 60 && h.session.view === GUESS_VIEW; i++) {
     const q = h.session.quiz;
-    const right = q.choices.findIndex((c) => c.pitches.join() === q.prompt.join());
+    const right = q.choices.findIndex((c) => c.key === q.entry.answer);
     h.session.answer(i % 4 === 0 ? (right + 1) % q.choices.length : right);
-    h.run(500);
+    h.run(1600);
   }
+  for (let i = 0; i < 10 && h.session.view !== RESULT_VIEW; i++) { h.session.activate(false); h.run(200); }
   assert.equal(h.session.view, RESULT_VIEW);
   assert.equal(h.session.lastResult.kind, 'quiz');
   assert.equal(h.session.lastResult.n, 10);
@@ -457,12 +447,11 @@ test('a Name quiz answers by option, and a round runs to its result', () => {
 });
 
 test('a Hear drill plays its prompt and reveals the answer once named', () => {
-  const h = fakeHost();
-  h.session.init();
-  openPath(h.session, ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']);
+  const h = openOld('quiz:ear:direction:wide');
   h.run(1500);
   assert.ok(h.log.some((e) => e[0] === 'strike'), 'the prompt is played');
   const q = h.session.quiz;
+  assert.deepEqual(q.answers.map((a) => a.key), ['higher', 'same', 'lower']);
   for (let i = 0; i < q.choices.length && !q.solved; i++) h.session.answer(i);
   assert.ok(q.solved);
   assert.ok(h.log.some((e) => e[0] === 'reveal'), 'the host is told where it sits');
@@ -885,7 +874,7 @@ test('a first-visit tip shows once, over the screen it explains', () => {
   openPath(h.session, ['Down']);
   assert.equal(h.session.view, READY, 'shown once');
   for (let i = 0; i < 5; i++) h.session.back();
-  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
+  h.session.openItem('quiz:pick:notes:half');
   assert.equal(h.session.view, CARD_VIEW);
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^Answer with the lit pads/);
   h.session.back();
@@ -1052,7 +1041,7 @@ test('a song is one row: it arms its first level not learned, and the jog walks 
   const h = fakeHost();
   h.session.init();
   PROG.recordAttempt(h.session.progress, 'song:ode-to-joy/1r', { stage: 2, score: 1, at: WALL0 });
-  openPath(h.session, ['Practice', 'Songs', 'Classics']);
+  openPath(h.session, ['Songs', 'Classics']);
   const row = h.session.nav.at(-1).node.children.find((r) => r.key === 'song:ode-to-joy');
   assert.ok(row.levels && !('children' in row), 'no ladder folder');
   assert.equal(h.session.decorateRow(row).mark, PROG.MARK_HALF, 'the row sums its levels');
@@ -1080,7 +1069,7 @@ test('a song is one row: it arms its first level not learned, and the jog walks 
 test('a level changed after a scrub starts from bar 1', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+  openPath(h.session, ['Songs', 'Classics', 'Ode to Joy']);
   h.session.scrubBy(40);
   assert.ok(h.session.songBeats > 0);
   h.session.moveSelection(1);
@@ -1112,7 +1101,7 @@ test('the web\'s level action arms a level, on the ready screen only', () => {
   h.session.init();
   h.session.armLevel(2);
   assert.equal(h.session.view, MENU, 'nothing armed: nothing to do');
-  openPath(h.session, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+  openPath(h.session, ['Songs', 'Classics', 'Ode to Joy']);
   h.session.armLevel(3);
   assert.equal(h.session.armedId, 'song:ode-to-joy/3');
   h.session.armLevel(9);
@@ -1131,8 +1120,8 @@ test('home is five circles, no Continue among them; the jog grows the next one',
   assert.equal(h.session.screenNow(), 'home');
   const m = h.session.homeModel();
   assert.deepEqual(m.items.map((it) => [it.key, it.label]), [['program', 'Learning Path'], ['basics', 'Practice'],
-    ['quiz', 'Quiz'], ['progress', 'Progress'], ['settings', 'Settings']]);
-  assert.deepEqual(m.items.map((it) => it.icon), ['path', PRACTICE_PIANO, 'quiz', 'progress', 'settings']);
+    ['songs', 'Songs'], ['progress', 'Progress'], ['settings', 'Settings']]);
+  assert.deepEqual(m.items.map((it) => it.icon), ['path', PRACTICE_PIANO, 'song', 'progress', 'settings']);
   assert.equal(m.selected, 0);
   const t0 = h.ms;
   h.session.moveSelection(1);
@@ -1154,7 +1143,7 @@ test('home is five circles, no Continue among them; the jog grows the next one',
 test('a click or a circle\'s pad opens it, silently; Back finds its circle selected', () => {
   const h = fakeHost();
   h.session.init();
-  const want = ['Learning Path', 'Practice', 'Quiz', PROGRESS_VIEW, SETTINGS];
+  const want = ['Learning Path', 'Practice', 'Songs', PROGRESS_VIEW, SETTINGS];
   for (let i = 0; i < HOME_PADS.length; i++) {
     assert.equal(h.session.homePad(HOME_PADS[i]), true, 'home takes the pad');
     if (i < 3) assert.equal(h.session.nav.at(-1).node.label, want[i]);
@@ -1166,14 +1155,14 @@ test('a click or a circle\'s pad opens it, silently; Back finds its circle selec
   assert.equal(h.session.homePad(68), true, 'a pad off the five: taken, and nothing');
   assert.ok(h.session.onHome());
   assert.ok(!h.log.some((e) => e[0] === 'strike'), 'nothing sounded');
-  h.session.selectRow(2);
+  h.session.selectRow(1);
   h.session.activate(false);
-  assert.equal(h.session.nav.at(-1).node.label, 'Quiz', 'Click opens the selected one');
-  assert.equal(h.session.homePad(69), true, 'the Quiz ring takes every pad');
-  assert.equal(h.session.nav.at(-1).node.label, 'Quiz', 'but 69 is no circle of three');
-  h.session.homePad(70);
-  assert.equal(h.session.nav.at(-1).node.label, 'Ear', 'its first circle is pad 70');
-  assert.equal(h.session.homePad(70), false, 'in a list a pad is a note');
+  assert.equal(h.session.nav.at(-1).node.label, 'Practice', 'Click opens the selected one');
+  h.session.homePad(HOME_PADS[0]);
+  assert.equal(h.session.nav.at(-1).node.label, 'Notes', 'a trainer, its own ring');
+  h.session.homePad(HOME_PADS[3]);
+  assert.equal(h.session.nav.at(-1).node.label, 'Learn', 'its Learn circle: a list');
+  assert.equal(h.session.homePad(HOME_PADS[0]), false, 'in a list a pad is a note');
 });
 
 test('Shift + Click on home shows the five as a list for the session; Back is the circles again', () => {
@@ -1184,7 +1173,7 @@ test('Shift + Click on home shows the five as a list for the session; Back is th
   h.session.pickSheet(at);
   assert.equal(h.session.onHome(), false);
   assert.equal(h.session.homeModel(), null);
-  assert.deepEqual(h.session.nav[0].node.children.map((r) => r.label), ['Learning Path', 'Practice', 'Quiz', 'Progress',
+  assert.deepEqual(h.session.nav[0].node.children.map((r) => r.label), ['Learning Path', 'Practice', 'Songs', 'Progress',
     'Settings']);
   assert.equal(h.session.canGoBack(), true, 'Back from the list is home, not quit');
   openPath(h.session, ['Practice']);
@@ -1417,14 +1406,14 @@ test('scenes draw nothing from the quiz\'s random stream: a quiz after a zoom as
 
 import { homePads } from '../src/home/render.mjs';
 
-test('Practice is a ring of five with its icons; Quiz a ring of three on pads 70..72', () => {
+test('Practice is a ring of the five trainers with their icons; Songs a ring of its genres', () => {
   const h = fakeHost();
   h.session.init();
   openPath(h.session, ['Practice']);
   assert.ok(h.session.onHome(), 'a ring, drawn as home is');
   let m = h.session.homeModel();
-  assert.deepEqual(m.items.map((it) => [it.label, it.icon]), [['Scales', 'stairs'], ['Chords', 'chord'],
-    ['Progressions', 'progression'], ['Random', 'dice'], ['Songs', 'song']]);
+  assert.deepEqual(m.items.map((it) => [it.label, it.icon]), [['Notes', 'note'], ['Intervals', 'interval'],
+    ['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression']]);
   assert.equal(h.session.listTitle(), 'Practice', 'the title bar names the ring');
   h.session.moveSelection(1);
   assert.equal(h.session.homeModel().selected, 1);
@@ -1433,17 +1422,16 @@ test('Practice is a ring of five with its icons; Quiz a ring of three on pads 70
   h.session.back();
   assert.equal(h.session.nav.length, 1);
   assert.equal(h.session.homeModel().selected, 1, 'home, Practice selected');
-  openPath(h.session, ['Quiz']);
+  openPath(h.session, ['Songs']);
   m = h.session.homeModel();
-  assert.deepEqual(m.items.map((it) => [it.label, it.icon]), [['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']]);
-  assert.deepEqual(homePads(3), [70, 71, 72]);
-  assert.equal(h.session.homePad(73), true, 'a pad off the ring: taken, and nothing');
-  assert.equal(h.session.nav.at(-1).node.label, 'Quiz');
-  h.session.homePad(71);
-  assert.equal(h.session.nav.at(-1).node.label, 'Reading', 'pad 71: the middle circle');
+  assert.deepEqual(m.items.map((it) => [it.label, it.icon]),
+    [['Classics', 'note'], ['Electronic', 'loop'], ['Techno', 'metronome'], ['Styles', 'chord']]);
+  const pads = homePads(4);
+  assert.equal(h.session.homePad(pads[1]), true);
+  assert.equal(h.session.nav.at(-1).node.label, 'Electronic', 'its second circle');
   assert.ok(!h.log.some((e) => e[0] === 'strike'), 'nothing sounded');
   h.session.back();
-  assert.equal(h.session.homeModel().selected, 1, 'the ring again, on Reading');
+  assert.equal(h.session.homeModel().selected, 1, 'the ring again, on Electronic');
 });
 
 test('a ring\'s help says which ring it is, and Shift + Click shows it as a list', () => {
@@ -1451,23 +1439,28 @@ test('a ring\'s help says which ring it is, and Shift + Click shows it as a list
   h.session.init();
   openPath(h.session, ['Practice']);
   h.session.menuButton();
-  assert.match(h.session.info.paragraphs[0].text, /^Practice: the free library, as circles/);
+  assert.match(h.session.info.paragraphs[0].text, /^Practice: five trainers, as circles/);
   h.session.back();
-  openPath(h.session, ['Songs']);
+  openPath(h.session, ['Chords']);
+  h.session.menuButton();
+  assert.match(h.session.info.paragraphs[0].text, /^A trainer, as circles/);
+  h.session.back();
+  openPath(h.session, ['Learn']);
   assert.equal(h.session.onHome(), false, 'deeper levels stay lists');
   h.session.back();
   h.session.back();
-  openPath(h.session, ['Quiz']);
+  h.session.back();
+  openPath(h.session, ['Songs']);
   h.session.menuButton();
-  assert.match(h.session.info.paragraphs[0].text, /^Quiz: short rounds, as circles/);
+  assert.match(h.session.info.paragraphs[0].text, /^Songs: the pieces by genre/);
   h.session.back();
   h.session.activate(true);
   h.session.pickSheet(h.session.sheet.items.findIndex((it) => it.label === 'Show as list'));
   assert.equal(h.session.onHome(), false, 'the list');
-  assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => r.label), ['Ear', 'Reading', 'Keys']);
+  assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => r.label), ['Classics', 'Electronic', 'Techno', 'Styles']);
   h.session.back();
   assert.ok(h.session.onHome(), 'Back: the circles again');
-  assert.ok(h.said().includes('Quiz.'));
+  assert.ok(h.said().includes('Songs.'));
 });
 
 test('a ring of more than five is drawn as its list', () => {
@@ -1486,7 +1479,7 @@ test('a ring of more than five is drawn as its list', () => {
 /* ---- Knob 8 on a song: its tempo, for the session --------------------------- */
 
 const openOde = (h) => {
-  openPath(h.session, ['Practice', 'Songs', 'Classics']);
+  openPath(h.session, ['Songs', 'Classics']);
   const rows = h.session.nav.at(-1).node.children;
   h.session.selectRow(rows.findIndex((r) => r.key === 'song:ode-to-joy'));
   h.session.activate(false);

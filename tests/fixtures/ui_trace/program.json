@@ -1,6 +1,6 @@
 [["write","/data/UserData/schwung/modules/tools/piano-practice/progress.bak.json","{\"tips\":[\"welcome\",\"sheet\",\"practice\",\"quiz\",\"map\",\"island\",\"placement\"]}"],
 ["announce","Piano Practice. Pick an exercise."],
-["tick",0,"2933471bd485","b87a1db22f63"],
+["tick",0,"edfefe222836","b87a1db22f63"],
 ["announce","Learning Path."],
 ["tick",1,"ed1dc3b2b856","63016e423c73"],
 ["announce","1 Grid and staff."],
@@ -1100,4 +1100,4 @@
 ["tick",1699,"33c7293fd26c","1187365967d8"],
 ["tick",1700,"fa24b5c4fd03","ab3ac653d929"],
 ["tick",1701,"fd7513a06336","1b3791718c7b"],
-["tick",1703,"2933471bd485","e05a4619f8b7"]]
+["tick",1703,"edfefe222836","e05a4619f8b7"]]

@@ -123,19 +123,19 @@ function about(screen, s) {
   switch (screen) {
     case MENU:
       return s.top
-        ? 'Home, as a list: the Learning Path, the free library to practise, the quiz, your progress and the settings. BACK shows the circles again.'
+        ? 'Home, as a list: the Learning Path, Practice with its five trainers, the songs, your progress and the settings. BACK shows the circles again.'
         : 'A folder of the list. A row with > opens another folder; any other row opens what it holds.';
     case HOME:
       if (s.ring === 'basics') {
-        return 'Practice: the free library, as circles: scales, chords, progressions, random drills and songs. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
+        return 'Practice: five trainers, as circles: notes, intervals, scales, chords, progressions, from the smallest unit to the largest. Each has the same five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
+      }
+      if (s.ring === 'songs') {
+        return 'Songs: the pieces by genre, as circles. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
       }
       if (s.ring === 'trainer') {
         return 'A trainer, as circles: Read off the staff, Hear by ear, Play from a name, Learn the lessons, and Stats, your weakest first. Every subject has the same five. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes up.';
       }
-      if (s.ring === 'quiz') {
-        return 'Quiz: short rounds, as circles: Ear, name what you hear; Reading, off the staff; Keys, names and pads. The jog chooses, CLICK opens; so does the circle\'s lit pad. BACK goes home.';
-      }
-      return 'Home: the Learning Path, the free library to practise, the quiz, your progress and the settings, as five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad.';
+      return 'Home: the Learning Path, Practice with its five trainers, the songs, your progress and the settings, as five circles. The jog chooses, CLICK opens; so does the circle\'s lit pad.';
     case MAP:
       return 'The map: a lit pad is a place. Press one to walk there, again to go in; the jog walks too, CLICK goes in, PLAY continues. SHIFT+CLICK shows it as a list.';
     case SHEET:
