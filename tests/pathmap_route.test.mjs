@@ -50,6 +50,16 @@ function polyline(L, i) {
   return out;
 }
 
+/* The last straight run of the route, into the last place: its pixels in
+ * order, ending on the place's anchor. */
+function finalRun(L) {
+  const line = polyline(L, L.cells.length - 2);
+  const step = line[line.length - 1] - line[line.length - 2];
+  let k = line.length - 1;
+  while (k > 0 && line[k] - line[k - 1] === step) k--;
+  return { run: line.slice(k), step };
+}
+
 /* A place's shape on screen: every wall and every pixel of its ground,
  * whatever its look or fill (the ground is there even when it is empty). */
 function body(L, i, kind) {
@@ -150,7 +160,10 @@ test('route dots are hidden only where something is drawn on the frame, and a pi
   assert.deepEqual(failures.slice(0, 8), [], `${failures.length} of ${count} frames break the rule`);
 });
 
-test('the route shows between every two places: no gap over 3 px, at least 3 dots', () => {
+test('the route shows between every two places: no gap over 3 px, at least 3 dots, and 4 into the last', () => {
+  /* The last place of an island is its goal, the checkpoint: the last
+   * straight run into it shows at least 4 dots on every frame, counted
+   * against what is drawn and nothing else. */
   const failures = [];
   for (const f of frames()) {
     if (!f.pulse) continue;
@@ -176,8 +189,32 @@ test('the route shows between every two places: no gap over 3 px, at least 3 dot
       }
       if (worst > 3 || dots < 3) failures.push(`${f.label}: ${i + 1}->${i + 2} gap ${worst}, ${dots} dots`);
     }
+    const into = f.L.kind === 'island' ? finalRun(f.L).run.filter((k) => !near[k] && c.px[k]).length : 4;
+    if (into < 4) failures.push(`${f.label}: the run into place ${f.L.cells.length} shows ${into} dots`);
   }
   assert.deepEqual(failures.slice(0, 8), [], `${failures.length} broken segments`);
+});
+
+test('the last leg of an island leads into its goal, along its ground line', () => {
+  /*
+   * The goal stands left of its anchor (where the avatar stands), its gate
+   * in the wall on the ground line. A route that comes down or up onto the
+   * anchor stops beside the building and reads as cut off; one that comes
+   * along the ground from the open side points straight at it. So the last
+   * run, carried on past the anchor, runs into the goal's shape -- for every
+   * kind of building, on every island.
+   */
+  for (let n = 2; n <= 9; n++) {
+    const L = layoutPlaces(n, { kind: 'island' });
+    const { run, step } = finalRun(L);
+    const end = run[run.length - 1];
+    for (const kind of ISLAND_KINDS) {
+      const shape = new Set(body(L, n - 1, kind));
+      let hits = false;
+      for (let k = end, i = 0; i < 12 && !hits; i++, k += step) hits = shape.has(k);
+      assert.ok(hits, `island n=${n}: the run into ${kind} (place ${n}) comes ${step === 128 ? 'down' : step === -128 ? 'up' : step === 1 ? 'from the left' : 'from the right'} and passes it by`);
+    }
+  }
 });
 
 test('the route\'s centre line never runs into a building it does not join', () => {
