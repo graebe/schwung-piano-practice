@@ -251,15 +251,19 @@ function homeOf(S) {
  * A scene playing (scenes.mjs): its kind, how far it is (0..1), and the map
  * it plays on in the engine's terms, so the page draws and paces its own.
  */
+const placeOf = (p) => ({
+  id: p.id, label: p.label, short: p.short, percent: p.percent, state: p.state, due: p.due, kind: p.kind,
+});
+
 function animOf(S, t) {
   const a = S.sceneModel(t === null ? undefined : t);
   if (!a) return null;
   return {
     kind: a.kind, dir: a.dir, say: a.say, progress: Math.round(a.progress * 1000) / 1000,
     fireworks: a.fireworks, over: a.over, from: a.from, to: a.to, at: a.at, zoomAt: a.zoomAt, world: a.world,
-    places: a.places ? a.places.map((p) => ({
-      id: p.id, label: p.label, short: p.short, percent: p.percent, state: p.state, due: p.due, kind: p.kind,
-    })) : null,
+    places: a.places ? a.places.map(placeOf) : null,
+    ms: a.ms, was: a.was, text: a.text,
+    zoomFrom: a.zoomFrom ? { count: a.zoomFrom.count, place: placeOf(a.zoomFrom.place) } : null,
   };
 }
 

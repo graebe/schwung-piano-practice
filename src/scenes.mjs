@@ -94,8 +94,9 @@ export function sceneOver(scene, t) {
   return t - scene.t0 >= runMs(scene);
 }
 
-/* A walk's time: the engine's own, for the cells between, and the hold. */
-function runMs(scene) {
+/* How long a scene runs, all told: a walk's time is the engine's own, for
+ * the cells between, and the hold. */
+export function runMs(scene) {
   if (scene.kind !== WALK) return sceneMs(scene);
   return walkDuration(Math.abs(scene.walk.to - scene.walk.from), STORY_MS_PER_CELL) + WALK_HOLD_MS;
 }

@@ -2733,6 +2733,11 @@ export function createSession(fx, opts = {}) {
       world: on ? on.world : null,
       zoomAt: sc.kind === SC.ZOOM ? sc.at : null,
       places: on ? on.places : null,
+      /* What a page needs to draw it as the panel does. */
+      ms: SC.runMs(sc),
+      was: sc.was || null,
+      text: sc.text || null,
+      zoomFrom: sc.kind === SC.ZOOM ? { count: sc.map.places.length, place: sc.map.places[sc.at] } : null,
     };
   }
 

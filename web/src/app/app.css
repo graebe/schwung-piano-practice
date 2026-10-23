@@ -438,10 +438,28 @@ button.status-pill { cursor: pointer; }
 }
 
 /* ---------------------------------------------------------------- anim -- */
-.anim-screen { cursor: pointer; gap: var(--space-3); }
-.anim-progress { height: 4px; background: var(--bg-200); border: 1px solid var(--line-100); }
-.anim-progress-bar { height: 100%; background: var(--uv); }
+.anim-screen, .anim-over { cursor: pointer; }
 .anim-screen > .btn { align-self: flex-start; }
+.anim-stage { overflow: hidden; max-width: 768px; width: 100%; margin-inline: auto; }
+.map .ink-line { stroke: var(--uv); stroke-width: 1; }
+.map .ink-text, .anim-star .ink-text { fill: var(--uv); font: 7px var(--font-mono); }
+.map .sea-text { fill: var(--bg-200); font: 7px var(--font-mono); }
+/* The zoom, as the Move's: the island growing out of its cell on the world,
+ * or the world opening out of it. The origin is that cell (scene-view.jsx). */
+.anim-zoom { animation-duration: 350ms; animation-timing-function: ease-out; animation-fill-mode: both; }
+.anim-zoom-in { animation-name: anim-zoom-in; }
+.anim-zoom-out { animation-name: anim-zoom-out; }
+@keyframes anim-zoom-in { from { transform: scale(0.125); } to { transform: scale(1); } }
+@keyframes anim-zoom-out { from { transform: scale(4); } to { transform: scale(1); } }
+.anim-over { position: relative; }
+.anim-star {
+  position: absolute; top: 72px; left: 0; width: 240px; height: 160px; pointer-events: none;
+}
+.anim-star .ink, .anim-star .ink-line { fill: var(--uv); stroke: var(--uv); }
+.anim-star .sea { fill: none; }
+@media (prefers-reduced-motion: reduce) {
+  .anim-zoom { animation: none; }
+}
 
 /* ----------------------------------------------------------------- map -- */
 .map {

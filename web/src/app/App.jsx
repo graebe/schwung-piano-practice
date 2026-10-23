@@ -14,9 +14,10 @@ import { EditorFrame } from '../kit/components/EditorFrame.jsx';
 import { Button } from '../kit/components/Button.jsx';
 import { createStore } from './store.js';
 import {
-  ListView, HomeView, MapView, AnimView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
+  ListView, HomeView, MapView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
   MoveHint, KeysPanel,
 } from './views.jsx';
+import { AnimView } from './scene-view.jsx';
 import { keyIntent, DEFAULT_OCTAVE_C } from '../input/keys.js';
 import { connectMidi } from '../input/midi.js';
 import { inPageWords } from './words.js';

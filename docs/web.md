@@ -198,6 +198,11 @@ state and percent, and clicking one does the same. **Options** offers
 
 ![The world map](media/web-map.png)
 
+The way moves as on the Move: a stage zooms in from the world and out again,
+a finished place raises its flag and the avatar walks on, a finished stage
+sets off fireworks and its banner, and the whole path ends in the finale, all
+drawn by the same engine. A click or any key skips a scene.
+
 **Continue** opens the next step of a path in five stages, from the grid and
 the staff to extended harmony, with nothing locked. When a review is due it
 opens the **Review** instead, and reviews and new steps take turns. Each stage ends with its **Checkpoint**; **Options** on a stage offers

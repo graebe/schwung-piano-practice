@@ -110,6 +110,30 @@ test('the Learning Path is a map: click an island to walk there, again to go in,
   await expect(page.locator('.map-places .row.on')).toHaveText(/4 Sevenths/, { message: 'the arrows walk' });
 });
 
+/* A scene lasts a third of a second: a picture of it is taken as it plays and
+ * attached to the report, not held to a baseline, which could only catch it
+ * by luck. The screens either side of it are baselines. */
+test('an island zooms in from the world, and Back zooms out; a click skips', async ({ page }, info) => {
+  await openPath(page, ['Learning Path']);
+  const first = page.locator('.map .place-hit').first();
+  await first.click();                                    /* the avatar is there: in */
+  await expect(page.locator('.anim-screen')).toHaveAttribute('data-kind', 'zoom');
+  await expect(page.locator('.anim-zoom-in')).toHaveCount(1);
+  await expect(page.locator('#anim-title')).toHaveText('1 Grid and staff.');
+  await info.attach('zoom-in', { body: await page.screenshot(), contentType: 'image/png' });
+  await expect(page.locator('#map-title')).toHaveText(/1 Grid and staff/);   /* then the island */
+  await expect(page.locator('.map-places .row').first()).toHaveText(/1\.1 Find the notes/);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.anim-zoom-out')).toHaveCount(1);
+  await expect(page.locator('#anim-title')).toHaveText('World map.');
+  await info.attach('zoom-out', { body: await page.screenshot(), contentType: 'image/png' });
+  await expect(page.locator('#map-title')).toHaveText('Learning Path');
+  /* In again, and a click skips the zoom straight to the island. */
+  await first.click();
+  await page.locator('.anim-screen').click();
+  await expect(page.locator('.map-places .row').first()).toHaveText(/1\.1 Find the notes/);
+});
+
 test('the options of a row: Test out: checkpoint plays the exam Solo', async ({ page }) => {
   await openPath(page, ['Learning Path']);
   await expect(page.locator('.row.on')).toHaveText(/1 Grid and staff/);
@@ -249,6 +273,8 @@ test('a Name round answered from the lit keys runs to its result, and Progress c
   await expect(answers).toBeVisible();
   expect(await answers.locator('rect.chart-bar').count()).toBeGreaterThan(1);
   await expect(page.locator('.result-screen svg[role="img"]')).toHaveCount(3);
+  /* Learned at the first go: a star over the result, then the result itself. */
+  await expect(page.locator('.anim-over')).toHaveCount(0);
   for (let i = 0; i < 4; i++) await page.keyboard.press('Escape');
   await page.locator('.row', { hasText: /^Progress/ }).click();
   await page.locator('.progress-screen .row', { hasText: 'Overall' }).click();
