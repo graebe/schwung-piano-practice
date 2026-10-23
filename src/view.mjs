@@ -257,19 +257,27 @@ export function drawReadingView(ctx, state) {
  */
 /*
  * The box: the controls and the level side by side, and under a rule the
- * tempo, full width -- what knob 8 changes, which nothing else on the screen
- * said. It starts at the staff area's top (y 10, clear of the header) and
- * ends on row 51, three rows above the bottom line's band (55); it covers
- * the staff and, at the start only, the name rule and most of the name lane
- * (the names of notes still to come, under the box anyway).
+ * tempo, centred -- what knob 8 changes, which nothing else on the screen
+ * said. One rhythm throughout: two clear rows inside the border above the
+ * first control, below the last one down to the rule, above and below the
+ * tempo; and the LEVEL value (its digit, and the G or S that hangs a row
+ * below it) two rows under its title and two above the rule.
  *
- *   y+3 / +12 / +21   listen, practise, scrub    | LEVEL, its digit at +11
+ *   y+3 / +12 / +21   listen, practise, scrub    | LEVEL; its value at +12
  *   y+30              the rule
- *   y+32              Knob 8:  92 bpm
+ *   y+33              Knob 8:  92 bpm
+ *   y+42              the border
+ *
+ * It starts at the staff area's top (y 10, clear of the header) and ends on
+ * row 52, two clear rows above the bottom line's band (55). While it is up
+ * the name lane is hidden, the whole width of it -- its letters and its
+ * rule would otherwise show beside and under the box; scrubbed away from
+ * the start, the box goes and the names come back.
  */
-export const READY_BOX = { x: 12, y: 10, w: 104, h: 42 };
+export const READY_BOX = { x: 12, y: 10, w: 104, h: 43 };
 export const READY_TEMPO_RULE = 30;
-export const READY_TEMPO_Y = 32;
+export const READY_TEMPO_Y = 33;
+export const READY_LEVEL_Y = 12;
 
 /* The tempo row: the knob, and the bpm in a three-digit field so the number
  * stays put as it crosses 99. */
@@ -298,7 +306,7 @@ function drawLevelBox(ctx, level) {
   const digit = String((lv && lv.step ? lv.step.replace(/\D/g, '') : '') || level.index + 1);
   const dw = R.bigTextWidth(digit, LEVEL_SCALE);
   const dx = x0 + ((w - dw) >> 1);
-  const dy = b.y + 11;
+  const dy = b.y + READY_LEVEL_Y;
   R.drawBigText(ctx, dx, dy, digit, LEVEL_SCALE);
   const tagY = dy + R.bigDigitHeight(LEVEL_SCALE) - L.TEXT_H + 1;
   ctx.text(dx + dw + 2, tagY, level.stage === 2 ? 'S' : 'G', 1);
@@ -361,11 +369,11 @@ export function drawReadyView(ctx, state) {
    */
   if ((state.songBeats || 0) <= 0) {
     const b = READY_BOX;
+    /* The name lane goes while the box is up: under and beside it its
+     * letters and rule would peek out. */
+    ctx.fillRect(0, L.NAME_RULE_Y, L.SCREEN_W, L.NAME_LANE_Y + L.TEXT_H - L.NAME_RULE_Y, 0);
     ctx.fillRect(b.x, b.y, b.w, b.h, 0);
     ctx.drawRect(b.x, b.y, b.w, b.h, 1);
-    /* The rows between the box and the bottom line's band stay clear: the
-     * name lane runs under the box, and its letters would peek out below it. */
-    ctx.fillRect(b.x, b.y + b.h, b.w, L.FOOTER_Y - 3 - (b.y + b.h), 0);
 
     /* Three controls, three symbols, three words, in the left 64 px. Which
      * one does what is the thing that has to be readable without being
@@ -386,7 +394,8 @@ export function drawReadyView(ctx, state) {
     /* Under a rule, full width: the tempo, and the knob that sets it. */
     ctx.fillRect(b.x + 1, b.y + READY_TEMPO_RULE, b.w - 2, 1, 1);
     const bpm = state.bpm !== undefined ? state.bpm : state.chart ? state.chart.bpm : 0;
-    ctx.text(gx, b.y + READY_TEMPO_Y, truncate(ctx, tempoRow(bpm), b.w - 6), 1);
+    const row = truncate(ctx, tempoRow(bpm), b.w - 6);
+    ctx.text(b.x + ((b.w - ctx.textWidth(row)) >> 1), b.y + READY_TEMPO_Y, row, 1);
   }
 
   /* Where the notes are going is in the header (rightLabel, above), on the one

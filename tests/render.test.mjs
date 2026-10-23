@@ -1648,6 +1648,60 @@ test('the ready box\'s last row: under a rule, knob 8 and the tempo, two or thre
   assert.equal(draw({ songBeats: 4 }).row, undefined, 'drawn only at the start');
 });
 
+/*
+ * The ready box's rhythm, by its pixels: the same clear rows above the first
+ * control and below the last one to the rule, the tempo centred between the
+ * rule and the border and across the box, the LEVEL value centred between
+ * its title and the rule; the bottom line kept two rows clear, and nothing
+ * of the name lane peeking out while the box is up.
+ */
+test('the ready box keeps one rhythm: even gaps, the tempo centred, nothing peeking', () => {
+  const b = V.READY_BOX;
+  const rule = b.y + V.READY_TEMPO_RULE;
+  const bottom = b.y + b.h - 1;
+  /* Lit rows (or columns) of a region, first and last. */
+  const rows = (c, x0, x1, y0, y1) => {
+    const lit = [];
+    for (let y = y0; y <= y1; y++) if (countOn(c, x0, y, x1 - x0 + 1, 1)) lit.push(y);
+    return lit;
+  };
+  const cols = (c, x0, x1, y0, y1) => {
+    const lit = [];
+    for (let x = x0; x <= x1; x++) if (countOn(c, x, y0, 1, y1 - y0 + 1)) lit.push(x);
+    return lit;
+  };
+  for (const [level, bpm] of [[LEVELS4, 92], [LEVELS4, 120], [{ ...LEVELS4, index: 0, stage: 1 }, 200], [null, 92],
+    [null, 120]]) {
+    const c = createScreen();
+    V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24, names: true, level, bpm,
+      footerLeft: 'L1 RH melody', footerRight: 'Guided' });
+    const what = `${level ? 'levels' : 'no levels'}, ${bpm} bpm`;
+    /* The controls: two clear rows above, two below to the rule. */
+    const left = rows(c, b.x + 1, V.READY_SPLIT_X - 1, b.y + 1, rule - 1);
+    assert.equal(left[0] - (b.y + 1), (rule - 1) - left.at(-1), what + ': the controls\' padding');
+    assert.equal(left[0] - (b.y + 1), 2, what + ': two rows');
+    /* The tempo: centred between the rule and the border, and across. */
+    const tempo = rows(c, b.x + 1, b.x + b.w - 2, rule + 1, bottom - 1);
+    assert.equal(tempo[0] - (rule + 1), (bottom - 1) - tempo.at(-1), what + ': the tempo between rule and border');
+    const across = cols(c, b.x + 1, b.x + b.w - 2, rule + 1, bottom - 1);
+    assert.ok(Math.abs((across[0] + across.at(-1)) / 2 - (b.x + (b.w - 1) / 2)) <= 1, what + ': the tempo centred');
+    if (level) {
+      /* The LEVEL value: between its title and the rule. */
+      const right = rows(c, V.READY_SPLIT_X + 1, b.x + b.w - 2, b.y + 1, rule - 1);
+      const titleEnd = right.find((y, i) => right[i + 1] !== y + 1);
+      const value = right.filter((y) => y > titleEnd + 1);
+      assert.equal(value[0] - (titleEnd + 1), (rule - 1) - value.at(-1), what + ': the value between title and rule');
+    }
+    /* Two clear rows at least between the box and the bottom line's text. */
+    assert.equal(rows(c, 0, L.SCREEN_W - 1, bottom + 1, L.FOOTER_Y - 3).length, 0, what + ': clear under the box');
+    assert.ok(L.FOOTER_Y - 2 - (bottom + 1) >= 2, what + ': at least two rows');
+    /* Nothing of the name lane beside the box. */
+    assert.equal(countOn(c, 0, L.NAME_RULE_Y, b.x, L.FOOTER_Y - 3 - L.NAME_RULE_Y), 0, what + ': left of the box');
+    assert.equal(countOn(c, b.x + b.w, L.NAME_RULE_Y, L.SCREEN_W - b.x - b.w, L.FOOTER_Y - 3 - L.NAME_RULE_Y), 0,
+      what + ': right of the box');
+  }
+});
+
 test('four answers or fewer list each with the colour of its pad', () => {
   const plain = createScreen();
   V.drawPick(plain, { options: ['Major', 'Minor'], index: 0 });
