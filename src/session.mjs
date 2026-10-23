@@ -508,6 +508,11 @@ export function createSession(fx, opts = {}) {
 
   let settingsCursor = 0;
   let settingsEditing = false;
+  /* Where the Settings page goes back to: 'menu' (the list or home it was
+   * opened from) or 'piece' (Shift + click on a drill: its ready screen). */
+  let settingsOver = 'menu';
+  /* The list Settings › Advanced was opened over, to go back to. */
+  let settingsBack = null;
 
   let ledDirty = true;
 
@@ -590,12 +595,19 @@ export function createSession(fx, opts = {}) {
     return rows.map((r) => ({ ...r, value: '', key: quizId(settingsQuiz(r)), absolute: true }));
   }
 
-  /* Settings, as a folder of groups; a group opens the settings page with
-   * its rows only. */
+  /*
+   * Settings: its row opens the one short page ('main'); the rest is a real
+   * folder under it, Advanced, of the groups, each opening its page. Real,
+   * so a rebuild (a Key or Half tones edit) restores a list inside it.
+   */
   function settingsFolder() {
-    return CAT.folder('Settings', SET.GROUPS.map((g) => ({
+    const advanced = CAT.folder('Advanced', SET.GROUPS.map((g) => ({
       label: g.label, value: CAT.FOLDER, key: g.key, settingsGroup: g.key,
-    })), 'settings');
+    })), 'advanced');
+    advanced.advanced = true;
+    const node = CAT.folder('Settings', [advanced], 'settings');
+    node.settingsGroup = SET.MAIN_GROUP.key;
+    return node;
   }
 
   /*
@@ -918,6 +930,11 @@ export function createSession(fx, opts = {}) {
   function openRow() {
     const row = CAT.navCurrent(nav);
     if (!row) return;
+    /* Settings is a page, not its folder; a group of Advanced its page. */
+    if (row.settingsGroup) {
+      openSettings(row.settingsGroup, 'menu');
+      return;
+    }
     if (CAT.navPush(nav)) {
       view = MENU;
       dirty = true;
@@ -936,10 +953,6 @@ export function createSession(fx, opts = {}) {
     }
     if (row.progress) {
       openProgress();
-      return;
-    }
-    if (row.settingsGroup) {
-      openSettings(row.settingsGroup);
       return;
     }
     checkPhase = null;
@@ -1951,30 +1964,81 @@ export function createSession(fx, opts = {}) {
 
   /* ---- Settings ---------------------------------------------------------------- */
   /*
-   * The rows of the settings page: the open group's, or every setting when
-   * it was opened from a piece. A row is a setting ({ index } into
-   * settings_def), the path's start, or an action (Help's two).
+   * One short page ('main') edited in place, and Advanced, a folder of the
+   * groups, each a page of its own. A row is a setting ({ index } into
+   * settings_def), the path's start, or an action (Advanced, Help's two).
+   *
+   *   Back: a group's page -> Advanced's list -> the page -> where it was
+   *   opened from (the list or home, or a drill's ready screen).
+   *   Shift + click on any of them: straight back there.
    */
   function settingsRows() {
     return SET.groupRows(settingsGroup, settings, { start: PLAN.startIndex(progress, phases) + 1 });
   }
 
-  function openSettings(group) {
-    settingsGroup = group || null;
+  /* A page: 'main', or a group of Advanced. `over` says where the main page
+   * goes back to, when it is opened. */
+  function openSettings(group, over) {
+    settingsGroup = group || SET.MAIN_GROUP.key;
+    if (settingsGroup === SET.MAIN_GROUP.key && over) {
+      settingsOver = over;
+      settingsBack = null;
+    }
     settingsCursor = 0;
     settingsEditing = false;
     view = SETTINGS;
     dirty = true;
     ledDirty = true;
-    const g = SET.groupByKey(settingsGroup);
-    announce((g ? g.label : 'Settings') + '.');
+    announce(SET.groupByKey(settingsGroup).label + '.');
   }
 
-  function closeSettings() {
+  const onMain = () => settingsGroup === SET.MAIN_GROUP.key;
+  const inAdvanced = () => view === MENU && Boolean(CAT.navTop(nav).node.advanced);
+
+  /* The Advanced row: the list of the groups, Settings › Advanced. */
+  function openAdvanced() {
+    settingsBack = CAT.navPath(nav);
+    nav = CAT.navStart(catalog);
+    nav[0].cursor = Math.max(0, topIndex('settings'));
+    CAT.navPush(nav);
+    CAT.navPush(nav);
     settingsEditing = false;
-    view = settingsGroup ? MENU : (chart ? READY : MENU);
+    view = MENU;
     dirty = true;
     ledDirty = true;
+    announce('Advanced.');
+  }
+
+  /* Back from Advanced's list: the page again, on its Advanced row. */
+  function leaveAdvanced() {
+    nav = settingsBack ? CAT.navRestore(catalog, settingsBack) : CAT.navStart(catalog);
+    settingsBack = null;
+    settingsGroup = SET.MAIN_GROUP.key;
+    settingsCursor = SET.MAIN.indexOf('advanced');
+    settingsEditing = false;
+    view = SETTINGS;
+    dirty = true;
+    ledDirty = true;
+    announce('Settings.');
+  }
+
+  /* Back from a page: a group to Advanced's list, the page to its origin. */
+  function closeSettings() {
+    settingsEditing = false;
+    if (!onMain()) view = MENU;
+    else view = settingsOver === 'piece' && chart ? READY : MENU;
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* Shift + click on any page: all the way back to where Settings was opened. */
+  function closeAllSettings() {
+    if (!onMain()) {
+      if (settingsBack) nav = CAT.navRestore(catalog, settingsBack);
+      settingsBack = null;
+      settingsGroup = SET.MAIN_GROUP.key;
+    }
+    closeSettings();
   }
 
   /* A row of the page changed by the jog or a knob. */
@@ -1999,6 +2063,10 @@ export function createSession(fx, opts = {}) {
     if (!r.act) {
       settingsEditing = !settingsEditing;
       dirty = true;
+      return;
+    }
+    if (r.act === 'advanced') {
+      openAdvanced();
       return;
     }
     if (r.act === 'tips') {
@@ -2157,8 +2225,9 @@ export function createSession(fx, opts = {}) {
         showFolderAs(pick.act);
         break;
       case SHEET.SETTINGS:
-        goTop('settings', true);
-        announce('Settings.');
+        /* Over the list it was asked from; inside Advanced, the page again. */
+        if (inAdvanced()) leaveAdvanced();
+        else openSettings(SET.MAIN_GROUP.key, 'menu');
         break;
       default:
         break;
@@ -2303,6 +2372,7 @@ export function createSession(fx, opts = {}) {
       const r = settingsRows()[settingsCursor];
       st.editing = settingsEditing;
       st.action = Boolean(r && r.act);
+      st.open = Boolean(r && r.act === 'advanced');
     }
     if (view === CARD_VIEW && card) {
       st.pages = card.pages.length;
@@ -2977,10 +3047,10 @@ export function createSession(fx, opts = {}) {
         openSheet();
         return;
       case 'settings':
-        openSettings(null);
+        openSettings(SET.MAIN_GROUP.key, 'piece');
         return;
       case 'close-settings':
-        closeSettings();
+        closeAllSettings();
         return;
       case 'toggle-edit':
         clickRow(settingsCursor);
@@ -3116,6 +3186,11 @@ export function createSession(fx, opts = {}) {
       showFolderAs('map');
       return;
     }
+    /* Advanced's list goes back to the page it was opened from. */
+    if (inAdvanced()) {
+      leaveAdvanced();
+      return;
+    }
     /* Up one folder. The top of the tree is the only list Back leaves from. */
     const leaving = view === MENU && nav.length > 1 ? CAT.navTop(nav).node : null;
     if (view === MENU && CAT.navPop(nav)) {
@@ -3160,6 +3235,8 @@ export function createSession(fx, opts = {}) {
     sheet = null;
     card = null;
     settingsGroup = null;
+    settingsOver = 'menu';
+    settingsBack = null;
     awayAt = 0;
     listViews.clear();
     map = null;
@@ -3357,7 +3434,8 @@ export function createSession(fx, opts = {}) {
     openSheet,
     pickSheet,
     pickCard,
-    openSettingsFolder: () => goTop('settings', true),
+    /* The Settings page over the list, as the web page's top bar opens it. */
+    openSettingsPage: () => openSettings(SET.MAIN_GROUP.key, 'menu'),
     hint,
     onMap,
     onHome,

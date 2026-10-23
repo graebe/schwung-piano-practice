@@ -5,7 +5,7 @@
  * of screen appears. Pure: the words, and when they are due.
  *
  * What has been shown is kept in progress.tips (progress.mjs), a list of
- * keys, saved with the rest of the progress. Settings › Help › Show tips
+ * keys, saved with the rest of the progress. Settings › Advanced › Help › Show tips
  * again empties it.
  *
  * A card is { key, title, paragraphs, choices? }: paragraphs as the Info page

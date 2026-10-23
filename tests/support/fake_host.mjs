@@ -82,3 +82,19 @@ export function openPath(session, labels) {
     session.activate(false);
   }
 }
+
+/*
+ * Settings, as a person reaches it: the page (from the list, as the web
+ * page's top bar does), and for a group, its Advanced row and the group.
+ */
+export function openSettings(session, group = 'main') {
+  session.openSettingsPage();
+  if (group === 'main') return;
+  session.selectSettingRow(session.settingsRows().findIndex((r) => r.act === 'advanced'));
+  session.activate(false);
+  const top = session.nav[session.nav.length - 1];
+  const index = top.node.children.findIndex((r) => r.settingsGroup === group);
+  if (index < 0) throw new Error(`no group "${group}" in Advanced`);
+  session.selectRow(index);
+  session.activate(false);
+}

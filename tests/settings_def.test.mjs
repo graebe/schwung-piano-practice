@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 
 import {
   SETTINGS_DEF, SETTINGS_COUNT, GRACE_VALUES, GRACE_LABELS,
-  settingIndex, formatSetting, applySetting, coerceInto, GROUPS, groupRows, groupByKey,
+  settingIndex, formatSetting, applySetting, coerceInto, GROUPS, groupRows, groupByKey, MAIN, MAIN_GROUP,
 } from '../src/settings_def.mjs';
 import { MODES } from '../src/generator.mjs';
 import { PX_PER_BEAT_MIN, PX_PER_BEAT_MAX } from '../src/layout.mjs';
@@ -28,8 +28,8 @@ test('every row has a key the settings object actually holds', () => {
 });
 
 test('every row renders a non-empty value', () => {
-  const rows = groupRows(null, fresh());
-  assert.equal(rows.length, SETTINGS_COUNT);
+  const rows = ['main'].concat(GROUPS.map((g) => g.key)).flatMap((k) => groupRows(k, fresh())).filter((r) => !r.act);
+  assert.equal(rows.length, SETTINGS_COUNT + 1, 'every setting, and Start at');
   for (const r of rows) assert.ok(r.value.length > 0, `${r.label} renders blank`);
 });
 
@@ -244,23 +244,27 @@ test('the reference volume is reachable — it was in the file but on no row', (
 
 /* ---- Groups ------------------------------------------------------------------ */
 
-test('every setting sits in exactly one group, and the groups are the shared ones', () => {
-  assert.deepEqual(GROUPS.map((g) => g.label), ['Learning Path', 'Practice', 'Sound', 'Pads', 'MIDI', 'Help']);
-  const seen = GROUPS.flatMap((g) => g.settings || []);
+test('every setting is on the page or in exactly one group of Advanced, none twice, none lost', () => {
+  assert.deepEqual(MAIN, ['transpose', 'click', 'rootPc', 'mode', 'start', 'advanced']);
+  assert.deepEqual(GROUPS.map((g) => g.label), ['Practice', 'Sound', 'MIDI', 'Help']);
+  const seen = MAIN.filter((k) => k !== 'start' && k !== 'advanced').concat(GROUPS.flatMap((g) => g.settings || []));
   assert.deepEqual([...seen].sort(), SETTINGS_DEF.map((d) => d.key).sort());
   assert.equal(new Set(seen).size, seen.length, 'none twice');
 });
 
-test('a group\'s rows: its settings by index, the path\'s start, Help\'s actions', () => {
+test('the page\'s rows, a group\'s rows: settings by index, the path\'s start, actions', () => {
   const settings = {};
   for (const d of SETTINGS_DEF) settings[d.key] = d.type === 'bool' ? true : d.values ? d.values[0] : d.min || 0;
-  assert.deepEqual(groupRows('path', settings, { start: 3 }), [{ label: 'Start at', value: 'stage 3', edit: 'start' }]);
-  assert.deepEqual(groupRows('path', settings).map((r) => r.value), ['stage 1']);
+  const main = groupRows('main', settings, { start: 3 });
+  assert.deepEqual(main.map((r) => r.label), ['Octave', 'Click', 'Key', 'Scale', 'Start at', 'Advanced']);
+  assert.deepEqual(main.slice(0, 4).map((r) => r.index), ['transpose', 'click', 'rootPc', 'mode'].map(settingIndex));
+  assert.deepEqual(main[4], { label: 'Start at', value: 'stage 3', edit: 'start' });
+  assert.deepEqual(main[5], { label: 'Advanced', value: '>', act: 'advanced' });
+  assert.equal(groupRows('main', settings)[4].value, 'stage 1');
   const midi = groupRows('midi', settings);
   assert.deepEqual(midi.map((r) => [r.label, r.index]), [['MIDI out', settingIndex('midiOut')], ['MIDI ch', settingIndex('midiCh')]]);
   assert.deepEqual(groupRows('help', settings).map((r) => r.act || r.label), ['Auto info', 'tips', 'welcome']);
-  const all = groupRows(null, settings);
-  assert.equal(all.length, SETTINGS_COUNT, 'no group: every setting, from a piece');
-  assert.ok(all.every((r, i) => r.index === i));
+  assert.deepEqual(groupRows(null, settings), [], 'no flat list of everything any more');
+  assert.equal(groupByKey('main'), MAIN_GROUP);
   assert.equal(groupByKey('nope'), null);
 });

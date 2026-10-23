@@ -96,7 +96,8 @@ function table(screen, s) {
     }
     case SETTINGS:
       if (s.editing) return { keys: ['JOG change', 'CLICK ok'], shift: [QUIT] };
-      return { keys: [s.action ? 'CLICK do it' : 'CLICK edit', 'BACK up'], shift: ['CLICK close', QUIT] };
+      return { keys: [s.open ? 'CLICK open' : s.action ? 'CLICK do it' : 'CLICK edit', 'BACK up'],
+        shift: ['CLICK close', QUIT] };
     case PROGRESS:
       return { keys: ['CLICK chart', 'BACK up'], shift: [QUIT] };
     case PROGRESS_DETAIL:
@@ -135,7 +136,7 @@ function about(screen, s) {
     case CARD:
       return s.choice
         ? 'A question: pick the answer that fits you. You can change your mind in the settings.'
-        : 'A card, shown once. Settings > Help shows the tips and the welcome again.';
+        : 'A card, shown once. Settings > Advanced > Help shows the tips and the welcome again.';
     case READY:
       return 'A piece, armed and waiting. REC plays it and scores you; PLAY lets you listen first. The jog picks Guided, with the pads lit, or Solo, reading alone.';
     case RUNNING:
@@ -147,7 +148,7 @@ function about(screen, s) {
         : s.pick ? 'A round of naming: name what the lit pads play.'
           : 'A round: play what is asked, on the pads.';
     case SETTINGS:
-      return 'Settings. The jog picks a row; CLICK edits it, the jog changes it, CLICK again when done.';
+      return 'Settings: the few that are yours, the octave, the click, the key and scale, where the path starts; Advanced holds the rest. The jog picks a row; CLICK edits it, the jog changes it, CLICK again when done.';
     case PROGRESS:
       return 'Your progress: overall, each stage, then everything you have played.';
     case PROGRESS_DETAIL:

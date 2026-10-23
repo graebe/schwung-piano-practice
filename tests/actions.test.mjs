@@ -42,17 +42,27 @@ test('select and open walk the list; back steps out', () => {
   assert.equal(h.session.nav.length, 1);
 });
 
-test('settings opens the Settings folder, from the list only', () => {
+test('settings opens the Settings page, from the list only; its Advanced row the groups', () => {
   const h = fakeHost();
   h.session.init();
   applyAction(h.session, { type: 'settings' });
+  assert.equal(h.session.view, SETTINGS);
+  assert.equal(h.session.settingsGroup, 'main');
+  applyAction(h.session, { type: 'settingRow', row: 5 });   /* Advanced: an action row runs */
   assert.equal(h.session.view, MENU);
-  assert.equal(h.session.nav.at(-1).node.label, 'Settings');
-  applyAction(h.session, { type: 'select', index: 1 });
+  assert.equal(h.session.nav.at(-1).node.label, 'Advanced');
+  applyAction(h.session, { type: 'settings' });
+  assert.equal(h.session.view, SETTINGS, 'the top bar\'s Settings from inside Advanced');
+  applyAction(h.session, { type: 'back' });
+  applyAction(h.session, { type: 'settings' });
+  applyAction(h.session, { type: 'settingRow', row: 5 });
+  applyAction(h.session, { type: 'select', index: 0 });
   applyAction(h.session, { type: 'open' });
   assert.equal(h.session.view, SETTINGS);
+  applyAction(h.session, { type: 'selectSetting', index: 1 });
+  assert.equal(h.session.settingsCursor, 1, 'Read ahead is the second row of Practice');
   applyAction(h.session, { type: 'selectSetting', index: 2 });
-  assert.equal(h.session.settingsCursor, 2, 'Key is the third row of Practice');
+  assert.equal(h.session.settingsCursor, 1, 'Key is on the main page, not here: nothing');
   applyAction(h.session, { type: 'editSetting', index: 0, delta: 3 });
   assert.equal(h.session.settings.bpm, 83);
   applyAction(h.session, { type: 'editSetting', index: 0, delta: 0 });
@@ -60,7 +70,7 @@ test('settings opens the Settings folder, from the list only', () => {
   applyAction(h.session, { type: 'editRow', row: 0, delta: 2 });
   assert.equal(h.session.settings.bpm, 85, 'a row by its place on the page');
   applyAction(h.session, { type: 'back' });
-  applyAction(h.session, { type: 'select', index: 5 });
+  applyAction(h.session, { type: 'select', index: 3 });
   applyAction(h.session, { type: 'open' });
   applyAction(h.session, { type: 'settingRow', row: 1 });
   assert.deepEqual(h.session.progress.tips, [], 'an action row runs: Show tips again');
@@ -75,9 +85,9 @@ test('options: the sheet, its picks, and the welcome answered from a page', () =
   applyAction(h.session, { type: 'sheetPick', index: 9 });
   assert.equal(h.session.view, 'sheet', 'out of range: nothing');
   applyAction(h.session, { type: 'sheetPick', index: 1 });
-  assert.equal(h.session.view, MENU);
-  assert.equal(h.session.nav.at(-1).node.label, 'Settings', 'Path on home: Show as list, Settings...');
+  assert.equal(h.session.view, SETTINGS, 'Path on home: Show as list, Settings...');
   applyAction(h.session, { type: 'back' });
+  assert.ok(h.session.onHome(), 'Back: home, where it was asked'); 
   applyAction(h.session, { type: 'options' });
   assert.equal(h.session.view, 'sheet', 'Shift + click, as on the Move');
   applyAction(h.session, { type: 'back' });

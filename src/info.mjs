@@ -34,7 +34,7 @@ import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
 import { LEVELS } from './levels.mjs';
 import { buildProgram } from './program.mjs';
-import { GROUPS } from './settings_def.mjs';
+import { groupByKey } from './settings_def.mjs';
 import { PATH_TEXT, STRANDS, STRAND_TEXT } from './curriculum.mjs';
 
 /* ---- Glossary ------------------------------------------------------------- */
@@ -433,7 +433,7 @@ const FOLDERS = {
   'basics/songs/styles': ['Styles', 'Pop, indie, film, soul and funk pieces, each written to drill a style.', ['level']],
   'basics/songs/other': ['Other', 'Exercises you added yourself.', []],
   'program/repetition': ['Review', 'Finished exercises come back: those that slipped under 90%, then those due again after 1, 3, 7, 14 and 30 days. A repeat never lowers a finished score. Continue offers them too, one review and then one new step.', ['score']],
-  settings: ['Settings', 'Grouped: Learning Path, Practice, Sound, Pads, MIDI and Help. Open a group to change its rows.', []],
+  settings: ['Settings', 'One short page: Octave, Click, Key, Scale and where the Learning Path starts, changed right there. Advanced holds the rest, in groups: Practice, Sound, MIDI and Help.', []],
 };
 
 const KIND_PAGES = {
@@ -442,16 +442,15 @@ const KIND_PAGES = {
   progress: ['Progress', 'Overall and per stage: steps passed over time. Then everything you have played, with a chart of each attempt.', ['stage', 'guided', 'score']],
   result: ['Result', 'Your score, and every recent attempt on a fixed 0-100% scale. Hollow points are Guided, solid ones Solo; the dotted line is 90%. REC again, BACK to the start, CLICK for next.', ['score', 'guided']],
   sheet: ['Options', 'What you can do with this row besides opening it: skip what you know, undo a skip, start the path at a stage, test out of a stage at its checkpoint, or go to the settings. Only what applies to the row is offered.', []],
-  welcome: ['Welcome', 'The first pages of Piano Practice. BACK skips them; Settings > Help > Welcome again shows them again.', []],
-  tip: ['Tip', 'A tip shown the first time this kind of screen appears. Settings > Help > Show tips again shows them all again.', []],
+  welcome: ['Welcome', 'The first pages of Piano Practice. BACK skips them; Settings > Advanced > Help > Welcome again shows them again.', []],
+  tip: ['Tip', 'A tip shown the first time this kind of screen appears. Settings > Advanced > Help > Show tips again shows them all again.', []],
 };
 
 /* What each settings group holds, for its help page. */
 const GROUP_TEXT = {
-  path: 'Start at: the stage Continue starts from. The stages before it count as assumed; nothing is locked.',
-  practice: 'Tempo, read-ahead, the key and scale the free library is made in, how the scroll waits and judges, the names under the notes, and the quizzes\' half tones, chords and round length.',
-  sound: 'The click, the reference line that plays what you are reading, its volume, and the quiz sounds.',
-  pads: 'Octave: which octave the pads start from.',
+  main: 'Octave: which octave the pads start from. Click: the metronome. Key and Scale: what the free library is made in (the Learning Path keeps its own). Start at: the stage Continue starts from; the stages before it count as assumed, nothing is locked. Advanced: everything else.',
+  practice: 'Tempo, read-ahead, how the scroll waits and judges, the names under the notes, and the quizzes\' half tones, chords and round length.',
+  sound: 'The reference line that plays what you are reading, its volume, and the quiz sounds.',
   midi: 'Where the notes go: the module\'s own piano, a Move track, USB, or both, and the channel.',
   help: 'Auto info shows a practice\'s help the first time you open it. Show tips again brings the first-visit tips back; Welcome again shows the welcome.',
 };
@@ -504,7 +503,7 @@ export function infoFor(target, env = {}) {
   if (!target) return null;
   const label = target.label || '';
   if (target.kind === 'settings' && target.group) {
-    const g = GROUPS.find((x) => x.key === target.group);
+    const g = groupByKey(target.group);
     return g ? page('settings:' + g.key, g.label, [sec('', GROUP_TEXT[g.key] || '')], []) : null;
   }
   if (target.kind === 'settings') return infoFor({ id: 'settings' }, env);

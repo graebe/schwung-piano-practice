@@ -19,7 +19,7 @@
 ["tick",33,"bfceedbf9bca","5e88855ed025"],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{\"tip\":1791532801},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"placement\"]}"],
 ["announce","Tip. Help."],
-["tick",45,"26dd27fabf66","5e88855ed025"],
+["tick",45,"cdaaaddd13ca","5e88855ed025"],
 ["tick",47,"bfceedbf9bca","5e88855ed025"],
 ["write","/data/UserData/schwung/modules/tools/piano-practice/progress.json","{\"version\":1,\"items\":{},\"seen\":{\"tip\":1791532801},\"program\":{\"start\":0},\"tips\":[\"welcome\",\"placement\",\"map\"]}"],
 ["announce","Tip. Lit pads are places. Press one to walk there, again to go in. PLAY continues."],

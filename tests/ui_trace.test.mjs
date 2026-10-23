@@ -303,11 +303,12 @@ const SCENARIOS = {
     d.jog(1); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);   /* Practice › Progressions */
     d.click(); d.jog(4); d.click(); d.jog(1); d.click(); d.jog(1);           /* Practice › Songs › Electronic */
     d.press(BACK); d.press(BACK); d.press(BACK);
-    d.jog(60); d.click();                         /* Settings */
-    d.jog(1); d.click();                          /* Practice */
-    d.click(); d.jog(1); d.click();              /* edit row 0 */
-    d.jog(2); d.click(); d.jog(-1); d.click();    /* edit row 2 */
-    d.knob(0, 1); d.knob(1, 2); d.knob(2, -1);
+    d.jog(60); d.click();                         /* Settings: the page */
+    d.click(); d.jog(1); d.click();              /* Octave up: a rebuild */
+    d.jog(2); d.click(); d.jog(-1); d.click();    /* Key down a semitone */
+    d.knob(0, 1); d.knob(1, 2); d.knob(2, -1);    /* the knobs: the rows on screen */
+    d.jog(60); d.click(); d.run(100);             /* Advanced */
+    d.click(); d.click(); d.jog(1); d.click();    /* Practice: Tempo up */
     d.toTop(); d.run(1200);                       /* the throttled save lands */
   } },
 
@@ -574,7 +575,7 @@ const SCENARIOS = {
   /*
    * The options of a row: the sheet's tip once, Test out: checkpoint on a
    * stage, the Path as a list, I know this on its Continue and Continue then
-   * opening the step after, and Settings... from home into Settings › Path.
+   * opening the step after, and Settings... from home: the page, Start at.
    */
   sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz', 'map', 'island'] }), play(d) {
     d.run(100);
@@ -590,9 +591,9 @@ const SCENARIOS = {
     d.click(); d.run(600);                        /* Continue: the step after */
     d.toTop();
     d.jog(1); d.shiftWith(JOG_CLICK); d.run(100); /* Practice: Show as list, Settings... */
-    d.jog(1); d.click(); d.click(); d.run(100);   /* Settings › Path */
-    d.click(); d.jog(1); d.click(); d.run(100);   /* Start at: stage 2 */
-    d.press(BACK); d.press(BACK); d.toTop(); d.run(1200);
+    d.jog(1); d.click(); d.run(100);              /* Settings...: the page */
+    d.jog(4); d.click(); d.jog(1); d.click(); d.run(100);   /* Start at: stage 2 */
+    d.press(BACK); d.toTop(); d.run(1200);
   } },
 };
 

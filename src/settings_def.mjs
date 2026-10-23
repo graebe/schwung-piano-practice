@@ -136,20 +136,26 @@ export function formatSetting(settings, index) {
 }
 
 /*
- * The settings as the list shows them: a folder of groups, the same as Drums
- * Practice's, each opening the page with its own rows. A group names its
- * settings by key; Path holds where the path starts (a choice kept with the
- * progress, not here), and Help two actions.
+ * Settings is one short page, edited in place: what is personal -- the
+ * pads' octave, the click, the key and scale the free library is made in,
+ * where the path starts -- and Advanced, a folder of everything else in its
+ * groups. Nothing was dropped on the way: every setting is on the page or in
+ * exactly one group (a test holds it to that), with its key and default.
+ *
+ * MAIN is the page by key; 'start' is where the path starts (kept with the
+ * progress, not here) and 'advanced' the row that opens the rest.
  */
+export const MAIN = ['transpose', 'click', 'rootPc', 'mode', 'start', 'advanced'];
+export const MAIN_GROUP = { key: 'main', label: 'Settings' };
+
+/* Advanced: the groups, each a page of its own; Help has two actions. */
 export const GROUPS = [
-  { key: 'path', label: 'Learning Path', rows: [{ edit: 'start', label: 'Start at' }] },
   {
     key: 'practice', label: 'Practice',
-    settings: ['bpm', 'pxPerBeat', 'rootPc', 'mode', 'anyOctave', 'waitForNote', 'graceBeats', 'countIn',
+    settings: ['bpm', 'pxPerBeat', 'anyOctave', 'waitForNote', 'graceBeats', 'countIn',
       'names', 'halfTones', 'chordSet', 'roundSize'],
   },
-  { key: 'sound', label: 'Sound', settings: ['click', 'reference', 'refVel', 'quizSounds'] },
-  { key: 'pads', label: 'Pads', settings: ['transpose'] },
+  { key: 'sound', label: 'Sound', settings: ['reference', 'refVel', 'quizSounds'] },
   { key: 'midi', label: 'MIDI', settings: ['midiOut', 'midiCh'] },
   {
     key: 'help', label: 'Help', settings: ['autoInfo'],
@@ -158,27 +164,35 @@ export const GROUPS = [
 ];
 
 export function groupByKey(key) {
+  if (key === MAIN_GROUP.key) return MAIN_GROUP;
   return GROUPS.find((g) => g.key === key) || null;
 }
 
+const settingRow = (settings, key) => {
+  const i = settingIndex(key);
+  return { label: SETTINGS_DEF[i].label, value: formatSetting(settings, i), index: i };
+};
+
 /*
- * The rows of a group, or of every setting when `group` is null:
+ * The rows of a page, 'main' or a group:
  *   { label, value, index }   a setting, by its index here
  *   { label, value, edit }    something else the jog changes ('start')
- *   { label, value: '', act } an action a click runs
+ *   { label, value, act }     an action a click runs ('advanced' opens the
+ *                             rest; Help's two)
  * `extra.start` is the stage the path starts at, numbered from 1.
  */
 export function groupRows(group, settings, extra = {}) {
-  const g = groupByKey(group);
-  if (!g) return SETTINGS_DEF.map((def, i) => ({ label: def.label, value: formatSetting(settings, i), index: i }));
-  const rows = (g.settings || []).map((key) => {
-    const i = settingIndex(key);
-    return { label: SETTINGS_DEF[i].label, value: formatSetting(settings, i), index: i };
-  });
-  for (const r of g.rows || []) {
-    if (r.edit === 'start') rows.unshift({ label: r.label, value: 'stage ' + (extra.start || 1), edit: r.edit });
-    else rows.push({ label: r.label, value: '', act: r.act });
+  if (group === MAIN_GROUP.key) {
+    return MAIN.map((key) => {
+      if (key === 'start') return { label: 'Start at', value: 'stage ' + (extra.start || 1), edit: 'start' };
+      if (key === 'advanced') return { label: 'Advanced', value: '>', act: 'advanced' };
+      return settingRow(settings, key);
+    });
   }
+  const g = groupByKey(group);
+  if (!g) return [];
+  const rows = (g.settings || []).map((key) => settingRow(settings, key));
+  for (const r of g.rows || []) rows.push({ label: r.label, value: '', act: r.act });
   return rows;
 }
 

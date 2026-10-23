@@ -211,7 +211,7 @@ test('every transport and navigation control survives being pressed', () => {
   }
 });
 
-test('the jog and every knob can be turned in every view', () => {
+test('the jog and every knob can be turned in every view', async () => {
   globalThis.init();
   const turn = () => {
     for (const cc of [JOG_TURN, 71, 72, 73, 74]) {
@@ -223,19 +223,45 @@ test('the jog and every knob can be turned in every view', () => {
   turn();
   armScale();                                            /* into an exercise */
   turn();
-  /* Shift + click opens settings; every row must be editable without throwing. */
+  /*
+   * Shift + click opens the Settings page; every row of it and of every group
+   * of Advanced must be editable without throwing -- every setting there is.
+   */
+  const { MAIN, GROUPS, SETTINGS_COUNT } = await import(new URL('../src/settings_def.mjs', import.meta.url));
+  const press = (cc) => { globalThis.onMidiMessageInternal(CC(cc, 127)); globalThis.tick(); };
+  const editRows = (n) => {
+    let edited = 0;
+    for (let row = 0; row < n; row++) {
+      press(JOG_CLICK);                                   /* edit */
+      globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+      globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
+      press(JOG_CLICK);                                   /* done */
+      globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));  /* next row */
+      globalThis.tick();
+      edited++;
+    }
+    return edited;
+  };
   globalThis.onMidiMessageInternal(CC(SHIFT, 127));
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   globalThis.onMidiMessageInternal(CC(SHIFT, 0));
   globalThis.tick();
-  for (let row = 0; row < 20; row++) {
-    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* edit */
-    globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-    globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
-    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* done */
-    globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));      /* next row */
+  const screen = capture();
+  assert.match(screen.frame(), /^SETTINGS \| 1\/6 \| Octave/);
+  let edited = editRows(MAIN.length - 2);                   /* Octave, Click, Key, Scale */
+  editRows(1);                                              /* Start at */
+  assert.match(screen.frame(() => press(JOG_CLICK)), /^ADVANCED \| 1\/4 \| Practice/, 'the Advanced row');
+  for (let g = 0; g < GROUPS.length; g++) {
+    for (let i = 0; i < g; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+    const page = screen.frame(() => press(JOG_CLICK));      /* the group's page */
+    assert.ok(page.startsWith(GROUPS[g].label.toUpperCase() + ' |'), page);
+    edited += editRows(GROUPS[g].settings.length);          /* its settings, not its actions */
+    press(BACK);                                            /* Advanced's list */
+    for (let i = 0; i < GROUPS.length; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
     globalThis.tick();
   }
+  screen.restore();
+  assert.equal(edited, SETTINGS_COUNT, 'every setting edited, on the page or in its group');
 });
 
 test('knob touches and stray MIDI are ignored, not crashed on', () => {

@@ -11,7 +11,7 @@ import {
   viewModel, clockOf, encodeViewModel, decodeViewModel, encodedSize, STATE_LIMIT,
   NOTE_HIT, NOTE_PENDING, NOTE_MISSED, VM_VERSION,
 } from '../src/view_model.mjs';
-import { MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_DETAIL } from '../src/session.mjs';
+import { MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_DETAIL, SETTINGS } from '../src/session.mjs';
 import * as GUESS from '../src/guess.mjs';
 
 const plain = (vm) => JSON.parse(JSON.stringify(vm));
@@ -322,6 +322,18 @@ test('the sheet, a card and the settings page are data too', () => {
   assert.deepEqual(vm.sheet, { title: 'Learning Path', cursor: 0, items: ['Show as list', 'Settings...'] });
   assert.equal(vm.card, null);
   h.session.pickSheet(1);
+  vm = viewModel(h.session);
+  assert.equal(vm.screen, SETTINGS, 'Settings...: the page');
+  assert.equal(vm.settings.title, 'Settings');
+  assert.deepEqual(vm.settings.rows.map((r) => [r.label, r.act, r.edit]), [
+    ['Octave', null, null], ['Click', null, null], ['Key', null, null], ['Scale', null, null],
+    ['Start at', null, 'start'], ['Advanced', 'advanced', null],
+  ]);
+  h.session.selectSettingRow(5);
+  h.session.activate(false);
+  vm = viewModel(h.session);
+  assert.equal(vm.screen, MENU, 'Advanced: a list');
+  assert.deepEqual(vm.nav.path, ['Piano', 'Settings', 'Advanced']);
   openPath(h.session, ['Help']);
   vm = viewModel(h.session);
   assert.equal(vm.settings.title, 'Help');

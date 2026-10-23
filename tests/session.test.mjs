@@ -8,13 +8,14 @@
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fakeHost, openPath, QUIET } from './support/fake_host.mjs';
+import { fakeHost, openPath, openSettings, QUIET } from './support/fake_host.mjs';
 import {
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
   SHEET_VIEW, CARD_VIEW, OUT_INTERNAL,
 } from '../src/session.mjs';
 import * as GUESS from '../src/guess.mjs';
 import * as PROG from '../src/progress.mjs';
+import { settingIndex } from '../src/settings_def.mjs';
 
 function armScale(h) {
   h.session.init();
@@ -182,7 +183,7 @@ test('Back from a running drill restarts it; again leaves for the list', () => {
 test('settings open from the list, edit, and save lazily', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Settings', 'Practice']);
+  openSettings(h.session, 'practice');
   assert.equal(h.session.view, SETTINGS);
   h.session.selectSetting(0);
   h.session.editSetting(0, 5);
@@ -198,15 +199,34 @@ test('settings open from the list, edit, and save lazily', () => {
   assert.equal(writes(), 2);
   h.session.back();
   assert.equal(h.session.view, MENU);
-  assert.equal(h.session.nav.at(-1).node.label, 'Settings', 'back in the folder of groups');
+  assert.equal(h.session.nav.at(-1).node.label, 'Advanced', 'back in the folder of groups');
 });
 
-test('Settings is a folder of groups, each the page limited to its rows', () => {
+test('Settings is one short page, edited in place; Advanced holds the groups', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Settings']);
-  assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => r.label),
-    ['Learning Path', 'Practice', 'Sound', 'Pads', 'MIDI', 'Help']);
+  openPath(h.session, ['Settings']);                /* its circle on home: the page */
+  assert.equal(h.session.view, SETTINGS);
+  assert.deepEqual(h.session.settingsRows().map((r) => r.label), ['Octave', 'Click', 'Key', 'Scale', 'Start at', 'Advanced']);
+  assert.deepEqual(h.session.hint(), ['CLICK edit  BACK up']);
+  /* Start at: where Continue starts, kept with the progress. */
+  h.session.selectSettingRow(4);
+  assert.deepEqual(h.session.settingsRows()[4], { label: 'Start at', value: 'stage 1', edit: 'start' });
+  h.session.activate(false);
+  h.session.moveSelection(1);
+  assert.equal(PROG.programStart(h.session.progress), 1);
+  assert.equal(h.session.settingsRows()[4].value, 'stage 2');
+  h.session.moveSelection(-1);
+  h.session.moveSelection(-1);
+  assert.equal(PROG.programStart(h.session.progress), 0, 'clamped at the first stage');
+  h.session.activate(false);
+  /* Advanced: a real folder of the groups. */
+  h.session.moveSelection(1);
+  assert.deepEqual(h.session.hint(), ['CLICK open  BACK up'], 'the Advanced row opens');
+  h.session.activate(false);
+  assert.equal(h.session.view, MENU);
+  assert.deepEqual(h.session.nav.map((n) => n.node.label), ['Piano', 'Settings', 'Advanced']);
+  assert.deepEqual(h.session.nav.at(-1).node.children.map((r) => r.label), ['Practice', 'Sound', 'MIDI', 'Help']);
   openPath(h.session, ['MIDI']);
   assert.deepEqual(h.session.settingsRows().map((r) => r.label), ['MIDI out', 'MIDI ch']);
   /* The jog edits the open group's row, by its place on the page. */
@@ -216,34 +236,68 @@ test('Settings is a folder of groups, each the page limited to its rows', () => 
   assert.equal(h.session.settings.midiCh, 1);
   h.session.activate(false);
   assert.equal(h.session.settingsEditing, false);
+  /* Back: the group, Advanced, the page on its Advanced row, home on Settings. */
   h.session.back();
-  /* Path: where Continue starts, kept with the progress. */
-  openPath(h.session, ['Learning Path']);
-  assert.deepEqual(h.session.settingsRows()[0], { label: 'Start at', value: 'stage 1', edit: 'start' });
-  h.session.activate(false);
-  h.session.moveSelection(1);
-  assert.equal(PROG.programStart(h.session.progress), 1);
-  assert.equal(h.session.settingsRows()[0].value, 'stage 2');
-  h.session.moveSelection(-1);
-  h.session.moveSelection(-1);
-  assert.equal(PROG.programStart(h.session.progress), 0, 'clamped at the first stage');
-  h.session.back();                              /* out of editing */
-  h.session.back();                              /* out of the page */
-  h.session.back();                              /* out of the folder */
-  /* Shift + click on a piece opens every setting, and back returns to it. */
+  assert.equal(h.session.nav.at(-1).node.label, 'Advanced');
+  h.session.back();
+  assert.equal(h.session.view, SETTINGS);
+  assert.equal(h.session.settingsGroup, 'main');
+  assert.equal(h.session.settingsCursor, 5, 'on Advanced');
+  h.session.back();
+  assert.equal(h.session.view, MENU);
+  assert.ok(h.session.onHome());
+  assert.equal(h.session.homeModel().selected, 4, 'home, on Settings');
+});
+
+test('Shift + click on a piece opens the page; Shift + click on any settings page goes back to the piece', () => {
+  const h = fakeHost();
+  h.session.init();
   openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   h.session.activate(true);
   assert.equal(h.session.view, SETTINGS);
-  assert.equal(h.session.settingsRows().length, h.session.settingsRows().filter((r) => r.index >= 0).length);
-  assert.ok(h.session.settingsRows().length >= 20);
+  assert.equal(h.session.settingsGroup, 'main');
+  h.session.activate(true);
+  assert.equal(h.session.view, READY, 'Shift + click: the piece again');
+  h.session.activate(true);
+  h.session.back();
+  assert.equal(h.session.view, READY, 'Back: the piece again');
+  /* From a group of Advanced, Shift + click goes all the way back. */
+  h.session.activate(true);
+  h.session.selectSettingRow(5);
+  h.session.activate(false);
+  openPath(h.session, ['Practice']);
+  assert.equal(h.session.settingsGroup, 'practice');
   h.session.activate(true);
   assert.equal(h.session.view, READY);
+  assert.deepEqual(h.session.nav.map((n) => n.node.label), ['Piano', 'Practice', 'Scales', 'Major'],
+    'the list underneath is where it was');
+  /* And Back from Advanced's group goes the long way round, to the piece. */
+  h.session.activate(true);
+  h.session.selectSettingRow(5);
+  h.session.activate(false);
+  openPath(h.session, ['Sound']);
+  h.session.back();
+  h.session.back();
+  h.session.back();
+  assert.equal(h.session.view, READY);
+});
+
+test('a rebuild inside Advanced keeps the list where it is', () => {
+  const h = fakeHost();
+  h.session.init();
+  openSettings(h.session, 'practice');
+  const half = h.session.settingsRows().findIndex((r) => r.label === 'Half tones');
+  h.session.editRow(half, 1);                       /* Half tones: the menu is rebuilt */
+  h.session.back();
+  assert.deepEqual(h.session.nav.map((n) => n.node.label), ['Piano', 'Settings', 'Advanced']);
+  h.session.back();
+  assert.equal(h.session.settingsGroup, 'main');
 });
 
 test('Settings > Help: show tips again, and the welcome again', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Settings', 'Help']);
+  openSettings(h.session, 'help');
   const rows = h.session.settingsRows().map((r) => r.label);
   assert.deepEqual(rows, ['Auto info', 'Show tips again', 'Welcome again']);
   h.session.selectSettingRow(1);
@@ -264,8 +318,7 @@ test('changing the MIDI channel silences the old one before the host moves', () 
   armScale(h);
   h.session.playButton();
   h.run(5000);
-  const ch = h.session.settingsRows().findIndex((r) => r.label === 'MIDI ch');
-  h.session.editSetting(ch, 1);
+  h.session.editSetting(settingIndex('midiCh'), 1);
   const silenceAt = h.log.findLastIndex((e) => e[0] === 'silence');
   const changedAt = h.log.findLastIndex((e) => e[0] === 'changed' && e[1] === 'midiCh');
   assert.ok(silenceAt >= 0 && silenceAt < changedAt);
@@ -674,10 +727,13 @@ test('the sheet offers only what applies, in its order, Settings... last', () =>
   assert.deepEqual(labels(), ['Undo skip', 'Settings...'], 'a skipped step');
   h.session.pickSheet(0);
   assert.ok(!PROG.isSkipped(PROG.item(h.session.progress, 'basics/scales/major/up-down')), 'unskipped');
-  /* Settings... goes to the Settings folder. */
+  /* Settings... opens the Settings page over the list, and Back returns to it. */
   h.session.activate(true);
   h.session.pickSheet(h.session.sheet.items.length - 1);
-  assert.equal(h.session.nav.at(-1).node.label, 'Settings');
+  assert.equal(h.session.view, SETTINGS);
+  assert.equal(h.session.settingsGroup, 'main');
+  h.session.back();
+  assert.equal(h.session.nav.at(-1).node.label, '1.3 Major scale', 'the list it was asked from');
 });
 
 test('I know it all skips a whole unit, and Undo skip takes it back', () => {
@@ -860,7 +916,7 @@ test('MENU is help on every screen, with the keys of that screen', () => {
   h.session.back();
   assert.equal(h.session.view, SHEET_VIEW, 'BACK returns to the sheet');
   h.session.back();
-  openPath(h.session, ['Settings', 'Sound']);
+  openSettings(h.session, 'sound');
   h.session.menuButton();
   assert.equal(h.session.info.title, 'Sound');
   h.session.back();
@@ -1098,11 +1154,11 @@ test('home is five circles, no Continue among them; the jog grows the next one',
 test('a click or a circle\'s pad opens it, silently; Back finds its circle selected', () => {
   const h = fakeHost();
   h.session.init();
-  const want = ['Learning Path', 'Practice', 'Quiz', null, 'Settings'];
+  const want = ['Learning Path', 'Practice', 'Quiz', PROGRESS_VIEW, SETTINGS];
   for (let i = 0; i < HOME_PADS.length; i++) {
     assert.equal(h.session.homePad(HOME_PADS[i]), true, 'home takes the pad');
-    if (want[i]) assert.equal(h.session.nav.at(-1).node.label, want[i]);
-    else assert.equal(h.session.view, PROGRESS_VIEW);
+    if (i < 3) assert.equal(h.session.nav.at(-1).node.label, want[i]);
+    else assert.equal(h.session.view, want[i], 'Progress and Settings are pages');
     h.session.back();
     assert.ok(h.session.onHome(), 'Back: home');
     assert.equal(h.session.homeModel().selected, i, 'on the circle it left');

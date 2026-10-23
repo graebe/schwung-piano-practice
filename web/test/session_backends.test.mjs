@@ -168,8 +168,8 @@ test('a storage that refuses (private mode) does not stop practice', () => {
   l.backend.start();
   assert.equal(l.backend.viewModel.screen, 'card', 'nothing stored: a first launch, welcomed');
   l.backend.dispatch({ type: 'back' });
-  l.backend.dispatch({ type: 'settings' });
-  select(l, 'Practice');
+  l.backend.dispatch({ type: 'settings' });         /* the page: edited in place */
+  assert.equal(l.backend.viewModel.screen, 'settings');
   l.backend.dispatch({ type: 'editSetting', index: 0, delta: 1 });
   l.advance(1500);
   assert.equal(l.backend.viewModel.screen, 'settings');

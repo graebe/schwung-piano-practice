@@ -25,7 +25,7 @@
  *                                      in when the avatar is already there
  *   { type: 'homeGo', index }          a circle of home: select it and open it
  *   { type: 'skip' }                   a scene of the Learning Path: to its end
- *   { type: 'settings' }               the Settings folder, from the list
+ *   { type: 'settings' }               the Settings page, from the list
  *   { type: 'listen' }                 Play: hear it; again to pause
  *   { type: 'practice' }               Record: play it; again to pause
  *   { type: 'info' }                   Menu: what this is, and its words
@@ -105,9 +105,9 @@ export function applyAction(S, a) {
       S.skipScenes();
       return null;
     case 'settings':
-      /* The Settings folder, from the list; on a result the same Move gesture
+      /* The Settings page, over the list; on a result the same Move gesture
        * means "skip", which is its own action here. */
-      if (S.view === MENU) S.openSettingsFolder();
+      if (S.view === MENU) S.openSettingsPage();
       return null;
     case 'listen':
     case 'hear':

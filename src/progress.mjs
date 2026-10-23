@@ -166,7 +166,7 @@ export function markTipSeen(progress, key) {
   if (progress.tips.indexOf(key) < 0) progress.tips.push(key);
 }
 
-/* Settings › Help › Show tips again. */
+/* Settings › Advanced › Help › Show tips again. */
 export function clearTips(progress) {
   progress.tips = [];
 }

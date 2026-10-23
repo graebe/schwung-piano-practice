@@ -71,7 +71,7 @@ test('the rows with no id, and the result screen, have pages of their own', () =
   for (const kind of ['continue', 'checkpoint', 'progress', 'result', 'sheet', 'welcome', 'tip', 'settings']) {
     assert.ok(infoFor({ kind }, env), kind);
   }
-  for (const group of ['path', 'practice', 'sound', 'pads', 'midi', 'help']) {
+  for (const group of ['main', 'practice', 'sound', 'midi', 'help']) {
     const p = infoFor({ kind: 'settings', group }, env);
     assert.ok(p && p.sections[0].text, group);
   }
