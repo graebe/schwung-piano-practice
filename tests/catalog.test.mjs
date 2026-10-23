@@ -12,7 +12,8 @@ import { parseManifest, parseCategories, parseExercise, validateExercise } from 
 import { MODES, playableRange } from '../src/generator.mjs';
 import { chartTotalBeats, beatsPerBar } from '../src/chart.mjs';
 import { SCREEN_W } from '../src/layout.mjs';
-import { CHORD_FAMILIES, PROGRESSIONS } from '../src/chord_lessons.mjs';
+import { CHORD_FAMILIES } from '../src/chord_lessons.mjs';
+import { LESSON_PROGRESSIONS as PROGRESSIONS } from '../src/progressions.mjs';
 
 const twoHands = {
   id: 'song', name: 'Song', bpm: 90, timeSig: [4, 4], keySig: 0, source: 'file',

@@ -24,8 +24,9 @@ import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './g
 import { inStaffRange } from './notation.mjs';
 import { DEFAULT_TRANSPOSE, padsForPitch } from './padmap.mjs';
 import {
-  QUALITIES, ADVANCED_QUALITIES, buildChord, chordSymbol, qualitySpan, nameChord,
+  QUALITIES, ADVANCED_QUALITIES, nameChord, chordPool, matchChord, qualityById,
 } from './chords.mjs';
+import { CORRECT, WRONG, INCOMPLETE } from './verdict.mjs';
 import { buildChoices } from './choices.mjs';
 import { spell, chordLabel } from './notation.mjs';
 import {
@@ -52,26 +53,15 @@ export const READ_STAFF = 'staff';
  * the edge and the sixth is already there to glide in behind it. */
 export const LOOKAHEAD = 6;
 
-export const CORRECT = 'correct';
-export const WRONG = 'wrong';
-export const INCOMPLETE = 'incomplete';
+export { CORRECT, WRONG, INCOMPLETE };
 
 /*
  * Everything the quiz can ask, worked out once at the start.
  *
  * Constrained three ways at once: in the key, drawable on the staff, and
- * reachable on a pad. A prompt that fails any of those is unanswerable — it
- * would be invisible, or there would be no pad for it.
- */
-function playable(pitches, transpose) {
-  for (let i = 0; i < pitches.length; i++) {
-    if (!inStaffRange(pitches[i])) return false;
-    if (!padsForPitch(pitches[i], transpose).length) return false;
-  }
-  return true;
-}
-
-/*
+ * reachable on a pad (chords.mjs playable). A prompt that fails any of those
+ * is unanswerable — it would be invisible, or there would be no pad for it.
+ *
  * Pool entries are { pitches, label }. The label is null for notes and for
  * diatonic triads, where the note names say everything there is to say, and a
  * chord symbol for the quality drill — there, naming the chord IS the exercise
@@ -87,25 +77,14 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
       ? QUALITIES.concat(ADVANCED_QUALITIES)
       : QUALITIES;
     /* Roots follow the same setting the note drill uses: chromatic when half
-     * tones are on, otherwise the notes of the key. */
-    const roots = [];
-    if (halfTones) {
-      for (let pitch = lo; pitch <= hi; pitch++) roots.push(pitch);
-    } else {
-      for (let i = 0; i < scale.length; i++) roots.push(scale[i]);
-    }
-    for (let r = 0; r < roots.length; r++) {
-      for (let q = 0; q < qualities.length; q++) {
-        const quality = qualities[q];
-        if (roots[r] + qualitySpan(quality) > hi) continue;
-        const pitches = buildChord(roots[r], quality);
-        if (!playable(pitches, transpose)) continue;
-        /* The quality is what the tally files it under: a few dozen kinds read
-         * better than hundreds of chords. */
-        pool.push({ pitches, label: chordSymbol(roots[r], quality, fifths), quality: quality.suffix || 'maj' });
-      }
-    }
-    return pool;
+     * tones are on, otherwise the notes of the key. The quality is what the
+     * tally files it under: a few dozen kinds read better than hundreds of
+     * chords. */
+    return chordPool({
+      qualities: qualities.map((q) => q.id),
+      roots: halfTones ? 'chromatic' : 'key',
+      rootPc, mode, transpose, fifths,
+    }).map((e) => ({ pitches: e.pitches, label: e.label, quality: qualityById(e.qualityId).suffix || 'maj' }));
   }
 
   if (kind === CHORDS) {
@@ -346,35 +325,11 @@ function isRight(quiz, option) {
   return option === quiz.entry;
 }
 
-const pc = (pitch) => ((pitch % 12) + 12) % 12;
-
+/* A name has no octave, so a name drill is judged by pitch classes — any F
+ * for "F", A C E in any inversion for "Am"; the staff drills by the written
+ * pitches (chords.mjs matchChord). */
 function evaluate(quiz) {
-  if (quiz.read === READ_NAME) return evaluateByName(quiz);
-  for (let i = 0; i < quiz.held.length; i++) {
-    if (quiz.prompt.indexOf(quiz.held[i]) < 0) return WRONG;
-  }
-  /* Deduplicated on the way in, so equal lengths means the whole chord is
-   * down — which is what makes a chord a chord rather than an arpeggio. */
-  return quiz.held.length === quiz.prompt.length ? CORRECT : INCOMPLETE;
-}
-
-/*
- * A name has no octave, so the answer is its pitch classes: any F for "F", and
- * A, C and E in any octave or inversion for "Am". Still held together, and
- * still nothing outside the chord — a doubled note is fine, a stray one is not.
- */
-function evaluateByName(quiz) {
-  const wanted = quiz.prompt.map(pc);
-  const have = [];
-  for (let i = 0; i < quiz.held.length; i++) {
-    const p = pc(quiz.held[i]);
-    if (wanted.indexOf(p) < 0) return WRONG;
-    if (have.indexOf(p) < 0) have.push(p);
-  }
-  for (let i = 0; i < wanted.length; i++) {
-    if (have.indexOf(wanted[i]) < 0) return INCOMPLETE;
-  }
-  return CORRECT;
+  return matchChord(quiz.held, quiz.prompt, quiz.read === READ_NAME ? 'name' : 'exact');
 }
 
 /*

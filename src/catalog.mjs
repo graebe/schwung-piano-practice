@@ -28,9 +28,10 @@
 import { LEVELS, availableLevels, projectLevel } from './levels.mjs';
 import { MODES, MODE_LABELS, scaleDrills, readingDrills, randomInKey, playableRange } from './generator.mjs';
 import {
-  CHORD_FAMILIES, PROGRESSIONS, RANDOM_POOLS,
-  qualityLesson, inversionLesson, slashLesson, progressionLesson, randomChordSong,
+  CHORD_FAMILIES, RANDOM_POOLS,
+  qualityLesson, inversionLesson, slashLesson, randomChordSong,
 } from './chord_lessons.mjs';
+import { LESSON_PROGRESSIONS, progressionLesson } from './progressions.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
 
 /* The value column of a row that opens something. */
@@ -223,7 +224,7 @@ export function basics(gen = {}, more = []) {
     return songs.map((song) => generated(songNode(song)));
   }));
 
-  const progressions = () => PROGRESSIONS.map((p) => {
+  const progressions = () => LESSON_PROGRESSIONS.map((p) => {
     const node = generated(songNode(progressionLesson(p, gen.rootPc || 0, transpose)));
     /* The list names the shape, the header names it in a key: "I-V-vi-IV"
      * reads the same in every key, "G I-V-vi-IV" is what you are playing. */

@@ -21,6 +21,7 @@
  */
 
 import { rng } from './generator.mjs';
+import { scaleById, scalePool } from './scales.mjs';
 import {
   NOTE_GAP, ev, interval, intervalAnswers, intervalEvents, intervalPrompts, rootName, WAYS,
 } from './ear_core.mjs';
@@ -188,66 +189,19 @@ const COMPARE = [
 /*
  * A scale from a random root, up through the octave or down from it. Naming
  * its type is relative hearing: the steps between the notes, not the notes.
- *
- * The modes of the three seven-note parents come from rotating them, so not
- * one of them is typed out by hand.
+ * The scales themselves, and their names, are scales.mjs's.
  */
-export function rotate(parent, degree) {
-  const up = parent.slice(degree).concat(parent.slice(0, degree).map((s) => s + 12));
-  return up.map((s) => s - parent[degree]);
-}
-
-const MAJOR = [0, 2, 4, 5, 7, 9, 11];
-const HARMONIC = [0, 2, 3, 5, 7, 8, 11];
-const MELODIC = [0, 2, 3, 5, 7, 9, 11];
-
-/* Labels within 16 characters: the answer list's width beside its marks. */
-export const SCALES = {
-  major: { steps: rotate(MAJOR, 0), label: 'Major' },
-  dorian: { steps: rotate(MAJOR, 1), label: 'Dorian' },
-  phrygian: { steps: rotate(MAJOR, 2), label: 'Phrygian' },
-  lydian: { steps: rotate(MAJOR, 3), label: 'Lydian' },
-  mixolydian: { steps: rotate(MAJOR, 4), label: 'Mixolydian' },
-  minor: { steps: rotate(MAJOR, 5), label: 'Natural minor' },
-  locrian: { steps: rotate(MAJOR, 6), label: 'Locrian' },
-  harmonicMinor: { steps: rotate(HARMONIC, 0), label: 'Harmonic minor' },
-  locrianSharp6: { steps: rotate(HARMONIC, 1), label: 'Locrian #6' },
-  ionianSharp5: { steps: rotate(HARMONIC, 2), label: 'Ionian #5' },
-  dorianSharp4: { steps: rotate(HARMONIC, 3), label: 'Dorian #4' },
-  phrygianDominant: { steps: rotate(HARMONIC, 4), label: 'Phrygian dom' },
-  lydianSharp2: { steps: rotate(HARMONIC, 5), label: 'Lydian #2' },
-  alteredDim: { steps: rotate(HARMONIC, 6), label: 'Altered bb7' },
-  melodicMinor: { steps: rotate(MELODIC, 0), label: 'Melodic minor' },
-  dorianFlat2: { steps: rotate(MELODIC, 1), label: 'Dorian b2' },
-  lydianAugmented: { steps: rotate(MELODIC, 2), label: 'Lydian augmented' },
-  lydianDominant: { steps: rotate(MELODIC, 3), label: 'Lydian dominant' },
-  mixolydianFlat6: { steps: rotate(MELODIC, 4), label: 'Mixolydian b6' },
-  locrianSharp2: { steps: rotate(MELODIC, 5), label: 'Locrian #2' },
-  altered: { steps: rotate(MELODIC, 6), label: 'Altered' },
-  wholeTone: { steps: [0, 2, 4, 6, 8, 10], label: 'Whole tone' },
-  wholeHalf: { steps: [0, 2, 3, 5, 6, 8, 9, 11], label: 'Whole-half dim' },
-  halfWhole: { steps: [0, 1, 3, 4, 6, 7, 9, 10], label: 'Half-whole dim' },
-  majorPent: { steps: [0, 2, 4, 7, 9], label: 'Major pent' },
-  minorPent: { steps: [0, 3, 5, 7, 10], label: 'Minor pent' },
-};
 
 /* Quicker than an interval's notes: a scale is heard as a line, not a pair. */
 export const SCALE_GAP = 450;
 const SCALE_LEN = 420;
 
 function scalePrompts(keys, way) {
-  return ({ lo, hi }) => {
-    const out = [];
-    for (let root = lo; root + 12 <= hi; root++) {
-      for (const k of keys) {
-        const line = SCALES[k].steps.map((s) => root + s).concat([root + 12]);
-        if (way === 'down') line.reverse();
-        const events = line.map((p, i) => ev(p, i * SCALE_GAP, i === line.length - 1 ? NOTE_GAP : SCALE_LEN));
-        out.push({ answer: k, events, label: rootName(root).label + ' ' + SCALES[k].label });
-      }
-    }
-    return out;
-  };
+  return (range) => scalePool({ ids: keys, range }).map((e) => {
+    const line = way === 'down' ? e.pitches.slice().reverse() : e.pitches;
+    const events = line.map((p, i) => ev(p, i * SCALE_GAP, i === line.length - 1 ? NOTE_GAP : SCALE_LEN));
+    return { answer: e.id, events, label: rootName(e.root).label + ' ' + scaleById(e.id).label };
+  });
 }
 
 /* `labels` renames an answer for one unit: the major scale is "Major" beside
@@ -255,7 +209,7 @@ function scalePrompts(keys, way) {
 function scales(key, name, short, keys, labels = {}) {
   return {
     key: 'sc-' + key, name, short, tag: 'Scale', question: 'which scale?',
-    answers: keys.map((k) => ({ key: k, label: labels[k] || SCALES[k].label })),
+    answers: keys.map((k) => ({ key: k, label: labels[k] || scaleById(k).label })),
     levels: ['up', 'down'].map((way) => ({ key: way, name: way, span: 12, prompts: scalePrompts(keys, way) })),
   };
 }

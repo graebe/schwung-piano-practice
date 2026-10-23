@@ -28,7 +28,8 @@
 
 import { MODES, MODE_LABELS } from './generator.mjs';
 import { qualityById } from './chords.mjs';
-import { CHORD_FAMILIES, PROGRESSIONS, LESSON_NAMES } from './chord_lessons.mjs';
+import { CHORD_FAMILIES, LESSON_NAMES } from './chord_lessons.mjs';
+import { LESSON_PROGRESSIONS } from './progressions.mjs';
 import { exerciseByKey, levelByKey, answersFor } from './ear.mjs';
 import { COURSES } from './ear_course.mjs';
 import { READ_COURSES } from './read_course.mjs';
@@ -218,10 +219,10 @@ function chordPage(family, lesson, level, label) {
 
 /* The progression's chords in C (or A minor), from its steps. */
 function progressionInC(prog) {
-  const tonic = prog.minor ? 9 : 0;
+  const tonic = (prog.mode === 'minor') ? 9 : 0;
   return prog.steps.map(([deg, qid]) => {
     const q = qualityById(qid);
-    const root = spellFromC(String(degreeNumberOf(deg, prog.minor) || 1), (tonic + deg) % 12);
+    const root = spellFromC(String(degreeNumberOf(deg, (prog.mode === 'minor')) || 1), (tonic + deg) % 12);
     return root + (q ? q.suffix : '');
   }).join(' ');
 }
@@ -237,10 +238,10 @@ function degreeNumberOf(semis, minor) {
 }
 
 function progressionPage(progId, level, label) {
-  const prog = PROGRESSIONS.find((p) => p.id.replace(/\s+/g, '-') === progId);
+  const prog = LESSON_PROGRESSIONS.find((p) => p.id.replace(/\s+/g, '-') === progId);
   const sections = [];
   if (prog) {
-    sections.push(sec(prog.id, 'In ' + (prog.minor ? 'A minor' : 'C') + ': ' + progressionInC(prog) +
+    sections.push(sec(prog.id, 'In ' + ((prog.mode === 'minor') ? 'A minor' : 'C') + ': ' + progressionInC(prog) +
       '. Here it is in the Key setting\'s key.'));
   }
   sections.push(sec('', 'Voiced as a pianist would: the left hand plays roots, the right hand moves to the nearest shape of the next chord.'));

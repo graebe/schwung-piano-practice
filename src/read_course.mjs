@@ -27,7 +27,8 @@
 import { rng } from './generator.mjs';
 import { LETTERS, NATURAL_PC, MIN_PITCH, MAX_PITCH } from './notation.mjs';
 import { ev, interval, intervalEvents, rootName, WAYS, NOTE_GAP } from './ear_core.mjs';
-import { COURSES, SCALES, SCALE_GAP, SAMPLE } from './ear_course.mjs';
+import { COURSES, SCALE_GAP, SAMPLE } from './ear_course.mjs';
+import { scaleById, scalePool } from './scales.mjs';
 
 /* ---- Spelling --------------------------------------------------------------- */
 
@@ -178,41 +179,20 @@ function comparePrompts(unitKey, keys, way, fixed) {
 
 /* ---- Read scales ----------------------------------------------------------------- */
 
-/*
- * The letter each note of a scale sits on, counted from the root's. Seven-note
- * scales take one letter a degree; the others are written as players write
- * them: the pentatonics skip two letters, whole tone uses six, and the
- * diminished scales repeat one (C D Eb F Gb Ab A B).
- */
-const LETTERS_OF = {
-  majorPent: [0, 1, 2, 4, 5],
-  minorPent: [0, 2, 3, 4, 6],
-  wholeTone: [0, 1, 2, 3, 4, 5],
-  wholeHalf: [0, 1, 2, 3, 4, 5, 5, 6],
-  halfWhole: [0, 1, 2, 2, 3, 4, 5, 6],
-};
-const lettersOf = (key) => LETTERS_OF[key] || [0, 1, 2, 3, 4, 5, 6];
-
+/* Each scale written one letter a degree, or as players write it
+ * (scales.mjs lettersOf); a root it cannot be written on is not asked. */
 function scalePrompts(keys, way) {
-  return () => {
-    const out = [];
-    for (let root = STAFF.lo; root + 12 <= STAFF.hi; root++) {
-      for (const k of keys) {
-        const line = spellLine(root, SCALES[k].steps.concat([12]), lettersOf(k).concat([7]));
-        if (!line || !inStaff(line)) continue;
-        if (way === 'down') line.reverse();
-        const events = line.map((n, i) => ev(n.pitch, i * SCALE_GAP, i === line.length - 1 ? NOTE_GAP : SCALE_GAP - 30));
-        const tonic = way === 'down' ? line[line.length - 1] : line[0];
-        out.push({
-          answer: k,
-          events,
-          staff: line.map((n) => ({ part: 0, notes: [n] })),
-          label: noteLabel(tonic) + ' ' + SCALES[k].label,
-        });
-      }
-    }
-    return out;
-  };
+  return () => scalePool({ ids: keys, range: STAFF, spell: spellLine }).map((e) => {
+    const line = way === 'down' ? e.notes.slice().reverse() : e.notes;
+    const events = line.map((n, i) => ev(n.pitch, i * SCALE_GAP, i === line.length - 1 ? NOTE_GAP : SCALE_GAP - 30));
+    const tonic = way === 'down' ? line[line.length - 1] : line[0];
+    return {
+      answer: e.id,
+      events,
+      staff: line.map((n) => ({ part: 0, notes: [n] })),
+      label: noteLabel(tonic) + ' ' + scaleById(e.id).label,
+    };
+  });
 }
 
 /* ---- The courses -------------------------------------------------------------------- */

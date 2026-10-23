@@ -4,7 +4,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { READ_COURSES, spellLine, noteAt, noteLabel } from '../src/read_course.mjs';
-import { COURSES, SCALES } from '../src/ear_course.mjs';
+import { COURSES } from '../src/ear_course.mjs';
+import { scaleById } from '../src/scales.mjs';
 import { exerciseByKey, exerciseNumber, answersFor, buildEarPool, INTERVALS } from '../src/ear.mjs';
 import { drillId, drillLabel } from '../src/stats.mjs';
 import { quizFromId } from '../src/program.mjs';
@@ -85,7 +86,7 @@ test('C to Eb is a minor 3rd, never C to D#; Bb before A# on a tie; a white key 
   assert.equal(noteLabel(bSharpRoot[0]), 'C');
   assert.equal(spellLine(60, [0, 9], [0, 5]).map(noteLabel)[1], 'A');
   /* C altered bb7 needs Bbb: not asked on C. */
-  assert.equal(spellLine(60, SCALES.alteredDim.steps.concat([12]), [0, 1, 2, 3, 4, 5, 6, 7]), null);
+  assert.equal(spellLine(60, scaleById('alteredDim').steps.concat([12]), [0, 1, 2, 3, 4, 5, 6, 7]), null);
 });
 
 test('a scale is written one letter a degree, and the odd ones as players write them', () => {
@@ -93,7 +94,7 @@ test('a scale is written one letter a degree, and the odd ones as players write 
   for (const e of buildEarPool(ex, 'up')) {
     const notes = e.staff.map((c) => c.notes[0]);
     assert.deepEqual(notes.map(letterOf), [0, 1, 2, 3, 4, 5, 6, 7].map((d) => (letterOf(notes[0]) + d) % 7));
-    assert.deepEqual(notes.map((n) => pc(n.pitch - notes[0].pitch)).slice(0, 7), SCALES[e.answer].steps);
+    assert.deepEqual(notes.map((n) => pc(n.pitch - notes[0].pitch)).slice(0, 7), scaleById(e.answer).steps);
   }
   const dim = buildEarPool(exerciseByKey('rd-sc-dim'), 'up').find((e) => e.label === 'C Whole-half dim');
   assert.deepEqual(dim.staff.map((c) => noteLabel(c.notes[0])), ['C', 'D', 'Eb', 'F', 'Gb', 'Ab', 'A', 'B', 'C']);
