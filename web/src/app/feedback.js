@@ -12,8 +12,8 @@
  *   revealed     the answer, once heard and named
  *   sounding     what Listen is playing; and a quiz's prompt where the prompt
  *                IS the question (Name), or the help ladder lit it
- *   stuck        the note the scroll is waiting on (stage 1)
- *   target       the next note, at stage 1 — 'now' when it is close
+ *   stuck        the note the scroll is waiting on (Guided)
+ *   target       the next note, when Guided — 'now' when it is close
  */
 import { GUESS_VIEW } from '../../../src/session.mjs';
 

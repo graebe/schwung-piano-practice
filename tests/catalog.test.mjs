@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 
 import {
   FOLDER, folder, lazyFolder, isFolder, songNode, basics, randomFolder, buildCatalog,
-  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt,
+  navStart, navTop, navRows, navCurrent, navPush, navPop, navPath, navRestore, nodeAt, stampChildren,
 } from '../src/catalog.mjs';
 import { parseManifest, parseCategories, parseExercise, validateExercise } from '../src/exercise_io.mjs';
 import { MODES, playableRange } from '../src/generator.mjs';
@@ -30,22 +30,29 @@ const oneNote = {
 const labels = (node) => node.children.map((c) => c.label);
 
 /* Every leaf under `node`, with the path that reaches it. */
+/* Every playable leaf, a ladder's levels each on their own. */
 function leavesOf(node, path = [], out = []) {
   node.children.forEach((child, i) => {
     if (isFolder(child)) leavesOf(child, path.concat(i), out);
+    else if (child.levels) child.levels.forEach((lv, l) => out.push({ node: lv, path: path.concat(i, l) }));
     else out.push({ node: child, path: path.concat(i) });
   });
   return out;
 }
+const levelLabels = (node) => node.levels.map((l) => l.label);
 
 /* ---- Nodes --------------------------------------------------------------- */
 
-test('a song with a ladder is a folder of its levels', () => {
+test('a song with a ladder is one row; its levels are chosen on the ready screen', () => {
   const node = songNode(twoHands);
-  assert.equal(node.value, FOLDER);
-  /* The rung's code leads the label; the value column holds your progress. */
-  assert.deepEqual(labels(node), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands']);
-  assert.equal(node.children[3].build().name, 'Song L3');
+  assert.equal(isFolder(node), false, 'no folder to open: one menu level less');
+  assert.notEqual(node.value, FOLDER);
+  assert.deepEqual(levelLabels(node), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands']);
+  assert.equal(node.levels[3].build().name, 'Song L3');
+  assert.ok(node.levels.every((lv) => lv.piece === node), 'each level knows its piece');
+  stampChildren([node], 'x');
+  assert.deepEqual(node.levels.map((l) => l.id), ['x/song/1r', 'x/song/1l', 'x/song/2r', 'x/song/3'],
+    'filed under the ids the ladder folder gave them');
 });
 
 test('a song with one rung arms straight away', () => {
@@ -85,7 +92,7 @@ test('Random has every note, notes in key, and chords from every quality', () =>
   const r = randomFolder({});
   assert.deepEqual(labels(r), ['All notes', 'In key', 'In key, fast', 'All chords', 'Triads', 'Sevenths']);
   for (const set of r.children.slice(3)) {
-    assert.deepEqual(labels(set), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands'], set.label);
+    assert.deepEqual(levelLabels(set), ['L1 RH melody', 'L1 LH bass', 'L2 RH chords', 'L3 Both hands'], set.label);
   }
 });
 
@@ -106,8 +113,8 @@ test('All notes reaches the black keys and the whole page of pads', () => {
 test('a random row draws a new set each time it is opened', () => {
   let next = 1;
   const r = randomFolder({ newSeed: () => next++ });
-  const a = r.children[3].children[3].build();
-  const b = r.children[3].children[3].build();
+  const a = r.children[3].levels[3].build();
+  const b = r.children[3].levels[3].build();
   assert.notDeepEqual(a.events, b.events);
   assert.equal(a.name, 'All chords L3');
 });
@@ -125,7 +132,7 @@ test('every Basics lesson is regenerated from the settings, never fixed like a f
 });
 
 test('a progression follows the key it was built in', () => {
-  const prog = (rootPc) => basics({ rootPc }).children[2].children[0].children[3].build();
+  const prog = (rootPc) => basics({ rootPc }).children[2].children[0].levels[3].build();
   assert.notDeepEqual(prog(0).events, prog(7).events);
   assert.match(prog(7).name, /^G /);
 });
@@ -144,16 +151,41 @@ test('categories come in manifest order, empty ones are left out, tail goes last
     categories: [{ id: 'a', name: 'Ay' }, { id: 'empty', name: 'Empty' }, { id: 'b', name: 'Bee' }],
     tail: [{ label: 'Tail' }],
   });
-  assert.deepEqual(labels(root), ['Basics', 'Ay', 'Bee', 'Tail']);
+  assert.deepEqual(labels(root), ['Practice', 'Tail']);
+  const practice = root.children[0];
+  assert.equal(practice.id, 'basics', 'Practice keeps the ids Basics gave its rows');
+  assert.deepEqual(labels(practice), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
+  assert.deepEqual(labels(practice.children[4]), ['Ay', 'Bee']);
 });
+
+const songsOf = (root) => root.children[0].children.find((c) => c.label === 'Songs');
 
 test('a file with no category, or an unknown one, lands in Other', () => {
   const root = buildCatalog({
     songs: [{ chart: twoHands, category: null }, { chart: oneNote, category: 'nope' }],
     categories: [{ id: 'a', name: 'Ay' }],
   });
-  assert.deepEqual(labels(root), ['Basics', 'Other']);
-  assert.deepEqual(labels(root.children[1]), ['Song', 'Drill']);
+  assert.deepEqual(labels(songsOf(root)), ['Other']);
+  assert.deepEqual(labels(songsOf(root).children[0]), ['Song', 'Drill']);
+});
+
+test('back to a folder that lost a row lands on a row it still has', () => {
+  let short = false;
+  const root = { label: 'r', children: [
+    { label: 'a', get children() { return short ? [{ label: 'x' }] : [{ label: 'x' }, { label: 'gone', children: [] }]; } },
+  ] };
+  const nav = navStart(root);
+  navPush(nav);
+  nav[1].cursor = 1;
+  navPush(nav);
+  short = true;
+  navPop(nav);
+  assert.equal(nav[1].cursor, 0);
+  assert.equal(navCurrent(nav).label, 'x');
+});
+
+test('with no songs at all there is no Songs folder', () => {
+  assert.deepEqual(labels(buildCatalog({}).children[0]), ['Scales', 'Chords', 'Progressions', 'Random']);
 });
 
 test('a manifest from before categories still lists every file', () => {
@@ -162,7 +194,7 @@ test('a manifest from before categories still lists every file', () => {
     songs: parseManifest(text).map((r) => ({ chart: twoHands, category: r.category })),
     categories: parseCategories(text),
   });
-  assert.deepEqual(labels(root), ['Basics', 'Other']);
+  assert.deepEqual(labels(songsOf(root)), ['Other']);
 });
 
 test('the bundled manifest files every exercise in a category, and none in Other', () => {
@@ -174,8 +206,8 @@ test('the bundled manifest files every exercise in a category, and none in Other
     category: row.category,
   }));
   const root = buildCatalog({ songs, categories });
-  assert.equal(labels(root).indexOf('Other'), -1);
-  const filed = root.children.slice(1).reduce((n, c) => n + c.children.length, 0);
+  assert.equal(labels(songsOf(root)).indexOf('Other'), -1);
+  const filed = songsOf(root).children.reduce((n, c) => n + c.children.length, 0);
   assert.equal(filed, songs.length);
 });
 

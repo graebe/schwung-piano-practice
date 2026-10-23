@@ -15,7 +15,17 @@
  *   { type: 'open' }                   open it / arm it / confirm
  *   { type: 'back' }                   up a level; restart a run; retry a result
  *   { type: 'move', delta }            the jog: the cursor, the stage, the option
- *   { type: 'settings' }               the settings page, from the list
+ *   { type: 'options' }                Shift + jog-click: the row's options in
+ *                                      the list, settings on a piece, skip on
+ *                                      a result
+ *   { type: 'sheet' }                  the highlighted row's options, from the list
+ *   { type: 'sheetPick', index }       run one of them
+ *   { type: 'cardPick', index }        answer the welcome's question
+ *   { type: 'mapGo', index }           a place of the map: walk there, or go
+ *                                      in when the avatar is already there
+ *   { type: 'homeGo', index }          a circle of home: select it and open it
+ *   { type: 'skip' }                   a scene of the Learning Path: to its end
+ *   { type: 'settings' }               the Settings page, from the list
  *   { type: 'listen' }                 Play: hear it; again to pause
  *   { type: 'practice' }               Record: play it; again to pause
  *   { type: 'info' }                   Menu: what this is, and its words
@@ -24,17 +34,21 @@
  *   { type: 'answer', index }          a multiple-choice answer
  *   { type: 'next' } / { type: 'skip' } / { type: 'retry' }   on a result
  *   { type: 'stage', stage }           1 or 2, on the ready screen
+ *   { type: 'level', index }           another level of the armed piece, on
+ *                                      the ready screen, from bar 1
  *   { type: 'scrubTo', beat }          the playhead, while parked
  *   { type: 'tempo', delta }
  *   { type: 'editSetting', index, delta }
  *   { type: 'selectSetting', index }
+ *   { type: 'editRow', row, delta }    a row of the settings page by its place
+ *   { type: 'settingRow', row }        point at it; an action row also runs
  *   { type: 'progress', index }        open a Progress row's chart
  *
  * Returns what the session answered, for a note: the judgement or the quiz's
  * verdict, which a renderer flashes; otherwise null.
  */
 
-import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL } from './session.mjs';
+import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS } from './session.mjs';
 import { settingIndex } from './settings_def.mjs';
 import { beatsPerBar } from './chart.mjs';
 
@@ -42,9 +56,9 @@ import { beatsPerBar } from './chart.mjs';
 const SCRUB_UNITS_PER_BAR = 36;
 
 export const ACTIONS = [
-  'noteOn', 'noteOff', 'select', 'open', 'back', 'move', 'settings', 'listen', 'practice',
-  'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'scrubTo', 'tempo',
-  'editSetting', 'selectSetting', 'progress',
+  'noteOn', 'noteOff', 'select', 'open', 'back', 'move', 'options', 'sheet', 'sheetPick', 'cardPick', 'mapGo',
+  'homeGo', 'skip', 'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'level',
+  'scrubTo', 'tempo', 'editSetting', 'selectSetting', 'editRow', 'settingRow', 'progress',
 ];
 
 const MIDI = (n) => Number.isInteger(n) && n >= 0 && n <= 127;
@@ -69,10 +83,31 @@ export function applyAction(S, a) {
     case 'move':
       if (a.delta) S.moveSelection(a.delta > 0 ? 1 : -1);
       return null;
+    case 'options':
+      S.activate(true);
+      return null;
+    case 'sheet':
+      if (S.view === MENU) S.openSheet();
+      return null;
+    case 'sheetPick':
+      S.pickSheet(a.index | 0);
+      return null;
+    case 'cardPick':
+      S.pickCard(a.index | 0);
+      return null;
+    case 'mapGo':
+      S.mapPick(a.index | 0);
+      return null;
+    case 'homeGo':
+      S.homePick(a.index | 0);
+      return null;
+    case 'skip':
+      S.skipScenes();
+      return null;
     case 'settings':
-      /* Shift+click opens settings only from the list; on a result the same
-       * gesture means "skip", which is its own action here. */
-      if (S.view === MENU) S.activate(true);
+      /* The Settings page, over the list; on a result the same Move gesture
+       * means "skip", which is its own action here. */
+      if (S.view === MENU) S.openSettingsPage();
       return null;
     case 'listen':
     case 'hear':
@@ -101,6 +136,9 @@ export function applyAction(S, a) {
         S.moveSelection(a.stage === 2 ? 1 : -1);
       }
       return null;
+    case 'level':
+      if (S.view === READY) S.armLevel(a.index | 0);
+      return null;
     case 'scrubTo': {
       if (!S.chart || !S.scrubAllowed() || typeof a.beat !== 'number') return null;
       const perBar = beatsPerBar(S.chart);
@@ -118,6 +156,17 @@ export function applyAction(S, a) {
       S.selectSetting(a.index | 0);
       S.dirty = true;
       return null;
+    case 'editRow':
+      if (S.view === SETTINGS && a.delta) S.editRow(a.row | 0, a.delta);
+      return null;
+    case 'settingRow': {
+      if (S.view !== SETTINGS) return null;
+      S.selectSettingRow(a.row | 0);
+      const row = S.settingsRows()[a.row | 0];
+      if (row && row.act) S.activate(false);
+      S.dirty = true;
+      return null;
+    }
     case 'progress':
       if (S.view !== PROGRESS_VIEW && S.view !== PROGRESS_DETAIL) return null;
       S.selectProgress(a.index | 0);

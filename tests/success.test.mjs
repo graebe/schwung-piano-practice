@@ -143,7 +143,7 @@ function playRound(h, path, wrongEvery = 3) {
 test('a round\'s result carries its success and every answer, this round and all time', () => {
   const h = fakeHost();
   h.session.init();
-  const path = ['Quiz', 'Hear', 'Intervals', 'Identify intervals', '9 Up to the octave', 'up'];
+  const path = ['Quiz', 'Ear', 'Intervals', 'Identify intervals', '9 Up to the octave', 'up'];
   const one = playRound(h, path);
   assert.equal(one.answers.reduce((n, r) => n + r.asked, 0), one.n, 'every right answer is some answer\'s');
   assert.equal(one.success, Math.round((one.n / (one.n + one.wrong)) * 100));
@@ -157,7 +157,7 @@ test('a round\'s result carries its success and every answer, this round and all
 test('the jog turns the result\'s pages, and wraps', () => {
   const h = fakeHost();
   h.session.init();
-  const res = playRound(h, ['Quiz', 'Hear', 'Scales & keys', 'Identify scales', '6 Seven modes', 'up']);
+  const res = playRound(h, ['Quiz', 'Ear', 'Scales & keys', 'Identify scales', '6 Seven modes', 'up']);
   const pages = L.resultPageCount(res.answers);
   assert.equal(pages, 2 + Math.ceil(res.answers.length / L.ANSWER_ROWS));
   for (let i = 1; i < pages; i++) { h.session.moveSelection(1); assert.equal(h.session.lastResult.page, i); }

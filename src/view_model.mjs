@@ -29,10 +29,12 @@ import * as NOTATION from './notation.mjs';
 import * as AP from './answer_pads.mjs';
 import { chartTotalBeats, beatsPerBar, barBeatOf, keyAt } from './chart.mjs';
 import {
-  MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
+  MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SHEET_VIEW, CARD_VIEW,
 } from './session.mjs';
+import { groupByKey } from './settings_def.mjs';
+import { iconRows } from './home/render.mjs';
 
-export const VM_VERSION = 1;
+export const VM_VERSION = 2;
 
 /* One character per note judgement, so a long piece stays small. */
 export const NOTE_PENDING = 'p';
@@ -185,7 +187,7 @@ export function cueOf(S) {
   };
 }
 
-function navOf(S) {
+export function navOf(S) {
   if (!S.nav.length) return null;
   const top = CAT.navTop(S.nav);
   return {
@@ -198,13 +200,91 @@ function navOf(S) {
         label: deco.label || row.label,
         value: deco.value !== undefined ? String(deco.value) : String(row.value || ''),
         mark: deco.mark || null,
-        folder: CAT.isFolder(row),
+        /* A settings group opens a page, not a folder, but reads as one. */
+        folder: CAT.isFolder(row) || Boolean(row.settingsGroup),
       };
     }),
   };
 }
 
-function sheetOf(columns) {
+/* The options sheet: the row's name and what can be done with it. */
+function sheetOf(S) {
+  const sheet = S.sheet;
+  if (S.view !== SHEET_VIEW || !sheet) return null;
+  return { title: sheet.title, cursor: sheet.cursor, items: sheet.items.map((it) => it.label) };
+}
+
+/*
+ * The Path map on screen: its places, in the engine's own terms, and which
+ * one the avatar is bound for. The page lays them out with the same engine
+ * (layoutPlaces of their count) and walks its own avatar there.
+ */
+function mapOf(S) {
+  const m = S.view === MENU ? S.mapModel() : null;
+  if (!m) return null;
+  return {
+    world: !CAT.navTop(S.nav).node.phase,
+    at: m.at,
+    places: m.places.map((p) => ({
+      id: p.id, label: p.label, short: p.short, percent: p.percent, state: p.state, due: p.due, kind: p.kind,
+    })),
+  };
+}
+
+/*
+ * Home on screen: the five circles, their icons as the engine's rows ('#'
+ * lit) at both sizes, and which one is selected. The page draws its own
+ * circles and grows the selected one itself.
+ */
+function homeOf(S) {
+  const h = S.view === MENU ? S.homeModel() : null;
+  if (!h) return null;
+  return {
+    selected: h.selected,
+    items: h.items.map((it) => ({
+      key: it.key, label: it.label, small: iconRows(it.icon, false), large: iconRows(it.icon, true),
+    })),
+  };
+}
+
+/*
+ * A scene playing (scenes.mjs): its kind, how far it is (0..1), and the map
+ * it plays on in the engine's terms, so the page draws and paces its own.
+ */
+const placeOf = (p) => ({
+  id: p.id, label: p.label, short: p.short, percent: p.percent, state: p.state, due: p.due, kind: p.kind,
+});
+
+function animOf(S, t) {
+  const a = S.sceneModel(t === null ? undefined : t);
+  if (!a) return null;
+  return {
+    kind: a.kind, dir: a.dir, say: a.say, progress: Math.round(a.progress * 1000) / 1000,
+    fireworks: a.fireworks, over: a.over, from: a.from, to: a.to, at: a.at, zoomAt: a.zoomAt, world: a.world,
+    places: a.places ? a.places.map(placeOf) : null,
+    ms: a.ms, was: a.was, text: a.text,
+    zoomFrom: a.zoomFrom ? { count: a.zoomFrom.count, place: placeOf(a.zoomFrom.place) } : null,
+  };
+}
+
+/* The card on screen: its page, as paragraphs, or the question it asks. */
+function cardOf(S) {
+  const card = S.card;
+  if (S.view !== CARD_VIEW || !card) return null;
+  const page = card.pages[card.page];
+  return {
+    kind: card.kind,
+    title: page.title,
+    paragraphs: page.paragraphs.map((p) => p.text),
+    lines: Boolean(page.lines),
+    choices: page.choices ? page.choices.slice() : null,
+    choice: card.choice,
+    page: card.page,
+    pages: card.pages.length,
+  };
+}
+
+function staffOf(columns) {
   return columns.map((c, i) => ({
     beat: i + c.part,
     durBeats: 0,
@@ -240,7 +320,7 @@ export function quizOf(S) {
     read: quiz.read || null,
     /* A reading course draws its prompt: one event per column, spelled as the
      * course wrote it, a beat apart and a beat more between two intervals. */
-    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? sheetOf(quiz.entry.staff) : null,
+    sheet: quiz.exercise && quiz.exercise.read && quiz.entry ? staffOf(quiz.entry.staff) : null,
     queue: quiz.read ? quiz.queue.map((e, i) => ({
       index: quiz.asked - 1 + i,
       pitches: e.pitches.slice(),
@@ -300,7 +380,9 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     screen: view,
     key: keyOf(settings, S.keyFifths()),
     nav: view === MENU ? navOf(S) : null,
-    armed: S.armedId ? { id: S.armedId, stage: S.stage } : null,
+    /* With the level box's facts: the piece's levels, which is armed, and
+     * the bottom line's name for it (session levelInfo). */
+    armed: S.armedId ? { id: S.armedId, stage: S.stage, level: inSong ? S.levelInfo() : null } : null,
     /* The names under the notes, as the stage and the Names setting have them;
      * a stuck note's name once it has waited long enough. */
     names: inSong ? S.namesShown() : true,
@@ -310,13 +392,29 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     clock: clockOf(S, t),
     cue: cueOf(S),
     quiz: view === GUESS_VIEW ? quizOf(S) : null,
-    result: view === RESULT_VIEW && S.lastResult ? JSON.parse(JSON.stringify(S.lastResult)) : null,
+    /* Also under a scene that plays over it (a level learned). */
+    result: (view === RESULT_VIEW || (S.scene && S.scene.over === 'result')) && S.lastResult
+      ? JSON.parse(JSON.stringify(S.lastResult)) : null,
     progress: progressOf(S, plotW, plotH),
     info: S.info ? { title: S.info.title, paragraphs: S.info.paragraphs.slice(), back: S.info.back } : null,
+    sheet: sheetOf(S),
+    card: cardOf(S),
+    map: mapOf(S),
+    home: homeOf(S),
+    anim: animOf(S, t),
+    /* The hint line, as the Move's footer has it: its parts, which take turns. */
+    hint: S.hint(),
     settings: {
+      group: S.settingsGroup,
+      title: groupByKey(S.settingsGroup) ? groupByKey(S.settingsGroup).label : 'Settings',
       cursor: S.settingsCursor,
       editing: S.settingsEditing,
-      rows: rows.map((r, i) => ({ index: i, label: r.label, value: r.value })),
+      /* `row` is the place on the page; `index` the setting, for a setting;
+       * `act` an action a click runs; `edit` something else the jog changes. */
+      rows: rows.map((r, i) => ({
+        row: i, index: r.index !== undefined ? r.index : -1, label: r.label, value: r.value,
+        act: r.act || null, edit: r.edit || null,
+      })),
     },
     can: {
       listen: Boolean(S.chart) && inSong,

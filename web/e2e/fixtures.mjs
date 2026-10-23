@@ -12,14 +12,24 @@ import { fileURLToPath } from 'node:url';
 const RAW = fileURLToPath(new URL('../../build/coverage/e2e-raw/', import.meta.url));
 const coverage = process.env.PP_E2E_COVERAGE === '1';
 
+/* A learner already welcomed, with every first-visit tip seen: the cards
+ * would otherwise sit over the screens the tests are about. A test of the
+ * welcome itself says `test.use({ welcomed: false })`. */
+const SEEN = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
+
 export const test = base.extend({
-  page: async ({ page }, use, info) => {
+  welcomed: [true, { option: true }],
+  page: async ({ page, welcomed }, use, info) => {
     const errors = [];
     page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
     page.on('pageerror', (e) => errors.push(String(e)));
-    await page.addInitScript(() => {
+    await page.addInitScript(([seen, on]) => {
       try { localStorage.setItem('ultraviolet.motion.piano-practice', '0'); } catch (e) { /* none */ }
-    });
+      /* Only when nothing is stored yet, so a reload keeps what the test did. */
+      try {
+        if (on && !localStorage.getItem('piano-practice:progress.json')) localStorage.setItem('piano-practice:progress.json', seen);
+      } catch (e) { /* none */ }
+    }, [SEEN, welcomed]);
     if (coverage) await page.coverage.startJSCoverage({ resetOnNavigation: false });
     await use(page);
     if (coverage) {

@@ -31,7 +31,11 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { padPitch } from '../src/padmap.mjs';
+import { padPitch, padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
+import { layoutPlaces, padOfCell } from '../src/pathmap/layout.mjs';
+import * as PROG from '../src/progress.mjs';
+import * as PLAN from '../src/program.mjs';
+import * as CAT from '../src/catalog.mjs';
 import { fakeDsp } from './support/fake_dsp.mjs';
 
 const SRC = new URL('../src/', import.meta.url).pathname;
@@ -219,35 +223,97 @@ function driver(host) {
     }
     for (const n of down.keys()) midi([0x80, n, 0]);
   };
-  /* Back up to the top of the lesson list, and no further: one Back more
-   * would close the module. */
-  const toTop = () => {
-    for (let i = 0; i < 8 && !host.screen().startsWith('EXERCISE'); i++) press(BACK);
+  /*
+   * A player who knows the piece: REC, then every note of `chart` on its beat
+   * after the count-in, whether or not a pad is lit (Solo keeps them dark).
+   */
+  const playChart = (chart) => {
+    press(RECORD);
+    const start = host.now() - 20;
+    const msPerBeat = 60000 / chart.bpm;
+    for (const e of chart.events) {
+      const at = start + (e.beat + 4) * msPerBeat;
+      while (host.now() < at) tick();
+      for (const pitch of e.pitches) midi([0x90, padsForPitch(pitch, DEFAULT_TRANSPOSE)[0], 100]);
+      tick();
+      for (const pitch of e.pitches) midi([0x80, padsForPitch(pitch, DEFAULT_TRANSPOSE)[0], 0]);
+    }
+    run(3000);
   };
-  return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, toTop, host };
+  /* Back up to home, the top of the lesson list, and no further: one Back
+   * more would close the module. Home's title is the module's name. */
+  const toTop = () => {
+    for (let i = 0; i < 8 && !host.screen().startsWith('PIANO | '); i++) press(BACK);
+  };
+  return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, playChart, toTop, host };
 }
 
 const QUIET = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false, roundSize: 10 });
+
+/*
+ * Progress for the scenes: what the Learning Path holds when a take is about
+ * to finish something. Played an hour before the scenario's clock, so
+ * nothing is due for review yet.
+ */
+const TIPS_SEEN = ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'];
+function progressWith(fn) {
+  const p = PROG.emptyProgress();
+  p.tips = TIPS_SEEN.slice();
+  const at = EPOCH - 3600000;
+  const learn = (id) => {
+    PROG.recordAttempt(p, id, { stage: 1, score: 1, at });
+    PROG.recordAttempt(p, id, { stage: 2, score: 1, at });
+  };
+  const guided = (id) => PROG.recordAttempt(p, id, { stage: 1, score: 1, at });
+  fn({ learn, guided, phases: PLAN.buildProgram() });
+  return PROG.serialiseProgress(p);
+}
+/* 1.3 Major scale with Major down left to play Solo. */
+const LAST_OF_UNIT = progressWith(({ learn, guided }) => {
+  learn('basics/scales/major/up-down');
+  guided('basics/scales/major/down');
+});
+/* Stage 1 learned but Major up & down, which its checkpoint plays Solo. */
+const LAST_OF_STAGE = progressWith(({ learn, guided, phases }) => {
+  for (const step of PLAN.phaseSteps(phases[0])) if (step.id !== 'basics/scales/major/up-down') learn(step.id);
+  guided('basics/scales/major/up-down');
+});
+/* A Path step's chart, as the session builds it: in C, at the settings' tempo. */
+function pathChart(id) {
+  const pinned = CAT.basics({ rootPc: 0, mode: 'major', bpm: 80, transpose: DEFAULT_TRANSPOSE, seed: 1,
+    ...PLAN.PROGRAM_GEN });
+  CAT.stampChildren([pinned], '');
+  return CAT.findById({ children: [pinned] }, id).node.build();
+}
+/* Island 1's places: a pad for each, the island's own layout. */
+const islandPad = (n, i) => padOfCell(layoutPlaces(n, { kind: 'island' }).cells[i]) - 68;
+/* Welcomed, with every tip seen: the scenarios below are about what they
+ * drive, not about the first-visit cards, which `welcome` and `sheet` cover. */
+const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
 
 /*
  * Each scenario is a session someone might actually have. They start from
  * init() on a fresh copy of the module, with settings.json as given.
  */
 const SCENARIOS = {
-  /* The list, its folders, Back, the settings page and an edit that rebuilds. */
-  navigate: { settings: QUIET, play(d) {
+  /* The list, its folders, Back, the settings folder, a group's page and an
+   * edit that rebuilds. */
+  navigate: { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
-    d.jog(1); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);
-    d.jog(3); d.click(); d.jog(1); d.press(BACK);
-    d.shiftWith(JOG_CLICK);
-    d.click(); d.jog(1); d.click();              /* edit row 0 */
-    d.jog(2); d.click(); d.jog(-1); d.click();    /* edit row 2 */
-    d.knob(0, 1); d.knob(1, 2); d.knob(2, -1);
+    d.jog(1); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);   /* Practice › Progressions */
+    d.click(); d.jog(4); d.click(); d.jog(1); d.click(); d.jog(1);           /* Practice › Songs › Electronic */
+    d.press(BACK); d.press(BACK); d.press(BACK);
+    d.jog(60); d.click();                         /* Settings: the page */
+    d.click(); d.jog(1); d.click();              /* Octave up: a rebuild */
+    d.jog(2); d.click(); d.jog(-1); d.click();    /* Key down a semitone */
+    d.knob(0, 1); d.knob(1, 2); d.knob(2, -1);    /* the knobs: the rows on screen */
+    d.jog(60); d.click(); d.run(100);             /* Advanced */
+    d.click(); d.click(); d.jog(1); d.click();    /* Practice: Tempo up */
     d.toTop(); d.run(1200);                       /* the throttled save lands */
   } },
 
-  /* Basics › Scales › Major › Up & down: listen, pause, scrub, resume, restart. */
-  listen: { settings: QUIET, play(d) {
+  /* Practice › Scales › Major › Up & down: listen, pause, scrub, resume, restart. */
+  listen: { settings: QUIET, progress: WELCOMED, play(d) {
     d.jog(1); d.click(); d.click(); d.click(); d.click();
     d.press(PLAY); d.run(4000);
     d.press(PLAY); d.run(200);                    /* pause */
@@ -259,7 +325,7 @@ const SCENARIOS = {
 
   /* The same drill practised, played from the guide pads to its result, then
    * again with a few wrong pads and a wait; then on from the result. */
-  practice: { settings: QUIET, play(d) {
+  practice: { settings: QUIET, progress: WELCOMED, play(d) {
     d.jog(1); d.click(); d.click(); d.click(); d.click();
     d.press(RECORD); d.follow(26000);
     d.run(1000);
@@ -270,9 +336,11 @@ const SCENARIOS = {
     d.click(); d.run(500);                        /* next from the result */
   } },
 
-  /* Learning Program › Continue, guide pads on stage 1, Back to the list. */
-  program: { settings: QUIET, play(d) {
-    d.click(); d.run(100); d.click(); d.run(100);
+  /* Path › 1 › 1.3 Major scale › Major up & down, guide pads on stage 1, Back
+   * to the list. */
+  program: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.click(); d.run(100); d.click(); d.run(400);   /* the world, then the island zooms in */
+    d.jog(2); d.click(); d.click(); d.run(100);
     d.press(PLAY); d.run(2500);                   /* listen a little */
     d.press(PLAY); d.press(BACK); d.run(100);     /* pause, back to the top */
     d.press(RECORD); d.follow(30000);             /* stage 1, to its result */
@@ -281,16 +349,16 @@ const SCENARIOS = {
   } },
 
   /*
-   * Every quiz kind, each from the Quiz folder (Hear, Play, Name, Read):
-   *   Play notes   by alphabet: every pad in turn, so some are right and
-   *                most are wrong, and the row glides on after each right one
-   *   Play chords  by staff: both hints, then a few wrong pads
-   *   Hear         Pitch & melody › Higher or lower, answered with the jog
-   *                until the round ends
-   *   Name notes   the same, through to its result and the stats it writes
-   *   Read         Identify intervals › 1 2nds › up, on the staff, by jog
+   * Every quiz kind, each from the Quiz folder (Ear, Reading, Keys):
+   *   Notes by alphabet  every pad in turn, so some are right and most are
+   *                      wrong, and the row glides on after each right one
+   *   Chords by staff    both hints, then a few wrong pads
+   *   Ear                Pitch & melody › Higher or lower, answered with the
+   *                      jog until the round ends
+   *   Name notes         the same, through to its result and the stats it writes
+   *   Reading            Identify intervals › 1 2nds › up, on the staff, by jog
    */
-  quiz: { settings: QUIET, play(d) {
+  quiz: { settings: QUIET, progress: WELCOMED, play(d) {
     const open = (path) => {
       d.jog(-60); d.jog(2); d.click();
       for (const step of path) { d.jog(step); d.click(); }
@@ -299,12 +367,12 @@ const SCENARIOS = {
     const leave = () => d.toTop();
     const answerWithJog = (n) => { for (let i = 0; i < n; i++) { d.jog(1); d.click(); d.run(1500); } };
 
-    open([1, 0]);
+    open([2, 0]);
     d.press(RECORD); d.press(RECORD);
     for (let p = 0; p < 32; p++) d.pad(p, 40);
     d.run(600); leave();
 
-    open([1, 3]);
+    open([1, 4]);
     d.press(PLAY); d.press(RECORD); d.press(RECORD); d.run(400);
     for (const p of [0, 4, 7]) d.pad(p, 60);
     leave();
@@ -312,28 +380,28 @@ const SCENARIOS = {
     open([0, 0, 0, 0]);
     answerWithJog(30); d.run(1000); leave();
 
-    open([2, 0]);
+    open([2, 2]);
     d.press(RECORD); d.run(200);
     answerWithJog(30); d.run(1000); d.click(); d.run(300); leave();
 
-    open([3, 0, 0, 0]);
+    open([1, 0, 0, 0]);
     d.press(PLAY); d.run(1500);
     answerWithJog(30); d.run(1000); leave();
   } },
 
   /* Factory settings: the first Info page opens by itself, quiz sounds on. */
-  info: { settings: null, play(d) {
+  info: { settings: null, progress: WELCOMED, play(d) {
     d.run(200);
     d.jog(1); d.press(MENU); d.jog(3); d.jog(-1); d.press(MENU);
     d.click(); d.run(300); d.press(MENU); d.press(BACK);
     d.press(BACK);
-    d.jog(1); d.click(); d.jog(1); d.click(); d.run(800);   /* a quiz, sounds on */
+    d.jog(1); d.click(); d.jog(2); d.click(); d.click(); d.run(800);   /* a quiz, sounds on */
     for (let i = 0; i < 4; i++) { d.pad(i * 7, 60); d.run(900); }
   } },
 
   /* Progress: the list, a chart, the jog across drills, back out. */
-  progress: { settings: QUIET, play(d) {
-    d.jog(60); d.click(); d.run(100);
+  progress: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.jog(3); d.click(); d.run(100);
     d.jog(1); d.click(); d.jog(1); d.jog(1); d.press(BACK); d.press(BACK);
   } },
 
@@ -343,10 +411,11 @@ const SCENARIOS = {
    * the top of the list — which must not close the tool. Then it closes, and
    * ui.js goes back to sending nothing but the occasional nudge.
    */
-  page: { settings: QUIET, page: true, play(d, dsp) {
+  page: { settings: QUIET, progress: WELCOMED, page: true, play(d, dsp) {
     d.run(2500);                                  /* unwatched: reads, nudges */
     dsp.openPage(); d.run(1200);
-    for (const a of [{ type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' }, { type: 'open' }, { type: 'open' }]) {
+    for (const a of [{ type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' },
+      { type: 'open' }, { type: 'open' }]) {
       dsp.act(a); d.run(250);
     }
     dsp.act({ type: 'listen' }); d.run(2000);
@@ -358,12 +427,173 @@ const SCENARIOS = {
     dsp.closePage(); d.run(6000);
   } },
 
-  /* A song: its levels, a level armed, practised briefly; then Shift+Back. */
-  exit: { settings: QUIET, play(d) {
-    d.jog(3); d.click(); d.click(); d.run(100); d.click(); d.run(100);
+  /* A song armed from its row, its level walked on the ready screen,
+   * practised briefly; then Shift+Back. */
+  exit: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.jog(1); d.click(); d.jog(4); d.click(); d.click(); d.click(); d.run(100);   /* a song: armed at once */
+    d.jog(1); d.jog(1); d.jog(-1); d.run(100);    /* the jog walks its levels: 1 Solo, 2 Guided, 1 Solo */
     d.press(RECORD); d.run(2500); d.pad(10); d.pad(11);
     d.shiftWith(BACK); d.run(600);
     globalThis.onUnload(); d.tick();
+  } },
+
+  /*
+   * A first launch: the welcome's three pages, the Shift layer of the hint
+   * line, "I already play", the Path with its tip, help on that tip, and the
+   * hint line taking turns.
+   */
+  welcome: { settings: QUIET, progress: null, play(d) {
+    d.run(200);
+    d.click(); d.run(100);                        /* Lit pads can be pressed */
+    d.cc(SHIFT, 127); d.tick(); d.cc(SHIFT, 0); d.tick();
+    d.jog(1); d.run(100);                         /* Keys */
+    d.jog(1); d.run(100);                         /* New to piano? */
+    d.jog(1); d.click(); d.run(200);              /* I already play: the Path, and a tip */
+    d.press(MENU); d.press(MENU);                 /* help on the tip, and back */
+    d.click(); d.run(100);                        /* the tip closes on the Path */
+    d.run(6500);                                  /* nothing moves; the hint stays */
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * Home: the jog growing circle after circle (every frame of a grow drawn),
+   * MENU's help, a pad opening Quiz and making no sound, Back finding its
+   * circle selected, a pad off the five doing nothing, home shown as a list
+   * for the session and Back to the circles, and Settings by its pad.
+   */
+  home: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    for (let i = 0; i < 4; i++) { d.jog(1); d.run(60); }
+    d.jog(1); d.run(200);                         /* clamped on Settings */
+    d.jog(-1); d.run(200);                        /* Progress */
+    d.press(MENU); d.press(MENU);                 /* help, and closed */
+    d.pad(3, 60); d.run(200);                     /* pad 71: Quiz, silent */
+    d.press(BACK); d.run(200);                    /* Quiz's circle selected */
+    d.pad(0, 60); d.pad(20, 60); d.run(200);      /* off the five: nothing */
+    d.shiftWith(JOG_CLICK); d.click(); d.run(100);   /* Show as list */
+    d.jog(1); d.run(100);
+    d.press(BACK); d.run(200);                    /* the circles again */
+    d.pad(5, 60); d.run(200);                     /* pad 73: Settings */
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * The Path as a map: the world, a pad walking the avatar to stage 3 and a
+   * second press going in, the jog walking the island, MENU's help, the
+   * island as a list and back, Back up to the world, and Play as Continue.
+   * The pads light the places; nothing sounds.
+   */
+  map: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.click(); d.run(300);                        /* Path: the world */
+    const third = padOfCell(layoutPlaces(5).cells[2]) - PAD;
+    d.pad(third, 60); d.run(700);                 /* walk to stage 3 */
+    d.pad(third, 60); d.run(400);                 /* and in: its island zooms in */
+    d.jog(1); d.run(400); d.jog(1); d.run(400);   /* walk the island */
+    d.press(MENU); d.jog(3); d.press(MENU);       /* help, scrolled, closed */
+    d.shiftWith(JOG_CLICK); d.jog(60); d.jog(-1); d.click(); d.run(100);   /* Show as list */
+    d.press(BACK); d.run(100);                    /* the map again */
+    d.press(BACK); d.run(400);                    /* up to the world */
+    d.press(PLAY); d.run(600);                    /* Continue */
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * Practice and Quiz as rings: Practice's five circles grown in turn, MENU's
+   * help for the ring, Songs opened by its pad and Back finding its circle,
+   * the ring as a list and back, home again on Practice; Quiz's three on
+   * pads 70..72, Keys by its pad, and Back twice to home.
+   */
+  rings: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);              /* the Practice ring */
+    for (let i = 0; i < 4; i++) { d.jog(1); d.run(60); }
+    d.jog(-4); d.run(200);                        /* back to Scales */
+    d.press(MENU); d.press(MENU);                 /* its help, closed */
+    d.pad(5, 60); d.run(200);                     /* pad 73: Songs, silent */
+    d.press(BACK); d.run(200);                    /* the ring, on Songs */
+    d.shiftWith(JOG_CLICK); d.click(); d.run(100);   /* Show as list */
+    d.jog(-1); d.run(100);
+    d.press(BACK); d.run(200);                    /* the circles again */
+    d.press(BACK); d.run(200);                    /* home, on Practice */
+    d.jog(1); d.click(); d.run(200);              /* the Quiz ring: three */
+    d.pad(1, 60); d.run(200);                     /* pad 69: no circle of three */
+    d.pad(4, 60); d.run(200);                     /* pad 72: Keys */
+    d.press(BACK); d.press(BACK); d.run(200);     /* the ring on Keys, home on Quiz */
+  } },
+
+  /*
+   * Into an island and out: the zoom in (frames on the way), Back's zoom out,
+   * and a zoom skipped by the jog, which only skips.
+   */
+  zoom: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.click(); d.run(300);                        /* the world */
+    d.click();                                    /* into stage 1: the zoom */
+    for (let i = 0; i < 4; i++) d.run(100);
+    d.press(BACK);                                /* out again */
+    for (let i = 0; i < 4; i++) d.run(100);
+    d.click(); d.run(60); d.jog(1); d.run(100);   /* in, and a skip mid-zoom */
+    d.press(BACK); d.run(400);
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * The last step of a place played Solo: a star round the score (learned),
+   * then Next: the flag up on 1.3 Major scale, the walk to the next place,
+   * and its step armed.
+   */
+  'next-walk': { settings: QUIET, progress: LAST_OF_UNIT, play(d) {
+    d.run(100);
+    d.click(); d.run(300);                        /* the world */
+    d.click(); d.run(400);                        /* island 1 */
+    d.pad(islandPad(9, 2), 60); d.run(1000);      /* walk to 1.3 Major scale */
+    d.pad(islandPad(9, 2), 60); d.run(100);       /* and in */
+    d.jog(1); d.click(); d.run(100);              /* Major down, Solo */
+    d.playChart(pathChart('basics/scales/major/down'));
+    d.run(700);                                   /* the star */
+    d.click();                                    /* Next: the flag, the walk */
+    d.run(4000);
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * A stage's checkpoint passed: fireworks over the fort, CHECKPOINT PASSED,
+   * out to the world, the sail to stage 2, in, and on.
+   */
+  'stage-done': { settings: QUIET, progress: LAST_OF_STAGE, play(d) {
+    d.run(100);
+    d.click(); d.run(300);                        /* the world */
+    d.shiftWith(JOG_CLICK); d.jog(2); d.click(); d.run(100);   /* Test out: checkpoint */
+    d.playChart(pathChart('basics/scales/major/up-down'));
+    d.run(700);                                   /* the star */
+    d.click();                                    /* Next */
+    d.run(8000);
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * The options of a row: the sheet's tip once, Test out: checkpoint on a
+   * stage, the Path as a list, I know this on its Continue and Continue then
+   * opening the step after, and Settings... from home: the page, Start at.
+   */
+  sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz', 'map', 'island'] }), play(d) {
+    d.run(100);
+    d.click(); d.run(100);                        /* Path */
+    d.shiftWith(JOG_CLICK); d.run(100);           /* 1 Grid and staff: its tip, over the sheet */
+    d.click(); d.run(100);                        /* the tip closes */
+    d.jog(2); d.click(); d.run(300);              /* Test out: checkpoint */
+    d.press(BACK); d.run(100); d.toTop();
+    d.click(); d.run(100);                        /* the Path again */
+    d.shiftWith(JOG_CLICK); d.jog(60); d.jog(-1); d.click(); d.run(100);   /* Show as list */
+    d.jog(-1); d.shiftWith(JOG_CLICK); d.run(100); /* Continue */
+    d.click(); d.run(100);                        /* I know this: skip */
+    d.click(); d.run(600);                        /* Continue: the step after */
+    d.toTop();
+    d.jog(1); d.shiftWith(JOG_CLICK); d.run(100); /* Practice: Show as list, Settings... */
+    d.jog(1); d.click(); d.run(100);              /* Settings...: the page */
+    d.jog(4); d.click(); d.jog(1); d.click(); d.run(100);   /* Start at: stage 2 */
+    d.press(BACK); d.toTop(); d.run(1200);
   } },
 };
 
@@ -375,6 +605,7 @@ let loads = 0;
 async function record(name, scenario, seen = {}) {
   const files = new Map();
   if (scenario.settings) files.set(MODULE_DIR + '/settings.json', scenario.settings);
+  if (scenario.progress) files.set(MODULE_DIR + '/progress.json', scenario.progress);
   let clockOf = () => 0;
   const dsp = scenario.page ? fakeDsp(() => clockOf()) : null;
   const host = makeHost(files, dsp);
@@ -438,7 +669,13 @@ test('a page watches and steers the Move, and cannot close it', async () => {
   assert.ok(events.some((e) => e[0] === 'dsp' && e[1] === 'n' && /(^|,)60:90/.test(e[2])), 'its note sounded');
   assert.ok(!events.some((e) => e[0] === 'exit'), 'a page closed the tool');
   assert.equal(dsp.last().screen, 'menu');
+  /* From the moment the close is noticed — the first nudge after the last
+   * picture — about six seconds remain: a read a second, not five. Counted
+   * from the notice, not from the last picture, which can fall anywhere in
+   * the last second the page was open. */
   const lastVm = events.map((e, i) => (e[0] === 'dsp' && e[1] === 'vm' ? i : -1)).filter((i) => i >= 0).pop();
-  const tail = events.slice(lastVm + 1);
+  const noticed = events.findIndex((e, i) => i > lastVm && e[0] === 'dsp' && e[1] === 'stale');
+  const tail = events.slice(noticed + 1);
+  assert.ok(noticed > lastVm, 'the close is noticed');
   assert.ok(tail.filter((e) => e[0] === 'read').length <= 7, 'closed: back to a read a second');
 });

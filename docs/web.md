@@ -1,10 +1,10 @@
 # Piano Practice in your browser
 
 Piano Practice runs on the Ableton Move, and the same practice runs in a web
-browser: the same lessons, the same Learning Program, the same scoring, and the
+browser: the same lessons, the same Learning Path, the same scoring, and the
 same piano. This page walks through it from the first click.
 
-![The lesson list](media/web-list.png)
+![Home](media/web-home.png)
 
 ## What it is, and what it is not
 
@@ -47,18 +47,35 @@ The window has four parts:
 
 | | |
 | --- | --- |
-| **The top bar** | Back (‹), where you are, the sound and MIDI status, **Info** and, on the list, **Settings** |
-| **The screen** | the list, a piece, a quiz, a result — whatever the session is on |
+| **The top bar** | Back (‹), where you are, the sound and MIDI status, **Info** and, on home and the list, **Options** and **Settings** |
+| **The screen** | home, the list, a piece, a quiz, a result — whatever the session is on. Under it, marked *Move*, the line the Move shows at the bottom of its screen: the Move's keys for this screen |
 | **The keys** | a piano keyboard, or the Move's pads (the switch at their top right) |
 | **The hint bar** | what the keys do on this screen, what the thing under the pointer does, and what just happened |
 
-The list is a tree: click a folder to open it, **Back** (or Escape) to go up.
-**Info** (or I) explains whatever is in front of you — the highlighted lesson,
-the piece, the quiz — and defines the words it uses.
+The page opens on **home**, as the Move does: five circles, **Learning Path**,
+**Practice**, **Quiz**, **Progress** and **Settings**, drawn from the Move's
+own pictures. Click a circle, or its row below, to open it; the arrow keys
+choose (the chosen circle grows) and Enter opens. Behind each circle the list
+is a tree: click a folder to open it, **Back** (or Escape) to go up, and Back
+from a section returns home with its circle chosen. **Practice** and **Quiz**
+are rings of their own, five and three circles spaced as on the Move; their
+folders below are lists.
+[Finding your way](finding-your-way.md) walks through it.
+
+**Info** (or I) is the Move's Menu: help for whatever is in front of you —
+what the screen is and its keys first, then the highlighted lesson, the piece
+or the quiz, and the words it uses. **Options** (or Shift+Enter) is the Move's
+Shift + click: what you can do with the highlighted row besides opening it —
+skip what you know, start the path at a stage, test out of a stage at its
+checkpoint. Choose one, or **Close**.
+
+The first time you open the page it welcomes you as the Move does, in three
+pages, the last asking whether you are new to piano; and a few screens show a
+one-card tip the first time. **Next**, **Go on** or **Close** leave them.
 
 ## Your first piece
 
-Open **Basics › Scales › Major › Up & down**. The piece is *armed*: its notes
+Open **Practice › Scales › Major › Up & down**. The piece is *armed*: its notes
 wait to the right of the hit line, and nothing moves yet.
 
 ![Listening to a drill](media/web-listen.png)
@@ -69,15 +86,23 @@ wait to the right of the hit line, and nothing moves yet.
   scroll towards the hit line and you play each one as it arrives.
 - **Restart** (Escape while it runs) goes back to the top.
 
-Two stages decide how much help you get:
+**Guided** and **Solo** decide how much help you get:
 
 | | |
 | --- | --- |
-| **Stage 1 · lit** | the next note lights on the keys (an outline) before you need it |
-| **Stage 2 · read** | nothing lights — you read the staff |
+| **Guided** | the next note lights on the keys (an outline) before you need it |
+| **Solo** | nothing lights — you read the staff |
 
-A stage is **passed** at 90%. Pass stage 1 and the lesson shows ◐; pass stage
-2 and it shows ✓.
+Each is **passed** at 90%. Pass Guided and the lesson shows ◐; pass Solo and
+it shows ✓.
+
+A song opens the same way, straight onto its ready screen, on the first
+level you have not learned. Its levels are buttons above the staff —
+**L1 RH melody**, **L1 LH bass**, **L2 RH chords**, **L3 Both hands** —
+with a ✓ on those learned; the arrow keys walk them with Guided and Solo, as
+the jog does on the Move.
+
+![A song, ready](media/web-ready-song.png)
 
 ### Playing
 
@@ -118,75 +143,95 @@ tempo it was written at.
 ![A result](media/web-result.png)
 
 A whole run ends on its result: your score, and **every attempt** you have made
-at this piece on a fixed 0–100% scale — hollow points are stage 1, solid points
-stage 2, and the dashed line is the 90% that passes. Hover a point for its
+at this piece on a fixed 0–100% scale — hollow points are Guided, solid points
+Solo, and the dashed line is the 90% that passes. Hover a point for its
 date and tempo; *The numbers* opens them as a table.
 
 | | |
 | --- | --- |
 | **Again** | the same stage again |
 | **Listen** | hear it |
-| **Next** | stage 2 if you have just passed stage 1, otherwise the next step of the Learning Program |
-| **Move on** | count stage 1 as enough (or skip), and go on |
+| **Next** | Solo if you have just passed Guided, otherwise the next step of the Learning Path |
+| **Move on** | count Guided as enough (or skip), and go on |
 
 ## Quizzes
 
 **Quiz** has three folders, each a different skill:
 
-- **Play** — notes or chords in a row; play the first and the row moves on.
-  Four drills: **Notes by alphabet** and **Chords by name** show only the name,
-  and any octave or inversion counts; **Notes by staff** and **Chords by staff**
-  show only the notation, and only the written notes count. **Help** names the
-  first one, then lights its keys.
-- **Name** — a key is lit; choose its name.
-- **Hear** — something is played; say what it was. Grouped by topic: Pitch &
+- **Ear** — something is played; say what it was. Grouped by topic: Pitch &
   melody, Intervals, Chords, Scales & keys. The three courses sit in their
   topic: **Identify intervals** (2nds to two octaves) and **Compare intervals**
   (which of two is bigger, from a fixed or a random root) under Intervals,
   **Identify scales** (major and minor, then the modes) under Scales & keys.
-- **Read** — the same three courses on the staff: read an interval, compare two,
-  read a scale, and choose the answer. **Hear** plays what is written, and the
-  first listen counts as help.
+- **Reading** — the same three courses on the staff: read an interval, compare
+  two, read a scale, and choose the answer. **Hear** plays what is written,
+  and the first listen counts as help. Then **Notes by staff** and **Chords by
+  staff**: a row of notation, only the written notes count.
+- **Keys** — **Notes by alphabet** and **Chords by name** show only the name,
+  and any octave or inversion counts: play the first and the row moves on.
+  **Name notes** and **Name chords** light a key; choose its name. **Help**
+  names the first one, then lights its keys.
 
 ![A hearing drill](media/web-hear.png)
 
-In **Hear**, each answer has a colour — the colour its pad has on the Move.
+In **Ear**, each answer has a colour — the colour its pad has on the Move.
 Choose one; a wrong answer is counted once and the question stays until you get
 it. When you are right, the notes light on the keyboard, so what you heard is
 connected to where it sits. **Hear** plays the question again; **Help** is a
 ladder of hints — the round still counts, but it records how many you took.
 
-A round is ten, twenty or thirty answers (Settings › Round). Its result is how
+A round is ten, twenty or thirty answers (Settings › Advanced › Practice › Round). Its result is how
 many you got right a minute, beside your best, and how many of your attempts
 were right — two charts, so speed and success can each be read on their own.
 Under them, **Each answer** has a bar per interval, scale, note or chord: how
 often it was right first time over every round, with a mark where this round
 put it. Progress shows the same bars for a drill between rounds.
 
-## The Learning Program and Progress
+## The Learning Path and Progress
 
-**Learning Program › Continue** always opens the next step of a path in five
-phases, from the grid and the staff to extended harmony, with nothing locked.
-Each phase starts with **Check: skip phase** and **Start here**; every exercise
-is described in [the curriculum](curriculum.md). **Repetition** brings back
-finished lessons when they are due.
+**Learning Path** is a map, as on the Move: an island for each stage, and on an
+island a place for each unit and a fort for the checkpoint, drawn from the
+same pixels. Click a place and your avatar walks there along the dotted
+route; click it again to go in. The arrow keys walk, Enter goes in, Escape
+goes back up, and **Continue** above the map (or Shift+Space, the Move's
+Play) opens your next step. Under the map every place is listed with its
+state and percent, and clicking one does the same. **Options** offers
+**Show as list**, where Continue is the first row and Review lives.
 
-**Progress** shows how far you have got: overall, per phase, and every lesson
+![The world map](media/web-map.png)
+
+The way moves as on the Move: a stage zooms in from the world and out again,
+a finished place raises its flag and the avatar walks on, a finished stage
+sets off fireworks and its banner, and the whole path ends in the finale, all
+drawn by the same engine. A click or any key skips a scene.
+
+**Continue** opens the next step of a path in five stages, from the grid and
+the staff to extended harmony, with nothing locked. When a review is due it
+opens the **Review** instead, and reviews and new steps take turns. Each stage ends with its **Checkpoint**; **Options** on a stage offers
+**Test out: checkpoint** and **Start the path here**. Every exercise is
+described in [the curriculum](curriculum.md). **Learning Path › Review** lists the
+finished lessons that are due again.
+
+**Progress** shows how far you have got: overall, per stage, and every lesson
 you have played, each with its chart.
 
 ## Settings
 
-Settings are the Move's, less the two that only route the Move's MIDI. **−**
-and **+** change a row. The most useful:
+**Settings** opens the Move's short page: **Octave**, **Click**, **Key**,
+**Scale** and **Start at**; **−** and **+** change a row, there and then. The
+page also holds what this browser plays from (**This browser**), since the
+Move's two MIDI routes do not apply here. **Advanced**, its last row, opens
+the rest in groups, as on the Move; Escape goes back a step at a time.
 
 | | |
 | --- | --- |
-| **Tempo**, **Key**, **Scale**, **Octave** | what the generated drills are made from |
-| **Wait** | stop on a missed note (on) |
-| **Grace** | how late a note may be and still count, in beats |
-| **Click**, **Reference** | a metronome, and the piece played softly as you play it |
-| **Round** | answers per quiz round |
-| **Auto info** | show a lesson's Info the first time you open it |
+| **Octave**, **Key**, **Scale** | the pads' octave, and what the free library is made in |
+| **Click** | the metronome |
+| **Start at** | where the Learning Path starts |
+| **Advanced › Practice** | Tempo, Read ahead, Any octave, Wait, Grace, Count in, Names, Half tones, Chords, Round |
+| **Advanced › Sound** | Reference (the piece played softly as you play it), Ref vol, Quiz sounds |
+| **Advanced › MIDI** | where the Move sends the notes (on the page here: This browser) |
+| **Advanced › Help** | Auto info, Show tips again, Welcome again |
 
 ## On a phone or a tablet
 
@@ -216,7 +261,7 @@ nothing is kept in the browser in this mode.
 
 Some things stay with the Move's own buttons:
 
-- **Closing the tool.** Back at the top of the list closes Piano Practice on
+- **Closing the tool.** Back at home closes Piano Practice on
   the Move. From the page it does nothing, so a click cannot end your session.
 - **Timing.** The page draws the scrolling staff from the Move's clock, and
   shows changes within a fraction of a second. For practice, play on the pads
@@ -233,7 +278,7 @@ How the page and the Move talk is described in [schwung-web.md](schwung-web.md).
 | Space | Practice (again to pause) |
 | Shift+Space | Listen (again to pause) |
 | Enter | open, or Next on a result |
-| Shift+Enter | Move on, on a result |
+| Shift+Enter | Options for the highlighted row; Move on, on a result |
 | Escape | Back; restart a running piece |
 | Arrow keys | move the highlight; on a piece, the stage |
 | I | Info |

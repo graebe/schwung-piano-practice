@@ -29,6 +29,55 @@ import * as L from '../src/layout.mjs';
 import { makeRecord } from '../src/stats.mjs';
 import { scaleRun } from '../src/generator.mjs';
 import { createRun, expireMissed } from '../src/scoring.mjs';
+import { hintFor } from '../src/hints.mjs';
+import { welcomePages, tipCard, TIP_KEYS, PLACEMENT } from '../src/tips.mjs';
+import { sheetFor, LABELS } from '../src/row_sheet.mjs';
+import { makePlace } from '../src/pathmap/model.mjs';
+import { layoutPlaces } from '../src/pathmap/layout.mjs';
+import { createWalk, walkTo } from '../src/pathmap/walk.mjs';
+import { mapTitle } from '../src/map_places.mjs';
+import { createGrow, startGrow } from '../src/home/render.mjs';
+import { PRACTICE_PIANO } from '../src/home/icons.mjs';
+
+/* A map at its worst: long names, three-digit percents, reviews due. */
+function mapScreen(c, n, kind, at, opts = {}) {
+  const places = Array.from({ length: n }, (_, i) => makePlace({
+    label: kind === 'island' ? `${i + 1} Shapes and time` : `${3}.${i + 1} Advanced pieces`, percent: 100,
+    state: ['done', 'current', 'started', 'fresh', 'skipped', 'ahead'][i % 6], due: opts.due || 0,
+    kind: i === n - 1 && kind !== 'island' ? 'fort' : kind,
+  }));
+  const layout = layoutPlaces(n);
+  const walk = createWalk(layout, at);
+  if (opts.to !== undefined) walkTo(walk, opts.to, 0);
+  return V.drawMapScreen(c, { place: places[at], places, layout, walk, now: opts.now || 0,
+    footer: hintFor('map')[0] });
+}
+
+/* A scene (scenes.mjs) on a map at its worst, part way through. */
+function sceneScreen(c, scene, n, now) {
+  const places = Array.from({ length: n }, (_, i) => makePlace({
+    label: `3.${i + 1} Advanced pieces`, percent: 100, state: 'done', due: 12, kind: i === n - 1 ? 'fort' : 'temple' }));
+  const map = { places, layout: layoutPlaces(n, { kind: 'island' }) };
+  const sc = { ...scene, map, island: map, t0: 0 };
+  if (sc.kind === 'walk') sc.walk = walkTo(createWalk(map.layout, sc.from), sc.to, 0);
+  return V.drawScene(c, { scene: sc, now, footer: hintFor('anim')[0] });
+}
+
+/* Home with this module's five circles, at rest or mid-grow. */
+const HOME_ITEMS = [['program', 'Learning Path', 'path'], ['basics', 'Practice', PRACTICE_PIANO], ['quiz', 'Quiz', 'quiz'],
+  ['progress', 'Progress', 'progress'], ['settings', 'Settings', 'settings']]
+  .map(([key, label, icon]) => ({ key, label, icon }));
+function homeScreen(c, selected, opts = {}) {
+  const grow = createGrow(opts.from === undefined ? selected : opts.from);
+  if (opts.from !== undefined) startGrow(grow, selected, 0);
+  return V.drawHomeScreen(c, { title: opts.title || 'PIANO', items: opts.items || HOME_ITEMS, selected, grow,
+    now: opts.now || 0, footer: hintFor('home')[opts.part || 0] });
+}
+/* The rings one level down, as the session builds them. */
+const ring = (rows) => rows.map(([label, icon]) => ({ key: label, label, icon }));
+const PRACTICE_RING = ring([['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression'],
+  ['Random', 'dice'], ['Songs', 'song']]);
+const QUIZ_RING = ring([['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']]);
 
 /*
  * A ctx that draws normally and keeps a transcript of what it was asked to.
@@ -95,6 +144,14 @@ function collisions(c) {
 }
 
 const chart = scaleRun({ rootPc: 0, direction: 'updown', bpm: 80 });
+
+/* A card as ui.js draws one: its paragraphs wrapped by the panel's font. */
+function card(c, page, at, pages, footer) {
+  return V.drawCard(c, {
+    title: page.title, lines: V.cardLines(c, page), choices: page.choices || null, choice: 0,
+    page: at, pages, footer,
+  });
+}
 
 function records(n) {
   const out = [];
@@ -186,10 +243,73 @@ const SCREENS = {
   'info, short': (c) => V.drawInfo(c, {
     title: 'Continue', lines: [{ text: 'Opens the next step.', head: false }], scroll: 0, footer: 'BACK close',
   }),
-    'ready, stage 2': (c) => V.drawReadyView(c, {
+  /* The split box at its worst: the last level, Solo, learned (its mark), the
+   * longest level name on the bottom line beside the longest hint part. */
+  'ready, level box, the last level': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
-    footer: V.stageFooter(2),
+    level: { index: 3, stage: 2, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3', learned: true }] },
+    footerLeft: 'L3 Both hands  Solo',
   }),
+  'ready, level box, the middle': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
+    level: { index: 1, stage: 1, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3' }] },
+    footerRight: 'JOG level  REC start',
+  }),
+  'ready, a drill: one level, its name beside the hint': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
+    level: { index: 0, stage: 1, ladder: false, levels: [{ step: 'L1' }] }, footerLeft: 'Solo', footerRight: 'JOG Guided',
+  }),
+  'ready, scrubbed, the bottom line stays': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 6, pxPerBeat: 48,
+    level: { index: 2, stage: 1, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3' }] },
+    footerLeft: 'L2 RH chords  Guided',
+  }),
+  'ready, stage 2': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
+    footer: hintFor('ready', { stages: true, stage: 2 }).at(-1),
+  }),
+  /* The options sheet at its longest: a stage row, every option it can have. */
+  'sheet, a stage': (c) => V.drawList(c, '3 SHAPES AND TIME', Object.values(LABELS).map((label) => ({ label })), 3, {
+    footer: hintFor('sheet')[0], centreFooter: true,
+  }),
+  'sheet, Continue': (c) => V.drawList(c, 'CONTINUE', sheetFor({ continueRow: true }, { continueSkippable: () => true }), 0, {
+    footer: hintFor('sheet')[1], centreFooter: true,
+  }),
+  'top list, Continue naming a long step': (c) => V.drawList(c, 'EXERCISE', [
+    { label: 'Continue' }, { label: 'Learning Path' }, { label: 'Practice' }, { label: 'Quiz' },
+  ], 0, {
+    footer: hintFor('menu', { top: true })[0], centreFooter: true,
+    decorate: (r) => (r.label === 'Continue'
+      ? { label: 'Continue', value: 'Scarborough Fair L3 Both hands', short: '4.5' } : { value: '100% >', mark: 'half' }),
+  }),
+  'top list, a review due': (c) => V.drawList(c, 'EXERCISE', [{ label: 'Continue' }], 0, {
+    footer: hintFor('menu', { top: true, shift: true })[0], centreFooter: true,
+    decorate: () => ({ label: 'Review', value: 'Name chords advanced', short: '' }),
+  }),
+  'home, Path selected': (c) => homeScreen(c, 0),
+  'ring, Practice on its longest name': (c) => homeScreen(c, 2, { title: 'PRACTICE', items: PRACTICE_RING, part: 1 }),
+  'ring, Quiz of three, mid-grow': (c) => homeScreen(c, 2, { title: 'QUIZ', items: QUIZ_RING, from: 1, now: 80 }),
+  'home, Settings selected, its longest hint part': (c) => homeScreen(c, 4, { part: 1 }),
+  'home, mid-grow from Practice to Progress': (c) => homeScreen(c, 3, { from: 1, now: 80 }),
+  'map, the world': (c) => mapScreen(c, 5, 'island', 1),
+  'map, the world with reviews due': (c) => mapScreen(c, 5, 'island', 2, { due: 12 }),
+  'map, an island of nine, walking': (c) => mapScreen(c, 9, 'place', 0, { to: 8, now: 300 }),
+  'scene, a walk on an island of nine': (c) => sceneScreen(c, { kind: 'walk', from: 0, to: 8 }, 9, 300),
+  'scene, a zoom into an island': (c) => sceneScreen(c, { kind: 'zoom', dir: 'in', at: 2, landAt: 0 }, 9, 100),
+  'scene, the longest banner': (c) => sceneScreen(c, { kind: 'banner', at: 0, text: 'LEARNING PATH COMPLETE' }, 5, 600),
+  'scene, fireworks over a stage': (c) => sceneScreen(c, { kind: 'celebrate', at: 8, fireworks: true }, 9, 700),
+  'card, welcome': (c) => card(c, welcomePages()[0], 0, 3, hintFor('card', { pages: 3 })[0]),
+  'card, keys': (c) => card(c, welcomePages()[1], 1, 3, hintFor('card', { pages: 3 })[0]),
+  'card, new to piano': (c) => card(c, welcomePages()[2], 2, 3, hintFor('card', { choice: true })[0]),
+  'card, the longest tip': (c) => card(c, tipCard(PLACEMENT), 0, 1, hintFor('card', { pages: 1 })[0]),
+  'star, a level learned at 100%': (c) => V.drawStarBand(V.drawExerciseResult(c, {
+    name: 'Scarborough Fair L3 Both hands', percent: 100, hits: 120, total: 120, wrong: 0, stage: 2, passed: 2,
+    isBest: false, history: [], timing: null, footer: hintFor('anim')[0],
+  }), { kind: 'exercise', percent: 100 }, 300),
+  'star, a round learned': (c) => V.drawStarBand(V.drawRoundResult(c, {
+    rate: 144, ms: 480000, n: 30, wrong: 0, bestStreak: 30, hints: 0, best: 144, isBest: true, records: [],
+    success: 100, passed: 2, footer: hintFor('anim')[0],
+  }), { kind: 'quiz', success: 100 }, 300),
   'result, worst case': (c) => V.drawRoundResult(c, {
     rate: 144, ms: 480000, n: 30, wrong: 12, bestStreak: 100, hints: 2,
     best: 144, isBest: false, records: records(12),
@@ -261,7 +381,7 @@ const SCREENS = {
     { label: 'Hear: chords all types', value: 'q' },
     { label: 'Name: chords all types', value: 'q' },
     { label: 'C major scale, two octaves', value: 'f' },
-  ], 0, { footer: V.SETTINGS_HINT, centreFooter: true }),
+  ], 0, { footer: hintFor('menu', { top: true })[0], centreFooter: true }),
   /* "Key = C# mixolydian" is the widest row this module can actually produce,
    * at 114px; the second fixture is past anything real, to prove the label is
    * fitted against the value rather than against a fixed budget. */
@@ -288,6 +408,13 @@ const SCREENS = {
   }),
   'reading, paused': (c) => V.drawReadingView(c, {
     chart, run: createRun(chart), songBeats: 2.5, pxPerBeat: 24, paused: true,
+  }),
+  'reading, paused, with its hint': (c) => V.drawReadingView(c, {
+    chart, run: createRun(chart), songBeats: 2.5, pxPerBeat: 24, paused: true,
+    footer: hintFor('running', { paused: true })[0],
+  }),
+  'reading, count-in, with its hint': (c) => V.drawReadingView(c, {
+    chart, run: createRun(chart), songBeats: -3, pxPerBeat: 24, footer: hintFor('running', {})[0],
   }),
   'reading, stuck on a chord': (c) => {
     const run = createRun(chart, { bpm: 80, graceBeats: 1 });
@@ -331,16 +458,109 @@ test('the ready view puts one label in the header, not two', () => {
 test('every footer this module can show fits across the screen', () => {
   const c = createScreen();
   const footers = [
-    'PLAY again  BACK list', 'PLAY again  JOG pick', 'JOG pick  REC help',
-    'JOG pick  CLICK ok', 'CLICK edit SHIFT back', 'turn change  CLICK ok',
-    V.SETTINGS_HINT, 'jog: another drill', 'jog: drill 12/12', 'play a round',
-    'hint 2/2   streak 100', 'streak 100   REC help',
-    'PLAY again CLICK next', 'REC again  CLICK next', 'CLICK S2  SHIFT next',
-    'CLICK chart BACK list', 'jog: 99/99', '24 plays',
-    V.stageFooter(1), V.stageFooter(2),
-    'JOG scroll BACK close', 'BACK close',
+    'JOG 99/99  BACK list', 'JOG drill 12/12', '24 plays', '99 rounds', 'BACK list', 'JOG next  BACK list',
   ];
+  /* Every part of every hint, in every state the table distinguishes. */
+  const states = [{}, { top: true }, { scrolls: true }, { pages: 3 }, { pages: 1 }, { choice: true },
+    { stages: true, stage: 1 }, { stages: true, stage: 2 }, { listening: true }, { paused: true },
+    { paused: true, listening: true }, { quiz: true, twoNext: true }, { ear: true, hintsLeft: true },
+    { ear: true }, { pick: true, hintsLeft: true }, { pick: true }, { hintsLeft: true, streak: 999 },
+    { streak: 999 }, { editing: true }, { action: true }];
+  for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
+    'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim']) {
+    for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
+  }
   for (const f of footers) {
     assert.ok(c.textWidth(f) <= L.TEXT_MAX_PX, `${JSON.stringify(f)} is ${c.textWidth(f)}px`);
+  }
+});
+
+/* A page of text — help, the welcome, a tip — wraps to the width beside its
+ * scrollbar, measured in the panel's font; a page longer than five lines
+ * scrolls. */
+test('every line of every card fits beside the scrollbar', () => {
+  const c = createScreen();
+  for (const page of welcomePages().concat(TIP_KEYS.concat([PLACEMENT]).map(tipCard).filter(Boolean))) {
+    for (const line of V.cardLines(c, page)) {
+      assert.ok(c.textWidth(line) <= L.INFO_TEXT_PX, `${page.title}: "${line}" is ${c.textWidth(line)}px`);
+    }
+    for (const choice of page.choices || []) assert.ok(c.textWidth(choice) <= L.INFO_TEXT_PX, choice);
+  }
+});
+
+/* Every option of the sheet fits its row whole, even beside a scrollbar:
+ * a cut "I know all this: ski" is how this test came to be. */
+test('every option of the sheet fits its row', () => {
+  const c = createScreen();
+  for (const label of Object.values(LABELS)) {
+    assert.ok(c.textWidth(label) <= L.INFO_TEXT_PX, `"${label}" is ${c.textWidth(label)}px`);
+    const probeList = probe();
+    V.drawList(probeList, 'X', [{ label }], 1, {});
+    assert.ok(probeList.transcript().texts.some((t) => t.s === label), `"${label}" is cut on the list`);
+  }
+});
+
+test('Continue names its step, or its unit\'s number when the name does not fit', () => {
+  const draw = (value, short) => {
+    const c = probe();
+    V.drawList(c, 'PIANO', [{ label: 'Continue' }], 0, { decorate: () => ({ label: 'Continue', value, short }) });
+    return c.transcript().texts.map((t) => t.s);
+  };
+  assert.ok(draw('Ode to Joy', '1.8').includes('Ode to Joy'), 'whole when it fits');
+  const long = draw('Notes by alphabet', '1.1');
+  assert.ok(long.includes('1.1') && !long.some((t) => /Notes/.test(t)), 'never cut: ' + long);
+  const c = createScreen();
+  assert.equal(V.fitWords(c, 'Scarborough Fair L3 Both hands', 110), 'Scarborough L3', 'a title by whole words');
+});
+
+test('the map\'s title keeps its percent, and its reviews only when they fit', () => {
+  const c = createScreen();
+  const w = (s) => c.textWidth(s);
+  const place = makePlace({ label: '3.3 Harmony by ear', percent: 100, due: 3, kind: 'place' });
+  const t = mapTitle(place, L.SCREEN_W - 2, w);
+  assert.match(t.title, / 100%$/);
+  assert.equal(t.right, '', 'no room for 3 due beside it');
+  assert.deepEqual(mapTitle(makePlace({ label: '1 Colour', percent: 5, due: 2, kind: 'island' }), L.SCREEN_W - 2, w),
+    { title: '1 Colour 5%', right: '2 due' });
+  assert.ok(w(mapTitle(makePlace({ label: '5.8 Advanced pieces and more', percent: 100 }), L.SCREEN_W - 2, w).title) <= L.SCREEN_W - 2);
+  assert.deepEqual(mapTitle(null, 100, w), { title: '', right: '' });
+});
+
+test('a level learned: the score centred in the band, LEVEL LEARNED under it, the star\'s room above it', () => {
+  const c = createScreen();
+  for (const result of [{ kind: 'exercise', percent: 100 }, { kind: 'exercise', percent: 92 }, { kind: 'quiz', success: 95 }]) {
+    const s = V.starLayout(result, (x) => c.textWidth(x));
+    assert.equal(s.caption, 'LEVEL LEARNED');
+    assert.ok(Math.abs(s.x + s.w / 2 - L.SCREEN_W / 2) <= 1, 'centred across');
+    assert.ok(Math.abs((s.y - s.top) - (s.bottom - (s.y + s.h - 1))) <= 1, 'centred in its room');
+    assert.ok(s.top >= 10 && s.captionY + L.TEXT_H - 1 <= 53, 'inside the band');
+    assert.ok(s.y + s.h < s.captionY && s.bottom < s.captionY, 'the caption under the score and the star');
+  }
+  assert.equal(V.starLayout({ kind: 'exercise', percent: 100 }, (x) => x.length * 12).caption, 'LEARNED', 'too wide: the short word');
+});
+
+test('the star stays in its room: clear of the digits and the caption, inside the band', async () => {
+  const { isOn } = await import('../tools/screen_buffer.mjs');
+  for (const result of [{ kind: 'exercise', percent: 100 }, { kind: 'exercise', percent: 90 }, { kind: 'quiz', success: 95 }]) {
+    const still = createScreen();
+    still.clear();
+    V.drawStarBand(still, result, 0);              /* no rays yet: the score and the caption */
+    const s = V.starLayout(result, (x) => still.textWidth(x));
+    let rays = 0;
+    for (let t = 0; t <= 600; t += 20) {
+      const c = createScreen();
+      c.clear();
+      V.drawStarBand(c, result, t);
+      for (let y = 0; y < 64; y++) {
+        for (let x = 0; x < 128; x++) {
+          if (!isOn(c, x, y) || isOn(still, x, y)) continue;
+          rays++;
+          const where = `${result.kind} ${s.text} at t ${t}: (${x}, ${y})`;
+          assert.ok(y >= s.top && y <= s.bottom, 'inside its room: ' + where);
+          assert.ok(!(x >= s.x - 1 && x <= s.x + s.w && y >= s.y - 1 && y <= s.y + s.h), 'clear of the digits: ' + where);
+        }
+      }
+    }
+    assert.ok(rays > 0, 'a star is drawn');
   }
 });

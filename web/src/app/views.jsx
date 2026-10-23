@@ -16,9 +16,13 @@ import { AnswersChart, AttemptsChart, RoundsChart, TimelineChart } from './chart
 import { staffEvents, staffJudgements, staffMarkers } from './chart-view.js';
 import { keyboardRange } from './feedback.js';
 import { MODES } from '../../../src/generator.mjs';
+import { layoutPlaces, cellRect, MAP_X, MAP_Y, MAP_W, MAP_H } from '../../../src/pathmap/layout.mjs';
+import { createWalk, walkTo, arrived } from '../../../src/pathmap/walk.mjs';
+import { drawMap } from '../../../src/pathmap/render.mjs';
+import { compile, homeLayout, HOME_Y, R_SMALL, R_LARGE } from '../../../src/home/render.mjs';
 
 const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
-const MARK_INFO = { done: 'both stages passed', half: 'stage 1 passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a phase you skipped' };
+const MARK_INFO = { done: 'both stages passed', half: 'Guided passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a stage you skipped' };
 
 /* The playhead, every animation frame while the music moves; still otherwise. */
 function createFrameClock(store) {
@@ -66,6 +70,168 @@ export function ListView(props) {
   );
 }
 
+/* ---- The Path as a map ------------------------------------------------------ */
+
+/*
+ * The Move's map, drawn by the same engine (pathmap/render.mjs) into a
+ * recording ctx whose rectangles become SVG: the page shows exactly what the
+ * panel shows, scaled. The avatar's walk is the page's own, on the same
+ * layout, set off whenever the session's avatar is bound somewhere new — so
+ * it walks the route here as it does there, whatever the session's clock.
+ */
+function mapRects(places, layout, walk, now) {
+  const rects = [];
+  drawMap({ fillRect: (x, y, w, h, v) => rects.push([x, y, w, h, v]) }, { places, layout, walk, now });
+  return rects;
+}
+
+export function MapView(props) {
+  const m = () => props.vm().map;
+  const layout = createMemo(() => layoutPlaces(m().places.length, { kind: m().world ? 'world' : 'island' }));
+  const [frame, setFrame] = createSignal(performance.now());
+  let walk = null;
+  let walkLayout = null;
+  let raf = 0;
+  /* One clock reading per frame: drawn and tested at the same moment, or a
+   * walk arriving between the two would stop the loop one frame short. */
+  const animate = () => {
+    const t = performance.now();
+    setFrame(t);
+    if (walk && !arrived(walk, t)) raf = requestAnimationFrame(animate);
+    else raf = 0;
+  };
+  /* A new map stands the avatar on its place; a new place sets it walking. */
+  const avatar = createMemo(() => {
+    const l = layout();
+    const at = m().at;
+    if (!walk || walkLayout !== l) {
+      walk = createWalk(l, at);
+      walkLayout = l;
+    } else if (walk.target !== at) {
+      walkTo(walk, at, performance.now());
+      if (!raf) raf = requestAnimationFrame(animate);
+    }
+    return walk;
+  });
+  onCleanup(() => cancelAnimationFrame(raf));
+  const rects = () => mapRects(m().places, layout(), avatar(), frame());
+  /* While the avatar walks the picture moves: said on the element, so a
+   * test (or a screenshot) can wait for it to stand still. */
+  const walking = () => !arrived(avatar(), frame());
+  const here = () => m().places[m().at];
+  return (
+    <section class="screen map-screen" aria-labelledby="map-title">
+      <header class="screen-head">
+        <h1 id="map-title" class="t-title">{m().world ? 'Learning Path' : props.vm().nav ? props.vm().nav.title : ''}</h1>
+        <p class="t-hint">
+          {here() ? `${here().label} · ${here().percent}%${here().due ? ` · ${here().due} due` : ''}` : ''}
+        </p>
+        <Button icon="play" info="Continue — your next step on the Learning Path (Play on the Move)"
+                onClick={() => props.dispatch({ type: 'listen' })}>Continue</Button>
+      </header>
+      <svg class="map" viewBox={`${MAP_X} ${MAP_Y} ${MAP_W} ${MAP_H}`} shape-rendering="crispEdges"
+           data-walking={walking() ? 'yes' : 'no'}
+           role="group" aria-label={m().world ? 'The world map: a place per stage' : 'The island: a place per unit'}>
+        <For each={rects()}>{(r) => <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} class={r[4] ? 'ink' : 'sea'} />}</For>
+        <For each={m().places}>{(p, i) => {
+          const c = () => cellRect(layout().cells[i()], layout().kind);
+          return (
+            <rect class="place-hit" classList={{ on: i() === m().at }} x={c().x} y={c().y} width={c().w} height={c().h}
+                  role="button" tabindex="-1" aria-label={`${p.label}, ${p.percent} percent, ${p.state}`}
+                  data-info={i() === m().at ? `${p.label} — click again to go in` : `${p.label} — walk there`}
+                  onClick={() => props.dispatch({ type: 'mapGo', index: i() })} />
+          );
+        }}</For>
+      </svg>
+      <ul class="rows map-places" aria-label="Places">
+        <For each={m().places}>{(p, i) => (
+          <li>
+            <button class="row" classList={{ on: i() === m().at }}
+                    data-info={i() === m().at ? `${p.label} — open it` : `${p.label} — walk there`}
+                    onClick={() => props.dispatch({ type: 'mapGo', index: i() })}>
+              <span class="row-label">{p.label}</span>
+              <span class={`row-mark state-${p.state}`}>{p.state}</span>
+              <span class="row-value">{p.percent}%</span>
+            </button>
+          </li>
+        )}</For>
+      </ul>
+    </section>
+  );
+}
+
+/* ---- Home: five circles ------------------------------------------------------- */
+
+/*
+ * The Move's home screen as SVG: the same positions and radii as the panel
+ * (home/render.mjs), the icons the session sends as the engine's rows. The
+ * selected circle is filled, its icon cut out of it, and it grows — here by
+ * a CSS transition on r, there frame by frame. A click opens a circle, as
+ * the circle's pad does on the Move; the rows below are the same five, for
+ * the keyboard and a screen reader.
+ */
+const ICON_RECTS = new WeakMap();
+/* The strip the circles take, a pixel of air round the grown one; the
+ * label is the page's own text. app.css's aspect-ratio is its 128 x 29. */
+const HOME_TOP = HOME_Y - R_LARGE - 2;
+const HOME_H = 2 * R_LARGE + 5;
+function iconRects(rows) {
+  if (!rows) return [];
+  let r = ICON_RECTS.get(rows);
+  if (!r) {
+    r = compile(rows);
+    ICON_RECTS.set(rows, r);
+  }
+  return r;
+}
+
+export function HomeView(props) {
+  const home = () => props.vm().home;
+  const selected = () => home().items[home().selected];
+  /* The engine's spacing for this many circles: home's five, Quiz's three. */
+  const xs = () => homeLayout(home().items.length);
+  return (
+    <section class="screen home-screen" aria-labelledby="home-title">
+      <header class="screen-head">
+        <h1 id="home-title" class="t-title">{props.vm().nav ? props.vm().nav.title : 'Piano'}</h1>
+        <p class="t-hint">{selected() ? selected().label : ''}</p>
+      </header>
+      {/* The picture is for the pointer; the rows below say the same to a
+        * screen reader, so it is hidden from one. */}
+      <svg class="home" viewBox={`0 ${HOME_TOP} 128 ${HOME_H}`} aria-hidden="true">
+        <For each={home().items}>{(it, i) => {
+          const on = () => i() === home().selected;
+          const rows = () => (on() ? it.large : it.small);
+          const half = () => (rows() ? rows().length >> 1 : 0);
+          return (
+            <g class="home-item" classList={{ on: on() }} data-key={it.key} data-info={`${it.label} — open it`}
+               onClick={() => props.dispatch({ type: 'homeGo', index: i() })}>
+              <circle class="home-circle" cx={xs()[i()] + 0.5} cy={HOME_Y + 0.5}
+                      style={{ r: `${(on() ? R_LARGE : R_SMALL) + (on() ? 0.5 : 0)}px` }} />
+              <g class="home-icon" shape-rendering="crispEdges"
+                 transform={`translate(${xs()[i()] - half()} ${HOME_Y - half()})`}>
+                <For each={iconRects(rows())}>{(r) => <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} />}</For>
+              </g>
+            </g>
+          );
+        }}</For>
+      </svg>
+      <ul class="rows home-rows" role="listbox" aria-label="Home">
+        <For each={home().items}>{(it, i) => (
+          <li>
+            <button class="row folder" classList={{ on: i() === home().selected }} role="option"
+                    aria-selected={i() === home().selected} data-info={`${it.label} — open it`}
+                    onClick={() => props.dispatch({ type: 'homeGo', index: i() })}>
+              <span class="row-label">{it.label}</span>
+              <span class="row-chevron" aria-hidden="true">›</span>
+            </button>
+          </li>
+        )}</For>
+      </ul>
+    </section>
+  );
+}
+
 /* ---- Practice: ready and running -------------------------------------------- */
 
 export function PracticeView(props) {
@@ -101,12 +267,22 @@ export function PracticeView(props) {
             {keyName(vm())} · {vm().chart ? vm().chart.bpm : ''} bpm · {position()}
           </p>
         </div>
+        <Show when={vm().armed && vm().armed.level && vm().armed.level.ladder}>
+          <div class="segmented levels" role="radiogroup" aria-label="Level">
+            <For each={vm().armed.level.levels}>{(lv, i) => (
+              <Button on={i() === vm().armed.level.index} info={`Level ${lv.label}${lv.learned ? ' — learned' : ''}`}
+                      onClick={() => props.dispatch({ type: 'level', index: i() })}>
+                {lv.step} {lv.name}{lv.learned ? ' ✓' : ''}
+              </Button>
+            )}</For>
+          </div>
+        </Show>
         <Show when={vm().armed}>
-          <div class="segmented" role="radiogroup" aria-label="Stage">
-            <Button on={vm().armed.stage === 1} info="Stage 1 — the next notes light on the keys and pads"
-                    onClick={() => props.dispatch({ type: 'stage', stage: 1 })}>Stage 1 · lit</Button>
-            <Button on={vm().armed.stage === 2} info="Stage 2 — nothing lights: reading alone"
-                    onClick={() => props.dispatch({ type: 'stage', stage: 2 })}>Stage 2 · read</Button>
+          <div class="segmented" role="radiogroup" aria-label="Guided or Solo">
+            <Button on={vm().armed.stage === 1} info="Guided — the next notes light on the keys and pads"
+                    onClick={() => props.dispatch({ type: 'stage', stage: 1 })}>Guided</Button>
+            <Button on={vm().armed.stage === 2} info="Solo — nothing lights: read it from the staff"
+                    onClick={() => props.dispatch({ type: 'stage', stage: 2 })}>Solo</Button>
           </div>
         </Show>
       </header>
@@ -129,7 +305,7 @@ export function PracticeView(props) {
           <div class="staff-badge t-label">Paused</div>
         </Show>
         <Show when={vm().clock.blocked}>
-          {/* Stage 1 lights it; stage 2 names it only once it has waited. */}
+          {/* Guided lights it; Solo names it only once it has waited. */}
           <div class="staff-badge t-label">
             {vm().armed && vm().armed.stage === 2
               ? (vm().stuckName ? `Waiting for ${vm().stuckName}` : 'Waiting')
@@ -309,7 +485,7 @@ export function QuizView(props) {
 
 export function ResultView(props) {
   const r = () => props.vm().result;
-  const passed = () => (r().passed === 2 ? 'Finished ✓' : r().passed === 1 ? 'Stage 1 passed ◐' : '');
+  const passed = () => (r().passed === 2 ? 'Finished ✓' : r().passed === 1 ? 'Guided passed ◐' : '');
   return (
     <Show when={r()}>
       <section class="screen result-screen" aria-labelledby="result-title">
@@ -360,8 +536,8 @@ export function ResultView(props) {
             <Show when={r().kind === 'exercise'}>
               <Button icon="play" info="Listen to it" onClick={() => props.dispatch({ type: 'listen' })}>Listen</Button>
             </Show>
-            <Button on info="Next — stage 2 if stage 1 is just passed, else the next step" onClick={() => props.dispatch({ type: 'next' })}>Next</Button>
-            <Button info="Move on — count stage 1 as enough, or skip" onClick={() => props.dispatch({ type: 'skip' })}>Move on</Button>
+            <Button on info="Next — Solo if Guided is just passed, else the next step" onClick={() => props.dispatch({ type: 'next' })}>Next</Button>
+            <Button info="Move on — count Guided as enough, or skip" onClick={() => props.dispatch({ type: 'skip' })}>Move on</Button>
           </div>
         </div>
       </section>
@@ -424,27 +600,128 @@ export function ProgressView(props) {
 /* Move-only: where the Move sends its notes. A browser has its own piano. */
 const MOVE_ONLY = new Set(['MIDI out', 'MIDI ch']);
 
+/*
+ * One group's rows, as the Move's page has them: a setting (− and +), the
+ * path's start (the same), or an action (Help's two), which is one button.
+ */
 export function SettingsView(props) {
   const s = () => props.vm().settings;
   const rows = () => s().rows.filter((r) => props.remote || !MOVE_ONLY.has(r.label));
+  const edit = (row, delta) => props.dispatch(row.index >= 0
+    ? { type: 'editSetting', index: row.index, delta }
+    : { type: 'editRow', row: row.row, delta });
   return (
     <section class="screen settings-screen" aria-labelledby="settings-title">
-      <header class="screen-head"><h1 id="settings-title" class="t-title">Settings</h1></header>
+      <header class="screen-head"><h1 id="settings-title" class="t-title">{s().title}</h1></header>
       <ul class="rows settings-rows">
         <For each={rows()}>{(row) => (
-          <li class="setting" classList={{ on: row.index === s().cursor }}
-              onClick={() => props.dispatch({ type: 'selectSetting', index: row.index })}>
+          <li class="setting" classList={{ on: row.row === s().cursor }}
+              onClick={() => props.dispatch(row.index >= 0
+                ? { type: 'selectSetting', index: row.index } : { type: 'settingRow', row: row.row })}>
             <span class="row-label">{row.label}</span>
-            <Button title={`Less ${row.label}`} ariaLabel={`Less ${row.label}`}
-                    onClick={() => props.dispatch({ type: 'editSetting', index: row.index, delta: -1 })}>−</Button>
-            <span class="pp-value setting-value">{row.value}</span>
-            <Button title={`More ${row.label}`} ariaLabel={`More ${row.label}`}
-                    onClick={() => props.dispatch({ type: 'editSetting', index: row.index, delta: 1 })}>+</Button>
+            <Show when={!row.act} fallback={
+              <Button info={row.label} onClick={(e) => { e.stopPropagation(); props.dispatch({ type: 'settingRow', row: row.row }); }}>{row.label}</Button>
+            }>
+              <Button title={`Less ${row.label}`} ariaLabel={`Less ${row.label}`}
+                      onClick={() => edit(row, -1)}>−</Button>
+              <span class="pp-value setting-value">{row.value}</span>
+              <Button title={`More ${row.label}`} ariaLabel={`More ${row.label}`}
+                      onClick={() => edit(row, 1)}>+</Button>
+            </Show>
           </li>
         )}</For>
       </ul>
-      {props.extra}
+      {/* The browser's own inputs belong with MIDI, whose Move rows a browser
+        * does not have; and with the Settings page, the first one opened. */}
+      <Show when={s().group === 'main' || s().group === 'midi'}>{props.extra}</Show>
     </section>
+  );
+}
+
+/* ---- The options of a row ---------------------------------------------------- */
+
+/* Shift + click on the Move: what can be done with the row besides opening it. */
+export function SheetView(props) {
+  const sheet = () => props.vm().sheet;
+  return (
+    <Show when={sheet()}>
+      <section class="screen sheet-screen" aria-labelledby="sheet-title">
+        <header class="screen-head">
+          <h1 id="sheet-title" class="t-title">{sheet().title}</h1>
+          <p class="t-hint">Options for this row</p>
+        </header>
+        <ul class="rows sheet-rows" role="listbox" aria-labelledby="sheet-title">
+          <For each={sheet().items}>{(label, i) => (
+            <li>
+              <button class="row" classList={{ on: i() === sheet().cursor }} role="option"
+                      aria-selected={i() === sheet().cursor} data-info={label}
+                      onClick={() => props.dispatch({ type: 'sheetPick', index: i() })}>
+                <span class="row-label">{label}</span>
+              </button>
+            </li>
+          )}</For>
+        </ul>
+        <div class="transport"><Button onClick={() => props.dispatch({ type: 'back' })} info="Close the options">Close</Button></div>
+      </section>
+    </Show>
+  );
+}
+
+/* ---- Cards: the welcome and the tips --------------------------------------- */
+
+export function CardView(props) {
+  const card = () => props.vm().card;
+  const last = () => card().page >= card().pages - 1;
+  return (
+    <Show when={card()}>
+      <section class="screen card-screen" aria-labelledby="card-title">
+        <header class="screen-head">
+          <h1 id="card-title" class="t-title">{card().title}</h1>
+          <Show when={card().pages > 1}><p class="t-hint">{card().page + 1} of {card().pages}</p></Show>
+        </header>
+        <Show when={card().choices} fallback={
+          <article class="info-text card-text" classList={{ table: card().lines }}>
+            <For each={card().paragraphs}>{(p) => <p class="t-value">{p}</p>}</For>
+          </article>
+        }>
+          <ul class="rows card-choices" role="listbox" aria-labelledby="card-title">
+            <For each={card().choices}>{(label, i) => (
+              <li>
+                <button class="row" classList={{ on: i() === card().choice }} role="option"
+                        aria-selected={i() === card().choice}
+                        onClick={() => props.dispatch({ type: 'cardPick', index: i() })}>
+                  <span class="row-label">{label}</span>
+                </button>
+              </li>
+            )}</For>
+          </ul>
+        </Show>
+        <div class="transport">
+          <Show when={!card().choices}>
+            <Button on onClick={() => props.dispatch({ type: 'open' })} info={last() ? 'Close the card' : 'The next page'}>
+              {last() ? 'Go on' : 'Next'}
+            </Button>
+          </Show>
+          <Button onClick={() => props.dispatch({ type: 'back' })} info="Close it">Close</Button>
+        </div>
+      </section>
+    </Show>
+  );
+}
+
+/* ---- The Move's hint line ---------------------------------------------------- */
+
+/* What the Move's footer says on this screen, every part at once: the page
+ * names the same keys in the Move's words. */
+export function MoveHint(props) {
+  const parts = () => (props.vm().hint || []);
+  return (
+    <Show when={parts().length}>
+      <p class="move-hint t-hint" aria-label="On the Move">
+        <span class="move-hint-tag">Move</span>
+        <For each={parts()}>{(part) => <span class="move-hint-part">{part}</span>}</For>
+      </p>
+    </Show>
   );
 }
 

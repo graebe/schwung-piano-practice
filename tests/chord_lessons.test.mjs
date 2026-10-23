@@ -266,3 +266,15 @@ test('the minor cadence is i-iv-V-i: its V is major, the leading tone on its own
   const m = progressionLesson(modal, 9).events.filter((e) => e.hand === 'r')[2];
   assert.ok(!m.pitches.map((p) => p % 12).includes(8), 'A minor v is E G B, no G#');
 });
+
+test('slash chords fit at every Octave setting: the right hand lets go of the bass', () => {
+  for (let t = -24; t <= 24; t++) {
+    const song = slashLesson(t);
+    const { lo, hi } = pitchRange(t);
+    const symbols = song.events.filter((e) => e.hand === 'r').map((e) => e.symbol);
+    assert.deepEqual(symbols, ['C/E', 'C/G', 'D/F#', 'G/B', 'Am/G', 'F/C', 'Bb/C', 'D/C'], `Octave ${t}`);
+    for (const e of song.events) {
+      assert.ok(e.pitches.every((p) => p >= lo && p <= hi), `Octave ${t}: ${e.symbol || 'bass'} on the pads`);
+    }
+  }
+});

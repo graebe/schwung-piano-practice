@@ -50,7 +50,12 @@ import * as CAT from './catalog.mjs';
 import {
   createSession, OUT_TRACK, OUT_USB, OUT_INTERNAL,
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
+  SHEET_VIEW, CARD_VIEW, ANIM_VIEW,
 } from './session.mjs';
+import { hintPart, ROTATE_MS } from './hints.mjs';
+import { mapPadColors } from './pathmap/leds.mjs';
+import { sweepColors, sparkleColors, SWEEP_MS } from './pathmap/anim.mjs';
+import { homePadColors } from './home/leds.mjs';
 import { viewModel, encodeViewModel } from './view_model.mjs';
 import { applyAction } from './actions.mjs';
 import { createRemote } from './remote.mjs';
@@ -439,6 +444,52 @@ const ledWorkspace = LEDS.createLedState();
 const padColorBuf = new Array(PAD.PAD_COUNT);
 
 function paintPads() {
+  navButtons();
+  /* A scene owns the pads: a green wave as a flag goes up, sparkles for
+   * fireworks, the finale and a level learned, and otherwise its map's
+   * places as they stand. */
+  if (S.view === ANIM_VIEW) {
+    const scene = S.scene;
+    const t = scene ? now() - scene.t0 : 0;
+    const on = scene ? VIEW.sceneMap(scene) : null;
+    const kind = scene ? scene.kind : null;
+    if (kind === 'celebrate' && t < SWEEP_MS) {
+      sweepColors({ t, palette: PAD.ANIM_PALETTE, out: padColorBuf });
+    } else if ((kind === 'celebrate' && scene.fireworks) || kind === 'banner' || kind === 'finale' || kind === 'star') {
+      sparkleColors({ t, seed: 5, palette: PAD.ANIM_PALETTE, out: padColorBuf });
+    } else if (on && on.map) {
+      mapPadColors({ places: on.map.places, layout: on.map.layout, walk: scene.walk || scene.stand || null,
+        now: now(), palette: PAD.MAP_PALETTE, out: padColorBuf });
+    } else {
+      padColorBuf.fill(PAD.LED_OFF);
+    }
+    for (let i = 0; i < PAD.PAD_COUNT; i++) setLED(PAD.PAD_FIRST + i, padColorBuf[i]);
+    setButtonLED(CC_PLAY, CTRL.OFF);
+    setButtonLED(CC_RECORD, CTRL.OFF);
+    return;
+  }
+  /* At home the five circles' pads, and nothing else: lit means pressable.
+   * Home has nothing to play or record, so those are dark. */
+  const home = S.homeModel();
+  if (home) {
+    homePadColors({ count: home.items.length, selected: home.selected, now: now(), palette: PAD.HOME_PALETTE,
+      out: padColorBuf });
+    for (let i = 0; i < PAD.PAD_COUNT; i++) setLED(PAD.PAD_FIRST + i, padColorBuf[i]);
+    setButtonLED(CC_PLAY, CTRL.OFF);
+    setButtonLED(CC_RECORD, CTRL.OFF);
+    return;
+  }
+  /* On the map the pads are its places: lit means you can walk there, and
+   * Play is Continue, so it is lit too. */
+  const m = S.mapModel();
+  if (m) {
+    mapPadColors({ places: m.places, layout: m.layout, walk: m.walk, now: now(), palette: PAD.MAP_PALETTE,
+      out: padColorBuf });
+    for (let i = 0; i < PAD.PAD_COUNT; i++) setLED(PAD.PAD_FIRST + i, padColorBuf[i]);
+    setButtonLED(CC_PLAY, CTRL.GREEN);
+    setButtonLED(CC_RECORD, CTRL.OFF);
+    return;
+  }
   const near = S.collectTarget();
   S.collectStuck();
   S.collectSounding();
@@ -476,6 +527,27 @@ function paintPads() {
   setButtonLED(CC_RECORD, CTRL.recordLedColor(ledView, S.listening, ledPhase,
     Boolean(quiz && GUESS.hintsLeft(quiz) === 0), S.paused));
 }
+/*
+ * Back and Menu light when they do something (controls.mjs navButtonLeds):
+ * Menu always, Back while there is somewhere to go back to. Whether Move
+ * drives these LEDs for a module is still to be seen on the device; the
+ * values are cached, so asking costs nothing when nothing changed.
+ */
+let backLit = -1;
+let menuLit = -1;
+
+function navButtons() {
+  const b = CTRL.navButtonLeds(S.canGoBack());
+  if (b.back !== backLit) { backLit = b.back; setButtonLED(CC_BACK, b.back); }
+  if (b.menu !== menuLit) { menuLit = b.menu; setButtonLED(CC_MENU, b.menu); }
+}
+
+function darkenButtons() {
+  backLit = 0;
+  menuLit = 0;
+  setButtonLED(CC_BACK, 0);
+  setButtonLED(CC_MENU, 0);
+}
 /* ---- Drawing ------------------------------------------------------------ */
 /*
  * The Info page's lines, wrapped to the panel's font. The session keeps the
@@ -493,6 +565,76 @@ function infoView() {
   infoScroll = 0;
 }
 
+/* A card's page, the same way: its lines, and how far down it is scrolled. */
+let cardShown = null;
+let cardLines = [];
+let cardScroll = 0;
+
+function cardView() {
+  const card = S.card;
+  const page = card ? card.pages[card.page] : null;
+  if (page === cardShown) return;
+  cardShown = page;
+  cardLines = page && !page.choices ? VIEW.cardLines(ctx, page) : [];
+  cardScroll = 0;
+}
+
+/* Whether the page on screen is longer than the panel. */
+function pageScrolls() {
+  if (S.view === INFO_VIEW) return infoLines.length > L.INFO_ROWS;
+  if (S.view === CARD_VIEW) return cardLines.length > L.INFO_ROWS;
+  return false;
+}
+
+/*
+ * The hint line: the part of this screen's hint showing now, or, while Shift
+ * is held, what Shift does here. Parts that do not fit one row take turns;
+ * the frame loop only has to compare the clock with when the next turn is
+ * due, so nothing is built per tick.
+ *
+ * The turns are counted from when this hint first showed, not from the
+ * clock's zero: a new screen (or Shift) always opens on its first part and
+ * gives each its full turn. Counted from zero, which part you met depended on
+ * the time of day, and a turn could be cut to a single frame.
+ */
+let hintTurnAt = Infinity;
+let hintKey = null;
+let hintSince = 0;
+
+/* The time since this set of parts first showed; a new set starts it again. */
+function hintElapsed(key, t) {
+  if (key !== hintKey) {
+    hintKey = key;
+    hintSince = t;
+  }
+  return t - hintSince;
+}
+
+function nextTurn(turns, elapsed, t, turnMs) {
+  return turns > 1 ? t + (Math.floor(elapsed / turnMs) + 1) * turnMs - elapsed : Infinity;
+}
+
+function footer() {
+  const parts = S.hint({ shift: shiftHeld, scrolls: pageScrolls() });
+  const t = now();
+  const e = hintElapsed(parts.join('\n'), t);
+  hintTurnAt = nextTurn(parts.length, e, t, ROTATE_MS);
+  return hintPart(parts, e);
+}
+
+/* The ready screen's bottom line (view.mjs readyLine): the level's name and
+ * the keys, or the Shift layer alone while Shift is held. The name joins the
+ * turns only when it does not fit beside them, so it is part of the key. */
+function readyLine(level) {
+  const parts = S.hint({ shift: shiftHeld });
+  const name = level && !shiftHeld ? level.name : '';
+  const t = now();
+  const e = hintElapsed('ready\n' + name + '\n' + parts.join('\n'), t);
+  const line = VIEW.readyLine(name, parts, e, (x) => ctx.textWidth(x));
+  hintTurnAt = nextTurn(line.turns, e, t, VIEW.READY_TURN_MS);
+  return line;
+}
+
 function draw() {
   const view = S.view;
   const nav = S.nav;
@@ -501,28 +643,60 @@ function draw() {
   const chart = S.chart;
   const songBeats = S.songBeats;
   const lastResult = S.lastResult;
-  if (view === MENU) {
+  const home = view === MENU ? S.homeModel() : null;
+  const m = view === MENU && !home ? S.mapModel() : null;
+  if (view === ANIM_VIEW) {
+    drawScene(lastResult);
+  } else if (home) {
+    VIEW.drawHomeScreen(ctx, { title: S.listTitle().toUpperCase(), items: home.items, selected: home.selected,
+      grow: home.grow, now: now(), footer: footer() });
+  } else if (m) {
+    VIEW.drawMapScreen(ctx, { place: m.place, places: m.places, layout: m.layout, walk: m.walk, now: now(),
+      footer: footer() });
+  } else if (view === MENU) {
     const top = CAT.navTop(nav);
-    VIEW.drawList(ctx, top.node.label.toUpperCase(), top.node.children, top.cursor, {
-      footer: nav.length > 1 ? VIEW.FOLDER_HINT : VIEW.SETTINGS_HINT,
+    VIEW.drawList(ctx, S.listTitle().toUpperCase(), top.node.children, top.cursor, {
+      footer: footer(),
       centreFooter: true,
       decorate: S.decorateRow,
+    });
+  } else if (view === SHEET_VIEW) {
+    const sheet = S.sheet;
+    VIEW.drawList(ctx, sheet.title.toUpperCase(), sheet.items, sheet.cursor, {
+      footer: footer(),
+      centreFooter: true,
+    });
+  } else if (view === CARD_VIEW) {
+    cardView();
+    const card = S.card;
+    const page = card.pages[card.page];
+    VIEW.drawCard(ctx, {
+      title: page.title,
+      lines: cardLines,
+      scroll: cardScroll,
+      choices: page.choices || null,
+      choice: card.choice,
+      page: card.page,
+      pages: card.pages.length,
+      footer: footer(),
     });
   } else if (view === PROGRESS_VIEW) {
     VIEW.drawList(ctx, 'PROGRESS ' + PROG.folderSummary(S.agg, S.progress, S.catalog).percent + '%',
       S.progressRows, S.progressCursor, {
-        footer: 'CLICK chart BACK list',
+        footer: footer(),
         centreFooter: true,
         decorate: S.decorateRow,
       });
   } else if (view === SETTINGS) {
-    VIEW.drawList(ctx, 'SETTINGS', S.settingsRows(), S.settingsCursor, {
-      footer: S.settingsEditing ? 'turn change  CLICK ok' : 'CLICK edit SHIFT back',
+    const group = SET.groupByKey(S.settingsGroup);
+    VIEW.drawList(ctx, group ? group.label.toUpperCase() : 'SETTINGS', S.settingsRows(), S.settingsCursor, {
+      footer: footer(),
+      centreFooter: true,
       editing: S.settingsEditing,
     });
   } else if (view === RESULT_VIEW) {
-    if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, lastResult);
-    else VIEW.drawResultPage(ctx, lastResult);
+    if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, { ...lastResult, footer: footer() });
+    else VIEW.drawResultPage(ctx, { ...lastResult, footer: footer() });
   } else if (view === PROGRESS_DETAIL) {
     drawProgressDetail();
   } else if (view === INFO_VIEW) {
@@ -531,7 +705,7 @@ function draw() {
       title: S.info.title,
       lines: infoLines,
       scroll: infoScroll,
-      footer: infoLines.length > L.INFO_ROWS ? 'JOG scroll BACK close' : 'BACK close',
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW && S.quizPick && quiz.exercise && quiz.exercise.read) {
     const option = quiz.choices[quiz.choiceIndex];
@@ -545,7 +719,7 @@ function draw() {
       struck: GUESS.isEliminated(quiz, quiz.choiceIndex),
       solved: quiz.solved,
       label: quiz.label,
-      footer: GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok',
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW && S.quizPick) {
     const ear = quiz.kind === GUESS.EAR;
@@ -566,9 +740,7 @@ function draw() {
       index: quiz.choiceIndex,
       eliminated: quiz.eliminated,
       hint: ask,
-      footer: ear
-        ? (GUESS.hintsLeft(quiz) ? 'PAD answer  REC help' : 'PAD or JOG  CLICK ok')
-        : (GUESS.hintsLeft(quiz) ? 'JOG pick  REC help' : 'JOG pick  CLICK ok'),
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW && quiz.read) {
     const st = GUESS.quizStats(quiz);
@@ -584,9 +756,7 @@ function draw() {
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : st.correct + '/' + st.asked,
-      footer: GUESS.hintsLeft(quiz)
-        ? 'streak ' + st.streak + '   REC help'
-        : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
+      footer: footer(),
     });
   } else if (view === GUESS_VIEW) {
     const st = GUESS.quizStats(quiz);
@@ -601,9 +771,7 @@ function draw() {
       score: quiz.roundSize > 0
         ? quiz.correct + '/' + quiz.roundSize
         : st.correct + '/' + st.asked,
-      footer: GUESS.hintsLeft(quiz)
-        ? 'streak ' + st.streak + '   REC help'
-        : 'hint ' + quiz.hint + '/' + GUESS.MAX_HINT + '   streak ' + st.streak,
+      footer: footer(),
     });
   } else if (view === READY) {
     VIEW.drawReadyView(ctx, {
@@ -623,8 +791,9 @@ function draw() {
       outLabel: songBeats > 0 ? '' :
         SET.formatSetting(settings, SET.settingIndex('midiOut')) + ' ' +
         SET.formatSetting(settings, SET.settingIndex('midiCh')),
-      /* Which stage is armed, and that the jog changes it. */
-      footer: S.armedId ? VIEW.stageFooter(S.stage) : '',
+      /* The level, Guided or Solo, and the keys, on the bottom line. */
+      level: S.levelInfo(),
+      ...readyLine(S.levelInfo()),
     });
   } else {
     VIEW.drawReadingView(ctx, {
@@ -637,8 +806,22 @@ function draw() {
       paused: S.paused,
       names: S.namesShown(),
       stuckNamed: S.stuckNamed(),
+      footer: footer(),
     });
   }
+}
+
+/* A scene: on its map, or (a level learned) over the result it celebrates. */
+function drawScene(lastResult) {
+  const scene = S.scene;
+  if (!scene) return;
+  if (scene.over === 'result' && lastResult) {
+    if (lastResult.kind === 'exercise') VIEW.drawExerciseResult(ctx, { ...lastResult, footer: footer() });
+    else VIEW.drawResultPage(ctx, { ...lastResult, footer: footer() });
+    VIEW.drawStarBand(ctx, lastResult, now() - scene.t0);
+    return;
+  }
+  VIEW.drawScene(ctx, { scene, now: now(), footer: footer() });
 }
 
 function drawProgressDetail() {
@@ -656,7 +839,21 @@ function drawProgressDetail() {
  */
 const answerPressed = {};
 
+/* Pads pressed on home or the map: circles and places, not notes, so nothing
+ * to let go. */
+const mapPressed = {};
+
 function onPadDown(pad, vel) {
+  /* Any pad skips a scene, and sounds nothing. */
+  if (S.view === ANIM_VIEW) {
+    S.skipScenes();
+    mapPressed[pad] = 1;
+    return;
+  }
+  if (S.homePad(pad) || S.mapPad(pad)) {
+    mapPressed[pad] = 1;
+    return;
+  }
   /* In a multiple-choice drill the bottom of the grid is answer buttons.
    * They sound nothing: a press there is a choice, not a note. */
   if (S.answerBarActive() && AP.inAnswerBar(S.quiz.choices.length, pad)) {
@@ -689,6 +886,10 @@ function onPadDown(pad, vel) {
 }
 
 function onPadUp(pad) {
+  if (mapPressed[pad]) {
+    delete mapPressed[pad];
+    return;
+  }
   if (answerPressed[pad]) {
     delete answerPressed[pad];
     return;
@@ -699,6 +900,19 @@ function onPadUp(pad) {
 }
 
 function onJog(delta) {
+  /* A card longer than the panel scrolls first; at its end the jog turns the
+   * page, as it does on a card that fits. */
+  if (S.view === CARD_VIEW) {
+    cardView();
+    const next = cardScroll + (delta > 0 ? 1 : -1);
+    if (next >= 0 && next <= cardLines.length - L.INFO_ROWS) {
+      cardScroll = next;
+      S.dirty = true;
+      return;
+    }
+    S.moveSelection(delta);
+    return;
+  }
   if (S.view === INFO_VIEW) {
     infoView();
     infoScroll = clamp(infoScroll + (delta > 0 ? 1 : -1), 0, Math.max(0, infoLines.length - L.INFO_ROWS));
@@ -723,7 +937,7 @@ function onJog(delta) {
 const SETTINGS_PER_PAGE = 4;   /* what drawList shows */
 
 function settingsPageTop() {
-  const n = SET.SETTINGS_COUNT;
+  const n = S.settingsRows().length;
   return Math.max(0, Math.min(S.settingsCursor - (SETTINGS_PER_PAGE >> 1), n - SETTINGS_PER_PAGE));
 }
 
@@ -750,13 +964,14 @@ function onKnob(index, delta) {
   }
   if (S.view === SETTINGS) {
     const row = settingsPageTop() + index;
-    if (index >= SETTINGS_PER_PAGE || row >= SET.SETTINGS_COUNT) return;
-    S.selectSetting(row);
+    const rows = S.settingsRows();
+    if (index >= SETTINGS_PER_PAGE || row >= rows.length || rows[row].act) return;
+    S.selectSettingRow(row);
     /* Key and octave wrap through a lot of values; one step per event or a
      * flick sends them spinning. */
-    const def = SET.SETTINGS_DEF[row];
-    const step = def && (def.type === 'wrap' || def.type === 'list' || def.type === 'enum');
-    S.editSetting(row, step ? (delta > 0 ? 1 : -1) : delta);
+    const def = SET.SETTINGS_DEF[rows[row].index];
+    const step = !def || def.type === 'wrap' || def.type === 'list' || def.type === 'enum';
+    S.editRow(row, step ? (delta > 0 ? 1 : -1) : delta);
   }
 }
 
@@ -770,8 +985,8 @@ function onKnob(index, delta) {
 function onKnobTouch(index) {
   if (S.view !== SETTINGS || index >= SETTINGS_PER_PAGE) return;
   const row = settingsPageTop() + index;
-  if (row >= SET.SETTINGS_COUNT) return;
-  S.selectSetting(row);
+  if (row >= S.settingsRows().length) return;
+  S.selectSettingRow(row);
   S.dirty = true;
 }
 /* ---- Lifecycle ---------------------------------------------------------- */
@@ -783,8 +998,14 @@ globalThis.init = function init() {
   pendingExitAt = 0;
   panicChannelNext = 16;
   infoShown = null;
+  cardShown = null;
+  hintTurnAt = Infinity;
+  hintKey = null;
   for (const k in heldPads) delete heldPads[k];
   for (const k in answerPressed) delete answerPressed[k];
+  for (const k in mapPressed) delete mapPressed[k];
+  backLit = -1;
+  menuLit = -1;
   for (const k in padFlash) delete padFlash[k];
 
   S.init();
@@ -792,7 +1013,8 @@ globalThis.init = function init() {
   invalidateLedCache();
   ledDirty = true;
   S.dirty = true;
-  announce('Piano Practice. Pick an exercise.');
+  /* A first launch has announced its welcome; anything else, the list. */
+  if (S.view === MENU) announce('Piano Practice. Pick an exercise.');
   draw();
 };
 
@@ -832,6 +1054,9 @@ globalThis.tick = function tick() {
     S.ledDirty = false;
   }
 
+  /* A hint too long for one row takes turns, part by part. */
+  if (t >= hintTurnAt) S.dirty = true;
+
   S.flushSettings(false);
   flushDsp();
   flushOutbox(false);
@@ -869,6 +1094,8 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
 
   if (d1 === CC_SHIFT) {
     shiftHeld = d2 > 0;
+    /* The footer turns to the Shift layer and back. */
+    S.dirty = true;
     return;
   }
   if (d2 === 0 && d1 !== CC_JOG_TURN && (d1 < CC_KNOB1 || d1 >= CC_KNOB1 + KNOB_COUNT)) return;
@@ -925,6 +1152,7 @@ globalThis.onResume = function onResume() {
 
 globalThis.onUnload = function onUnload() {
   S.silence();
+  darkenButtons();
   S.flushSettings(true);
 };
 
@@ -965,6 +1193,7 @@ function serviceExit() {
   }
   if (now() < pendingExitAt) return;   /* let the ring finish draining */
   pendingExitAt = 0;
+  darkenButtons();
   S.flushSettings(true);
   if (typeof host_exit_module === 'function') host_exit_module();
 }

@@ -44,61 +44,83 @@ Piano Practice is an independent module for Schwung. It is not made or supported
   exact drill you just fluffed.
 - **Teaches a piece in four steps.** Classics, electronic track studies, techno progressions and
   style pieces, each arranged for two hands on one page of pads and playable at four levels: right
-  hand alone, left hand alone, right hand with its chords, then both together. Pick the song, then
-  pick the level.
+  hand alone, left hand alone, right hand with its chords, then both together. Pick the song; the
+  jog on its ready screen picks the level.
 - **Takes hand-written exercises** as JSON, interchangeable with the generated ones.
 - **Sounds like a piano, with no setup** — the module renders its own polyphonic piano and mixes it
   into Move's audio. No track, no instrument, no MIDI channel to match. MIDI out to a track or a
   computer is there if you want it.
 - **Rescues you when you are stuck.** Miss a note and the scroll stops, names it large on screen,
-  and — at stage 1 — pulses the pad you need. The missed note itself stays pinned by the hit line
+  and — when Guided — pulses the pad you need. The missed note itself stays pinned by the hit line
   whatever your read-ahead, so you can always see what you are being asked for.
-- **Teaches in two stages.** Every exercise is played first with the pads lighting the way, then
+- **Teaches Guided, then Solo.** Every exercise is played first with the pads lighting the way, then
   read from the staff alone. You can go straight to the second whenever you like.
-- **Remembers how far you got.** Every exercise keeps its own score, a ◐ for stage 1 and a ✓ for
-  stage 2, and a chart of every attempt. Folders add up what is inside them.
-- **Tells you what to do next.** The Learning Program is a path in five phases, written for adults
-  who are new to the piano and to the Move, and Continue always knows the next step. A check lets you
-  skip a phase you already know, and nothing is locked: follow it, or don't.
+- **Remembers how far you got.** Every exercise keeps its own score, a ◐ for Guided and a ✓ for
+  Solo, and a chart of every attempt. Folders add up what is inside them.
+- **Tells you what to do next.** The Learning Path is five stages, written for adults who are new to the
+  piano and to the Move, and Continue (Play on its map) opens the next step. A checkpoint
+  lets you test out of a stage you already know, and nothing is locked: follow it, or don't.
+- **Always says what to press.** The bottom line of every screen names its keys, Shift shows what
+  Shift does there, and **Menu** is help on every screen. New here? Start with
+  [Finding your way](docs/finding-your-way.md).
 
-## The lesson list
+## Home and the lesson list
 
-The list is a tree. **Click** opens a folder, **Back** goes up one, and Back at the top leaves.
+The module opens on **home**: five circles, **Learning Path**, **Practice**, **Quiz**, **Progress** and
+**Settings**, each with its picture. The jog chooses (the chosen circle is filled and grows), a
+click opens it, and so does its pad: the five lit pads of the bottom row, left to right, which make
+no sound here. Back from a section comes home with its circle chosen; Back at home leaves.
+
+**Practice** and **Quiz** are rings too: Practice's Scales, Chords, Progressions, Random and Songs,
+and Quiz's Ear, Reading and Keys (on the middle three pads), each with its icon. Back goes home on the
+circle you left; deeper folders are lists.
+
+Behind each circle the list is a tree. **Click** opens a folder, **Back** goes up one.
+**Shift + click** on a row opens its options (home and the maps offer **Show as list** there);
+**Menu** explains whatever you are looking at. The walk-through is
+[Finding your way](docs/finding-your-way.md).
 
 ```
-Learning Program  Continue      the next step, one click away
-                  Skip next     pass it by
-                  1 Grid and staff   the scale, note names, reading, first melodies
+Learning Path     Continue           the next step, named; or Review, when one is due (Play on the map)
+                  1 Grid and staff   the grid, note names, reading, first melodies
                   2 Four chords      I-IV-V, the four-chord loop, tracks, both hands
                   3 Shapes and time  inversions, 3/4 and 6/8, intervals to the 5th, modes
                   4 Sevenths         ii-V-I, real pieces, dance tracks, function by ear
                   5 Colour           extended chords, compound intervals, every scale
-                  Repetition    finished exercises that are due again
-Basics            Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
+                  Review             finished exercises that are due again, while any are
+Practice          Scales        one folder per Move scale: Up & down, Up, Down, Thirds, Fifths
                   Chords        thirteen families, one lesson per chord quality
                   Progressions  ten progressions in the Key setting's key
                   Random        random notes, and random chords from the whole vocabulary
-Quiz              Hear    by topic: pitch & melody, intervals, chords, scales & keys
-                  Play    notes by alphabet or staff, chords by name or staff, in a moving row
-                  Name    name the pad that is lit
-                  Read    the interval and scale courses again, on the staff
-Classics          folk tunes and the classics, easy first
-Electronic        the chord loops of famous tracks, and five electronic style pieces
-Techno            fourteen progression studies, simple to complex
-Styles            pop, indie, film, soul, funk
+                  Songs         Classics, Electronic, Techno, Styles (and Other, for your files)
+Quiz              Ear      by topic: pitch & melody, intervals, chords, scales & keys
+                  Reading  the interval and scale courses on the staff, notes and chords by staff
+                  Keys     notes by alphabet, chords by name, name notes, name chords
 Progress          how far you have got, and how you got there
+Settings          Octave, Click, Key, Scale, Start at; Advanced: Practice, Sound, MIDI, Help
 ```
 
-Everything with a left and a right hand — every song, every chord lesson — opens its four levels.
+Everything with a left and a right hand — every song, every chord lesson — is one row: it opens
+on its ready screen, and the jog there chooses its level.
 
 Every row says how far you have got with it. An exercise shows its score — `87%` — with a **◐** once
-you have passed stage 1 and a **✓** once you have passed stage 2. A folder shows the average of
+you have passed Guided and a **✓** once you have passed Solo. A folder shows the average of
 everything inside it, so `Classics 25%` is a quarter of the way through the classics.
+
+Every screen's bottom line is its **hint line**: the keys that work there, in capitals, each with
+what it does — `CLICK open  MENU help`. A hint too long for the line shows in parts, three seconds
+each. Hold **Shift** and it shows what Shift does on that screen.
 
 ## Levels
 
 Every bundled tune is one file with both hands written into it, and the four levels are cut out of
-that one file. Click a song and you get its ladder:
+that one file. Click a song and it is armed at once, on the **first level you have not learned**;
+the ready screen's **LEVEL** box, on the right of its controls, shows the level as a big digit, a
+**G** or **S** beside it for Guided or Solo, arrows where the jog can go on, and a ✓ once that
+level is learned. Turn the **jog** and you walk the levels and their two ways together: 1 Guided,
+1 Solo, 2 Guided, 2 Solo... The bottom line names it — `L2 RH chords  Solo` — and takes turns with
+the keys. A new level starts again from bar 1. A step of the Learning Path, Continue and Review arm the
+level they name.
 
 | | | |
 | --- | --- | --- |
@@ -109,56 +131,56 @@ that one file. Click a song and you get its ladder:
 
 **All four sit in the same register.** Nothing is transposed between levels, so the pads you learn
 playing the right hand at L1 are the pads you play at L3 — what you learn transfers literally rather
-than by analogy. **Back** from a song returns to its ladder rather than all the way out, because
-having just played the right hand the next thing you want is the left hand of the same piece.
+than by analogy. Having just played the right hand, the left hand of the same piece is one turn of
+the jog away. The row in the list sums all four levels.
 
 Every bundled song has all four, and `npm test` holds them to it. A file you write yourself with
 nothing to split shows only the levels it actually has, and arms straight away if that is one.
 
-## Stages
+## Guided and Solo
 
-Levels decide *what* you play. Stages decide *how much help* you get playing it, and every exercise
-has two:
+Levels decide *what* you play. **Guided** and **Solo** decide *how much help* you get playing it, and
+every exercise is played both ways:
 
 | | |
 | --- | --- |
-| **Stage 1** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. The names are printed under the notes and the line sounds as it passes (the Reference). You learn the shape |
-| **Stage 2** | nothing lights, no names, no reference sound. You read it off the staff. When the scroll has waited two beats on a note, its name appears: a hint for the stuck, not the answer for the hesitant |
+| **Guided** | the pad you need lights up as its note comes, brightening as it nears — and pulses when the scroll stops on a missed note. The names are printed under the notes and the line sounds as it passes (the Reference). You learn the shape |
+| **Solo** | nothing lights, no names, no reference sound. You read it off the staff. When the scroll has waited two beats on a note, its name appears: a hint for the stuck, not the answer for the hesitant |
 
 The help fades because it should: a name under every note is read as letters, not as a staff,
 and a line you can hear is played by ear. **Names** and **Reference** in settings keep either one on
-(or off) at both stages if you want.
+(or off) in Solo too if you want.
 
-**Passing a stage takes 90% or better**, at any tempo. Passing stage 1 earns a **◐**, passing stage 2 a **✓**. Passing stage 2 also
-counts as stage 1: if you can read it unaided, you can read it with help.
+**Passing takes 90% or better**, at any tempo. Passing Guided earns a **◐**, passing Solo a **✓**.
+Passing Solo also counts as Guided: if you can read it unaided, you can read it with help.
 
-An exercise opens on the **first stage you have not yet passed**, and the ready screen says which:
-`S1 pads lit  JOG: S2`. Turn the jog to change it — right for stage 2, left for stage 1. Nothing
-forces you through stage 1 first.
+An exercise opens on the **first of the two you have not yet passed**, and the ready screen says
+which: `Guided: pads lit  JOG Solo`. Turn the jog to change it — right for Solo, left for Guided.
+Nothing forces you through Guided first.
 
 **How a run is scored:** the notes you hit, over the notes in the piece **plus any wrong presses**,
 so sweeping the pads under every note cannot score full marks. A row shows your **latest** run,
-because that is where you are now — but once a stage is passed its score **never drops** again.
-Practising something you have finished should never feel like losing it.
+because that is where you are now — but once Guided or Solo is passed its score **never drops**
+again. Practising something you have finished should never feel like losing it.
 
 **Only a whole run counts.** A run you start from the top is recorded; one started from a scrubbed
 bar is passage practice and is not, and neither is Listen.
 
 ### A first session
 
-1. Open **Basics › Scales › Major › Up & down**. The ready screen says `S1 pads lit`.
+1. Open **Practice › Scales › Major › Up & down**. The ready screen says `Guided: pads lit`.
 2. Press **Record**. The pads show you each note as it arrives; play along.
-3. At the end you see your score and a chart. 93%: stage 1 is passed, the row will show ◐.
-4. **Click** for stage 2. The pads stay dark now; read it from the staff.
+3. At the end you see your score and a chart. 93%: Guided is passed, the row will show ◐.
+4. **Click** for Solo. The pads stay dark now; read it from the staff.
 5. Press **Back** after a result to try the same thing again from the top. Back once more for the
    list, where the row now reads `97% ✓`.
 
-## The Learning Program
+## The Learning Path
 
-The lesson list holds everything; the **Learning Program** is a path through it, in five phases.
-Each phase takes a few weeks and promises one thing you will be able to do at its end:
+The lesson list holds everything; the **Learning Path** is a course through it, in five stages. Each stage
+takes a few weeks and promises one thing you will be able to do at its end:
 
-| Phase | Its promise |
+| Stage | Its promise |
 | --- | --- |
 | **1 Grid and staff** | you find any note on the grid, read C major from the staff, and play Ode to Joy from the score |
 | **2 Four chords** | the four chords behind half of pop music, the chords of a track you know, and a melody with both hands |
@@ -169,69 +191,89 @@ Each phase takes a few weeks and promises one thing you will be able to do at it
 Every exercise on the path, what it asks and why it is there, is in
 [the curriculum](docs/curriculum.md), which is written out from the same data the Move follows.
 
-A phase is units, numbered `2.3`, and each unit trains one **strand**: the grid, reading, chords,
-the ear, pieces, two hands, or scales. A phase mixes them all, so ten minutes still touch reading,
-harmony, ear and a piece. A unit can come after others: *Both hands* waits for *Left hand*. A step
-is simply a row of the lesson list, so **it counts however you get there**: play Ode to Joy from
-Classics and its step on the path is done too. The path is built in C, whatever the Key setting
-says; Basics follows the settings.
+A stage is units, numbered `2.3`, and each unit trains one **strand**: the grid, reading, chords,
+the ear, pieces, two hands, or scales. A stage mixes them all, so ten minutes still touch reading,
+harmony, ear and a piece. Inside a stage the units are listed in the order a lesson runs — find
+your way, hear it, learn the pattern, use it, then show it in a piece — and the piece comes last,
+just before the stage's **Checkpoint**. A unit can come after others: *Both hands* waits for
+*Left hand*. A step is simply a row of the lesson list, so **it counts however you get there**:
+play Ode to Joy from Practice › Songs › Classics and its step on the path is done too. The path is
+built in C, whatever the Key setting says; Practice follows the settings.
 
-**Continue** opens the next step of the ready unit whose strand you practised longest ago, in your
-phase, on the stage it needs. Your phase is the earliest you have neither finished nor passed the
-check of; units left over from an earlier phase stay in the mix, so a slow ear never holds your
-hands back. Every fourth Continue is a review, when one is due. **Next** on a result stays in the
-same unit until it is finished.
+**Continue** — Play on the Learning Path's map, the first row of its list — opens the next step of the ready
+unit whose strand you practised longest ago, in your stage, Guided or Solo as it needs, and the row names it. Your stage is the
+earliest you have neither finished nor passed the checkpoint of; units left over from an earlier
+stage stay in the mix, so a slow ear never holds your hands back. When a review is due the row reads
+**Review** and names it, and reviews and new steps take turns: one review, then one new step.
+**Next** on a result stays in the same unit until it is finished.
 
-**Check: skip phase**, the first row of each phase, plays that phase's check steps one after another
-at stage 2. Pass them all and Continue starts at the next phase; the steps you skipped stay open,
-marked **◌**. **Start here** makes Continue begin at that phase; the phases before it count as
-assumed until you play them.
+**The way moves with you.** Clicking into a stage zooms in to its island, and Back zooms out. A place
+finished raises its flag and, on Next, the avatar walks to the next place; a stage finished (or its
+checkpoint passed) sets off fireworks and sails on to the next island; the whole Learning Path ends
+in a finale, and a level learned the first time gets a star round its score. Any key or pad skips a
+scene; nothing is played or scored while one runs.
 
-**Nothing is locked.** Open any phase, unit and step, play anything in the list, go straight to
-stage 2 — the program only ever recommends. The phase you are in, the unit Continue will open and
-each unit's next step are marked **▸**. The nursery songs (Twinkle, Mary, Frère Jacques, London
-Bridge, Jingle Bells) stay in Classics but off the path.
+**The Checkpoint**, the last row of each stage but the last, is the stage's exam: its steps, played
+Solo, one after another. Pass them all and Continue starts at the next stage; the steps you skipped
+stay open, marked **◌**.
 
-**Skip next** passes the step Continue would open. It is marked `»` and stays where it was — open
-it any time and play it, and the skip is forgotten. If you have already passed its stage 1, Skip
-reads **Move on** instead: stage 1 is enough for now, and the step counts as finished at ◐.
+**The options of a row** (Shift + click) hold what used to be rows of their own:
 
-In a quiz there are no pads to light, so the stages are the hints: **stage 1 is a round at 90% or
-better with hints, stage 2 one without any**.
+| Option | On | |
+| --- | --- | --- |
+| **I know this: skip** | a step, or Continue | passes it by. It is marked `»` and stays where it was — open it any time and the skip is forgotten. After Guided it moves on instead: Guided is enough for now, and the step counts as finished at ◐ |
+| **I know it all: skip** | a stage, a unit, an exercise of several steps | skips everything inside |
+| **Undo skip** | a skipped step, or a folder holding one | takes the skips back |
+| **Start the path here** | a stage | Continue starts there; the stages before it count as assumed until you play them. Also **Settings › Start at** |
+| **Test out: checkpoint** | a stage with a checkpoint | plays the checkpoint, as above |
+| **Show as list** / **Show as map** | home, a map | the same rows as a list for the session, and back |
+| **Settings...** | any row | the Settings page |
 
-### Repetition
+**Nothing is locked.** Open any stage, unit and step, play anything in the list, go straight to
+Solo — the path only ever recommends. The stage you are in, the unit Continue will open and each
+unit's next step are marked **▸**. The nursery songs (Twinkle, Mary, Frère Jacques, London Bridge,
+Jingle Bells) stay in Classics but off the path.
 
-What you have finished comes back. **Repetition** lists today's session, at most five exercises:
+In a quiz there are no pads to light, so Guided and Solo are the hints: **Guided is a round at 90%
+or better with hints, Solo one without any**.
+
+### Review
+
+What you have finished comes back. **Learning Path › Review**, there while anything is due, lists today's
+session, at most five exercises:
 
 1. first, any finished exercise whose last run **slipped under 90%**;
 2. then those **due again** — one day after you finished, then 3, 7, 14 and 30 days, the gap growing
    each time a repeat goes well and starting over when one does not.
 
 A repeat is recorded and shows on the exercise's chart, but **never lowers its finished score**. The
-row says `due`, and `today ✓` once you have done it.
+row says `due`, and `today ✓` once you have done it. Continue offers them too, in turn with new
+steps.
 
-## Info and terms
+## Help and terms
 
-**Menu** explains whatever is in front of you. Press it on a row of the list, on the ready screen,
-during a quiz or on a result, and an **Info** page says what the practice asks, how to go about it,
-and what each word it uses means. The jog scrolls; **Back** or **Menu** closes it and puts you back
-exactly where you were.
+**Menu** is help, on every screen. Its page starts with **what the screen is** and **its keys** —
+the same words as the hint line, the Shift layer included — and then, under **More help**, what it
+knows about the thing in front of you, and what each word it uses means. The jog scrolls; **Back** or
+**Menu** closes it and puts you back exactly where you were.
 
-| Pressed on | Info explains |
+| Pressed on | More help explains |
 | --- | --- |
-| a row of the list | that folder or exercise — read before you choose |
-| the ready screen | the armed exercise: what it drills, its levels and stages |
+| a row of the list | that folder or exercise — read before you choose. On the Learning Path, a unit's purpose and a step's why |
+| the ready screen | the armed exercise: what it drills, its levels and its two steps |
 | a quiz or hearing round | the drill and what to listen for. **The round's clock stops** while you read |
 | a running exercise | the same — the music pauses first |
 | a result | what the score and the chart mean |
+| the options, Settings, a card | what they are for |
 
 Some pages are written from the music itself rather than by hand: a chord lesson shows the chord's
 formula and its notes in C (`Minor 7th: 1 b3 5 b7 — C Eb G Bb`), a scale its pattern of tones and
 semitones (`W W H W W W H`), a progression its chords in C or A minor.
 
 **The first time** you open a kind of practice — the first scale drill, the first song, each hearing
-exercise — its Info page shows by itself, once. **Auto info** in settings turns that off; Menu always
-brings the page back.
+exercise — its help page shows by itself, once. **Settings › Advanced › Help › Auto info** turns that off; Menu
+always brings the page back. A few screens also show a one-card **tip** the first time they appear;
+**Settings › Advanced › Help › Show tips again** brings those back.
 
 Every term an Info page uses is defined from one glossary, the same one Schwung's **Help** viewer
 shows under Piano Practice › Terms:
@@ -270,8 +312,9 @@ shows under Piano Practice › Terms:
 | **Slash chord** | A chord over a bass note that is not its root: D/F# is D major over F#. |
 | **RH, LH** | Right hand plays the melody and chords, left hand the bass. |
 | **Level** | How much of a song you play: L1 one hand's line, L2 the chords, L3 both hands. |
-| **Stage** | Stage 1 lights each pad as its note comes. Stage 2 lights nothing: you read. |
-| **Score** | Notes hit, over the notes in the piece plus wrong presses. 90% passes a stage. |
+| **Stage** | One of the five stages of the Learning Path, a few weeks of work each, ending with its checkpoint. |
+| **Guided, Solo** | Every exercise is played twice. Guided lights the pad you need as its note comes; Solo lights nothing, and you read it from the staff. |
+| **Score** | Notes hit, over the notes in the piece plus wrong presses. 90% passes Guided or Solo. |
 | **Hint** | REC helps, two presses deep. A hinted answer still counts, and is noted. |
 <!-- glossary:end -->
 
@@ -321,9 +364,9 @@ Classics lists them easy to hard. Marys Lamb, London Bridge and Frere Jacques ar
 L3; the Minuet, the Bach Prelude and Fur Elise the hard end. Bach's sixteenths are written as eighths,
 as Für Elise's are.
 
-## Basics
+## Practice
 
-Everything in Basics is generated from the settings rather than stored: it plays at the **Tempo**
+Everything in Practice but its Songs is generated from the settings rather than stored: it plays at the **Tempo**
 setting, follows the **Transpose**, and an armed lesson is rebuilt when the **Key** changes.
 
 ### Scales
@@ -389,8 +432,8 @@ music, learned after the cadence.
 | All chords | sixteen chords, any root, any quality the module knows |
 | Triads / Sevenths | the same, from the four triads or the eight sevenths |
 
-The chord sets open the usual ladder. Each opening draws a new set, and a restart replays the one
-you just played.
+The chord sets have the usual levels, chosen on the ready screen. Each opening draws a new set, and
+a restart replays the one you just played.
 
 Generated drills follow the pads, so a low **Octave** setting puts them below the treble staff the
 Move draws. Then they are drawn an octave (or two, or three) higher, and the clef is marked with
@@ -463,16 +506,16 @@ drill a style.
 
 ## Note guesser and ear training
 
-The **Quiz** folder asks in three ways, one folder each:
+The **Quiz** folder is three folders, one per skill:
 
-| Folder | You are given | You answer by |
+| Folder | Holds | You answer by |
 | --- | --- | --- |
-| **Hear** | a sound | naming it, or playing it back — the Hearing exercises below |
-| **Play** | a row of notes or chords, by name or on the staff | playing each on the pads |
-| **Name** | a lit pad | choosing its name with the jog |
-| **Read** | an interval, two intervals or a scale on the staff | naming it — the listening courses, read |
+| **Ear** | a sound: the Hearing exercises below | naming it, or playing it back |
+| **Reading** | the listening courses on the staff, then **Notes by staff** and **Chords by staff** | naming it, or playing what is written |
+| **Keys** | **Notes by alphabet** and **Chords by name**: a name to find on the pads; **Name notes** and **Name chords**: a lit pad to name | playing it, or choosing its name with the jog |
 
-**Play** holds four drills, two ways of reading for notes and for chords:
+The four playing drills, two ways of reading for notes and for chords (Keys has the names,
+Reading the staff):
 
 | Drill | The screen shows | What counts |
 | --- | --- | --- |
@@ -502,7 +545,7 @@ A chord has to be **held all at once**. Part of it down is *incomplete*, not a m
 isn't in the chord is what makes it wrong. A wrong answer is counted once and the question stays
 until you get it.
 
-**Name › Notes** and **Name › Chords** run the other way round: a pad lights up — several for a chord
+**Keys › Name notes** and **Keys › Name chords** run the other way round: a pad lights up — several for a chord
 — and you name it, choosing with the jog and confirming with a click. The two
 wrong options are near misses: a semitone either side for a note, or the same root with a different
 quality for a chord (`Cm7` against `C7` against `Cmaj7`), so answering from a rough sense of high or
@@ -567,11 +610,11 @@ answer. The only pad feedback here is what you press — green when right, red w
 
 The **Hearing** exercises train your ear, not your eyes or your hands. You hear something and say
 what it was. Nothing is on the staff and nothing is lit, because the skill is recognising a sound.
-Find them in **Quiz › Hear**, grouped by topic; the Learning Program takes them in the **Ear** units
-of its phases:
+Find them in **Quiz › Ear**, grouped by topic; the Learning Path takes them in the **Ear** units of its
+stages:
 
 ```
-Hear  Pitch & melody   Higher or lower · Play it back · Step or leap · Melody shape
+Ear   Pitch & melody   Higher or lower · Play it back · Step or leap · Melody shape
       Intervals        Identify intervals (course) · Compare intervals (course)
       Chords           Major/minor chord · Four triads · Seventh chords · Play the chord
       Scales & keys    Identify scales (course) · Major or minor key · Home or away
@@ -632,12 +675,12 @@ ids still open the matching course level, so nothing recorded under them is lost
 
 ### The listening courses
 
-Three courses sit in their topics in **Quiz › Hear**: **Identify intervals** and **Compare intervals**
+Three courses sit in their topics in **Quiz › Ear**: **Identify intervals** and **Compare intervals**
 under Intervals, **Identify scales** under Scales & keys. Each is a numbered list of units that adds
-a little at a time. In the Learning Program they are the **Intervals** units and the scale quizzes of
+a little at a time. On the Learning Path they are the **Intervals** units and the scale quizzes of
 the Scales units: an Identify unit heard up, down and together and then read once, a Compare unit
 heard once easy and once in full. Every other level stays in the Quiz menus. Answering works as in
-every Hear exercise: the answer pads, or the jog and a click.
+every Ear exercise: the answer pads, or the jog and a click.
 
 **Identify intervals.** One interval; name it. Each unit offers only its own intervals, usually two
 to five, and has three levels: **up**, **down** and **tog** (together).
@@ -713,14 +756,14 @@ natural minor.
 
 ### Reading the same courses
 
-**Quiz › Read** has the three courses again, unit for unit and level for level and under the same
+**Quiz › Reading** has the three courses again, unit for unit and level for level and under the same
 names, but you see them instead of hearing them: **Identify intervals**, **Compare intervals** and
 **Identify scales**. The interval, the
 two intervals or the scale is drawn on the staff, and you name it from the same answers. A unit
 read and the same unit heard train one skill from both sides.
 
 - **Up**, **down** and **tog** are how the notes are drawn: one after the other rising, falling, or
-  stacked. In **Read › Compare intervals** a bar line separates the two intervals, and **fix** levels start
+  stacked. In **Reading › Compare intervals** a bar line separates the two intervals, and **fix** levels start
   both on the same written note.
 - **Count the letters.** An interval's size is the number of letters it spans, both ends counted:
   C to E is C D E, a 3rd. The accidentals then tell major from minor. Every interval is spelled
@@ -781,15 +824,15 @@ The headline is the share you got right. Then **how the notes you hit sat on the
 on average. That is the first thing a teacher tells you after the notes. The page gives the whole split
 (in time, early, late) and the average in ms. Under it is **every recent attempt at this exercise**, on a
 fixed 0–100% scale so a chart looks the same each time you come back to it: **hollow points are
-stage 1, solid ones stage 2**, and the dotted line is the 90% you need to pass.
+Guided, solid ones Solo**, and the dotted line is the 90% you need to pass.
 
 | On a result | |
 | --- | --- |
 | **Record** | play it again, same stage |
 | **Play** | listen to it |
-| **Back** | back to the **start** of the exercise, on the stage it needs, to try again. Back once more for the list |
-| **Click** | **next**: stage 2 of the same exercise if you have just passed stage 1, otherwise the next step of the unit you came from (or Continue's, if you came from the list) |
-| **Shift + click** | **move on** with stage 1 counted as enough, or **skip** — then on to the next step |
+| **Back** | back to the **start** of the exercise, Guided or Solo as it needs, to try again. Back once more for the list |
+| **Click** | **next**: Solo of the same exercise if you have just passed Guided, otherwise the next step of the unit you came from (or Continue's, if you came from the list) |
+| **Shift + click** | **move on** with Guided counted as enough, or **skip** — then on to the next step |
 
 ### After a quiz round
 
@@ -843,7 +886,7 @@ overall percentage:
 | Row | Its chart |
 | --- | --- |
 | **Overall** | every stage you have passed, as a line rising by one at each pass, along real time. Flat stretches are time off; steep ones are where it clicked |
-| **Phase 1** … **Phase 5** | the same, for one phase of the program |
+| **Stage 1** … **Stage 5** | the same, for one stage of the path |
 | then everything you have played, newest first | an exercise: its attempts, as on the result screen. A quiz drill: its rate as a line and its error rate as bars growing under it — a full bar is 50% wrong, a fixed ceiling so two visits are comparable |
 
 Click a row for its chart; the jog walks to the next one. Back returns to the list, and Back again
@@ -851,14 +894,14 @@ to the lesson list.
 
 ### Where it is kept
 
-Everything is kept beside the module: `progress.json` holds every exercise's two stages, skips and
+Everything is kept beside the module: `progress.json` holds every exercise's Guided and Solo, skips and
 repetition schedule, and its last 24 attempts; `stats.json` holds the last 200 quiz rounds for the
 rate charts. `scripts/install.sh` carries both across updates. A damaged file reads as a fresh start
 rather than stopping the module from opening.
 
 ## In your browser
 
-The same practice runs in a web browser — the same lessons, scoring, Learning Program and piano —
+The same practice runs in a web browser — the same lessons, scoring, Learning Path and piano —
 from a computer keyboard, the keys on screen, a MIDI keyboard, or your Move on its USB cable:
 
 ```sh
@@ -943,7 +986,7 @@ the one signal you should never have to read.
 | dark | out of key |
 | dim purple | in key — background, deliberately the dimmest lit value |
 | pale lavender | the root; also the lit prompt in **Pick**, and the pulse when a note is missed |
-| purple | at **stage 1**, the note is coming |
+| purple | when **Guided**, the note is coming |
 | bright violet | it is now — and the notes **Play** is sounding |
 | yellow | your finger is on it |
 | green / red | you got it / you missed it |
@@ -959,10 +1002,11 @@ Four beats count you in, counted down on screen.
 | --- | --- |
 | **Play** | **listen** — the exercise plays itself and the pads light up as it goes, so you can watch it before trying it. Nothing scored. Press it again to **pause where you are**; again to carry on from wherever you have scrubbed to |
 | **Record** | **practice** — you play it, it scores you. Pauses and resumes the same way |
-| **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it picks the **stage** — right for stage 2, left for stage 1. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
-| **Jog click** | open the highlighted folder or arm the exercise; on a song, open its levels; in settings, edit the selected row; on a result, go on to what is next |
-| **Menu** | **Info**: what the thing in front of you is, and its terms. Again to close |
-| **Shift + jog click** | settings |
+| **Jog turn** | moves the highlight in the exercise list and in settings. On the ready screen it walks the **level and Guided or Solo** together, one step a detent, clamped at both ends. Nowhere does it change *what* you are playing: to pick something else, Back to the list first |
+| **Jog click** | open the highlighted folder or arm the exercise (a song arms its first level not learned); in settings, edit the selected row; on a result, go on to what is next |
+| **Menu** | **help**: what the screen is, its keys, then what the thing in front of you is and its terms. Again to close |
+| **Shift + jog click** | in the list, the highlighted row's **options**; on a piece, the **Settings** page (again, on any settings page: back to the piece); on a result, move on past it |
+| **Shift** (held) | the hint line shows what Shift does on this screen |
 | **Back** | from a running exercise or a result, **back to the start**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
 | **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. The pads light the note the playhead has landed on, at either stage, so you can see where you are on the grid as well as on the staff; they go dark again the moment the music runs. Find your spot, then Play or Record from there |
@@ -997,24 +1041,57 @@ A3–G5 under your hands — untransposed it sits almost entirely below the treb
 
 ### Settings
 
-Click a row to edit it, turn the jog to change the value, click again when done — knobs 1–4 are
-shortcuts to the first four.
+**Settings**, the last circle of home, is **one short page** of what is yours, changed right there:
+click a row to edit it, turn the jog, click again when done — knobs 1–4 are shortcuts to the four
+rows on screen. Its last row, **Advanced**, opens everything else in its groups: **Practice**,
+**Sound**, **MIDI** and **Help**. Back goes back a step at a time (a group, Advanced, the page, where
+you came from). **Shift + click** on a piece opens the page; Shift + click again, on any settings
+page, goes straight back to the piece. Nothing has gone: every setting keeps its value and its place
+in `settings.json`.
+
+**The page**
 
 | Setting | Default | |
 | --- | --- | --- |
-| Any octave | off | accept the right note in the wrong register |
-| Quiz sounds | **on** | a chime for a right answer, a soft uh-oh for a wrong one |
-| Auto info | **on** | a practice's Info page shows by itself the first time you open it |
-| Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid |
-| Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
+| Octave | **+12** | which octave the pads start from: +12 puts A3–G5 under your hands |
+| Click | **on** | the metronome: recorded claves on the module's piano, the brighter one on the downbeat; with MIDI out to an instrument elsewhere, short high notes there instead |
+| Key | **C** | the key the free library is made in (the Learning Path is always in C) |
 | Scale | **Major** | all 22 of Move's own scales, taken from the device's firmware so the pads light the way Move would |
-| Click | on | MIDI metronome (see the caveat above) |
-| Reference | **stage 1** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — at stage 1. `on` keeps it at stage 2, `off` never plays it. Listen plays the piece first whatever this says |
-| Names | **stage 1** | the note names under the notes, at stage 1. `always` keeps them at stage 2, `off` hides them at both |
+| Start at | **stage 1** | the stage Continue starts from; the ones before it count as assumed until you play them (kept with your progress, not in `settings.json`) |
+| Advanced | › | the rest, below |
+
+**Advanced › Practice**
+
+| Setting | Default | |
+| --- | --- | --- |
+| Tempo | **80** | beats a minute for the generated drills (a song keeps its own); knob 8 changes it on a piece |
+| Read ahead | **24** | pixels a beat: how far ahead the staff shows |
+| Any octave | off | accept the right note in the wrong register |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
 | Grace | **1/4** | how late you may play a note and still be scored a hit, in beats, so the tolerance scales with tempo. A quarter beat is 190 ms at 80bpm — in time. Raise it to 1, 2 or 4 while a piece is new and finding the pad is the work. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself (Wait). Play later than Grace and the scroll still releases — it just scores a miss |
-| Count in | 4 | beats before the first note |
-| MIDI ch | 1 | which channel the Move track listens on |
+| Count in | **4** | beats before the first note |
+| Names | **guided** | the note names under the notes, when Guided. `always` keeps them in Solo, `off` hides them in both |
+| Half tones | **on** | the note guesser asks about the black notes too, not just the seven of the key. They are the hard ones to find on an isomorphic grid |
+| Chords | **triads** | `triads` asks the diatonic triads of the key. `types` asks a deliberately chosen quality — maj, min, dim, aug, sus2, sus4, 6, m6, 7, maj7, m7, m7b5, dim7, add9. `advanced` adds ninths and altered dominants on top — 9, maj9, m9, 6/9, 7b5, 7#5, 7b9, 7#9, 7sus4, 9sus4, mMaj7, madd9. Roots follow Half tones: chromatic when it is on, the notes of the key when it is off |
+| Round | **20** | right answers in a quiz round: 10, 20, 30, or `endless`, which records nothing |
+
+**Advanced › Sound**
+
+| Setting | Default | |
+| --- | --- | --- |
+| Reference | **guided** | plays the exercise as it crosses the hit line, softer than your pads, so you can play along — when Guided. `on` keeps it in Solo, `off` never plays it. Listen plays the piece first whatever this says |
+| Ref vol | **70** | how loud the reference line is, 0–127 |
+| Quiz sounds | **on** | a chime for a right answer, a soft uh-oh for a wrong one |
+
+**Advanced › MIDI**
+
+| Setting | Default | |
+| --- | --- | --- |
+| MIDI out | **piano** | where the notes go: the module's own piano, a Move track, USB, or a track and USB |
+| MIDI ch | **all** | the channel sent on; `all` sends on every channel, so a track listening on any one hears it |
+
+**Advanced › Help**: **Auto info** (**on**: a practice's Info page shows by itself the first time
+you open it), **Show tips again** and **Welcome again**.
 
 ## Writing your own exercises
 

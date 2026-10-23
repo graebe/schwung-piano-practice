@@ -376,6 +376,8 @@ button.status-pill { cursor: pointer; }
   /* Sound stays in view on a phone; MIDI only once a device is there. */
   .status-pill.midi:not(.live) { display: none; }
   .app-title .app-crumb { display: none; }
+  /* Info, Options and Settings do not fit beside the title: they wrap. */
+  .app-bar { flex-wrap: wrap; row-gap: var(--space-2); }
   .rows { grid-template-columns: 1fr; }
   .progress-layout { grid-template-columns: 1fr; }
   .settings-rows { grid-template-columns: 1fr; }
@@ -387,3 +389,90 @@ button.status-pill { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   .count-in, .hero-number, .staff-wrap.waiting .staff-badge { text-shadow: none; box-shadow: none; }
 }
+
+/* ------------------------------------------------- sheet, card, hint -- */
+.sheet-rows, .card-choices { grid-template-columns: minmax(260px, 420px); }
+.card-text.table p { font-family: var(--font-mono); white-space: pre; }
+.move-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: var(--space-2) 0 0;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+.move-hint-tag {
+  color: var(--ink-dim);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.move-hint-part { white-space: pre; }
+
+/* ---------------------------------------------------------------- home -- */
+.home {
+  display: block;
+  width: 100%;
+  max-width: 768px; /* 6x the panel, as the map */
+  margin-inline: auto;
+  aspect-ratio: 128 / 29;
+  background: var(--bg-200);
+  border: 1px solid var(--line-100);
+}
+.home-item { cursor: pointer; }
+.home-circle {
+  fill: var(--bg-200);
+  stroke: var(--uv);
+  stroke-width: 1;
+  transition: r 160ms ease-out, fill 160ms ease-out;
+}
+.home-icon rect { fill: var(--uv); }
+.home-item.on .home-circle { fill: var(--uv); stroke: none; }
+.home-item.on .home-icon rect { fill: var(--bg-200); }
+.home-item:not(.on):hover .home-circle { fill: color-mix(in srgb, var(--uv) 18%, var(--bg-200)); }
+.home-rows { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+@media (prefers-reduced-motion: reduce) {
+  .home-circle { transition: none; }
+}
+
+/* ---------------------------------------------------------------- anim -- */
+.anim-screen, .anim-over { cursor: pointer; }
+.anim-screen > .btn { align-self: flex-start; }
+.anim-stage { overflow: hidden; max-width: 768px; width: 100%; margin-inline: auto; }
+.map .ink-line { stroke: var(--uv); stroke-width: 1; }
+.map .ink-text, .anim-star .ink-text { fill: var(--uv); font: 7px var(--font-mono); }
+.map .sea-text { fill: var(--bg-200); font: 7px var(--font-mono); }
+/* The zoom, as the Move's: the island growing out of its cell on the world,
+ * or the world opening out of it. The origin is that cell (scene-view.jsx). */
+.anim-zoom { animation-duration: 350ms; animation-timing-function: ease-out; animation-fill-mode: both; }
+.anim-zoom-in { animation-name: anim-zoom-in; }
+.anim-zoom-out { animation-name: anim-zoom-out; }
+@keyframes anim-zoom-in { from { transform: scale(0.125); } to { transform: scale(1); } }
+@keyframes anim-zoom-out { from { transform: scale(4); } to { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) {
+  .anim-zoom { animation: none; }
+}
+
+/* ----------------------------------------------------------------- map -- */
+.map {
+  display: block;
+  width: 100%;
+  max-width: 768px; /* 6x the panel: whole pixels stay crisp */
+  margin-inline: auto;
+  aspect-ratio: 128 / 44;
+  background: var(--bg-200);
+  border: 1px solid var(--line-100);
+  image-rendering: pixelated;
+}
+.map .ink { fill: var(--uv); }
+.map .sea { fill: var(--bg-200); }
+.map .place-hit { fill: transparent; cursor: pointer; }
+.map .place-hit:hover { fill: color-mix(in srgb, var(--uv) 18%, transparent); }
+.map-places { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+.map-screen .screen-head > .btn { align-self: flex-start; }
+.row-mark.state-done { color: var(--uv); }
+.row-mark.state-current { color: var(--on-uv); background: var(--uv); padding: 0 var(--space-1); }
+.row-mark.state-ahead, .row-mark.state-fresh { color: var(--ink-dim); }
+.row-mark.state-skipped { color: var(--ink-muted); }

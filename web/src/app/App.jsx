@@ -13,7 +13,11 @@ import { Show, Switch, Match, For, createSignal, createEffect, onCleanup, onMoun
 import { EditorFrame } from '../kit/components/EditorFrame.jsx';
 import { Button } from '../kit/components/Button.jsx';
 import { createStore } from './store.js';
-import { ListView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, KeysPanel } from './views.jsx';
+import {
+  ListView, HomeView, MapView, PracticeView, QuizView, ResultView, ProgressView, SettingsView, InfoView, SheetView, CardView,
+  MoveHint, KeysPanel,
+} from './views.jsx';
+import { AnimView } from './scene-view.jsx';
 import { keyIntent, DEFAULT_OCTAVE_C } from '../input/keys.js';
 import { connectMidi } from '../input/midi.js';
 import { inPageWords } from './words.js';
@@ -22,7 +26,9 @@ const PLOT = { w: 320, h: 120 };
 
 /* The hint bar's conventions, per screen: what the keys do here. */
 const HINTS = {
-  menu: [['enter', 'opens'], ['esc', 'goes up'], ['I', 'explains']],
+  menu: [['enter', 'opens'], ['esc', 'goes up'], ['shift+enter', 'options'], ['I', 'explains']],
+  sheet: [['enter', 'does it'], ['↑↓', 'choose'], ['esc', 'closes']],
+  card: [['enter', 'goes on'], ['↑↓', 'pages'], ['esc', 'closes']],
   ready: [['space', 'practises'], ['shift+space', 'listens'], ['A–;', 'play']],
   running: [['space', 'pauses'], ['esc', 'restarts'], ['A–;', 'play']],
   guess: [['A–;', 'play'], ['shift+?', 'helps'], ['esc', 'leaves']],
@@ -30,7 +36,8 @@ const HINTS = {
   progress: [['click', 'a row for its chart'], ['esc', 'goes back']],
   'progress-detail': [['click', 'another row'], ['esc', 'the list']],
   settings: [['−/+', 'change a row'], ['esc', 'goes back']],
-  info: [['esc', 'closes']],
+  info: [['esc', 'closes'], ['I', 'closes']],
+  anim: [['any key', 'skips'], ['click', 'skips']],
 };
 
 function useMedia(query) {
@@ -161,14 +168,18 @@ export function App(props) {
     onCleanup(() => cancelAnimationFrame(raf));
   });
 
-  const atTop = () => vm() && vm().screen === 'menu' && vm().nav && vm().nav.path.length <= 1;
+  /* Home's circles are the top; home shown as a list goes back to them. */
+  const atTop = () => vm() && vm().screen === 'menu' && Boolean(vm().home) && vm().nav.path.length <= 1;
   const crumb = () => {
     const v = vm();
     if (!v) return '';
     if (v.screen === 'menu') return v.nav ? v.nav.path.slice(1).join(' › ') : '';
     if (v.chart) return v.chart.name;
     if (v.quiz) return v.quiz.title || 'Quiz';
-    return { settings: 'Settings', progress: 'Progress', 'progress-detail': 'Progress', info: 'Info', summary: 'Result' }[v.screen] || '';
+    if (v.screen === 'settings') return v.settings.title;
+    if (v.screen === 'sheet' && v.sheet) return 'Options: ' + v.sheet.title;
+    if (v.screen === 'card' && v.card) return v.card.title;
+    return { progress: 'Progress', 'progress-detail': 'Progress', info: 'Info', summary: 'Result' }[v.screen] || '';
   };
   const audioLabel = () => ({
     running: 'sound on', idle: 'sound: tap to start', suspended: 'sound: tap to start', loading: 'sound: starting',
@@ -215,8 +226,11 @@ export function App(props) {
                     data-info="The browser's own piano: the Move's, compiled for the web">{audioLabel()}</button>
             <span class="status-pill midi" classList={{ live: midi().devices.length > 0 }}>{midiLabel()}</span>
           </div>
-          <Button info="Info — what this is, and its words" onClick={() => dispatch({ type: 'info' })}>Info</Button>
+          <Button info="Info — what this is, its words and its keys (Menu on the Move)"
+                  onClick={() => dispatch({ type: 'info' })}>Info</Button>
           <Show when={vm() && vm().screen === 'menu'}>
+            <Button info="Options for the highlighted row (Shift + click on the Move)"
+                    onClick={() => dispatch({ type: 'sheet' })}>Options</Button>
             <Button info="Settings" onClick={() => dispatch({ type: 'settings' })}>Settings</Button>
           </Show>
         </nav>
@@ -224,6 +238,9 @@ export function App(props) {
         <div class="app-main">
           <Show when={vm()}>
             <Switch>
+              <Match when={vm().screen === 'anim' && vm().anim}><AnimView vm={vm} dispatch={dispatch} /></Match>
+              <Match when={vm().screen === 'menu' && vm().home}><HomeView vm={vm} dispatch={dispatch} /></Match>
+              <Match when={vm().screen === 'menu' && vm().map}><MapView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'menu'}><ListView vm={vm} dispatch={dispatch} /></Match>
               <Match when={vm().screen === 'ready' || vm().screen === 'running'}>
                 <PracticeView vm={vm} store={store} dispatch={dispatch} narrow={narrow} />
@@ -237,7 +254,10 @@ export function App(props) {
                 <SettingsView vm={vm} dispatch={dispatch} remote={!props.piano} extra={extraSettings()} />
               </Match>
               <Match when={vm().screen === 'info'}><InfoView vm={vm} dispatch={dispatch} /></Match>
+              <Match when={vm().screen === 'sheet'}><SheetView vm={vm} dispatch={dispatch} /></Match>
+              <Match when={vm().screen === 'card'}><CardView vm={vm} dispatch={dispatch} /></Match>
             </Switch>
+            <MoveHint vm={vm} />
           </Show>
         </div>
 

@@ -22,10 +22,16 @@ import { drillLabel, sparkline, summarise, errorFraction, successSeries } from '
 import { accuracySeries } from './progress.mjs';
 import { LIST_MAX, shortLabel } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
+import { drawMap } from './pathmap/render.mjs';
+import { createWalk } from './pathmap/walk.mjs';
+import { cellCentre } from './pathmap/layout.mjs';
+import { flagRise, fireworks, zoomIn, zoomOut, starBurst, starFit, finale, banner, FLAG_MS } from './pathmap/anim.mjs';
+import { ZOOM, CELEBRATE, FINALE, BANNER } from './scenes.mjs';
+import { drawHome } from './home/render.mjs';
+import { mapTitle } from './map_places.mjs';
 
-export const SETTINGS_HINT = 'shift + jog: settings';
-/* Inside a folder of the lesson list, where Back no longer means leave. */
-export const FOLDER_HINT = 'CLICK open  BACK up';
+/* Every footer is a part of a hint from hints.mjs: the caller picks the part
+ * showing now (hintPart) and passes it in as `footer`. */
 
 /*
  * Centred one-liner along the bottom edge.
@@ -44,6 +50,36 @@ function truncate(ctx, text, maxPx) {
   let s = text;
   while (s.length > 1 && ctx.textWidth(s) > maxPx) s = s.slice(0, -1);
   return s;
+}
+
+/*
+ * A name fitted by whole words, keeping what tells it apart: the part from its
+ * last word with a number in it — the level of a song (L3 Both hands, or L3
+ * alone if that is too long), the interval of a drill (6ths) — after as many
+ * words from the front as fit. With no room for both, the front words alone.
+ * A word is never cut, unless its first word alone is too wide.
+ */
+export function fitWords(ctx, text, maxPx) {
+  if (ctx.textWidth(text) <= maxPx) return text;
+  const words = text.split(' ').filter(Boolean);
+  const front = (list, end) => {
+    let fit = '';
+    for (const w of list) {
+      const next = fit ? fit + ' ' + w : w;
+      if (ctx.textWidth(next + end) > maxPx) break;
+      fit = next;
+    }
+    return fit;
+  };
+  let at = -1;
+  for (let i = words.length - 1; i > 0 && at < 0; i--) if (/\d/.test(words[i])) at = i;
+  if (at > 0) {
+    for (const tail of [words.slice(at).join(' '), words[at]]) {
+      const fit = front(words.slice(0, at), ' ' + tail);
+      if (fit) return fit + ' ' + tail;
+    }
+  }
+  return front(words, '') || truncate(ctx, words[0] || text, maxPx);
 }
 
 /*
@@ -190,6 +226,15 @@ export function drawReadingView(ctx, state) {
   const total = chartTotalBeats(chart) || 1;
   R.drawFooter(ctx, songBeats / total, stats ? stats.hits + '/' + stats.misses : '');
 
+  /* The hint line takes the footer while the music is not moving through it:
+   * in the count-in, and while paused (its first part says so). The ready
+   * view writes its own over a blanked band. */
+  if (state.footer && !state.rightLabel && (state.paused || countIn > 0)) {
+    ctx.fillRect(0, L.FOOTER_Y - 3, L.SCREEN_W, L.SCREEN_H - L.FOOTER_Y + 3, 0);
+    drawFooterHint(ctx, state.footer);
+    return ctx;
+  }
+
   /* Paused and stuck both show a motionless scroll, and only one of them is
    * waiting for you to play something. */
   if (state.paused) {
@@ -217,9 +262,76 @@ export function drawReadingView(ctx, state) {
  */
 export const READY_BOX = { x: 12, y: 15, w: 104, h: 32 };
 
+/*
+ * The ready screen's box, split: the three controls on the left, the LEVEL
+ * on the right — a big digit, the arrows where the jog can go on, a G or S
+ * beside it for Guided or Solo, and the done mark when that level is learned.
+ *
+ * state.level = { index, stage, levels: [{ step, learned }] } (session
+ * levelInfo); without one the right half is left empty.
+ */
+export const READY_SPLIT_X = READY_BOX.x + 64;
+
+function drawLevelBox(ctx, level) {
+  const b = READY_BOX;
+  const x0 = READY_SPLIT_X + 1;
+  const w = b.x + b.w - x0 - 1;
+  ctx.fillRect(READY_SPLIT_X, b.y + 1, 1, b.h - 2, 1);
+  ctx.text(x0 + 1, b.y + 3, 'LEVEL', 1);
+  const lv = level.levels[level.index];
+  if (lv && lv.learned) R.drawMark(ctx, b.x + b.w - 2 - R.MARK_W, b.y + 2, 'done', 1);
+  const digit = String((lv && lv.step ? lv.step.replace(/\D/g, '') : '') || level.index + 1);
+  const dw = R.bigTextWidth(digit, LEVEL_SCALE);
+  const dx = x0 + ((w - dw) >> 1);
+  const dy = b.y + 12;
+  R.drawBigText(ctx, dx, dy, digit, LEVEL_SCALE);
+  const tagY = dy + R.bigDigitHeight(LEVEL_SCALE) - L.TEXT_H + 1;
+  ctx.text(dx + dw + 2, tagY, level.stage === 2 ? 'S' : 'G', 1);
+  const pos = level.index * 2 + level.stage - 1;
+  const ay = dy + ((R.bigDigitHeight(LEVEL_SCALE) - L.TEXT_H) >> 1);
+  if (pos > 0) ctx.text(x0 + 2, ay, '<', 1);
+  if (pos < level.levels.length * 2 - 1) ctx.text(b.x + b.w - 3 - ctx.textWidth('>'), ay, '>', 1);
+}
+
+const LEVEL_SCALE = 3;
+
+/*
+ * The bottom line of the ready screen: the level's name on the left, the
+ * key hint on the right. When the two do not fit side by side the caller
+ * passes one of them at a time (they take turns): `left`, `right`, or both.
+ */
+function drawReadyLine(ctx, state) {
+  ctx.fillRect(0, L.FOOTER_Y - 3, L.SCREEN_W, L.SCREEN_H - L.FOOTER_Y + 3, 0);
+  const y = L.FOOTER_Y - 2;
+  if (state.footerLeft) ctx.text(1, y, truncate(ctx, state.footerLeft, L.TEXT_MAX_PX), 1);
+  if (state.footerRight) {
+    const r = truncate(ctx, state.footerRight, L.TEXT_MAX_PX);
+    ctx.text(L.SCREEN_W - 1 - ctx.textWidth(r), y, r, 1);
+  }
+  if (!state.footerLeft && !state.footerRight && state.footer) drawFooterHint(ctx, state.footer);
+}
+
+/*
+ * Which of the bottom line goes where, now: the name on the left and the
+ * key hint's part on the right when every part fits beside it; otherwise the
+ * name takes a turn of its own among the parts (3 s each, as hints do).
+ * Returns { footerLeft, footerRight } or { footer }, and how many turns.
+ */
+export const READY_TURN_MS = 3000;
+
+export function readyLine(name, parts, now, widthOf) {
+  const fits = Boolean(name) && parts.every((p) => widthOf(name) + 6 + widthOf(p) <= L.TEXT_MAX_PX);
+  const turns = name && !fits ? [null].concat(parts) : parts;
+  const part = turns.length ? turns[Math.floor(Math.max(0, now) / READY_TURN_MS) % turns.length] : '';
+  if (!name) return { footer: part || '', turns: turns.length };
+  if (fits) return { footerLeft: name, footerRight: part, turns: turns.length };
+  return part === null ? { footerLeft: name, turns: turns.length } : { footerRight: part, turns: turns.length };
+}
+
 export function drawReadyView(ctx, state) {
   drawReadingView(ctx, {
     ...state,
+    footer: null,
     songBeats: state.songBeats || 0,
     run: state.run,
     rightLabel: state.outLabel || '',
@@ -229,50 +341,36 @@ export function drawReadyView(ctx, state) {
    * THE BOX GETS OUT OF THE WAY ONCE YOU LEAVE THE START. It is an overlay
    * across the middle of the staff, so it covers exactly the music you are
    * scrubbing through; keeping it up would defeat the scrubbing. It comes back
-   * when you scroll home, which is also the only way to find it again.
+   * when you scroll home, which is also the only way to find it again. The
+   * bottom line stays: the level, and the keys.
    */
-  if ((state.songBeats || 0) > 0) return ctx;
+  if ((state.songBeats || 0) <= 0) {
+    const b = READY_BOX;
+    ctx.fillRect(b.x, b.y, b.w, b.h, 0);
+    ctx.drawRect(b.x, b.y, b.w, b.h, 1);
 
-  const b = READY_BOX;
-  ctx.fillRect(b.x, b.y, b.w, b.h, 0);
-  ctx.drawRect(b.x, b.y, b.w, b.h, 1);
+    /* Three controls, three symbols, three words, in the left 64 px. Which
+     * one does what is the thing that has to be readable without being
+     * learned — and the knob was the one you could only find by turning it. */
+    const gh = 7;
+    /* The words share one column, 3 px clear of the widest glyph (scrub). */
+    const gx = b.x + 3;
+    const tx = gx + R.SCRUB_W + 3;
+    R.drawPlayGlyph(ctx, gx, b.y + 4, gh);
+    ctx.text(tx, b.y + 4, state.playLabel || 'listen', 1);
+    R.drawRecordGlyph(ctx, gx, b.y + 13, gh);
+    ctx.text(tx, b.y + 13, state.recLabel || 'practise', 1);
+    R.drawScrubGlyph(ctx, gx, b.y + 22);
+    ctx.text(tx, b.y + 22, state.scrubLabel || 'scrub', 1);
 
-  /* Three controls, three symbols, three words. Which one does what is the
-   * thing that has to be readable without being learned — and the knob was the
-   * one you could only find by turning it. */
-  const gh = 7;
-  const gx = b.x + 6;
-  const tx = gx + 12;
-
-  R.drawPlayGlyph(ctx, gx, b.y + 4, gh);
-  ctx.text(tx, b.y + 4, state.playLabel || 'PLAY  listen', 1);
-
-  R.drawRecordGlyph(ctx, gx, b.y + 13, gh);
-  ctx.text(tx, b.y + 13, state.recLabel || 'REC   practice', 1);
-
-  R.drawScrubGlyph(ctx, gx, b.y + 22);
-  ctx.text(tx, b.y + 22, state.scrubLabel || 'SCRUB view', 1);
+    if (state.level) drawLevelBox(ctx, state.level);
+  }
 
   /* Where the notes are going is in the header (rightLabel, above), on the one
    * screen you always pass through: a silent channel mismatch is otherwise
    * indistinguishable from broken. */
-
-  /* Replace the progress bar with the one thing here you cannot discover by
-   * trying it: turning the jog swaps exercise and shows you it did, but
-   * nothing hints that Shift is involved in anything. 21 characters at the
-   * 6px advance is 125px, so it just fits the width. */
-  ctx.fillRect(0, L.FOOTER_Y - 3, L.SCREEN_W, L.SCREEN_H - L.FOOTER_Y + 3, 0);
-  drawFooterHint(ctx, state.footer || SETTINGS_HINT);
+  drawReadyLine(ctx, state);
   return ctx;
-}
-
-/*
- * The ready screen's footer when the exercise has stages: which one is armed,
- * what it means, and that the jog changes it. Settings stays one Back away,
- * where the list's footer names it.
- */
-export function stageFooter(stage) {
-  return stage === 2 ? 'S2 pads dark  JOG: S1' : 'S1 pads lit  JOG: S2';
 }
 
 /*
@@ -604,7 +702,8 @@ export function drawRoundResult(ctx, state) {
   R.drawChrome(ctx, {
     /* The status replaces the title rather than joining it: beside a
      * three-digit best, "ROUND  S1 DONE" ran into it. */
-    left: state.passed === 2 ? 'DONE' : state.passed === 1 ? 'S1 DONE' : 'ROUND',
+    /* G for Guided: beside a three-digit best there is no room for the word. */
+    left: state.passed === 2 ? 'DONE' : state.passed === 1 ? 'G DONE' : 'ROUND',
     right: state.isBest ? 'BEST YET' : 'best ' + Math.round(state.best) + '/min',
   });
 
@@ -758,8 +857,8 @@ export function drawAccuracyPlot(ctx, box, history) {
 export function drawExerciseResult(ctx, state) {
   ctx.clear();
   const status = state.passed === 2 ? 'DONE'
-    : state.passed === 1 ? 'S1 DONE'
-      : state.isBest ? 'BEST YET' : 'stage ' + state.stage;
+    : state.passed === 1 ? 'GUIDED DONE'
+      : state.isBest ? 'BEST YET' : state.stage === 2 ? 'solo' : 'guided';
   const mark = state.passed === 2 ? 'done' : state.passed === 1 ? 'half' : null;
   const statusW = ctx.textWidth(status) + (mark ? R.MARK_W + 2 : 0);
   R.drawChrome(ctx, {
@@ -777,7 +876,7 @@ export function drawExerciseResult(ctx, state) {
   const minX = L.RESULT_LEFT_X + w + 3 + ctx.textWidth('%') + 4;
   rightText(ctx, L.RESULT_SIDE_A_Y, state.hits + ' of ' + state.total + ' hit', minX);
   rightText(ctx, L.RESULT_SIDE_B_Y,
-    state.wrong ? state.wrong + ' wrong' : 'stage ' + state.stage, minX);
+    state.wrong ? state.wrong + ' wrong' : state.stage === 2 ? 'solo' : 'guided', minX);
 
   /* How the notes you hit sat on the beat — and, when the run leaned one
    * way, which: the first thing a teacher would tell you after the notes. */
@@ -813,7 +912,7 @@ export function drawProgress(ctx, state) {
   if (!records.length) {
     const msg = 'no rounds yet';
     ctx.text((L.SCREEN_W - ctx.textWidth(msg)) >> 1, 28, msg, 1);
-    drawFooterHint(ctx, state.drillCount > 1 ? 'jog: another drill' : 'play a round');
+    drawFooterHint(ctx, state.footer || (state.drillCount > 1 ? 'JOG next  BACK list' : 'BACK list'));
     return ctx;
   }
 
@@ -822,9 +921,9 @@ export function drawProgress(ctx, state) {
    * you are now, and what it cost you in wrong answers to get there. */
   twoCell(ctx, L.PROGRESS_ROW_Y, 'now ' + Math.round(s.last),
     'err ' + Math.round(s.lastError * 100) + '%', 2, L.SCREEN_W - 2);
-  drawFooterHint(ctx, state.drillCount > 1
-    ? 'jog: drill ' + (state.drillIndex + 1) + '/' + state.drillCount
-    : String(s.count) + ' rounds');
+  drawFooterHint(ctx, state.footer || (state.drillCount > 1
+    ? 'JOG drill ' + (state.drillIndex + 1) + '/' + state.drillCount
+    : String(s.count) + ' rounds'));
   return ctx;
 }
 
@@ -843,11 +942,11 @@ export function drawItemProgress(ctx, state) {
   });
   ctx.text(2, L.PROGRESS_TITLE_Y, truncate(ctx, state.title || '', L.TEXT_MAX_PX), 1);
   drawAccuracyPlot(ctx, L.PROGRESS_PLOT, history);
-  const stage = state.mark === 'done' ? 'finished' : state.mark === 'half' ? 'stage 1 done'
+  const stage = state.mark === 'done' ? 'finished' : state.mark === 'half' ? 'Guided done'
     : state.mark === 'skip' ? 'skipped' : '';
   twoCell(ctx, L.PROGRESS_ROW_Y, 'now ' + Math.round(state.percent) + '%', stage, 2, L.SCREEN_W - 2);
   drawFooterHint(ctx, state.count > 1
-    ? 'jog: ' + (state.index + 1) + '/' + state.count
+    ? 'JOG ' + (state.index + 1) + '/' + state.count + '  BACK list'
     : history.length + ' plays');
   return ctx;
 }
@@ -885,9 +984,9 @@ export function drawOverview(ctx, state) {
     }
     ctx.line(prevX, prevY, box.x + box.w - 1, prevY, 1);
   }
-  twoCell(ctx, L.PROGRESS_ROW_Y, 'stages passed',
+  twoCell(ctx, L.PROGRESS_ROW_Y, 'passes',
     String(state.timeline ? state.timeline.total : 0), 2, L.SCREEN_W - 2);
-  drawFooterHint(ctx, state.total > 1 ? 'jog: ' + (state.index + 1) + '/' + state.total : '');
+  drawFooterHint(ctx, state.total > 1 ? 'JOG ' + (state.index + 1) + '/' + state.total + '  BACK list' : 'BACK list');
   return ctx;
 }
 
@@ -1059,11 +1158,24 @@ export function drawReadPick(ctx, state) {
  * state = { title, lines: [{ text, head }], scroll, footer }
  */
 export function drawInfo(ctx, state) {
+  return drawTextPage(ctx, {
+    ...state, title: (state.title || '').toUpperCase(), tag: 'INFO', footer: state.footer || 'BACK close',
+  });
+}
+
+/*
+ * A page of text: Info, the welcome, a tip. Five lines on a 9px pitch from
+ * y 10, wrapped to the width beside the scrollbar (INFO_TEXT_PX), and the bar
+ * itself when there is more than one screen of it.
+ *
+ * state = { title, tag, lines: [{ text, head }], scroll, footer }
+ */
+function drawTextPage(ctx, state) {
   const lines = state.lines || [];
   ctx.clear();
-  const tag = 'INFO';
+  const tag = state.tag || '';
   R.drawChrome(ctx, {
-    left: truncate(ctx, (state.title || '').toUpperCase(), L.SCREEN_W - ctx.textWidth(tag) - 6),
+    left: truncate(ctx, state.title || '', L.SCREEN_W - (tag ? ctx.textWidth(tag) + 6 : 4)),
     right: tag,
   });
   const top = Math.max(0, Math.min(state.scroll || 0, lines.length - L.INFO_ROWS));
@@ -1085,7 +1197,199 @@ export function drawInfo(ctx, state) {
     ctx.fillRect(L.SCREEN_W - 2, trackY, 1, trackH, 1);
     ctx.fillRect(L.SCREEN_W - 3, thumbY, 3, thumbH, 1);
   }
-  drawFooterHint(ctx, state.footer || 'BACK close');
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
+ * A card: the welcome's pages and the first-visit tips. Its text is a page of
+ * text like Info's, the same lines and the same bar; a page that asks a
+ * question is a short list to choose from instead.
+ *
+ * state = { title, lines: [string], scroll, choices, choice, page, pages, footer }
+ */
+export function drawCard(ctx, state) {
+  const tag = state.pages > 1 ? (state.page + 1) + '/' + state.pages : '';
+  if (!state.choices) {
+    return drawTextPage(ctx, {
+      title: state.title, tag, lines: (state.lines || []).map((text) => ({ text, head: false })),
+      scroll: state.scroll, footer: state.footer,
+    });
+  }
+  ctx.clear();
+  R.drawChrome(ctx, {
+    left: truncate(ctx, state.title || '', L.SCREEN_W - ctx.textWidth(tag) - 6),
+    right: tag,
+  });
+  for (let i = 0; i < state.choices.length; i++) {
+    const y = 11 + i * 9;
+    const on = i === state.choice;
+    if (on) ctx.fillRect(0, y - 1, L.SCREEN_W, 9, 1);
+    ctx.text(2, y, truncate(ctx, state.choices[i], L.INFO_TEXT_PX), on ? 0 : 1);
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/* A card's paragraphs as the panel's lines, wrapped to the width beside the
+ * scrollbar, or one to a line for a page that is a table. */
+export function cardLines(ctx, page) {
+  if (page.lines) return page.paragraphs.map((p) => p.text);
+  return wrapLines(page.paragraphs, L.INFO_TEXT_PX, (s) => ctx.textWidth(s)).map((l) => l.text);
+}
+
+/*
+ * A folder of the Path as its map (pathmap/render.mjs): the title bar — the
+ * place under the avatar, its percent, and its reviews due when they fit —
+ * the map in y 10..53, and the hint line under it.
+ *
+ * state = { place, places, layout, walk, now, footer }
+ */
+export function drawMapScreen(ctx, state) {
+  ctx.clear();
+  const head = mapTitle(state.place, L.SCREEN_W - 2, (s) => ctx.textWidth(s));
+  R.drawChrome(ctx, {
+    left: truncate(ctx, head.title, L.SCREEN_W - (head.right ? ctx.textWidth(head.right) + 6 : 2)),
+    right: head.right,
+  });
+  drawMap(ctx, { places: state.places, layout: state.layout, walk: state.walk, now: state.now || 0,
+    route: state.route !== false });
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
+ * A scene of the Learning Path (scenes.mjs), drawn with the engine's
+ * frames (pathmap/anim.mjs) on the scene's map, under its title bar and the
+ * hint line:
+ *
+ *   walk       the map, the avatar walking it at the story pace
+ *   celebrate  the place as it was, its flag climbing (400 ms); for a stage
+ *              then the map without its route and fireworks over the place
+ *   zoom       the world's island growing to fill the map (in), or shrinking
+ *              back into its cell (out); the title names the island
+ *   banner     the map without its route, the news across it
+ *   finale     the world, every flag waving, fireworks over every island
+ *
+ * At its end each frame is its map as it stands: what a skip lands on.
+ *
+ * state = { scene, now, footer }
+ */
+export function sceneMap(scene) {
+  if (scene.kind === ZOOM && scene.dir === 'in') return { map: scene.island, at: scene.landAt || 0 };
+  return { map: scene.map, at: scene.kind === 'walk' ? scene.to : scene.at };
+}
+
+export function drawScene(ctx, state) {
+  const scene = state.scene;
+  const t = state.now - scene.t0;
+  const { map, at } = sceneMap(scene);
+  if (!map) return ctx;
+  if (!scene.stand || scene.stand.layout !== map.layout) scene.stand = createWalk(map.layout, at);
+  const base = { place: map.places[at], places: map.places, layout: map.layout, walk: scene.walk || scene.stand,
+    now: state.now, footer: state.footer };
+  if (scene.kind === CELEBRATE && t < FLAG_MS) {
+    const places = map.places.slice();
+    places[at] = { ...places[at], state: scene.was || 'started' };
+    drawMapScreen(ctx, { ...base, places });
+    flagRise(ctx, { layout: map.layout, index: at, place: map.places[at] }, t);
+  } else if (scene.kind === CELEBRATE && scene.fireworks) {
+    drawMapScreen(ctx, { ...base, route: false });
+    const c = cellCentre(map.layout.cells[at], map.layout.kind);
+    fireworks(ctx, { x: c.x, y: c.y, seed: at + 1 }, t - FLAG_MS);
+  } else if (scene.kind === ZOOM) {
+    const world = scene.map;
+    drawMapScreen(ctx, { ...base, place: world.places[scene.at] });
+    const args = { cell: world.layout.cells[scene.at], place: world.places[scene.at] };
+    if (scene.dir === 'in') zoomIn(ctx, args, t);
+    else zoomOut(ctx, args, t);
+  } else if (scene.kind === BANNER) {
+    drawMapScreen(ctx, { ...base, route: false });
+    banner(ctx, { text: scene.text }, t);
+  } else if (scene.kind === FINALE) {
+    drawMapScreen(ctx, base);
+    finale(ctx, { layout: map.layout, places: map.places, seed: 7 }, t);
+  } else {
+    drawMapScreen(ctx, base);
+  }
+  return ctx;
+}
+
+/*
+ * A level learned: its own frame. The result's title bar and the hint stay;
+ * between them the score, big, in the middle of the band (y 10..53), a star
+ * round it, and "LEVEL LEARNED" under it. When the scene is over the result
+ * screen follows as it always is.
+ *
+ *   starLayout(result, widthOf) -> where the score, the caption and the
+ *                                  star's room are: pure, for the page too
+ *   drawStarBand(ctx, result, t) -> the band, over a result screen already
+ *                                  drawn (its title and hint stay), or alone
+ *
+ * The score is what learning it took: an exercise's percent, a round's
+ * share right.
+ */
+export const STAR_CAPTION = 'LEVEL LEARNED';
+const STAR_CAPTION_SHORT = 'LEARNED';
+const BAND_TOP = 10;
+const BAND_BOTTOM = 53;
+
+export function starLayout(result, widthOf) {
+  const value = result.kind === 'quiz' ? result.success : result.percent;
+  const text = String(Math.round(value || 0));
+  const w = R.bigTextWidth(text, L.RESULT_BIG_SCALE);
+  const h = R.bigDigitHeight(L.RESULT_BIG_SCALE);
+  const caption = widthOf(STAR_CAPTION) <= L.SCREEN_W - 4 ? STAR_CAPTION : STAR_CAPTION_SHORT;
+  /* A row of air above the hint line's rule. */
+  const captionY = BAND_BOTTOM - L.TEXT_H;
+  /* The star's room: the band above the caption, a row clear of it. */
+  const top = BAND_TOP;
+  const bottom = captionY - 2;
+  const x = (L.SCREEN_W - w) >> 1;
+  const y = top + ((bottom - top + 1 - h) >> 1);
+  return {
+    text, x, y, w, h, caption, captionX: (L.SCREEN_W - widthOf(caption)) >> 1, captionY, top, bottom,
+    cx: x + (w >> 1), cy: y + (h >> 1),
+  };
+}
+
+/*
+ * The star round the score, in the room it has: the engine's starFit picks
+ * the ellipse that clears the digits' corners and the rays that stay inside
+ * the band. Worked out once per shape (it searches), not every frame.
+ */
+const starFits = new Map();
+
+function starArgs(s) {
+  const key = [s.w, s.h, s.top, s.bottom, s.cx, s.cy].join();
+  let fit = starFits.get(key);
+  if (!fit) {
+    fit = starFit({ w: s.w, h: s.h, top: s.top, bottom: s.bottom, y: s.cy, x: s.cx });
+    starFits.set(key, fit);
+  }
+  return { x: s.cx, y: fit.y, rx: fit.rx, ry: fit.ry, len: fit.len, seed: 3 };
+}
+
+export function drawStarBand(ctx, result, t) {
+  const s = starLayout(result, (x) => ctx.textWidth(x));
+  ctx.fillRect(0, BAND_TOP, L.SCREEN_W, BAND_BOTTOM - BAND_TOP + 1, 0);
+  R.drawBigText(ctx, s.x, s.y, s.text, L.RESULT_BIG_SCALE);
+  ctx.text(s.captionX, s.captionY, s.caption, 1);
+  starBurst(ctx, starArgs(s), t);
+  return ctx;
+}
+
+/*
+ * The top of the list as five circles (home/render.mjs): the title bar, the
+ * circles and the chosen one's name in y 10..54, the hint line under them.
+ *
+ * state = { title, items, selected, grow, now, footer }
+ */
+export function drawHomeScreen(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title || '' });
+  drawHome(ctx, { items: state.items, selected: state.selected, grow: state.grow, now: state.now || 0 });
+  if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
 }
 
@@ -1106,7 +1410,7 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
    * '2/4' in the corner. */
   const count = rows.length ? cursor + 1 + '/' + rows.length : '';
   R.drawChrome(ctx, {
-    left: truncate(ctx, title, L.SCREEN_W - ctx.textWidth(count) - 4),
+    left: fitWords(ctx, title, L.SCREEN_W - ctx.textWidth(count) - 4),
     right: count,
   });
   const first = Math.max(0, Math.min(cursor - (perPage >> 1), rows.length - perPage));
@@ -1124,6 +1428,11 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
     let value = deco && deco.value !== undefined ? deco.value
       : typeof row === 'string' ? '' : row.value || '';
     const mark = deco ? deco.mark : null;
+    /* A value that names something (Continue's next step) and does not fit
+     * beside its label gives way to its short form (the unit's number). */
+    if (deco && deco.short !== undefined && value && ctx.textWidth(value) > L.SCREEN_W - 4 - ctx.textWidth(label) - 6) {
+      value = deco.short;
+    }
     /* Brackets mark the row the jog is currently changing, so "turn to change"
      * has something to point at. */
     if (value && selected && opts.editing) value = '[' + value + ']';
@@ -1134,7 +1443,9 @@ export function drawList(ctx, title, rows, cursor, opts = {}) {
     const mw = mark ? R.MARK_W + (tw ? 2 : 0) : 0;
     const vw = tw + mw;
     const v = selected ? 0 : 1;
-    ctx.text(2, y, truncate(ctx, label, L.SCREEN_W - 4 - vw - (vw ? 4 : 0)), v);
+    /* A row with nothing on its right has the whole width: 21 characters,
+     * the longest option of the sheet among them. */
+    ctx.text(2, y, truncate(ctx, label, vw ? L.SCREEN_W - 8 - vw : L.SCREEN_W - 3), v);
     if (mark) R.drawMark(ctx, L.SCREEN_W - vw - 2, y + 1, mark, v);
     if (value) ctx.text(L.SCREEN_W - tw - 2, y, value, v);
   }

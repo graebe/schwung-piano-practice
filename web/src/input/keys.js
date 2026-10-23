@@ -45,7 +45,9 @@ export function keyIntent(e, octaveC = DEFAULT_OCTAVE_C) {
     case 'KeyZ': return { kind: 'octave', octaveC: Math.max(MIN_OCTAVE_C, octaveC - 12) };
     case 'KeyX': return { kind: 'octave', octaveC: Math.min(MAX_OCTAVE_C, octaveC + 12) };
     case 'Space': return { kind: 'action', action: { type: e.shiftKey ? 'listen' : 'practice' } };
-    case 'Enter': return { kind: 'action', action: { type: e.shiftKey ? 'skip' : 'open' } };
+    /* Shift+Enter is the Move's Shift + click: a row's options in the list,
+     * past a result, the settings from a piece. */
+    case 'Enter': return { kind: 'action', action: { type: e.shiftKey ? 'options' : 'open' } };
     case 'Escape':
     case 'Backspace': return { kind: 'action', action: { type: 'back' } };
     case 'ArrowDown':

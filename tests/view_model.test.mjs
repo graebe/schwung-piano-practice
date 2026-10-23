@@ -11,7 +11,7 @@ import {
   viewModel, clockOf, encodeViewModel, decodeViewModel, encodedSize, STATE_LIMIT,
   NOTE_HIT, NOTE_PENDING, NOTE_MISSED, VM_VERSION,
 } from '../src/view_model.mjs';
-import { MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_DETAIL } from '../src/session.mjs';
+import { MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_DETAIL, SETTINGS } from '../src/session.mjs';
 import * as GUESS from '../src/guess.mjs';
 
 const plain = (vm) => JSON.parse(JSON.stringify(vm));
@@ -19,13 +19,16 @@ const plain = (vm) => JSON.parse(JSON.stringify(vm));
 test('the list arrives decorated, with its path and cursor', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Basics']);
+  openPath(h.session, ['Practice']);
   const vm = viewModel(h.session);
   assert.equal(vm.v, VM_VERSION);
   assert.equal(vm.screen, MENU);
-  assert.deepEqual(vm.nav.path, ['Exercise', 'Basics'].slice(-vm.nav.path.length));
-  assert.equal(vm.nav.title, 'Basics');
-  assert.deepEqual(vm.nav.rows.map((r) => r.label), ['Scales', 'Chords', 'Progressions', 'Random']);
+  assert.deepEqual(vm.nav.path, ['Piano', 'Practice'].slice(-vm.nav.path.length));
+  assert.equal(vm.nav.title, 'Practice');
+  assert.deepEqual(vm.nav.rows.map((r) => r.label), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
+  assert.deepEqual(vm.home.items.map((it) => it.label), ['Scales', 'Chords', 'Progressions', 'Random', 'Songs'],
+    'Practice is a ring: its circles');
+  assert.deepEqual(vm.hint, ['JOG choose', 'CLICK open  PAD open', 'MENU help'], 'the footer the Move shows');
   assert.ok(vm.nav.rows.every((r) => r.folder));
   assert.deepEqual(vm, plain(vm), 'plain JSON');
 });
@@ -33,14 +36,16 @@ test('the list arrives decorated, with its path and cursor', () => {
 test('a running drill sends its chart, judgements, markers and clock', () => {
   const h = fakeHost({ opts: { keepMarkersBeats: 16 } });
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   const ready = viewModel(h.session);
   assert.equal(ready.screen, READY);
   assert.equal(ready.chart.name, 'C Major');
   assert.equal(ready.chart.events.length, ready.run.notes.length);
   assert.ok(ready.run.notes.every((codes) => [...codes].every((c) => c === NOTE_PENDING)));
   assert.ok(ready.can.listen && ready.can.practice && ready.can.scrub);
-  assert.deepEqual(ready.armed, { id: h.session.armedId, stage: 1 });
+  assert.deepEqual({ id: ready.armed.id, stage: ready.armed.stage }, { id: h.session.armedId, stage: 1 });
+  assert.equal(ready.armed.level.name, 'Guided: pads lit', 'the level box\'s facts travel too');
+  assert.equal(ready.armed.level.ladder, false);
 
   h.session.recordButton();
   const beatMs = 60000 / h.session.chart.bpm;
@@ -64,7 +69,7 @@ test('a running drill sends its chart, judgements, markers and clock', () => {
 test('stuck on a note: the block index and the stuck cue say which', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   h.session.recordButton();
   h.run(10000);
   const vm = viewModel(h.session);
@@ -76,7 +81,7 @@ test('stuck on a note: the block index and the stuck cue say which', () => {
 test('listening: the cue names what is sounding', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   h.session.playButton();
   const beatMs = 60000 / h.session.chart.bpm;
   h.run((h.session.settings.countIn + 0.2) * beatMs);
@@ -88,7 +93,7 @@ test('listening: the cue names what is sounding', () => {
 test('a hidden prompt is never sent — not its notes, not its name', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Hear', 'Pitch & melody', 'Higher or lower', 'wide']);
+  openPath(h.session, ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']);
   let vm = viewModel(h.session);
   assert.equal(vm.screen, GUESS_VIEW);
   assert.equal(vm.quiz.mode, 'ear');
@@ -107,14 +112,15 @@ test('a hidden prompt is never sent — not its notes, not its name', () => {
 test('a Play quiz shows its row: by name with the names, by staff without', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Play', 'Notes by alphabet']);
+  openPath(h.session, ['Quiz', 'Keys', 'Notes by alphabet']);
   let vm = viewModel(h.session);
   assert.equal(vm.quiz.read, 'name');
   assert.equal(vm.quiz.queue.length, GUESS.LOOKAHEAD);
   assert.deepEqual(vm.quiz.queue.map((e) => e.index), [0, 1, 2, 3, 4, 5]);
   assert.ok(vm.quiz.queue.every((e) => typeof e.name === 'string' && e.name.length));
   h.session.back();
-  openPath(h.session, ['Chords by staff']);
+  h.session.back();
+  openPath(h.session, ['Reading', 'Chords by staff']);
   vm = viewModel(h.session);
   assert.equal(vm.quiz.read, 'staff');
   assert.ok(vm.quiz.queue.every((e) => e.name === null), 'no names to read off');
@@ -134,14 +140,13 @@ test('a Play quiz shows its row: by name with the names, by staff without', () =
 test('a Play quiz shows its prompt; a Name quiz lights it as the question', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Play', 'Notes by alphabet']);
+  openPath(h.session, ['Quiz', 'Keys', 'Notes by alphabet']);
   let vm = viewModel(h.session);
   assert.equal(vm.quiz.mode, 'play');
   assert.equal(vm.quiz.prompt.length, 1);
   assert.deepEqual(vm.cue.prompt, [], 'the answer is not lit');
-  h.session.back();                              /* to Play */
-  h.session.back();                              /* to Quiz */
-  openPath(h.session, ['Name', 'Notes']);
+  h.session.back();                              /* to Keys */
+  openPath(h.session, ['Name notes']);
   vm = viewModel(h.session);
   assert.equal(vm.quiz.mode, 'pick');
   assert.deepEqual(vm.cue.prompt, vm.quiz.prompt, 'the lit pad is the question');
@@ -150,14 +155,22 @@ test('a Play quiz shows its prompt; a Name quiz lights it as the question', () =
 test('results and progress charts are data', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Quiz', 'Name', 'Notes']);
+  openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
   for (let i = 0; i < 40 && h.session.view === GUESS_VIEW; i++) {
     const q = h.session.quiz;
     h.session.answer(q.choices.findIndex((c) => c.pitches.join() === q.prompt.join()));
     h.run(500);
   }
   let vm = viewModel(h.session);
+  assert.equal(vm.screen, 'anim', 'learned: a star over the result first');
+  assert.equal(vm.anim.kind, 'star');
+  assert.equal(vm.anim.over, 'result');
+  assert.equal(vm.result.kind, 'quiz', 'the result is there to draw under it');
+  assert.deepEqual(vm, plain(vm));
+  h.run(700);
+  vm = viewModel(h.session);
   assert.equal(vm.screen, RESULT_VIEW);
+  assert.equal(vm.anim, null);
   assert.equal(vm.result.kind, 'quiz');
   assert.equal(vm.result.n, 10);
   assert.ok(Array.isArray(vm.result.records));
@@ -178,7 +191,7 @@ test('results and progress charts are data', () => {
 test('encode and decode round-trip, one string per field', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   const vm = viewModel(h.session);
   const flat = encodeViewModel(vm);
   for (const v of Object.values(flat)) assert.equal(typeof v, 'string');
@@ -193,37 +206,34 @@ test('every bundled song at every level fits Schwung\'s 64KB state key', () => {
   let checked = 0;
   for (const category of ['Classics', 'Electronic', 'Techno', 'Styles']) {
     h.session.init();
-    openPath(h.session, [category]);
-    const songs = h.session.nav[1].node.children;
+    openPath(h.session, ['Practice', 'Songs', category]);
+    const songs = h.session.nav[3].node.children;
     for (let s = 0; s < songs.length; s++) {
       h.session.selectRow(s);
       h.session.activate(false);
-      const levels = h.session.nav.length > 2 ? h.session.nav[2].node.children : [null];
-      for (let l = 0; l < levels.length; l++) {
-        if (levels[l]) {
-          h.session.selectRow(l);
-          h.session.activate(false);
-        }
+      /* Every level, chosen on the ready screen as the jog does. */
+      const levels = songs[s].levels ? songs[s].levels.length : 1;
+      for (let l = 0; l < levels; l++) {
+        if (songs[s].levels) h.session.armLevel(l);
         assert.equal(h.session.view, READY, `${category} ${s}/${l} armed`);
         h.session.recordButton();
         h.run(2000);
         const size = encodedSize(viewModel(h.session));
         if (size > largest.size) largest = { size, name: h.session.chart.name };
         checked++;
-        h.session.back();                         /* restart */
-        h.session.back();                         /* to the levels */
+        h.session.back();                         /* restart: the ready screen */
       }
-      if (levels[0]) h.session.back();            /* to the songs */
+      h.session.back();                           /* to the songs */
     }
   }
-  assert.ok(checked > 60, `checked ${checked}`);
+  assert.ok(checked > 150, `checked ${checked}`);
   assert.ok(largest.size < STATE_LIMIT, `${largest.name}: ${largest.size} bytes`);
 });
 
 test('the clock alone is small and moves with the run', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   h.session.playButton();
   const a = clockOf(h.session);
   h.run(1000);
@@ -235,7 +245,7 @@ test('the clock alone is small and moves with the run', () => {
 test('the clock says when it was taken, how long a beat is, and where it will wait', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   h.session.recordButton();
   h.run(500);
   const c = clockOf(h.session, 12345.5);
@@ -247,7 +257,7 @@ test('the clock says when it was taken, how long a beat is, and where it will wa
   /* Listening never waits. */
   const l = fakeHost();
   l.session.init();
-  openPath(l.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(l.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   l.session.playButton();
   l.run(500);
   assert.equal(clockOf(l.session).waitAt, null);
@@ -263,7 +273,7 @@ test('cue.playing is every note sounding, on any screen, but the click', () => {
   assert.deepEqual(viewModel(h.session).cue.playing, [64], 'a pad held in the list');
   h.session.release(64);
   assert.deepEqual(viewModel(h.session).cue.playing, []);
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   h.session.playButton();
   let clicked = false;
   for (let i = 0; i < 400 && !clicked; i++) {
@@ -282,11 +292,81 @@ test('without the option, marks go at the panel\'s edge, as on the Move', () => 
   /* Wait off, so the scroll keeps moving and the mark scrolls away. */
   const h = fakeHost({ settings: { version: 7, autoInfo: false, quizSounds: false, waitForNote: false } });
   h.session.init();
-  openPath(h.session, ['Basics', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
   h.session.recordButton();
   h.run(5000);
   h.session.play(61, 90);
   assert.equal(viewModel(h.session).run.markers.length, 1);
   h.run(5000);
   assert.equal(viewModel(h.session).run.markers.length, 0);
+});
+
+test('the sheet, a card and the settings page are data too', () => {
+  const h = fakeHost({ progress: null });
+  h.session.init();
+  let vm = viewModel(h.session);
+  assert.equal(vm.screen, 'card');
+  assert.deepEqual(vm.card, {
+    kind: 'welcome', title: 'Welcome',
+    paragraphs: ['Piano Practice takes you from your first note to pro, one step a day.'],
+    lines: false, choices: null, choice: 0, page: 0, pages: 4,
+  });
+  assert.deepEqual(vm.hint, ['JOG page  CLICK go on']);
+  h.session.back();
+  h.session.selectRow(0);
+  h.session.activate(true);
+  vm = viewModel(h.session);
+  assert.equal(vm.screen, 'card', 'the sheet\'s first-visit tip');
+  h.session.back();
+  vm = viewModel(h.session);
+  assert.deepEqual(vm.sheet, { title: 'Learning Path', cursor: 0, items: ['Show as list', 'Settings...'] });
+  assert.equal(vm.card, null);
+  h.session.pickSheet(1);
+  vm = viewModel(h.session);
+  assert.equal(vm.screen, SETTINGS, 'Settings...: the page');
+  assert.equal(vm.settings.title, 'Settings');
+  assert.deepEqual(vm.settings.rows.map((r) => [r.label, r.act, r.edit]), [
+    ['Octave', null, null], ['Click', null, null], ['Key', null, null], ['Scale', null, null],
+    ['Start at', null, 'start'], ['Advanced', 'advanced', null],
+  ]);
+  h.session.selectSettingRow(5);
+  h.session.activate(false);
+  vm = viewModel(h.session);
+  assert.equal(vm.screen, MENU, 'Advanced: a list');
+  assert.deepEqual(vm.nav.path, ['Piano', 'Settings', 'Advanced']);
+  openPath(h.session, ['Help']);
+  vm = viewModel(h.session);
+  assert.equal(vm.settings.title, 'Help');
+  assert.deepEqual(vm.settings.rows.map((r) => [r.row, r.label, r.act]), [
+    [0, 'Auto info', null], [1, 'Show tips again', 'tips'], [2, 'Welcome again', 'welcome'],
+  ]);
+  assert.ok(vm.settings.rows[0].index >= 0 && vm.settings.rows[1].index === -1);
+  assert.deepEqual(vm, plain(vm));
+});
+
+test('the map is data: its places and where the avatar is bound', () => {
+  const h = fakeHost();
+  h.session.init();
+  assert.equal(viewModel(h.session).map, null, 'the top list is no map');
+  openPath(h.session, ['Learning Path']);
+  let vm = viewModel(h.session);
+  assert.equal(vm.map.world, true);
+  assert.equal(vm.map.at, 0);
+  assert.deepEqual(vm.map.places.map((p) => p.state), ['current', 'ahead', 'ahead', 'ahead', 'ahead']);
+  assert.deepEqual(vm.hint, ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']);
+  h.session.mapPick(2);
+  vm = viewModel(h.session);
+  assert.equal(vm.map.at, 2);
+  h.session.mapPick(2);
+  vm = viewModel(h.session);
+  assert.equal(vm.screen, 'anim', 'in: a zoom first');
+  assert.deepEqual([vm.anim.kind, vm.anim.dir, vm.anim.zoomAt, vm.anim.world], ['zoom', 'in', 2, false]);
+  assert.equal(vm.anim.places.at(-1).kind, 'fort', 'the island it lands on');
+  assert.equal(vm.map, null);
+  assert.deepEqual(vm, plain(vm));
+  h.run(400);
+  vm = viewModel(h.session);
+  assert.equal(vm.map.world, false, 'in: the island');
+  assert.equal(vm.map.places.at(-1).kind, 'fort');
+  assert.deepEqual(vm, plain(vm));
 });

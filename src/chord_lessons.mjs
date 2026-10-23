@@ -144,19 +144,22 @@ export function chooseVoicing(candidates, prev, home) {
  * With the bass at the top of its octave — Ab, the highest root the left hand
  * can take — eleven semitones are left above it, and a four-note chord whose
  * tones fall the wrong way round the octave does not fit in them. Abmaj7 is the
- * first casualty. The right hand then lets go of the root, which the left hand
- * is already playing, and after that of the fifth, which is the order a pianist
- * drops notes in for the same reason. An inversion drill never thins: there
- * the lowest note is the whole point and there is no left hand to cover it.
+ * first casualty. The right hand then lets go of the note the left hand is
+ * already playing — the root, or a slash chord's bass (F/C lets go of the C) —
+ * and after that of the fifth, which is the order a pianist drops notes in for
+ * the same reason. A slash chord's bass is also as high as a bass gets with an
+ * Octave setting off the default, so it needs the same room. An inversion
+ * drill never thins: there the lowest note is the whole point and there is no
+ * left hand to cover it.
  */
-function voiceRightHand(tones, rootPc, bassBelow, floor, hi, bottomPc, prev) {
+function voiceRightHand(tones, rootPc, bassPc, bassBelow, floor, hi, bottomPc, prev) {
   const attempts = [tones];
   if (bassBelow && bottomPc == null) {
-    const noRoot = tones.filter((pc) => pc !== rootPc);
+    const noBass = tones.filter((pc) => pc !== bassPc);
     /* A power chord thins to its fifth alone; the left hand is the root. */
-    if (noRoot.length >= 1 && noRoot.length < tones.length) attempts.push(noRoot);
-    const noFifth = noRoot.filter((pc) => pc !== (rootPc + 7) % 12);
-    if (noFifth.length >= 2 && noFifth.length < noRoot.length) attempts.push(noFifth);
+    if (noBass.length >= 1 && noBass.length < tones.length) attempts.push(noBass);
+    const noFifth = noBass.filter((pc) => pc !== (rootPc + 7) % 12);
+    if (noFifth.length >= 2 && noFifth.length < noBass.length) attempts.push(noFifth);
   }
   for (let i = 0; i < attempts.length; i++) {
     const v = chooseVoicing(closeVoicings(attempts[i], floor, hi, bottomPc), prev, (floor + hi) / 2);
@@ -202,7 +205,7 @@ export function chordSong({
       ? null
       : (step.root + quality.intervals[step.inversion]) % 12;
     const floor = hands === 'lr' ? bass + 1 : lo;
-    const rh = voiceRightHand(tones, step.root, hands === 'lr', floor, hi, bottomPc, prev);
+    const rh = voiceRightHand(tones, step.root, bassPc, hands === 'lr', floor, hi, bottomPc, prev);
     if (!rh) throw new Error(`${id}: no voicing of ${quality.id} on ${step.root} fits`);
     prev = rh;
 

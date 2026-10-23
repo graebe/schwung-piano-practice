@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
-  TERMS, infoFor, infoParagraphs, wrapLines, chordFormula, chordInC, stepPattern,
+  TERMS, infoFor, infoParagraphs, wrapLines, chordFormula, chordInC, stepPattern, withScreen, screenPage,
 } from '../src/info.mjs';
 import { buildCatalog, isFolder } from '../src/catalog.mjs';
 import { buildProgram, programFolder, allSteps } from '../src/program.mjs';
@@ -27,7 +27,7 @@ const phases = buildProgram({ songs });
 const root = buildCatalog({
   songs, categories: parseCategories(manifest), lead: [programFolder(phases)],
 });
-const env = { songs: Object.fromEntries(songs.map((s) => [s.chart.id, s.chart])) };
+const env = { songs: Object.fromEntries(songs.map((s) => [s.chart.id, s.chart])), phases };
 
 /* Every row a player can put the cursor on, lazy folders opened. */
 function everyNode(node, out = []) {
@@ -38,7 +38,7 @@ function everyNode(node, out = []) {
   return out;
 }
 
-const QUIZ_IDS = ['quiz', 'quiz/hear', 'quiz/play', 'quiz/name'];
+const QUIZ_IDS = ['quiz', 'quiz/hear', 'quiz/read', 'quiz/keys'];
 for (const kind of ['notes', 'chords']) {
   for (const pick of [false, true]) {
     for (const opts of kind === 'notes'
@@ -53,7 +53,8 @@ for (const ex of EXERCISES) QUIZ_IDS.push('quiz/hear/' + ex.topic + '/' + ex.key
 test('every row of the lesson tree has an Info page', () => {
   const missing = [];
   for (const node of everyNode(root)) {
-    if (node.continueRow || node.skipRow || node.checkRow || node.startRow) continue;
+    /* A checkpoint's page is by kind: it has no page of its own id. */
+    if (node.continueRow || node.checkpoint) continue;
     if (!infoFor({ id: node.id, label: node.label }, env)) missing.push(node.id);
   }
   assert.deepEqual(missing, []);
@@ -67,9 +68,14 @@ test('every step of the program and every quiz drill has one too', () => {
 });
 
 test('the rows with no id, and the result screen, have pages of their own', () => {
-  for (const kind of ['continue', 'skip', 'check', 'start', 'progress', 'result']) {
-    assert.ok(infoFor({ kind }), kind);
+  for (const kind of ['continue', 'checkpoint', 'progress', 'result', 'sheet', 'welcome', 'tip', 'settings']) {
+    assert.ok(infoFor({ kind }, env), kind);
   }
+  for (const group of ['main', 'practice', 'sound', 'midi', 'help']) {
+    const p = infoFor({ kind: 'settings', group }, env);
+    assert.ok(p && p.sections[0].text, group);
+  }
+  assert.equal(infoFor({ kind: 'settings', group: 'nope' }), null);
   assert.equal(infoFor(null), null);
   assert.equal(infoFor({ id: '' }), null);
   assert.equal(infoFor({ id: 'nothing/like/this' }), null);
@@ -78,7 +84,7 @@ test('the rows with no id, and the result screen, have pages of their own', () =
 test('every term a page uses is in the glossary, and every glossary term is used', () => {
   const used = new Set();
   const ids = QUIZ_IDS.concat(everyNode(root).map((n) => n.id).filter(Boolean));
-  for (const kind of ['continue', 'skip', 'progress', 'result']) ids.push({ kind });
+  for (const kind of ['continue', 'checkpoint', 'progress', 'result', 'sheet']) ids.push({ kind });
   for (const id of ids) {
     const p = infoFor(typeof id === 'string' ? { id } : id, env);
     if (!p) continue;
@@ -162,4 +168,30 @@ test('a song page names its key signature and tempo', () => {
   assert.match(text, /3 sharps/);
   assert.match(text, /Tempo \d+/);
   assert.match(text, /L3: both hands/);
+});
+
+test('a help page opens with its screen: what it is, its keys, then More help', () => {
+  const page = withScreen(infoFor({ kind: 'continue' }, env), { about: 'The top of the list.', keys: ['CLICK open', 'MENU help'] });
+  const lines = infoParagraphs(page).map((p) => p.text);
+  assert.equal(lines[0], 'The top of the list.');
+  const at = lines.indexOf('Keys');
+  assert.deepEqual(lines.slice(at + 1, at + 3), ['CLICK open', 'MENU help']);
+  const more = lines.indexOf('More help');
+  assert.ok(more > at, 'the rest after the divider');
+  assert.ok(lines.indexOf('Terms') > more, 'the terms come last');
+  const bare = withScreen(screenPage('Notes by alphabet'), { about: '', keys: ['JOG pick'] });
+  assert.equal(bare.key, null, 'a page with nothing of its own is never "seen"');
+  assert.deepEqual(infoParagraphs(bare).map((p) => p.text), ['Keys', 'JOG pick'], 'no divider over nothing');
+});
+
+test('the Path\'s pages say stage, and number units as the session does', () => {
+  const p1 = infoFor({ id: 'program/p1' }, env);
+  assert.match(p1.title, /^Stage 1: /);
+  assert.ok(p1.sections.some((sec) => sec.head === 'Checkpoint'));
+  assert.equal(infoFor({ id: 'program' }, env).title, 'Learning Path');
+  const unit = infoFor({ id: 'program/p5/techno' }, env);
+  assert.match(unit.title, /^5\.5 Techno harmony$/);
+  for (const id of ['program', 'program/p1', 'program/p3/inversions']) {
+    for (const sec of infoFor({ id }, env).sections) assert.doesNotMatch(sec.text || '', /\bphase/i, id);
+  }
 });

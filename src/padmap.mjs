@@ -109,3 +109,42 @@ export function padBaseColor(pad, transpose, scaleSet, rootPc) {
   if (pc === (((rootPc % 12) + 12) % 12)) return LED_ROOT;
   return scaleSet[pc] ? LED_SCALE : LED_OFF;
 }
+
+/*
+ * The Path map's pads (pathmap/leds.mjs): a lit pad is a place you can walk
+ * to, coloured by its state; water is dark. Move palette indices, the same as
+ * Drums Practice's.
+ */
+export const MAP_PALETTE = Object.freeze({
+  off: LED_OFF,
+  done: LED_HIT,          /* Green                                         */
+  current: 120,           /* White, pulsing with...                        */
+  currentDim: 118,        /* LightGrey #595959                             */
+  started: 79,            /* BrightYellow, dim #664E08                     */
+  fresh: 119,             /* DarkGrey  #1A1A1A                             */
+  ahead: 124,             /* DarkGrey2 #141414: later, drawn dimmer        */
+  skipped: 95,            /* AzureBlue, dim #134566                        */
+  avatar: 120,            /* White: where you stand                        */
+});
+
+/*
+ * A scene's pads (pathmap/anim.mjs): a green wave across them when a place
+ * is done, white sparkles for fireworks, the finale and a level learned.
+ */
+export const ANIM_PALETTE = Object.freeze({
+  off: LED_OFF,
+  sweep: LED_HIT,         /* Green                                         */
+  sweepDim: 85,           /* NeonGreen dim #144D08                         */
+  sparkle: 120,           /* White                                         */
+});
+
+/*
+ * The home screen's pads (home/leds.mjs): the five circles' pads, 69..73,
+ * dim, the selected one bright and pulsing; the rest dark.
+ */
+export const HOME_PALETTE = Object.freeze({
+  off: LED_OFF,
+  item: 118,              /* LightGrey #595959                             */
+  selected: 120,          /* White                                         */
+  selectedDim: 119,       /* DarkGrey #1A1A1A: the pulse's low half        */
+});

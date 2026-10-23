@@ -62,6 +62,9 @@ const advanceMs = (ms, step = 20) => {
 };
 
 const QUIET_SETTINGS = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false });
+/* Welcomed, every tip seen: a first launch's cards would sit over every
+ * screen these tests drive. The welcome has its own tests. */
+const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
 
 function installHostStubs() {
   const calls = { led: 0, midi: 0, writes: [], notes: [] };
@@ -77,7 +80,8 @@ function installHostStubs() {
     /* The automatic first-time Info page and the answer tones are off here:
      * every test would otherwise open on an Info page, and every answer would
      * queue notes. Their own tests turn them back on. */
-    host_read_file: (p) => (String(p).endsWith('/settings.json') ? QUIET_SETTINGS : null),
+    host_read_file: (p) => (String(p).endsWith('/settings.json') ? QUIET_SETTINGS
+      : String(p).endsWith('/progress.json') ? WELCOMED : null),
     host_write_file: (p, t) => { calls.writes.push(p); return true; },
     host_exit_module: noop,
     host_send_screenreader: noop,
@@ -98,10 +102,11 @@ const KNOB1 = 71;
 
 /*
  * Getting about the lesson tree. Rows are found by facts that hold whatever
- * files are loaded — the Learning Program is first, Basics second and Quiz
- * third, and the jog clamps, so the end of the top list is always Progress —
- * rather than by counting rows that the next lesson added would move.
+ * files are loaded — home is Path, Practice, Quiz, Progress, Settings, and
+ * the jog clamps, so the end of it is always Settings — rather
+ * than by counting rows that the next lesson added would move.
  */
+const TOP = { path: 0, practice: 1, quiz: 2, progress: 3, settings: 4 };
 const jog = (n) => {
   for (let i = 0; i < Math.abs(n); i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, n > 0 ? 1 : 127));
 };
@@ -110,14 +115,16 @@ const click = () => {
   globalThis.tick();
 };
 /*
- * The Quiz folder is Hear, Play, Name. Play and Name hold Notes then Chords;
- * Hear holds the hearing units, of which 2 plays notes back and 18 chords.
- * Rows here keep their old numbering: 0-1 Play, 2-3 Hear, 4-5 Name.
+ * The Quiz folder is Ear, Reading, Keys. Keys holds Notes by alphabet,
+ * Chords by name, Name notes, Name chords; Reading its three courses, then
+ * Notes and Chords by staff; Ear the hearing topics.
+ * Rows here keep their old numbering: 0 notes by name, 1 notes by staff,
+ * 2-3 Ear, 4-5 Name notes and chords.
  */
-const QUIZ_PATHS = [[1, 0], [1, 1], [0, 1, 0], [0, 17, 0], [2, 0], [2, 1]];
+const QUIZ_PATHS = [[2, 0], [1, 3], [0, 1, 0], [0, 17, 0], [2, 2], [2, 3]];
 function openQuiz(row) {
   globalThis.init();
-  jog(2);
+  jog(TOP.quiz);
   click();
   for (const step of QUIZ_PATHS[row]) {
     jog(step);
@@ -126,13 +133,13 @@ function openQuiz(row) {
 }
 function openProgress() {
   globalThis.init();
-  jog(60);
+  jog(TOP.progress);
   click();
 }
-/* Basics › Scales › Major, highlight on its first drill, Up & down. */
+/* Practice › Scales › Major, highlight on its first drill, Up & down. */
 function toScale() {
   globalThis.init();
-  jog(1);
+  jog(TOP.practice);
   click();
   click();
   click();
@@ -204,7 +211,7 @@ test('every transport and navigation control survives being pressed', () => {
   }
 });
 
-test('the jog and every knob can be turned in every view', () => {
+test('the jog and every knob can be turned in every view', async () => {
   globalThis.init();
   const turn = () => {
     for (const cc of [JOG_TURN, 71, 72, 73, 74]) {
@@ -216,19 +223,45 @@ test('the jog and every knob can be turned in every view', () => {
   turn();
   armScale();                                            /* into an exercise */
   turn();
-  /* Shift + click opens settings; every row must be editable without throwing. */
+  /*
+   * Shift + click opens the Settings page; every row of it and of every group
+   * of Advanced must be editable without throwing -- every setting there is.
+   */
+  const { MAIN, GROUPS, SETTINGS_COUNT } = await import(new URL('../src/settings_def.mjs', import.meta.url));
+  const press = (cc) => { globalThis.onMidiMessageInternal(CC(cc, 127)); globalThis.tick(); };
+  const editRows = (n) => {
+    let edited = 0;
+    for (let row = 0; row < n; row++) {
+      press(JOG_CLICK);                                   /* edit */
+      globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+      globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
+      press(JOG_CLICK);                                   /* done */
+      globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));  /* next row */
+      globalThis.tick();
+      edited++;
+    }
+    return edited;
+  };
   globalThis.onMidiMessageInternal(CC(SHIFT, 127));
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   globalThis.onMidiMessageInternal(CC(SHIFT, 0));
   globalThis.tick();
-  for (let row = 0; row < 20; row++) {
-    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* edit */
-    globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
-    globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
-    globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* done */
-    globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));      /* next row */
+  const screen = capture();
+  assert.match(screen.frame(), /^SETTINGS \| 1\/6 \| Octave/);
+  let edited = editRows(MAIN.length - 2);                   /* Octave, Click, Key, Scale */
+  editRows(1);                                              /* Start at */
+  assert.match(screen.frame(() => press(JOG_CLICK)), /^ADVANCED \| 1\/4 \| Practice/, 'the Advanced row');
+  for (let g = 0; g < GROUPS.length; g++) {
+    for (let i = 0; i < g; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+    const page = screen.frame(() => press(JOG_CLICK));      /* the group's page */
+    assert.ok(page.startsWith(GROUPS[g].label.toUpperCase() + ' |'), page);
+    edited += editRows(GROUPS[g].settings.length);          /* its settings, not its actions */
+    press(BACK);                                            /* Advanced's list */
+    for (let i = 0; i < GROUPS.length; i++) globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
     globalThis.tick();
   }
+  screen.restore();
+  assert.equal(edited, SETTINGS_COUNT, 'every setting edited, on the page or in its group');
 });
 
 test('knob touches and stray MIDI are ignored, not crashed on', () => {
@@ -335,6 +368,7 @@ test('a song opens its levels, and a level arms', () => {
   globalThis.print = (x, y, str) => { printed.push(String(str)); };
   globalThis.host_read_file = (path) => {
     if (path.endsWith('/settings.json')) return QUIET_SETTINGS;
+    if (path.endsWith('/progress.json')) return WELCOMED;
     const at = path.indexOf('/exercises/');
     if (at < 0) return null;
     try {
@@ -352,21 +386,24 @@ test('a song opens its levels, and a level arms', () => {
   };
 
   globalThis.init();
-  jog(3);                                                 /* Classics */
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  jog(TOP.practice);
+  click();
+  jog(4);                                                 /* Songs */
+  click();
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* Classics */
   assert.match(screen(), /CLASSICS/, 'the category opens under its own name');
   /* To the bottom of Classics — the jog clamps, so this lands on its last
    * song whatever else is added above it. */
   jog(60);
 
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* open the ladder */
-  const ladder = screen();
-  for (const rung of ['RH melody', 'LH bass', 'RH chords', 'Both hands']) {
-    assert.ok(ladder.includes(rung), `the level list does not show "${rung}": ${ladder}`);
-  }
+  /* One menu level less: the song arms at once, on its first level. */
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  const ready = screen();
+  assert.match(ready, /LEVEL/, 'the ready screen, with its LEVEL box: ' + ready);
 
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));      /* down to LH bass */
-  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));   /* arm it */
+  /* The jog walks the level: 1 Guided, 1 Solo, then the second level. */
+  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
+  globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));
   screen();
 
   /* The reading header names the chart, and a projected chart is named for its
@@ -379,28 +416,24 @@ test('a song opens its levels, and a level arms', () => {
   globalThis.tick();
   globalThis.onMidiMessageInternal(CC(BACK, 127));        /* stop the run */
   globalThis.tick();
-  globalThis.onMidiMessageInternal(CC(BACK, 127));        /* back to the ladder */
-  assert.ok(
-    screen().includes('RH melody'),
-    'Back from a song should land on its ladder, not on the song list',
-  );
+  assert.match(screen(), /LEVEL/, 'Back from a run is its ready screen');
 
   /* And each Back from there is one folder up, until the top. */
   globalThis.onMidiMessageInternal(CC(BACK, 127));
-  assert.match(screen(), /CLASSICS/, 'Back from the ladder lands on the song list');
+  assert.match(screen(), /CLASSICS/, 'Back from the ready screen lands on the song list');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  assert.match(screen(), /SONGS/, 'then the shelves');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   const top = screen();
-  assert.match(top, /EXERCISE/, 'the top of the tree is the exercise list');
-  for (const row of ['Basics', 'Classics']) {
-    assert.ok(top.includes(row), `the top list does not show "${row}": ${top}`);
-  }
+  assert.match(top, /^PIANO Practice /, 'home, on the circle it left: ' + top);
 });
 
 /*
  * Every chord lesson goes through the same door as a song: a folder, then its
  * ladder, then a chart. The deepest path in the tree, walked once end to end.
  */
-test('a chord lesson opens from Basics and arms at both hands', () => {
+test('a chord lesson opens from Practice and arms at both hands', () => {
   const printed = [];
   globalThis.print = (x, y, str) => { printed.push(String(str)); };
   const screen = () => {
@@ -413,23 +446,21 @@ test('a chord lesson opens from Basics and arms at both hands', () => {
    * screen() starts listening for it. */
   const open = () => globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   globalThis.init();
-  jog(1);
-  open();                        /* Basics */
+  jog(TOP.practice);
+  open();                        /* Practice */
   jog(1);
   open();                        /* Chords */
   assert.match(screen(), /CHORDS/);
   jog(4);
   open();                        /* Sevenths */
   assert.match(screen(), /Major 7th/);
-  open();                        /* Major 7th: its ladder */
-  jog(3);
-  open();                        /* Both hands */
+  open();                        /* Major 7th: armed at its first level */
+  jog(6);                        /* to Both hands: L3 Guided */
   globalThis.onMidiMessageInternal(CC(RECORD, 127));
   assert.match(screen(), /Major 7th L3/, 'the header names the lesson and its level');
   for (let i = 0; i < 20; i++) globalThis.tick();
   globalThis.onMidiMessageInternal(CC(BACK, 127));
-  globalThis.onMidiMessageInternal(CC(BACK, 127));
-  assert.match(screen(), /Both hands/, 'Back lands on the ladder it was armed from');
+  assert.match(screen(), /LEVEL/, 'Back lands on the ready screen, on the level it was armed at');
 });
 
 /*
@@ -452,6 +483,9 @@ test('a second source on the same pitch is heard, and does not cut the first', a
   assert.ok(pads.length > 1, 'this pitch should have a twin pad to press');
 
   globalThis.init();
+  jog(TOP.practice);
+  click();                                              /* the Practice ring */
+  click();                                              /* Scales, a list: the pads are the piano */
   globalThis.tick();
   const struck = () => { const n = hostCalls.notes.slice(); hostCalls.notes.length = 0; return n; };
   struck();
@@ -622,19 +656,19 @@ test('the ready screen scrubs, and Play takes it from there', () => {
   toScale();
 
   const armed = frame(() => globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127)));
-  assert.ok(armed.some((t) => t.includes('SCRUB')),
+  assert.ok(armed.some((t) => t === 'scrub'),
     'a freshly armed song offers all three rows');
 
   /* Two bars forward on the ready screen, which used to be impossible. */
   const away = frame(scrub(72, 1));
-  assert.equal(away.some((t) => t.includes('SCRUB')), false,
+  assert.equal(away.some((t) => t === 'scrub'), false,
     'scrubbing hides the box, which sits over the music being scrubbed');
   assert.equal(barBeat(away), '3.1',
     'and the header shows the position instead of the MIDI route');
 
   /* Both directions: a box that never draws would pass a one-way test. */
   const home = frame(scrub(72, 127));
-  assert.ok(home.some((t) => t.includes('SCRUB')), 'scrolling home brings it back');
+  assert.ok(home.some((t) => t === 'scrub'), 'scrolling home brings it back');
 
   /* And Play begins where you left the playhead, not at bar 1. */
   const running = frame(() => {
@@ -728,6 +762,25 @@ async function playPerfectly(chart, { wrong = 0 } = {}) {
   advanceMs(4000, 10);
 }
 
+/* A hint longer than a row takes turns, 3 s a part: every part, in one
+ * string, so a test can ask for any of them. On a clock that is not frozen
+ * it freezes it for the look, and thawing jumps it back: use it last, or
+ * freeze the clock for the whole test. */
+/* The hint line's parts, one per turn: its turns run from when the hint
+ * first showed (ui.js), so four frames a turn (3 s) apart each land in the
+ * next turn, whatever the clock's phase. */
+function footerParts(screen) {
+  const wasFrozen = clockFrozen;
+  if (!wasFrozen) freezeClock();
+  const seen = [];
+  for (let i = 0; i < 4; i++) {
+    seen.push(screen.frame());
+    clock += 3000;
+  }
+  if (!wasFrozen) thawClock();
+  return seen.join(' || ');
+}
+
 function capture() {
   const printed = [];
   const real = globalThis.print;
@@ -738,12 +791,16 @@ function capture() {
     frame(act) {
       printed.length = 0;
       (act || globalThis.onResume)();
-      /* The draw is throttled on the clock: spin until a frame lands. */
+      /* The draw is throttled on the clock: spin until a frame lands. On the
+       * frozen clock the bound is the injected clock (100 frames, 4 s), so
+       * how fast the machine runs cannot move it; on the real one, 500 ms. */
       const until = Date.now() + 500;
+      let frames = 0;
       do {
         clock += 40;
         globalThis.tick();
-      } while (!printed.length && Date.now() < until);
+        frames++;
+      } while (!printed.length && (clockFrozen ? frames < 100 : Date.now() < until));
       return printed.join(' | ');
     },
     restore() { globalThis.print = real; },
@@ -761,13 +818,13 @@ test('a whole run ends on its result, is saved, and Back starts it again', async
   const result = screen.frame();
   assert.match(result, new RegExp(chart.events.length + ' of ' + chart.events.length + ' hit'),
     'the result names what you hit: ' + result);
-  assert.match(result, /S1 DONE/, 'a perfect stage 1 run passes stage 1');
-  assert.match(result, /CLICK S2  SHIFT next/, 'and offers stage 2 next');
+  assert.match(result, /GUIDED DONE/, 'a perfect Guided run passes Guided');
+  assert.match(result, /CLICK Solo  REC again/, 'and offers Solo next');
   assert.ok(hostCalls.writes.some((p) => p.endsWith('/progress.json')), 'the attempt is saved');
 
   /* Back is another go from the start — now at stage 2 — not the list. */
-  const ready = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
-  assert.match(ready, /S2 pads dark/, 'Back lands on the ready screen, on the stage you have not passed');
+  screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
+  assert.match(footerParts(screen), /Solo: pads dark/, 'Back lands on the ready screen, on Solo, not yet passed');
   const list = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
   assert.match(list, /MAJOR/, 'and the press after that is the list');
   assert.match(list, /Up & down/);
@@ -822,62 +879,207 @@ test('stage 1 lights the notes as they come, and stage 2 keeps the pads dark', a
   thawClock();
 });
 
-test('Continue opens the next step, and Skip passes it by', () => {
+test('Continue names the next step in the Path\'s list, and the options skip it', () => {
   const screen = capture();
   globalThis.init();
-  const program = screen.frame(click);                  /* into the Learning Program */
-  assert.match(program, /Next: Major up/, 'a fresh start begins with 1.1 Major scale: ' + program);
-  assert.match(program, /Skip: Major up/);
+  jog(TOP.path);
+  click();                                              /* the Path's map */
+  shiftClick();
+  jog(3);                                               /* Show as list */
+  click();
+  jog(-1);                                              /* Continue, the list's first row */
+  const top = screen.frame();
+  assert.match(top, /^NOTES BY ALPHABET \| 1\/6 \| Continue \| 1\.1 \|/, 'a fresh start begins with 1.1 Find the notes: ' + top);
 
-  jog(1);
-  click();                                              /* Skip */
+  /* Shift + click: the row's options. */
+  const sheet = screen.frame(shiftClick);
+  assert.match(sheet, /CONTINUE \| 1\/3 \| I know this: skip \| Show as map \| Settings\.\.\./, sheet);
   /* A skip is not practice, so the strand keeps its turn: the step after. */
-  const skipped = screen.frame();
-  assert.match(skipped, /Next: Major down \| S1/, 'the step after the skipped one: ' + skipped);
+  const skipped = screen.frame(click);
+  assert.match(skipped, /NAME NOTES \| 1\/6 \| Continue \| Name notes/, 'the step after the skipped one: ' + skipped);
 
-  globalThis.onMidiMessageInternal(CC(JOG_TURN, 127));
-  const ready = screen.frame(click);                    /* Continue */
-  assert.match(ready, /S1 pads lit/, 'the step arms on stage 1: ' + ready);
+  const quiz = screen.frame(click);                     /* Continue */
+  assert.match(quiz, /NAME NOTE/, 'the step opens directly: ' + quiz);
   screen.restore();
 });
 
-test('a phase lists its check, Start here and its units', () => {
+/* ---- The Path as a map --------------------------------------------------- */
+
+/* The pad note under place `i` of a map of `n` places. */
+async function padOfPlace(n, i) {
+  const { layoutPlaces, padOfCell } = await import(new URL('../src/pathmap/layout.mjs', import.meta.url));
+  return padOfCell(layoutPlaces(n).cells[i]);
+}
+const shiftClick = () => {
+  globalThis.onMidiMessageInternal(CC(SHIFT, 127));
+  globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
+  globalThis.onMidiMessageInternal(CC(SHIFT, 0));
+};
+
+test('a stage is an island; its list, one option away, ends on its Checkpoint', () => {
+  freezeClock();
   const screen = capture();
   globalThis.init();
-  click();                                              /* Learning Program */
-  jog(2);
-  const phase = screen.frame(click);                    /* 1 Grid and staff */
-  assert.match(phase, /GRID AND STAFF/i);
-  assert.match(phase, /Check: skip phase/);
-  assert.match(phase, /Start here/);
-  assert.match(phase, /1\.1 Major scale/);
-  jog(2);
-  const steps = screen.frame(click);                    /* 1.1 Major scale */
-  assert.match(steps, /Major up & down/);
-  const ready = screen.frame(click);
-  assert.match(ready, /S1 pads lit/);
+  jog(TOP.path);
+  const world = screen.frame(click);                    /* Path: the world map */
+  assert.match(world, /^1 Grid and staff 0% \|/, world);
+  const parts = footerParts(screen);
+  for (const part of ['PAD go  CLICK enter', 'PLAY continue', 'MENU help']) assert.ok(parts.includes(part), 'the hint takes turns: ' + parts);
+  assert.match(parts, /^[^|]*\| PAD go  CLICK enter \|\|/, 'a new screen opens on its first part, whatever the clock: ' + parts);
+  const island = screen.frame(click);                   /* 1 Grid and staff: its island */
+  assert.match(island, /^1 Grid and staff 0% \|.*ANY KEY skip/, 'the zoom, under the island\'s name: ' + island);
+  advanceMs(400);
+  assert.match(screen.frame(), /^1\.1 Find the notes 0% \| PAD go/, 'then the island itself');
+  screen.frame(shiftClick);
+  const sheet = screen.frame();
+  assert.match(sheet, /Show as list/, sheet);
+  jog(60);
+  jog(-1);                                              /* Show as list */
+  const list = screen.frame(click);
+  assert.match(list, /1\.1 Find the notes/);
+  assert.doesNotMatch(list, /Check: skip phase|Start here|Skip next/);
+  assert.match(screen.frame(() => jog(60)), /Checkpoint \| 0\/4 >/);
+  const back = screen.frame(BACK_PRESS);
+  assert.match(back, /^Checkpoint 0%/, 'Back from the list is the map, the avatar on the row the list was on: ' + back);
   screen.restore();
+  thawClock();
 });
 
-test('Next from a result follows the track, and Shift moves on', async () => {
+test('home lights the five circles\' pads only; a pad opens its circle without a sound', async () => {
+  const { HOME_PALETTE, LED_OFF } = await import(new URL('../src/padmap.mjs', import.meta.url));
+  freezeClock();
+  const screen = capture();
+  globalThis.__leds = {};
+  globalThis.init();
+  for (let i = 0; i < 5; i++) globalThis.tick();
+  const lit = Object.keys(globalThis.__leds).map(Number).filter((n) => n >= PAD && n < PAD + 32
+    && globalThis.__leds[n] !== LED_OFF).sort((a, b) => a - b);
+  assert.deepEqual(lit, [69, 70, 71, 72, 73], 'lit means pressable: one pad per circle');
+  assert.ok([HOME_PALETTE.selected, HOME_PALETTE.selectedDim].includes(globalThis.__leds[69]), 'Path selected');
+  assert.equal(globalThis.__leds[70], HOME_PALETTE.item);
+  hostCalls.notes.length = 0;
+  globalThis.onMidiMessageInternal([0x90, PAD, 100]);   /* off the five: nothing */
+  globalThis.onMidiMessageInternal([0x80, PAD, 0]);
+  assert.match(screen.frame(), /^PIANO \| Learning Path/);
+  globalThis.onMidiMessageInternal([0x90, 71, 100]);
+  globalThis.onMidiMessageInternal([0x80, 71, 0]);
+  assert.match(screen.frame(), /^QUIZ /, 'pad 71 opens Quiz');
+  advanceMs(500);
+  assert.deepEqual(hostCalls.notes, [], 'a pad on home sounds nothing');
+  assert.match(screen.frame(BACK_PRESS), /^PIANO \| Quiz/, 'Back: home, its circle selected');
+  for (let i = 0; i < 5; i++) globalThis.tick();
+  assert.ok([HOME_PALETTE.selected, HOME_PALETTE.selectedDim].includes(globalThis.__leds[71]), 'Quiz\'s pad bright');
+  delete globalThis.__leds;
+  screen.restore();
+  thawClock();
+});
+
+test('on the map a pad walks there, a second press goes in, and pads make no sound', async () => {
+  freezeClock();
+  const screen = capture();
+  globalThis.init();
+  jog(TOP.path);
+  click();                                              /* the world map, on stage 1 */
+  hostCalls.notes.length = 0;
+  const third = await padOfPlace(5, 2);
+  globalThis.onMidiMessageInternal([0x90, third, 100]);
+  globalThis.onMidiMessageInternal([0x80, third, 0]);
+  advanceMs(2000);
+  assert.deepEqual(hostCalls.notes, [], 'a pad on the map sounds nothing');
+  assert.match(screen.frame(), /^3 Shapes and time/, 'the avatar walked to stage 3');
+  globalThis.onMidiMessageInternal([0x90, third, 100]);
+  globalThis.onMidiMessageInternal([0x80, third, 0]);
+  assert.match(screen.frame(), /^3 Shapes and time 0% \| ANY KEY skip/, 'a second press goes in: the zoom');
+  advanceMs(400);
+  assert.match(screen.frame(), /^3\.1 Intervals II/, 'and the island');
+  /* Water does nothing: a pad no place sits on. */
+  const { layoutPlaces, padOfCell, COLS, ROWS } = await import(new URL('../src/pathmap/layout.mjs', import.meta.url));
+  const taken = new Set(layoutPlaces(8, { kind: 'island' }).cells.map(padOfCell));
+  let water = -1;
+  for (let n = PAD; n < PAD + COLS * ROWS && water < 0; n++) if (!taken.has(n)) water = n;
+  globalThis.onMidiMessageInternal([0x90, water, 100]);
+  globalThis.onMidiMessageInternal([0x80, water, 0]);
+  assert.match(screen.frame(), /^3\.1 Intervals II/, 'water: nothing');
+  assert.deepEqual(hostCalls.notes, []);
+  /* The jog walks; Back goes up, the avatar on the island it left. */
+  jog(1);
+  advanceMs(1000);
+  assert.match(screen.frame(), /^3\.2 Inversions/);
+  assert.match(screen.frame(BACK_PRESS), /^3 Shapes and time/);
+  advanceMs(400);                                       /* the zoom out */
+  BACK_PRESS();
+  jog(TOP.practice);
+  click();
+  click();                                              /* Practice › Scales */
+  /* In a list the pads are the piano again. */
+  globalThis.onMidiMessageInternal([0x90, PAD, 100]);
+  globalThis.onMidiMessageInternal([0x80, PAD, 0]);
+  globalThis.tick();
+  assert.ok(hostCalls.notes.length > 0, 'a pad in the list sounds');
+  screen.restore();
+  thawClock();
+});
+
+test('a scene: its own screen and hint, and a pad skips it without a sound', () => {
+  freezeClock();
+  const screen = capture();
+  globalThis.init();
+  jog(TOP.path);
+  click();                                              /* the world */
+  const zoom = screen.frame(click);                     /* into 1 Grid and staff: the zoom */
+  assert.match(zoom, /ANY KEY skip$/, zoom);
+  hostCalls.notes.length = 0;
+  globalThis.onMidiMessageInternal([0x90, PAD + 9, 100]);
+  globalThis.onMidiMessageInternal([0x80, PAD + 9, 0]);
+  advanceMs(100);
+  assert.deepEqual(hostCalls.notes, [], 'a pad on a scene sounds nothing');
+  assert.match(screen.frame(), /^1\.1 Find the notes 0% \| PAD go/, 'skipped: the island at once');
+  screen.restore();
+  thawClock();
+});
+
+test('on the map PLAY is Continue, MENU is its help, and Shift + click its options', () => {
+  freezeClock();
+  const screen = capture();
+  globalThis.init();
+  jog(TOP.path);
+  click();
+  const help = screen.frame(MENU_PRESS);
+  assert.match(help, /STAGE 1: THE GRI \| INFO \| The map: a lit pad/, 'the map first, then the stage: ' + help);
+  BACK_PRESS();
+  screen.frame(shiftClick);
+  assert.match(screen.frame(), /I know it all: skip.*Show as list/, 'the stage under the avatar');
+  BACK_PRESS();
+  globalThis.onMidiMessageInternal(CC(PLAY, 127));
+  assert.match(screen.frame(), /NOTE/, 'Play opened Continue\'s step');
+  screen.restore();
+  thawClock();
+});;
+
+test('Next from a result follows the unit, and Shift moves on', async () => {
   const chart = await scaleChart();
   const screen = capture();
   freezeClock();
   globalThis.init();
-  click();                                              /* Learning Program */
-  click();                                              /* Continue: Major up & down */
+  jog(TOP.path);
+  click();                                              /* Path */
+  click();                                              /* 1 Grid and staff */
+  advanceMs(400);                                       /* the zoom in */
+  jog(2);
+  click();                                              /* 1.3 Major scale */
+  click();                                              /* Major up & down */
   await playPerfectly(chart);
-  /* Shift + click: stage 1 is enough, on to the next step of Reading. */
+  /* Shift + click: stage 1 is enough, on to the next step of the unit. */
   globalThis.onMidiMessageInternal(CC(SHIFT, 127));
   globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
   globalThis.onMidiMessageInternal(CC(SHIFT, 0));
   const next = screen.frame();
-  assert.match(next, /S1 pads lit/, 'the next step, armed: ' + next);
-  /* The program now points past it: Continue offers the step after. */
+  assert.match(next, /Major down|C Major/, 'the next step, armed: ' + next);
+  assert.match(footerParts(screen), /Guided: pads lit/);
+  /* The unit now points past it. */
   globalThis.onMidiMessageInternal(CC(BACK, 127));
-  globalThis.onMidiMessageInternal(CC(MENU, 127));
-  const list = screen.frame(() => { globalThis.onMidiMessageInternal(CC(BACK, 127)); });
-  assert.doesNotMatch(list, /Next: Major up &/, 'a moved-on step is not offered again: ' + list);
+  const list = screen.frame();
+  assert.match(list, /MAJOR SCALE/, list);
   screen.restore();
   thawClock();
 });
@@ -885,10 +1087,10 @@ test('Next from a result follows the track, and Shift moves on', async () => {
 test('the progress list opens charts, and the jog walks them', () => {
   const screen = capture();
   globalThis.init();
-  jog(60);
+  jog(TOP.progress);
   const list = screen.frame(click);
   assert.match(list, /PROGRESS 0%/);
-  for (const row of ['Overall', 'Phase 1', 'Phase 2']) assert.match(list, new RegExp(row));
+  for (const row of ['Overall', 'Stage 1', 'Stage 2']) assert.match(list, new RegExp(row));
   const overall = screen.frame(click);
   assert.match(overall, /OVERALL/);
   assert.match(overall, /nothing passed yet/);
@@ -899,7 +1101,7 @@ test('the progress list opens charts, and the jog walks them', () => {
   const back = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
   assert.match(back, /PROGRESS/);
   const top = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
-  assert.match(top, /EXERCISE/);
+  assert.match(top, /^PIANO \| Progress/, 'home, Progress selected');
   screen.restore();
 });
 
@@ -916,7 +1118,7 @@ test('Back from a quiz result is a fresh round', () => {
     advanceMs(600);
   }
   const screen = capture();
-  assert.match(screen.frame(), /PLAY again CLICK next|SHIFT next/, 'the round should be over');
+  assert.match(footerParts(screen), /CLICK (next|Solo)  REC again/, 'the round should be over');
   const after = screen.frame(() => globalThis.onMidiMessageInternal(CC(BACK, 127)));
   assert.match(after, /NOTE/, 'a new round of the same drill: ' + after);
   assert.match(after, /0\/20/);
@@ -924,34 +1126,33 @@ test('Back from a quiz result is a fresh round', () => {
   thawClock();
 });
 
-test('the Quiz folder is Hear, Play and Name, and each opens its drills', () => {
+test('the Quiz folder is Ear, Reading and Keys, and each opens its drills', () => {
   const screen = capture();
   globalThis.init();
-  jog(2);
+  jog(TOP.quiz);
   const quiz = screen.frame(click);
-  assert.match(quiz, /QUIZ \| 1\/4 \| Hear .*\| Play .*\| Name .*\| Read /, quiz);
-  const hear = screen.frame(click);
-  assert.match(hear, /HEAR/);
-  assert.match(hear, /HEAR \| 1\/4 \| Pitch & melody .*\| Intervals .*\| Chords .*\| Scales & keys/, 'Hear is by topic: ' + hear);
+  assert.match(quiz, /^QUIZ \| Ear \| JOG choose/, 'Quiz is a ring of three: ' + quiz);
+  const ear = screen.frame(click);
+  assert.match(ear, /EAR \| 1\/4 \| Pitch & melody .*\| Intervals .*\| Chords .*\| Scales & keys/, 'Ear is by topic: ' + ear);
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   jog(1);
-  const play = screen.frame(click);
-  assert.match(play, /PLAY \| 1\/4 \| Notes by alphabet .*\| Notes by staff .*\| Chords by name .*\| Chords by staff/, play);
-  assert.match(screen.frame(click), /NOTE\b(?! STAFF)/, 'Notes by alphabet opens the name row');
-  globalThis.onMidiMessageInternal(CC(BACK, 127));
-  jog(1);
+  screen.frame(click);                                  /* Reading */
+  jog(3);
   assert.match(screen.frame(click), /NOTE STAFF/, 'Notes by staff opens the staff row');
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   globalThis.onMidiMessageInternal(CC(BACK, 127));
   jog(1);
-  const name = screen.frame(click);
-  assert.match(name, /NAME \| 1\/2 \| Notes .*\| Chords/, name);
+  const keys = screen.frame(click);
+  assert.match(keys, /KEYS \| 1\/4 \| Notes by alphabet .*\| Chords by name .*\| Name notes .*\| Name chords/, keys);
+  assert.match(screen.frame(click), /NOTE\b(?! STAFF)/, 'Notes by alphabet opens the name row');
+  globalThis.onMidiMessageInternal(CC(BACK, 127));
+  jog(2);
   const pick = screen.frame(click);
-  assert.match(pick, /NAME NOTE/, 'Name › Notes is the lit-pad drill: ' + pick);
+  assert.match(pick, /NAME NOTE/, 'Keys › Name notes is the lit-pad drill: ' + pick);
   screen.restore();
 });
 
-/* Hear › Intervals › Identify intervals › 2 3rds › up: two answers, on pads 2
+/* Ear › Intervals › Identify intervals › 2 3rds › up: two answers, on pads 2
  * and 5 of the bottom row. */
 const THIRDS = { path: [1, 0, 1, 0], pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
 
@@ -1013,7 +1214,7 @@ test('Name has no answer bar: its lit question stays pressable and the jog answe
   const { ANSWER_COLOURS } = await import(new URL('../src/answer_pads.mjs', import.meta.url));
   globalThis.__leds = {};
   const screen = capture();
-  openQuiz(4);                                        /* Name › Notes */
+  openQuiz(4);                                        /* Keys › Name notes */
   for (let i = 0; i < 5; i++) globalThis.tick();
   const colours = new Set(ANSWER_COLOURS.flatMap((c) => [c.bright, c.dim]));
   for (let col = 0; col < 8; col++) {
@@ -1047,13 +1248,13 @@ function withSettings(over, fn) {
 test('Menu opens Info for the highlighted row, and closes back to it', () => {
   const screen = capture();
   globalThis.init();
-  jog(1);                                               /* Basics */
+  jog(TOP.practice);
   const page = screen.frame(MENU_PRESS);
-  assert.match(page, /BASICS \| INFO/, page);
-  assert.match(page, /Scales, chords/);
-  assert.match(screen.frame(MENU_PRESS), /EXERCISE/, 'Menu again closes it');
+  assert.match(page, /PRACTICE \| INFO/, page);
+  assert.match(page, /Home: the Learning \| Path/, 'help opens with the screen it was opened on: ' + page);
+  assert.match(screen.frame(MENU_PRESS), /^PIANO \| Practice/, 'Menu again closes it');
   screen.frame(MENU_PRESS);
-  assert.match(screen.frame(BACK_PRESS), /EXERCISE \| 2\//, 'so does Back, on the same row');
+  assert.match(screen.frame(BACK_PRESS), /^PIANO \| Practice/, 'so does Back, on the same circle');
   /* Play and Record start nothing from an Info page. */
   screen.frame(MENU_PRESS);
   globalThis.onMidiMessageInternal(CC(PLAY, 127));
@@ -1063,20 +1264,26 @@ test('Menu opens Info for the highlighted row, and closes back to it', () => {
 });
 
 test('a long Info page scrolls with the jog, and a chord page shows its formula', () => {
+  /* Frozen for the length of the test: footerParts moves the clock on, and
+   * a clock that later jumps back holds every redraw until it catches up. */
+  freezeClock();
   const screen = capture();
   globalThis.init();
-  jog(1);
-  click();                                              /* Basics */
+  jog(TOP.practice);
+  click();                                              /* Practice */
   jog(1);
   click();                                              /* Chords */
   click();                                              /* Triads */
   jog(1);                                               /* Minor */
   const first = screen.frame(MENU_PRESS);
-  assert.match(first, /Formula 1 b3 5/, first);
-  assert.match(first, /JOG scroll BACK close/);
-  const later = screen.frame(() => jog(8));
-  assert.notEqual(later, first, 'the jog moved it');
+  assert.match(first, /A folder of the/, 'the screen first: ' + first);
+  assert.match(footerParts(screen), /JOG scroll/);
+  const seen = [];
+  for (let i = 0; i < 20; i++) seen.push(screen.frame(() => jog(1)));
+  assert.notEqual(seen[0], first, 'the jog moved it');
+  assert.match(seen.join(' || '), /Formula 1 b3 5/, 'and the chord\'s page follows, under More help');
   screen.restore();
+  thawClock();
 });
 
 test('Info pauses a running exercise, and Back returns to it paused', () => {
@@ -1086,7 +1293,8 @@ test('Info pauses a running exercise, and Back returns to it paused', () => {
   globalThis.onMidiMessageInternal(CC(RECORD, 127));
   advanceMs(3000);
   assert.match(screen.frame(MENU_PRESS), /INFO/);
-  assert.match(screen.frame(BACK_PRESS), /PAUSED/, 'back where it was, holding');
+  screen.frame(BACK_PRESS);
+  assert.match(footerParts(screen), /PAUSED/, 'back where it was, holding');
   screen.restore();
   thawClock();
 });
@@ -1095,14 +1303,14 @@ test('the first time a kind of practice is opened, its Info comes first, once', 
   withSettings({ autoInfo: true, quizSounds: false }, () => {
     const screen = capture();
     globalThis.init();
-    jog(1);
+    jog(TOP.practice);
     click();
     click();
-    click();                                            /* Basics › Scales › Major */
+    click();                                            /* Practice › Scales › Major */
     const first = screen.frame(click);                  /* Up & down */
     assert.match(first, /INFO/, 'shown by itself: ' + first);
-    assert.match(first, /The scale up an/);
-    assert.match(screen.frame(BACK_PRESS), /S1 pads lit/, 'Back lands on the ready screen');
+    assert.match(first, /A piece, armed/, 'the screen first');
+    assert.match(screen.frame(BACK_PRESS), /\| practise \|/, 'Back lands on the ready screen');
     BACK_PRESS();                                       /* to the list */
     jog(1);
     const second = screen.frame(click);                 /* Up: another scale drill */
@@ -1116,7 +1324,7 @@ test('an answer sounds a chime when right and an uh-oh when wrong', () => {
     freezeClock();
     const heard = new Set();
     for (let round = 0; round < 6 && heard.size < 2; round++) {
-      openQuiz(4);                                      /* Name › Notes: jog and click */
+      openQuiz(4);                                      /* Keys › Name notes: jog and click */
       for (let tries = 0; tries < 3; tries++) {
         hostCalls.notes.length = 0;
         globalThis.onMidiMessageInternal(CC(JOG_CLICK, 127));
@@ -1152,11 +1360,11 @@ test('unloading is clean, and resume does not throw', () => {
   globalThis.onUnload();
 });
 
-/* Quiz › Hear is the first row of the Quiz folder; its exercises are numbered. */
-/* Quiz › Hear, then one jog position per level of the path, each clicked. */
+/* Quiz › Ear is the first row of the Quiz folder; its exercises are numbered. */
+/* Quiz › Ear, then one jog position per level of the path, each clicked. */
 function openHearing(path) {
   globalThis.init();
-  jog(2);
+  jog(TOP.quiz);
   click();
   click();
   for (const at of path) {
@@ -1165,7 +1373,7 @@ function openHearing(path) {
   }
 }
 
-/* Every drill in Quiz › Hear as a jog path to its first level: an exercise's
+/* Every drill in Quiz › Ear as a jog path to its first level: an exercise's
  * first level, a course's first unit's, a one-level exercise itself. */
 async function hearPaths() {
   const { hearMenu } = await import(new URL('../src/program.mjs', import.meta.url));

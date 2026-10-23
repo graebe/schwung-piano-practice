@@ -15,6 +15,7 @@ import assert from 'node:assert/strict';
 import { createScreen, countOn, isOn, toAscii, W, H } from '../tools/screen_buffer.mjs';
 import * as R from '../src/staff_render.mjs';
 import * as V from '../src/view.mjs';
+import { hintFor } from '../src/hints.mjs';
 import * as L from '../src/layout.mjs';
 import { pitchToY, spell, inStaffRange } from '../src/notation.mjs';
 import {
@@ -515,13 +516,13 @@ test('the ready prompt shows the symbol as well as the word', () => {
 
 test('the ready prompt names both modes, with a symbol for each', () => {
   const c = createScreen();
-  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24 });
+  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24, footer: READY_HINT[0] });
   const b = V.READY_BOX;
 
   /* A triangle on the first line and a disc on the second, each in the glyph
    * column, so the two buttons are told apart before any word is read. */
-  assert.ok(countOn(c, b.x + 4, b.y + 3, 10, 9) > 12, 'no play symbol');
-  assert.ok(countOn(c, b.x + 4, b.y + 14, 10, 9) > 12, 'no record symbol');
+  assert.ok(countOn(c, b.x + 2, b.y + 3, 10, 9) > 12, 'no play symbol');
+  assert.ok(countOn(c, b.x + 2, b.y + 14, 10, 9) > 12, 'no record symbol');
   /* Both lines carry a label. */
   assert.ok(countOn(c, b.x + 16, b.y + 3, 80, 8) > 30, 'no label on the play line');
   assert.ok(countOn(c, b.x + 16, b.y + 14, 80, 8) > 30, 'no label on the record line');
@@ -529,10 +530,10 @@ test('the ready prompt names both modes, with a symbol for each', () => {
   const blankLabels = createScreen();
   V.drawReadyView(blankLabels, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24,
-    playLabel: ' ', recLabel: ' ',
+    playLabel: ' ', recLabel: ' ', footer: READY_HINT[0],
   });
   assert.ok(countOn(c, 0, 0, W, H) > countOn(blankLabels, 0, 0, W, H));
-  /* The footer still carries the jog hint. */
+  /* The footer still carries the hint. */
   assert.ok(countOn(c, 0, L.FOOTER_Y - 2, W, 8) > 40, 'no footer hint');
 });
 
@@ -612,28 +613,29 @@ test('the settings list brackets the value it is editing', () => {
   assert.equal(countOn(idle, 0, 19, W, 9), countOn(editing, 0, 19, W, 9), 'other rows unchanged');
 });
 
-/* ---- Discoverability hint ------------------------------------------------ */
+/* ---- The hint line ------------------------------------------------------- */
 
-test('the settings gesture is spelled out, and fits the screen', () => {
+const LIST_HINT = hintFor('menu', { top: true });
+const READY_HINT = hintFor('ready', { stages: true, stage: 1 });
+
+test('every part of a hint fits the screen', () => {
   const probe = createScreen();
-  assert.ok(
-    probe.textWidth(V.SETTINGS_HINT) <= W,
-    `"${V.SETTINGS_HINT}" is ${probe.textWidth(V.SETTINGS_HINT)}px, wider than the screen`,
-  );
-  assert.match(V.SETTINGS_HINT, /shift/i);
-  assert.match(V.SETTINGS_HINT, /settings/i);
+  for (const part of LIST_HINT.concat(READY_HINT, hintFor('menu', { shift: true }))) {
+    assert.ok(probe.textWidth(part) <= L.TEXT_MAX_PX, `"${part}" is ${probe.textWidth(part)}px, wider than the screen`);
+  }
+  assert.match(hintFor('menu', { shift: true })[0], /^SHIFT: CLICK options$/, 'Shift is spelled out');
 });
 
 test('the exercise list carries the hint, centred on the bottom line', () => {
   const c = createScreen();
   V.drawList(c, 'EXERCISE', [{ label: 'Scale', value: '' }], 0, {
-    footer: V.SETTINGS_HINT,
+    footer: LIST_HINT[0],
     centreFooter: true,
   });
   /* Compare against the same string drawn alone at the same place: the footer
    * must be that text, not merely some ink. */
   const expected = blank();
-  V.drawFooterHint(expected, V.SETTINGS_HINT);
+  V.drawFooterHint(expected, LIST_HINT[0]);
   for (let y = L.FOOTER_Y - 2; y < H; y++) {
     for (let x = 0; x < W; x++) {
       assert.equal(isOn(c, x, y), isOn(expected, x, y), `footer differs at ${x},${y}`);
@@ -641,11 +643,11 @@ test('the exercise list carries the hint, centred on the bottom line', () => {
   }
 });
 
-test('the ready screen carries it too — settings is unreachable by trying things', () => {
+test('the ready screen carries it too', () => {
   const c = createScreen();
-  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24 });
+  V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24, footer: READY_HINT[0] });
   const expected = blank();
-  V.drawFooterHint(expected, V.SETTINGS_HINT);
+  V.drawFooterHint(expected, READY_HINT[0]);
   let matched = 0;
   for (let y = L.FOOTER_Y - 2; y < H; y++) {
     for (let x = 0; x < W; x++) {
@@ -653,7 +655,49 @@ test('the ready screen carries it too — settings is unreachable by trying thin
       if (isOn(expected, x, y)) matched++;
     }
   }
-  assert.ok(matched > 50, 'the hint should actually be there');
+  assert.ok(matched > 30, 'the hint should actually be there');
+});
+
+test('the reading view gives its footer to the hint only in the count-in and while paused', () => {
+  const run = createRun(chart);
+  const hint = 'REC pause  BACK stop';
+  const at = (songBeats, paused) => {
+    const c = createScreen();
+    V.drawReadingView(c, { chart, run, songBeats, pxPerBeat: 24, paused, footer: hint });
+    return c;
+  };
+  const expected = blank();
+  V.drawFooterHint(expected, hint);
+  const same = (c) => {
+    for (let y = L.FOOTER_Y - 2; y < H; y++) {
+      for (let x = 0; x < W; x++) if (isOn(c, x, y) !== isOn(expected, x, y)) return false;
+    }
+    return true;
+  };
+  assert.ok(same(at(-2, false)), 'count-in');
+  assert.ok(same(at(2, true)), 'paused');
+  assert.ok(!same(at(2, false)), 'running: the progress bar');
+});
+
+test('a card: title, wrapped lines, page count, or a choice', () => {
+  const c = createScreen();
+  V.drawCard(c, { title: 'Welcome', lines: ['Piano Practice takes', 'you'], page: 0, pages: 3, footer: 'JOG page  CLICK go on' });
+  assert.ok(countOn(c, 0, L.INFO_TOP_Y, W, 8) > 30, 'the first line, where Info has it');
+  assert.ok(countOn(c, 100, 0, 28, 7) > 5, 'the page count');
+  const pick = createScreen();
+  V.drawCard(pick, { title: 'New to piano?', choices: ['From the start', 'I already play'], choice: 1, pages: 1 });
+  assert.ok(countOn(pick, 0, 19, W, 9) > countOn(pick, 0, 10, W, 9), 'the chosen row is inverted');
+});
+
+test('a value that names something gives way to its label', () => {
+  const c = createScreen();
+  V.drawList(c, 'X', [{ label: 'Continue' }], 1, {
+    decorate: () => ({ label: 'Continue', value: 'Scarborough Fair L3 Both hands', short: '4.5' }),
+  });
+  /* The label stays whole: its first letters are where they always are. */
+  const plain = createScreen();
+  V.drawList(plain, 'X', [{ label: 'Continue' }], 1, { decorate: () => ({ label: 'Continue', value: '' }) });
+  assert.equal(countOn(c, 2, 10, 47, 8), countOn(plain, 2, 10, 47, 8));
 });
 
 /* ---- Played markers ------------------------------------------------------ */
@@ -1526,16 +1570,56 @@ test('a list row carries its mark, and the mark inverts with the highlight', () 
   assert.ok(countOn(c, 90, 10, 38, 8) < countOn(plain, 90, 10, 38, 8), 'mark not inverted');
 });
 
-test('the ready screen names the stage, and only when asked to', () => {
+const LEVELS4 = {
+  index: 1, stage: 2, ladder: true, name: 'L1 LH bass  Solo',
+  levels: [{ step: 'L1', learned: true }, { step: 'L1', learned: true }, { step: 'L2' }, { step: 'L3' }],
+};
+
+test('the ready screen\'s bottom line: the level on the left, the keys on the right', () => {
   const run = createRun(chart);
-  const staged = createScreen();
-  V.drawReadyView(staged, { chart, run, songBeats: 0, pxPerBeat: 24, footer: V.stageFooter(1) });
-  const expected = blank();
-  V.drawFooterHint(expected, V.stageFooter(1));
-  for (let y = L.FOOTER_Y - 2; y < H; y++) {
-    for (let x = 0; x < W; x++) assert.equal(isOn(staged, x, y), isOn(expected, x, y), `${x},${y}`);
-  }
-  assert.notEqual(V.stageFooter(1), V.stageFooter(2));
+  const w = (s) => createScreen().textWidth(s);
+  const both = V.readyLine('Solo', ['JOG Guided'], 0, w);
+  assert.deepEqual(both, { footerLeft: 'Solo', footerRight: 'JOG Guided', turns: 1 });
+  const turns = V.readyLine('L2 RH chords  Solo', ['JOG level', 'REC start'], 0, w);
+  assert.deepEqual(turns, { footerLeft: 'L2 RH chords  Solo', turns: 3 }, 'too long for both: the name takes a turn');
+  assert.deepEqual(V.readyLine('L2 RH chords  Solo', ['JOG level', 'REC start'], 3000, w), { footerRight: 'JOG level', turns: 3 });
+  assert.deepEqual(V.readyLine('', ['SHIFT: BACK quit'], 0, w), { footer: 'SHIFT: BACK quit', turns: 1 });
+  const c = createScreen();
+  V.drawReadyView(c, { chart, run, songBeats: 0, pxPerBeat: 24, ...both });
+  assert.ok(countOn(c, 0, L.FOOTER_Y - 2, 30, 8) > 10, 'the name, on the left');
+  assert.ok(countOn(c, 80, L.FOOTER_Y - 2, 48, 8) > 10, 'the keys, on the right');
+});
+
+test('the LEVEL box: a big digit, its G or S, arrows only where the jog goes on, a mark when learned', () => {
+  const run = createRun(chart);
+  const draw = (level) => {
+    const c = createScreen();
+    V.drawReadyView(c, { chart, run, songBeats: 0, pxPerBeat: 24, level });
+    return c;
+  };
+  const b = V.READY_BOX;
+  const right = (c) => countOn(c, V.READY_SPLIT_X + 1, b.y + 1, b.x + b.w - V.READY_SPLIT_X - 2, b.h - 2);
+  const mid = draw(LEVELS4);
+  const first = draw({ ...LEVELS4, index: 0, stage: 1 });
+  const last = draw({ ...LEVELS4, index: 3, stage: 2 });
+  assert.ok(right(mid) > 60, 'LEVEL, the digit, the tag');
+  const leftArrow = (c) => countOn(c, V.READY_SPLIT_X + 2, b.y + 15, 6, 8);
+  const rightArrow = (c) => countOn(c, b.x + b.w - 9, b.y + 15, 6, 8);
+  assert.ok(leftArrow(mid) > 0 && rightArrow(mid) > 0, 'both ways open in the middle');
+  assert.equal(leftArrow(first), 0, 'nothing before 1 Guided');
+  assert.equal(rightArrow(last), 0, 'nothing after the last Solo');
+  const mark = (c) => countOn(c, b.x + b.w - 7, b.y + 2, 5, 5);
+  assert.ok(mark(mid) > 0, 'a learned level is marked');
+  assert.equal(mark(last), 0);
+  /* The music stays in view above and below the box. */
+  assert.ok(countOn(mid, 0, L.STAFF_TOP_Y, b.x, L.STAFF_BOTTOM_Y - L.STAFF_TOP_Y) > 0, 'the staff left of the box');
+  /* Scrubbed away, the box steps aside; the bottom line stays. */
+  const scrubbed = createScreen();
+  V.drawReadyView(scrubbed, { chart, run, songBeats: 4, pxPerBeat: 24, level: LEVELS4, footerLeft: 'L1 LH bass  Solo' });
+  const split = (c) => countOn(c, V.READY_SPLIT_X, b.y + 1, 1, b.h - 2);
+  assert.equal(split(mid), b.h - 2, 'the box splits at 64 px');
+  assert.ok(split(scrubbed) < 10, 'gone once scrubbed: only the staff lines cross there');
+  assert.ok(countOn(scrubbed, 0, L.FOOTER_Y - 2, 100, 8) > 20);
 });
 
 test('four answers or fewer list each with the colour of its pad', () => {
