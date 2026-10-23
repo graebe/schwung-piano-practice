@@ -66,7 +66,7 @@ import { layoutPlaces, placeOfPad } from './pathmap/layout.mjs';
 import { createWalk, walkTo, walkStep, posAt, arrived } from './pathmap/walk.mjs';
 import { createGrow, startGrow, growing, itemOfPad, HOME_MAX } from './home/render.mjs';
 import { PRACTICE_PIANO } from './home/icons.mjs';
-import * as SC from './scenes.mjs';
+import * as SC from './pathmap/scenes.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -114,7 +114,7 @@ export const CARD_VIEW = 'card';
 export const MAP_SCREEN = 'map';
 /* The top of the list drawn as five circles (src/home/): MENU too. */
 export const HOME_SCREEN = 'home';
-/* A scene of the Learning Path (scenes.mjs): a walk, a flag, a zoom... Any
+/* A scene of the Learning Path (pathmap/scenes.mjs): a walk, a flag, a zoom... Any
  * key skips it. */
 export const ANIM_VIEW = 'anim';
 
@@ -2644,7 +2644,7 @@ export function createSession(fx, opts = {}) {
 
   /* ---- Scenes: the Learning Path in motion ------------------------------------ */
   /*
-   * A short queue of scenes (scenes.mjs) on their own screen, ANIM: a flag
+   * A short queue of scenes (pathmap/scenes.mjs) on their own screen, ANIM: a flag
    * when a place is done, the walk to the next place, a zoom between the
    * world and an island, fireworks for a stage, the finale for the whole
    * path, a star round a level learned. Each is said as it starts. Any key
@@ -2724,11 +2724,22 @@ export function createSession(fx, opts = {}) {
     if (!id || !phases.length || !PLAN.findStep(phases, id)) return { phase: null, learned };
     const unit = PLAN.unitOf(phases, id);
     const phase = checkPhase || (armedUnit && armedUnit.phase) || (unit && unit.phase) || null;
+    const stageStates = MP.stagePlaces(progress, phases).places.map((p) => p.state);
+    const island = phase ? MP.unitPlaces(progress, phases, phase).places : [];
+    /* In the engine's terms (pathmap/scenes.mjs changes): each stage, done
+     * or not, and the done places of the take's own stage. */
+    const stages = {};
+    phases.forEach((ph, i) => {
+      stages[ph.key] = { done: stageStates[i] === 'done',
+        places: ph === phase ? island.filter((p) => p.state === 'done').map((p) => p.id) : [] };
+    });
+    const settled = (st) => st === 'done' || st === 'skipped';
     return {
       phase,
       learned,
-      stages: MP.stagePlaces(progress, phases).places.map((p) => p.state),
-      places: phase ? MP.unitPlaces(progress, phases, phase).places.map((p) => p.state) : [],
+      path: { stages, all: stageStates.every(settled) },
+      /* The places as they were, for a flag to rise from. */
+      was: island.map((p) => p.state),
     };
   }
 
@@ -2740,17 +2751,16 @@ export function createSession(fx, opts = {}) {
   function storyOf(before, id) {
     const after = pathSnapshot(id);
     const story = { phase: before.phase, place: -1, stageDone: null, pathDone: false,
-      learned: !before.learned && after.learned, was: before.places || [] };
+      learned: !before.learned && after.learned, was: before.was || [] };
     if (!before.phase || after.phase !== before.phase) return story;
-    const done = (st) => st === 'done';
-    const settled = (st) => st === 'done' || st === 'skipped';
-    story.place = after.places.findIndex((st, i) => done(st) && !done(before.places[i]));
+    const change = SC.changes(before.path, after.path);
+    const island = MP.unitPlaces(progress, phases, before.phase);
+    story.place = island.places.findIndex((p) => change.places.includes(p.id));
     /* The fort among them: the checkpoint passed. */
-    const fort = MP.unitPlaces(progress, phases, before.phase).targets.findIndex((tg) => tg.check);
-    story.checkpoint = fort >= 0 && done(after.places[fort]) && !done(before.places[fort]);
-    const j = after.stages.findIndex((st, i) => done(st) && !done(before.stages[i]));
-    story.stageDone = j >= 0 ? phases[j] : null;
-    story.pathDone = after.stages.every(settled) && !before.stages.every(settled);
+    const fort = island.targets.findIndex((tg) => tg.check);
+    story.checkpoint = fort >= 0 && change.places.includes(island.places[fort].id);
+    story.stageDone = phases.find((ph) => change.stages.includes(ph.key)) || null;
+    story.pathDone = change.all;
     return story;
   }
 
@@ -2776,7 +2786,7 @@ export function createSession(fx, opts = {}) {
     const doneAt = stage && fortOf(island) >= 0 ? fortOf(island) : Math.max(0, story.place);
     if (!stage && !story.pathDone && nextPhase === from && placeOfUnit(island, nextUnit) === doneAt) return [];
     const scenes = [{
-      kind: SC.CELEBRATE, map: island, at: doneAt, fireworks: stage, was: story.was[doneAt] || 'started',
+      kind: SC.CELEBRATE, map: island, at: doneAt, big: stage, was: story.was[doneAt] || 'started',
       say: stage ? 'Stage ' + from.n + ' complete.' : 'Unit done.',
     }];
     if (stage) {
@@ -2827,7 +2837,7 @@ export function createSession(fx, opts = {}) {
       dir: sc.dir || null,
       say: sc.say,
       progress: SC.sceneProgress(sc, t),
-      fireworks: Boolean(sc.fireworks),
+      fireworks: Boolean(sc.big),
       over: sc.over || null,
       from: sc.kind === SC.WALK ? sc.from : null,
       to: sc.kind === SC.WALK ? sc.to : null,

@@ -1216,7 +1216,7 @@ function sceneKinds(h) {
   for (let i = 0; i < 400 && h.session.view === 'anim'; i++) {
     const sc = h.session.scene;
     if (sc !== last) {
-      seen.push(sc.kind + (sc.dir ? '-' + sc.dir : '') + (sc.fireworks ? '+fireworks' : '') + (sc.text ? ' ' + sc.text : ''));
+      seen.push(sc.kind + (sc.dir ? '-' + sc.dir : '') + (sc.big ? '+fireworks' : '') + (sc.text ? ' ' + sc.text : ''));
     }
     last = sc;
     h.run(50);

@@ -5,6 +5,7 @@
  *
  *   npm run web:build && npx vite preview --config web/vite.config.js &
  *   node tools/web-shots.mjs            -> docs/media/web-*.png
+ *   PP_URL=http://localhost:<port>/ node tools/web-shots.mjs   another server
  *
  * Taken, not drawn, so the tutorial shows what the page is. Re-run whenever
  * a screen changes and commit what it writes.
@@ -17,36 +18,55 @@ const URL_ = process.env.PP_URL || 'http://localhost:47332/';
 
 const browser = await chromium.launch({ args: ['--autoplay-policy=no-user-gesture-required'] });
 
-async function open(viewport) {
+/* Welcomed, every first-visit tip seen: the cards would sit over the screens. */
+const SEEN = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
+
+async function open(viewport, settings = { version: 8, autoInfo: false, roundSize: 10 }) {
   const page = await browser.newPage({ viewport, deviceScaleFactor: 1 });
-  await page.addInitScript(() => {
+  await page.addInitScript(([seen, s]) => {
     localStorage.setItem('ultraviolet.motion.piano-practice', '0');
-    localStorage.setItem('piano-practice:settings.json', JSON.stringify({ version: 7, autoInfo: false, roundSize: 10 }));
-  });
+    localStorage.setItem('piano-practice:settings.json', s);
+    localStorage.setItem('piano-practice:progress.json', seen);
+  }, [SEEN, JSON.stringify(settings)]);
   await page.goto(URL_);
-  await page.waitForSelector('.row');
+  await page.waitForSelector('.home-screen');
   return page;
 }
-const row = (page, label) => page.locator('.row', { hasText: new RegExp(`^${label}`) }).first().click();
 
-/* Home, then the Path's map. */
+/* A row by its exact label: home's and a ring's rows, a folder's. */
+const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+async function row(page, label) {
+  await page.locator('.row').filter({ has: page.locator('.row-label', { hasText: new RegExp(`^${esc(label)}$`) }) })
+    .first().click();
+}
+async function openPath(page, labels) {
+  for (const l of labels) await row(page, l);
+}
+async function shoot(page, name) {
+  await page.mouse.move(1, 1);
+  await page.screenshot({ path: OUT + name });
+  console.log('wrote docs/media/' + name);
+}
+
+/* Home; the Learning Path's world map, the avatar standing; the Practice ring. */
 let page = await open({ width: 1280, height: 640 });
-await page.mouse.move(1, 1);
-await page.screenshot({ path: OUT + 'web-home.png' });
+await shoot(page, 'web-home.png');
 await page.keyboard.press('Enter');
-await page.waitForSelector('.map-screen');
-await page.waitForTimeout(300);
-await page.mouse.move(1, 1);
-await page.screenshot({ path: OUT + 'web-map.png' });
-await page.close();
-page = await open({ width: 1280, height: 760 });
+await page.locator('.map[data-walking="no"]').waitFor();
+await shoot(page, 'web-map.png');
+await page.keyboard.press('Escape');
+await page.locator('svg.home[data-ring="Piano"]').waitFor();
+await row(page, 'Practice');
+await page.locator('svg.home[data-ring="Practice"]').waitFor();
+await shoot(page, 'web-ring.png');
 
 /* Listening to a drill: the staff scrolls and the keys light. */
-for (const l of ['Basics', 'Scales', 'Major', 'Up & down']) await row(page, l);
+await openPath(page, ['Scales', 'Major', 'Up & down']);
+await page.locator('#piece-title').waitFor();
+await page.setViewportSize({ width: 1280, height: 760 });
 await page.getByRole('button', { name: 'Listen' }).click();
 await page.waitForTimeout(5300);
-await page.mouse.move(1, 1);
-await page.screenshot({ path: OUT + 'web-listen.png' });
+await shoot(page, 'web-listen.png');
 
 /* Practising with a wrong note, waiting on the next. */
 await page.getByRole('button', { name: 'Practice' }).click();     /* from listening to practising */
@@ -55,24 +75,31 @@ await page.keyboard.down('KeyW');
 await page.keyboard.up('KeyW');
 await page.waitForTimeout(150);
 await page.screenshot({ path: OUT + 'web-wait.png' });
+console.log('wrote docs/media/web-wait.png');
 await page.close();
 
-/* A hearing drill. */
+/* A song, ready: its levels above the staff. */
+page = await open({ width: 1280, height: 760 });
+await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+await page.locator('.levels .btn').first().waitFor();
+await shoot(page, 'web-ready-song.png');
+await page.close();
+
+/* A hearing drill, answered: where the answer sits on the keys. */
 page = await open({ width: 1280, height: 640 });
-for (const l of ['Quiz', 'Hear', '5 Major or minor 3rd']) await row(page, l);
-await page.locator('.row').first().click();
-await page.waitForTimeout(1200);
-await page.mouse.move(1, 1);
-await page.screenshot({ path: OUT + 'web-hear.png' });
+await openPath(page, ['Quiz', 'Ear', 'Pitch & melody', 'Higher or lower', 'wide']);
+await page.locator('.option').first().waitFor();
+for (const option of await page.locator('.option').all()) {
+  if (await option.isDisabled()) break;
+  await option.click();
+}
+await page.locator('.kb-key.hit').first().waitFor();
+await shoot(page, 'web-hear.png');
 await page.close();
 
 /* A result: a drill played twice, by the lit keys, at a brisk tempo. */
-page = await open({ width: 1280, height: 640 });
-await page.evaluate(() => localStorage.setItem('piano-practice:settings.json',
-  JSON.stringify({ version: 7, autoInfo: false, bpm: 160, countIn: 1 })));
-await page.reload();
-await page.waitForSelector('.row');
-for (const l of ['Basics', 'Scales', 'Major', 'Up']) await row(page, l);
+page = await open({ width: 1280, height: 640 }, { version: 8, autoInfo: false, bpm: 160, countIn: 1 });
+await openPath(page, ['Practice', 'Scales', 'Major', 'Up']);
 for (let round = 0; round < 2; round++) {
   await page.getByRole('button', { name: round ? 'Again' : 'Practice' }).click();
   for (let i = 0; i < 80 && !(await page.locator('.result-screen').count()); i++) {
@@ -81,16 +108,23 @@ for (let round = 0; round < 2; round++) {
     await page.waitForTimeout(160);
   }
   await page.locator('.result-screen').waitFor({ timeout: 20000 });
+  /* A level learned plays its star over the result first. */
+  await page.locator('.anim-over').waitFor({ state: 'detached' });
 }
-await page.mouse.move(1, 1);
-await page.screenshot({ path: OUT + 'web-result.png' });
+await shoot(page, 'web-result.png');
+await page.close();
+
+/* Settings: the one short page. */
+page = await open({ width: 1280, height: 640 });
+await page.getByRole('button', { name: 'Settings' }).click();
+await page.locator('#settings-title').waitFor();
+await shoot(page, 'web-settings.png');
 await page.close();
 
 /* A phone. */
 page = await open({ width: 390, height: 844 });
-for (const l of ['Classics', 'Ode to Joy', 'L1 RH melody']) await row(page, l);
-await page.mouse.move(1, 1);
-await page.screenshot({ path: OUT + 'web-phone.png' });
+await openPath(page, ['Practice', 'Songs', 'Classics', 'Ode to Joy']);
+await page.locator('.levels .btn').first().waitFor();
+await shoot(page, 'web-phone.png');
 
 await browser.close();
-console.log('wrote docs/media/web-*.png');

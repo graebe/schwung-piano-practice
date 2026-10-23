@@ -203,11 +203,14 @@ const KIT = {
   ],
 };
 
-/* Sticks (Drums › Rudiments): two sticks crossed, their beads up. */
+/* Sticks (Drums › Rudiments): two sticks crossed, their beads up -- a bead
+ * three times a shaft's width, so the pair reads as drumsticks, not an X.
+ * Each size costs what the plain cross did (9 and 15 rects): the shafts
+ * step two rows at a time, so their runs merge. */
 const STICKS = {
   small: [
-    '..#...#..',
-    '..#...#..',
+    '###...###',
+    '###...###',
     '...#.#...',
     '...#.#...',
     '....#....',
@@ -217,9 +220,9 @@ const STICKS = {
     '..#...#..',
   ],
   large: [
-    '..##.....##..',
-    '..##.....##..',
-    '...#.....#...',
+    '.###.....###.',
+    '.###.....###.',
+    '.###.....###.',
     '...#.....#...',
     '....#...#....',
     '....#...#....',

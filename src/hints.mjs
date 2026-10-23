@@ -40,7 +40,7 @@ const CARD = 'card';
 const MAP = 'map';
 /* The top of the list drawn as five circles (src/home/). */
 const HOME = 'home';
-/* A scene of the Learning Path (scenes.mjs): any key skips it. */
+/* A scene of the Learning Path (pathmap/scenes.mjs): any key skips it. */
 const ANIM = 'anim';
 
 /* Shift+Back leaves the module from anywhere (ui.js). */

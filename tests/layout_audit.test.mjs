@@ -53,7 +53,7 @@ function mapScreen(c, n, kind, at, opts = {}) {
     footer: hintFor('map')[0] });
 }
 
-/* A scene (scenes.mjs) on a map at its worst, part way through. */
+/* A scene (pathmap/scenes.mjs) on a map at its worst, part way through. */
 function sceneScreen(c, scene, n, now) {
   const places = Array.from({ length: n }, (_, i) => makePlace({
     label: `3.${i + 1} Advanced pieces`, percent: 100, state: 'done', due: 12, kind: i === n - 1 ? 'fort' : 'temple' }));
@@ -297,7 +297,7 @@ const SCREENS = {
   'scene, a walk on an island of nine': (c) => sceneScreen(c, { kind: 'walk', from: 0, to: 8 }, 9, 300),
   'scene, a zoom into an island': (c) => sceneScreen(c, { kind: 'zoom', dir: 'in', at: 2, landAt: 0 }, 9, 100),
   'scene, the longest banner': (c) => sceneScreen(c, { kind: 'banner', at: 0, text: 'LEARNING PATH COMPLETE' }, 5, 600),
-  'scene, fireworks over a stage': (c) => sceneScreen(c, { kind: 'celebrate', at: 8, fireworks: true }, 9, 700),
+  'scene, fireworks over a stage': (c) => sceneScreen(c, { kind: 'celebrate', at: 8, big: true }, 9, 700),
   'card, welcome': (c) => card(c, welcomePages()[0], 0, 3, hintFor('card', { pages: 3 })[0]),
   'card, keys': (c) => card(c, welcomePages()[1], 1, 3, hintFor('card', { pages: 3 })[0]),
   'card, new to piano': (c) => card(c, welcomePages()[2], 2, 3, hintFor('card', { choice: true })[0]),

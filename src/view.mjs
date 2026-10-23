@@ -26,7 +26,7 @@ import { drawMap } from './pathmap/render.mjs';
 import { createWalk } from './pathmap/walk.mjs';
 import { cellCentre } from './pathmap/layout.mjs';
 import { flagRise, fireworks, zoomIn, zoomOut, starBurst, starFit, finale, banner, FLAG_MS } from './pathmap/anim.mjs';
-import { ZOOM, CELEBRATE, FINALE, BANNER } from './scenes.mjs';
+import { ZOOM, CELEBRATE, FINALE, BANNER } from './pathmap/scenes.mjs';
 import { drawHome } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
 
@@ -1259,7 +1259,7 @@ export function drawMapScreen(ctx, state) {
 }
 
 /*
- * A scene of the Learning Path (scenes.mjs), drawn with the engine's
+ * A scene of the Learning Path (pathmap/scenes.mjs), drawn with the engine's
  * frames (pathmap/anim.mjs) on the scene's map, under its title bar and the
  * hint line:
  *
@@ -1293,7 +1293,7 @@ export function drawScene(ctx, state) {
     places[at] = { ...places[at], state: scene.was || 'started' };
     drawMapScreen(ctx, { ...base, places });
     flagRise(ctx, { layout: map.layout, index: at, place: map.places[at] }, t);
-  } else if (scene.kind === CELEBRATE && scene.fireworks) {
+  } else if (scene.kind === CELEBRATE && scene.big) {
     drawMapScreen(ctx, { ...base, route: false });
     const c = cellCentre(map.layout.cells[at], map.layout.kind);
     fireworks(ctx, { x: c.x, y: c.y, seed: at + 1 }, t - FLAG_MS);
