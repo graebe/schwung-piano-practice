@@ -608,17 +608,26 @@ test('on a Move the staff scrolls with the Move\'s beat, however late each pictu
   await page.goto('./');
   await expect(page.locator('#piece-title')).toHaveText(/marys lamb/i);
   await page.waitForTimeout(3000);              /* ten pictures: the clocks agree */
+  /*
+   * Each placement the page makes, at the moment it makes it: the lane's
+   * transform is set right after the page reads its clock for that frame, so
+   * the time read here is the time the position was worked out for. A frame
+   * that comes late on a loaded machine is then measured against its own
+   * time, not against when some other callback of the frame ran -- which is
+   * what made the old sampler see wobble the page never drew.
+   */
   const samples = await page.evaluate(() => new Promise((done) => {
     const lane = document.querySelector('.staff-bars').parentElement;
     const out = [];
-    const end = performance.now() + 3000;
-    /* The frame's own time, which the page's drawing used too. */
-    const frame = (now) => {
-      const tx = Number(/translate\(([-\d.e]+)/.exec(lane.getAttribute('transform'))[1]);
-      out.push([window.__beatAt(now), tx]);
-      if (now < end) requestAnimationFrame(frame); else done(out);
+    const set = lane.setAttribute.bind(lane);
+    const finish = () => { lane.setAttribute = set; done(out); };
+    lane.setAttribute = (name, value) => {
+      set(name, value);
+      if (name !== 'transform') return;
+      out.push([window.__beatAt(performance.now()), Number(/translate\(([-\d.e]+)/.exec(value)[1])]);
+      if (out.length >= 120) finish();
     };
-    requestAnimationFrame(frame);
+    setTimeout(finish, 15000);
   }));
   expect(samples.length).toBeGreaterThan(60);
   for (let i = 1; i < samples.length; i++) {
