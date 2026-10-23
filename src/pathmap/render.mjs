@@ -315,10 +315,9 @@ export function glyphRows(kind, look, level, { due = false, here = false, flag =
   return grid.map((r) => r.map((v) => (v ? '#' : '.')).join(''));
 }
 
-const glyphCache = new Map();
-
-/* The compiled glyph for a place, from the cache. */
-export function placeGlyph(place, { here = false, avatar = false, island = false } = {}) {
+/* How one place is drawn on one frame: its look, fill, markers and the key
+ * its glyph and its route keep-out are cached under. */
+function lookOf(place, here, avatar, island) {
   const look = LOOK[place.state] || 'solid';
   const kind = shapeKind(place.kind);
   const isle = island && !!ISLAND_SHAPES[kind];
@@ -327,12 +326,22 @@ export function placeGlyph(place, { here = false, avatar = false, island = false
   const due = place.due > 0;
   const flag = place.state === 'done';
   const key = `${kind}|${look}|${level}|${due ? 1 : 0}|${here ? 1 : 0}|${flag ? 1 : 0}|${avatar ? 1 : 0}|${isle ? 1 : 0}`;
-  let rects = glyphCache.get(key);
+  return { key, kind, look, level, opts: { due, here, flag, avatar, island: isle } };
+}
+
+const glyphCache = new Map();
+function glyphOf(g) {
+  let rects = glyphCache.get(g.key);
   if (!rects) {
-    rects = compile(glyphRows(kind, look, level, { due, here, flag, avatar, island: isle }));
-    glyphCache.set(key, rects);
+    rects = compile(glyphRows(g.kind, g.look, g.level, g.opts));
+    glyphCache.set(g.key, rects);
   }
   return rects;
+}
+
+/* The compiled glyph for a place, from the cache. */
+export function placeGlyph(place, { here = false, avatar = false, island = false } = {}) {
+  return glyphOf(lookOf(place, here, avatar, island));
 }
 
 /* ---- Water and route ----------------------------------------------------- */
@@ -343,25 +352,50 @@ const WAVE = compile(['.##..', '#..##']);
 const RIPPLE = compile(['.##..', '...##']);
 
 /*
- * Where the route stays out of a place: a pixel round what the place can
- * actually light -- its shape (every wall, filled or not), its flag where it
- * flies (the pole only down to where it stands), and its due dot -- so the
- * route reaches a place but never touches it, and runs on undisturbed past
- * a building's empty corners. The avatar's spot is left open, so a route
- * arriving from above comes down onto the ground; the spot is cleared when
- * the avatar or the current marker is in it. Indexed from (-1, -1).
- *
- * Each place keeps clear of its own kind only, on both maps.
+ * Masks round a place, MASK_W x MASK_H, indexed from (-1, -1): every pixel
+ * marked lights itself and the eight round it.
  */
 const MASK_W = GLYPH_W + 2;
 const MASK_H = GLYPH_H + 2;
-function keepClear(kinds, slot = false, island = false) {
-  const mask = new Uint8Array(MASK_W * MASK_H);
-  const lit = (x, y) => {
+function dilating(mask) {
+  return (x, y) => {
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) mask[(y + dy + 1) * MASK_W + x + dx + 1] = 1;
     }
   };
+}
+
+/*
+ * Where the route stays out of a place on one frame: a pixel round what the
+ * place draws on it -- its shape, every wall and its ground whether filled or
+ * not (a dot on an empty ground would read as fill), and its flag, due dot,
+ * marker and avatar only when they are drawn. An empty flag spot or avatar
+ * spot hides nothing, so a route coming down onto the ground stays unbroken;
+ * a flag, marker or avatar that appears covers it only where it is drawn.
+ */
+const routeClearCache = new Map();
+function routeClearOf(g) {
+  let mask = routeClearCache.get(g.key);
+  if (!mask) {
+    mask = new Uint8Array(MASK_W * MASK_H);
+    const lit = dilating(mask);
+    shapeRows(g.kind, g.opts.island).forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') lit(x, y); }));
+    glyphRows(g.kind, g.look, g.level, g.opts).forEach((row, y) => [...row].forEach((ch, x) => { if (ch === '#') lit(x, y); }));
+    routeClearCache.set(g.key, mask);
+  }
+  return mask;
+}
+
+/*
+ * Everything a place may ever light, a pixel round: its shape, its flag
+ * where it flies (the pole only down to where it stands) and its due dot --
+ * and with `slot`, the avatar's spot. The coast breaks round it, and no
+ * route may run into a place it does not join (the layouts are checked
+ * against it). Each place keeps clear of its own kind only, on both maps.
+ */
+function keepClear(kinds, slot = false, island = false) {
+  const mask = new Uint8Array(MASK_W * MASK_H);
+  const lit = dilating(mask);
   for (const k of kinds) {
     shapeRows(k, island).forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') lit(x, y); }));
     /* Its flag, where it flies: on an island each building has its own spot. */
@@ -388,8 +422,8 @@ function clearOf(kind, island, slot = false) {
 }
 
 /*
- * The keep-out of a place, as a set of screen pixels (for the tests and the
- * scene player): pixels the route stays off round place i of `layout`.
+ * Everything place i of `layout` may ever light, a pixel round, as a set of
+ * screen pixels (for the tests and the scene player).
  */
 export function placeKeepOut(layout, i, kind) {
   const island = layout.kind === 'island';
@@ -403,13 +437,11 @@ export function placeKeepOut(layout, i, kind) {
   }
   return out;
 }
-/* The avatar's spot and the sky above it, cleared under the figure or the
- * marker so a route coming down never touches its head. */
-const SLOT = [STAND_X, 0, AVATAR_W, STAND_Y + AVATAR_H];
-
-/* Whether (x, y) is inside the keep-clear of any place of `layout`. */
+/* Whether (x, y) is inside the mask of any place of `layout` (a cell with
+ * no place has none). */
 function nearPlace(layout, masks, x, y) {
   for (let i = 0; i < layout.cells.length; i++) {
+    if (!masks[i]) continue;
     const r = cellRect(layout.cells[i], layout.kind);
     const gx = x - r.x - GLYPH_DX;
     const gy = y - r.y;
@@ -420,9 +452,9 @@ function nearPlace(layout, masks, x, y) {
 
 /*
  * The route as dots, 1px every 2, on the even diagonal so corners stay in
- * step -- at sea and on an island alike.
+ * step -- at sea and on an island alike: every dot of the route, each once.
  */
-function routeDots(layout, masks) {
+function routePoints(layout) {
   const seen = new Set();
   const dots = [];
   for (let i = 1; i < layout.route.length; i++) {
@@ -432,10 +464,26 @@ function routeDots(layout, masks) {
     const dy = Math.sign(b.y - a.y);
     for (let x = a.x, y = a.y; ; x += dx, y += dy) {
       const k = y * 256 + x;
-      if ((x + y) % 2 === 0 && !seen.has(k) && !nearPlace(layout, masks, x, y)) dots.push(x, y);
+      if ((x + y) % 2 === 0 && !seen.has(k)) dots.push(x, y);
       seen.add(k);
       if (x === b.x && y === b.y) break;
     }
+  }
+  return dots;
+}
+
+/* The route's dots on one frame, given how each place is drawn on it: cached
+ * per scene and per set of looks, so a frame like the last costs nothing. */
+function routeDots(layout, s, looks) {
+  const key = looks.map((g) => g.key).join(';');
+  let dots = s.dots.get(key);
+  if (!dots) {
+    const masks = looks.map(routeClearOf);
+    dots = [];
+    for (let i = 0; i < s.route.length; i += 2) {
+      if (!nearPlace(layout, masks, s.route[i], s.route[i + 1])) dots.push(s.route[i], s.route[i + 1]);
+    }
+    s.dots.set(key, dots);
   }
   return dots;
 }
@@ -499,8 +547,9 @@ function coastRects(layout, masks) {
 }
 
 /*
- * Per layout and the kinds on it, computed once: the route's dots, and the
- * world's ripples or the island's coast.
+ * Per layout and the kinds on it, computed once: the route's points (its
+ * dots per set of looks, as frames ask for them), and the world's ripples
+ * or the island's coast.
  */
 const sceneCache = new WeakMap();
 
@@ -514,10 +563,10 @@ function scene(layout, places, island) {
   const key = (island ? 'i:' : 'w:') + kinds.join(',');
   let s = byKinds.get(key);
   if (s) return s;
+  const route = routePoints(layout);
   if (island) {
-    const masks = kinds.map((k) => clearOf(k, true));
     const coastMasks = kinds.map((k) => clearOf(k, true, true));
-    s = { dots: routeDots(layout, masks), waves: SEA_WAVES, coast: coastRects(layout, coastMasks) };
+    s = { route, dots: new Map(), waves: SEA_WAVES, coast: coastRects(layout, coastMasks) };
   } else {
     const onRoute = new Set(layout.route.map((c) => c.row * COLS + c.col));
     const waves = [];
@@ -529,7 +578,7 @@ function scene(layout, places, island) {
         waves.push(r.x + 3 + ((col * 7 + row * 3) % 6), r.y + 3 + ((col + row * 2) % 3) * 2);
       }
     }
-    s = { dots: routeDots(layout, kinds.map((k) => clearOf(k, false))), waves, coast: null };
+    s = { route, dots: new Map(), waves, coast: null };
   }
   byKinds.set(key, s);
   return s;
@@ -560,17 +609,18 @@ export function drawMap(ctx, { places, layout, walk = null, now = 0, pulse = tru
     for (let i = 0; i < s.waves.length; i += 2) blit(ctx, wave, s.waves[i], s.waves[i + 1], 1);
   }
   if (s.coast) blit(ctx, s.coast, 0, 0, 1);
-  if (route) for (let i = 0; i < s.dots.length; i += 2) ctx.fillRect(s.dots[i], s.dots[i + 1], 1, 1, 1);
   const pos = walk ? posAt(walk, now) : null;
   const standing = pos && !pos.moving ? pos.at : -1;
   const n = Math.min(places.length, layout.cells.length);
+  const looks = [];
+  for (let i = 0; i < n; i++) looks.push(lookOf(places[i], pulse && places[i].state === 'current', i === standing, island));
+  if (route) {
+    const dots = routeDots(layout, s, looks);
+    for (let i = 0; i < dots.length; i += 2) ctx.fillRect(dots[i], dots[i + 1], 1, 1, 1);
+  }
   for (let i = 0; i < n; i++) {
-    const p = places[i];
     const r = cellRect(layout.cells[i], layout.kind);
-    const here = pulse && p.state === 'current';
-    const avatar = i === standing;
-    if (here || avatar) ctx.fillRect(r.x + GLYPH_DX + SLOT[0], r.y + SLOT[1], SLOT[2], SLOT[3], 0);
-    blit(ctx, placeGlyph(p, { here, avatar, island }), r.x + GLYPH_DX, r.y, 1);
+    blit(ctx, glyphOf(looks[i]), r.x + GLYPH_DX, r.y, 1);
   }
   if (pos && pos.moving) drawWalker(ctx, pos.x, pos.y, Math.floor(pos.s * 2));
 }

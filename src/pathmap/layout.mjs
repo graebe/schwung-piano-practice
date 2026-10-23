@@ -117,6 +117,11 @@ const MAPS = {
  * climbs, runs along the top, comes down the right and back along the
  * bottom, and from seven places on the last (the fort) stands in the middle,
  * in row 2, so the path along the top never runs over it.
+ * The last leg comes into the fort from the right, along its ground line,
+ * where its gate is: a path that came down or up onto it would stop beside
+ * the fort (its anchor is the avatar's spot, right of the building) and
+ * read as cut off. So the route comes round to the fort's right and runs
+ * straight at it over open ground.
  * The four corner cells stay empty, where the coast rounds off into the sea.
  * No island picture uses the cells of the world map with the same count.
  */
@@ -128,21 +133,21 @@ const ISLANDS = {
     '........',
   ],
   2: [
-    '.>>>>v..',
-    '.^...2..',
-    '.^......',
+    '.>>>>>v.',
+    '.^....v.',
+    '.^...2<.',
     '.1......',
   ],
   3: [
-    '.>2>>v..',
-    '.^...3..',
-    '.^......',
+    '.>2>>>v.',
+    '.^....v.',
+    '.^...3<.',
     '.1......',
   ],
   4: [
     '.>>>3>v.',
-    '2^....v.',
-    '^<....4.',
+    '2^....>v',
+    '^<....4<',
     '.1......',
   ],
   5: [
@@ -160,22 +165,23 @@ const ISLANDS = {
   7: [
     '.>3>>4v.',
     '2^....>v',
-    '^<.7..v5',
-    '.1.^6<<.',
+    '^<.7<<v5',
+    '.1...6<.',
   ],
   8: [
     '.>3>4>5.',
     '2^....>v',
-    '^<..8.v6',
-    '.1..^7<.',
+    '^<.8<<v6',
+    '.1...7<.',
   ],
   9: [
-    '.>3>4>5.',
-    '2^.>v.>v',
-    '^<.^9.v6',
-    '.1.8<7<.',
+    '.3>4>5v.',
+    '2^....6v',
+    '^<.9<<v7',
+    '.1...8<.',
   ],
 };
+
 
 const STEP = { '>': [1, 0], '<': [-1, 0], v: [0, 1], '^': [0, -1] };
 const isPlaceChar = (ch) => ch >= '1' && ch <= '9';
