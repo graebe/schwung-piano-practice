@@ -185,7 +185,8 @@ test('a map draws only the map area, and within its call budget', () => {
    * THE BUDGET. The route is dotted 1 px in 2 on both maps (each dot one
    * call) and a skipped or ahead place draws its outline a pixel at a time,
    * so the worst frame -- nine places all dotted, the route dense, the
-   * avatar walking -- measures 273 calls. The budget is that plus about 10%.
+   * avatar walking -- measures 282 calls (the route shows wherever nothing
+   * is drawn, 2026-10-23); the budget leaves about 6% above that.
    * At ~490 ns per host call that is ~0.15 ms, far inside the 250 ms the
    * Move allows a slow frame; a map redraws only while something moves.
    * Past nine places (the serpentine, which no module shows) it is 360.
@@ -254,8 +255,13 @@ test('world maps are what they were, but for the route dots the island-path fix 
    * world frames: not one pixel went dark, and every pixel added is a route
    * dot (on the even diagonal, in the route's line). The map of 9 was also
    * redrawn so its places 2 and 3 are joined by a visible route; no module
-   * shows nine islands. */
-  const GOLDEN = { 5: ['fd775db2', '6833856b'], 7: ['a7b6d148', 'ed6eee28'], 8: ['2adbc17', 'c283e803'], 9: ['437d5d85', 'afa39568'] };
+   * shows nine islands. Re-recorded again (2026-10-23) when the keep-out
+   * became what a place draws on that frame (a flag only when it flies, the
+   * due dot only when due, the marker and avatar only where they are) and
+   * the avatar's spot stopped being cleared whole: checked against the old
+   * engine on 3120 frames of both maps, every changed pixel is a route dot,
+   * and every dot that went is one that touched a lit pixel. */
+  const GOLDEN = { 5: ['fd775db2', '3fbc053'], 7: ['a7b6d148', 'ed6eee28'], 8: ['2adbc17', 'c283e803'], 9: ['fcaf123c', 'ec577631'] };
   for (const [n, kinds] of [[5, ['island']], [7, ['island']], [8, ['place', 'place', 'place', 'place', 'place', 'place', 'place', 'fort']], [9, ['island']]]) {
     const places = Array.from({ length: n }, (_, i) => makePlace({
       state: STATES[i % 6], percent: (i * 37) % 101, due: i % 3 === 0 ? 1 : 0, kind: kinds[i % kinds.length],
