@@ -248,7 +248,7 @@ function homeOf(S) {
 }
 
 /*
- * A scene playing (scenes.mjs): its kind, how far it is (0..1), and the map
+ * A scene playing (pathmap/scenes.mjs): its kind, how far it is (0..1), and the map
  * it plays on in the engine's terms, so the page draws and paces its own.
  */
 const placeOf = (p) => ({

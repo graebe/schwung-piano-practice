@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Torben Gräber
 /*
- * scenes.test.mjs — the scene player: a queue played in order, each scene
- * for its time (a walk until it arrives), `then` once at the end, and any
- * key skipping straight there.
+ * pathmap_scenes.test.mjs — the engine's scene player: a queue played in
+ * order, each scene for its time (a walk until it arrives), `then` once at
+ * the end, and any key skipping straight there; and what a step changed on
+ * the path. Imports only src/pathmap/, as the engine itself does.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as SC from '../src/scenes.mjs';
+import * as SC from '../src/pathmap/scenes.mjs';
 import { layoutPlaces } from '../src/pathmap/layout.mjs';
 import { walkDuration, STORY_MS_PER_CELL } from '../src/pathmap/walk.mjs';
-import { BANNER_MS } from '../src/pathmap/anim.mjs';
+import { BANNER_MS, ANIMS } from '../src/pathmap/anim.mjs';
 
 const map = { layout: layoutPlaces(5) };
 
@@ -46,7 +47,12 @@ test('a frame that comes late runs through every scene it passed, in one step', 
 });
 
 test('a celebration with fireworks runs longer than a flag', () => {
-  assert.ok(SC.sceneMs({ kind: SC.CELEBRATE, fireworks: true }) > SC.sceneMs({ kind: SC.CELEBRATE }));
+  assert.equal(SC.sceneMs({ kind: SC.CELEBRATE, big: true }), SC.SCENE_MS.celebrate + SC.SCENE_MS.fireworks,
+    'a big celebration: the flag, then its fireworks');
+  assert.equal(SC.sceneMs({ kind: SC.CELEBRATE }), ANIMS.flag.ms);
+  for (const [kind, anim] of [[SC.ZOOM, 'zoomIn'], [SC.STAR, 'star'], [SC.FINALE, 'finale'], [SC.BANNER, 'banner']]) {
+    assert.equal(SC.sceneMs({ kind }), ANIMS[anim].ms, kind + ': the engine\'s length');
+  }
   assert.equal(SC.sceneMs({ kind: SC.STAR, ms: 42 }), 42, 'a scene may set its own time');
   assert.equal(SC.sceneMs({ kind: SC.BANNER }), BANNER_MS, 'a banner runs the engine\'s length');
   assert.equal(SC.sceneMs({ kind: 'nope' }), 0);
@@ -83,4 +89,26 @@ test('no scenes: `then` at once, and nothing plays', () => {
   assert.equal(done, 1);
   assert.ok(!SC.playing(p));
   assert.equal(SC.startScenes(SC.createPlayer(), [], null, 0), null, 'and no `then` is fine');
+});
+
+test('what a step changed: places, stages and the whole path newly done', () => {
+  const snap = (stages, all = false) => ({ stages, all });
+  const before = snap({ a: { done: false, places: ['a1'] }, b: { done: false, places: [] } });
+  const after = snap({ a: { done: true, places: ['a1', 'a2', 'a:check'] }, b: { done: false, places: [] } });
+  assert.deepEqual(SC.changes(before, after), { places: ['a2', 'a:check'], stages: ['a'], all: false });
+  assert.deepEqual(SC.changes(after, after), { places: [], stages: [], all: false }, 'nothing new');
+  const end = snap({ a: { done: true, places: ['a1'] }, b: { done: true, places: ['b1'] } }, true);
+  assert.deepEqual(SC.changes(after, end), { places: ['b1'], stages: ['b'], all: true });
+  assert.equal(SC.changes(end, end).all, false, 'done before: not news');
+  assert.deepEqual(SC.changes(snap({}), snap({ c: { done: true, places: ['c1'] } })),
+    { places: ['c1'], stages: ['c'], all: false }, 'a stage the first snapshot did not have');
+  assert.deepEqual(SC.changes(null, after), { places: [], stages: [], all: false });
+});
+
+test('a walk at its own pace lasts as that pace says', () => {
+  const p = SC.createPlayer();
+  const walk = SC.startScenes(p, [{ kind: SC.WALK, map, from: 4, to: 0 }], null, 0);
+  assert.ok(SC.runMs(walk) > SC.WALK_HOLD_MS, 'backwards walks too');
+  assert.equal(SC.sceneOver(walk, SC.runMs(walk) - 1), false);
+  assert.equal(SC.sceneOver(walk, SC.runMs(walk)), true);
 });
