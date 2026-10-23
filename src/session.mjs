@@ -127,6 +127,7 @@ export const VIEWS = [
 /* What the session keeps, by name; the host decides where. */
 const SETTINGS_FILE = 'settings.json';
 const STATS_FILE = 'stats.json';
+const STATS_V1_FILE = 'stats.v1.bak.json';
 const PROGRESS_FILE = 'progress.json';
 
 export const backupName = (name) => name.replace(/\.json$/, '.bak.json');
@@ -377,8 +378,16 @@ export function createSession(fx, opts = {}) {
     return isRecordText(backup) ? backup : null;
   }
 
+  /*
+   * A version 1 file is migrated as it is read (stats.migrateTally). Before
+   * the first save overwrites it, the old file is kept as it was — once, under
+   * its own name: the .bak twin is rewritten on every load and would lose it.
+   */
   function loadStats() {
-    stats = STATS.parseStats(loadRecord(STATS_FILE));
+    const text = loadRecord(STATS_FILE);
+    stats = STATS.parseStats(text);
+    if (stats.migrated && text && !readText(STATS_V1_FILE)) writeText(STATS_V1_FILE, text);
+    delete stats.migrated;
   }
 
   /* One write per finished round — small, and rare enough not to need pacing. */
@@ -717,6 +726,7 @@ export function createSession(fx, opts = {}) {
     const ms = GUESS.roundElapsed(quiz, now());
     const rec = STATS.makeRecord({
       drill, n: quiz.correct, ms, wrong: quiz.wrong, hints: quiz.hintsUsed, at: wallNow(),
+      context: roundContext(),
     });
     const best = STATS.summarise(STATS.forDrill(stats, drill)).best;
     lastResult = {
@@ -733,6 +743,7 @@ export function createSession(fx, opts = {}) {
     };
     STATS.addRecord(stats, rec);
     STATS.addTally(stats, drill, quiz.tally);
+    if (quiz.subject) STATS.addItems(stats, quiz.subject, quiz.mode, quiz.items);
     /* After the append, so the chart's last point is the round you just played.
      * `best` above is deliberately taken before it — that is the number you were
      * trying to beat, not the one you have just set. */
@@ -773,6 +784,22 @@ export function createSession(fx, opts = {}) {
     if (passed === 2) return ' Finished.';
     if (passed === 1) return ' Guided done.';
     return '';
+  }
+
+  /*
+   * What a round was asked in beyond its id: the key, and for a chord drill
+   * the roots it drew from — the Half tones setting decides them, and it is
+   * not part of a chord drill's id, so the record says.
+   */
+  function roundContext() {
+    if (!quiz || quiz.kind === GUESS.EAR) return null;
+    const x = { k: quizKey().rootPc };
+    if (quiz.kind === GUESS.CHORDS) {
+      x.r = quizSpec.chordSet === 'types' || quizSpec.chordSet === 'advanced'
+        ? (quizSpec.halfTones ? 'chromatic' : 'key')
+        : 'diatonic';
+    }
+    return x;
   }
 
   /* The id of whatever was just played: the armed exercise, or the quiz. */
@@ -817,6 +844,7 @@ export function createSession(fx, opts = {}) {
       /* What this drill has asked before and how it went: the answers you
        * miss come round more often. */
       history: STATS.tallyFor(stats, STATS.drillId(spec)),
+      itemTable: stats.items,
       seed: (wallNow() & 0x7fffffff) || 1,
     });
     quizSolvedAt = 0;

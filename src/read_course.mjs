@@ -26,7 +26,7 @@
 
 import { rng } from './generator.mjs';
 import { LETTERS, NATURAL_PC, MIN_PITCH, MAX_PITCH } from './notation.mjs';
-import { ev, interval, intervalEvents, rootName, WAYS, NOTE_GAP } from './ear_core.mjs';
+import { ev, interval, intervalEvents, rootName, WAYS, NOTE_GAP, judgedOf } from './ear_core.mjs';
 import { COURSES, SCALE_GAP, SAMPLE } from './ear_course.mjs';
 import { scaleById, scalePool } from './scales.mjs';
 
@@ -118,6 +118,8 @@ function identifyPrompts(keys, way) {
             events: intervalEvents(anchor, iv.semis, w),
             staff: columns(pair, w),
             label: noteLabel(pair[0]) + '-' + noteLabel(pair[1]) + ' ' + k,
+            root: pair[0].pitch,
+            way: w,
           });
         }
       }
@@ -170,6 +172,8 @@ function comparePrompts(unitKey, keys, way, fixed) {
         events: first.concat(second),
         staff: columns(p1, w, 0).concat(columns(p2, w, 1)),
         label: a.key + ', then ' + b.key,
+        judged: judgedOf(a, b),
+        way: w,
       });
       want[answer]--;
     }
@@ -191,6 +195,7 @@ function scalePrompts(keys, way) {
       events,
       staff: line.map((n) => ({ part: 0, notes: [n] })),
       label: noteLabel(tonic) + ' ' + scaleById(e.id).label,
+      root: e.root,
     };
   });
 }

@@ -23,7 +23,7 @@
 import { rng } from './generator.mjs';
 import { scaleById, scalePool } from './scales.mjs';
 import {
-  NOTE_GAP, ev, interval, intervalAnswers, intervalEvents, intervalPrompts, rootName, WAYS,
+  NOTE_GAP, ev, interval, intervalAnswers, intervalEvents, intervalPrompts, rootName, WAYS, judgedOf,
 } from './ear_core.mjs';
 
 /* Level names: short, so tag + short + level stays inside 21 characters. */
@@ -131,7 +131,7 @@ function comparePrompts(unitKey, keys, way, fixed) {
       if (s1[0] < lo || s1[1] > hi || s2[0] < lo || s2[1] > hi) continue;
       const first = intervalEvents(r1, a.semis, w);
       const second = intervalEvents(r2, b.semis, w, lengthOf(first) + BETWEEN);
-      out.push({ answer, events: first.concat(second), label: a.key + ', then ' + b.key });
+      out.push({ answer, events: first.concat(second), label: a.key + ', then ' + b.key, judged: judgedOf(a, b), way: w });
       want[answer]--;
     }
     return out;
@@ -200,7 +200,7 @@ function scalePrompts(keys, way) {
   return (range) => scalePool({ ids: keys, range }).map((e) => {
     const line = way === 'down' ? e.pitches.slice().reverse() : e.pitches;
     const events = line.map((p, i) => ev(p, i * SCALE_GAP, i === line.length - 1 ? NOTE_GAP : SCALE_LEN));
-    return { answer: e.id, events, label: rootName(e.root).label + ' ' + scaleById(e.id).label };
+    return { answer: e.id, events, label: rootName(e.root).label + ' ' + scaleById(e.id).label, root: e.root };
   });
 }
 

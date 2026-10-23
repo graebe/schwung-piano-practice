@@ -24,13 +24,15 @@ import { MODES, scalePitches, playableRange, triadOn, fitsTriad, rng } from './g
 import { inStaffRange } from './notation.mjs';
 import { DEFAULT_TRANSPOSE, padsForPitch } from './padmap.mjs';
 import {
-  QUALITIES, ADVANCED_QUALITIES, nameChord, chordPool, matchChord, qualityById,
+  QUALITIES, ADVANCED_QUALITIES, nameChord, chordPool, matchChord, qualityById, chordOf,
 } from './chords.mjs';
 import { CORRECT, WRONG, INCOMPLETE } from './verdict.mjs';
 import { buildChoices } from './choices.mjs';
+import { itemHistory } from './stats.mjs';
 import { spell, chordLabel } from './notation.mjs';
 import {
   exerciseByKey, levelByKey, buildEarPool, answersFor, groupByAnswer, pickEntry, slowed,
+  exerciseSubject,
 } from './ear.mjs';
 
 export const NOTES = 'notes';
@@ -84,7 +86,10 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
       qualities: qualities.map((q) => q.id),
       roots: halfTones ? 'chromatic' : 'key',
       rootPc, mode, transpose, fifths,
-    }).map((e) => ({ pitches: e.pitches, label: e.label, quality: qualityById(e.qualityId).suffix || 'maj' }));
+    }).map((e) => ({
+      pitches: e.pitches, label: e.label, quality: qualityById(e.qualityId).suffix || 'maj',
+      qualityId: e.qualityId, root: e.root,
+    }));
   }
 
   if (kind === CHORDS) {
@@ -95,7 +100,9 @@ function buildPool(kind, rootPc, mode, transpose, halfTones, chordSet, fifths) {
       const chord = triadOn(scale, i);
       if (chord.length < 3) continue;
       if (!chord.every((p) => inStaffRange(p))) continue;
-      pool.push({ pitches: chord, label: null });
+      /* A stack of a non-tertian scale is no chord, and no item to file. */
+      const named = chordOf(chord);
+      pool.push(named ? { pitches: chord, label: null, qualityId: named.qualityId, root: named.root } : { pitches: chord, label: null });
     }
     return pool;
   }
@@ -131,6 +138,7 @@ export function createQuiz({
   roundSize = 0,        /* 0 = endless: measure nothing, record nothing */
   read = null,          /* Play drills: READ_NAME or READ_STAFF */
   history = null,       /* the drill's tally over every round: { key: [asked, right] } */
+  itemTable = null,     /* the per-item table, stats.items: weights by item, per mode */
   seed = 1,
 } = {}) {
   const ear = kind === EAR ? exerciseByKey(exercise) : null;
@@ -180,7 +188,12 @@ export function createQuiz({
     /* What the drill has asked before, and how it went: the answers you get
      * wrong come round more often. */
     history: history && typeof history === 'object' ? history : null,
+    itemHistory: null,
     keyCache: new Map(),
+    itemCache: new Map(),
+    /* This round per item, for the per-item table (stats.addItems): { item:
+     * { n: [asked, right], keys: { pc: [a, r] }, ways: { way: [a, r] } } }. */
+    items: {},
     /* Prompts answered wrong, to ask again a few prompts later. */
     reask: [],
     draws: 0,
@@ -193,8 +206,50 @@ export function createQuiz({
     startedAt: null,
     finishedAt: null,
   };
+  quiz.subject = quizSubject(quiz);
+  quiz.mode = quizMode(quiz);
+  /* What this subject has asked before in this mode, whichever drill asked:
+   * the items you miss come round more often. */
+  if (itemTable && typeof itemTable === 'object' && quiz.subject) {
+    quiz.itemHistory = itemHistory({ items: itemTable }, quiz.subject, quiz.mode);
+  }
   nextPrompt(quiz);
   return quiz;
+}
+
+/*
+ * What the per-item table files this quiz's answers under (stats.mjs): the
+ * subject — notes, chords, or an exercise's own — and the mode. Picking a lit
+ * pad's name and reading the staff are reading; finding a name is playing.
+ */
+export function quizSubject(quiz) {
+  if (quiz.kind === EAR) return exerciseSubject(quiz.exercise);
+  return quiz.kind === CHORDS ? 'chord' : 'note';
+}
+
+export function quizMode(quiz) {
+  if (quiz.kind === EAR) return quiz.exercise.read ? 'read' : 'hear';
+  if (quiz.pick || quiz.read === READ_STAFF) return 'read';
+  return quiz.read === READ_NAME ? 'play' : 'hear';
+}
+
+/*
+ * The item an entry asks about: { item, pc, way }, or null when it is none —
+ * a stack that is no chord, an answer of an exercise with no subject. `pc` is
+ * the prompt root's pitch class where there is one.
+ */
+export function itemOf(quiz, entry) {
+  if (!quiz.subject || !entry) return null;
+  const pcOf = (p) => (p == null ? null : ((p % 12) + 12) % 12);
+  if (quiz.kind === EAR) {
+    const item = entry.judged || entry.answer;
+    if (quiz.subject === 'int' && !entry.judged && !/^[mMPTd]/.test(item)) return null;
+    return { item, pc: pcOf(entry.root), way: entry.way || null };
+  }
+  if (quiz.kind === NOTES) {
+    return { item: spell(entry.pitches[0], quiz.fifths).label, pc: pcOf(entry.pitches[0]), way: null };
+  }
+  return entry.qualityId ? { item: entry.qualityId, pc: pcOf(entry.root), way: null } : null;
 }
 
 /* A new question. Never the same one twice running — a repeat reads as the
@@ -250,7 +305,9 @@ const promptKey = (e) => e.pitches.join(',') + '|' + (e.label || '');
 function randomEntry(quiz, before) {
   const previous = before ? promptKey(before) : '';
   const same = (e) => promptKey(e) === previous;
-  const draw = quiz.history ? () => weightedEntry(quiz) : () => quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
+  const draw = quiz.history || quiz.itemHistory
+    ? () => weightedEntry(quiz)
+    : () => quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
   let chosen = draw();
   if (quiz.pool.length > 1) {
     let guard = 8;
@@ -271,10 +328,43 @@ const MISS_WEIGHT = 3;
 export const REASK_MIN = 3;
 export const REASK_SPREAD = 3;
 
-function weightOfKey(quiz, key) {
-  const t = quiz.history && quiz.history[key];
+/* An entry's history: its item's in the table when it is one, else its
+ * answer's in the drill's own tally. */
+function historyOf(quiz, entry) {
+  if (quiz.itemHistory) {
+    const at = entryItem(quiz, entry);
+    if (at) return quiz.itemHistory[at.item];
+  }
+  return quiz.history && quiz.history[entryKey(quiz, entry)];
+}
+
+function weightOf(t) {
   if (!t || !(t[0] > 0)) return 1;
   return 1 + MISS_WEIGHT * ((t[0] - t[1]) / t[0]);
+}
+
+function weightOfEntry(quiz, entry) {
+  return weightOf(historyOf(quiz, entry));
+}
+
+function entryItem(quiz, entry) {
+  if (!quiz.itemCache.has(entry)) quiz.itemCache.set(entry, itemOf(quiz, entry));
+  return quiz.itemCache.get(entry);
+}
+
+/* One answer into the round's per-item count. */
+function countItem(quiz, entry, right) {
+  const at = entryItem(quiz, entry);
+  if (!at) return;
+  const row = quiz.items[at.item] || (quiz.items[at.item] = { n: [0, 0], keys: {}, ways: {} });
+  const bump = (into, k) => {
+    const v = into[k] || (into[k] = [0, 0]);
+    v[0]++;
+    if (right) v[1]++;
+  };
+  bump(row, 'n');
+  if (at.pc != null) bump(row.keys, at.pc);
+  if (at.way) bump(row.ways, at.way);
 }
 
 function entryKey(quiz, entry) {
@@ -288,10 +378,10 @@ function entryKey(quiz, entry) {
 
 function weightedEntry(quiz) {
   let total = 0;
-  for (const e of quiz.pool) total += weightOfKey(quiz, entryKey(quiz, e));
+  for (const e of quiz.pool) total += weightOfEntry(quiz, e);
   let r = quiz.rand() * total;
   for (const e of quiz.pool) {
-    r -= weightOfKey(quiz, entryKey(quiz, e));
+    r -= weightOfEntry(quiz, e);
     if (r < 0) return e;
   }
   return quiz.pool[quiz.pool.length - 1];
@@ -299,8 +389,13 @@ function weightedEntry(quiz) {
 
 /* Hearing draws an answer first, then a prompt for it: the answers weigh. */
 function groupWeights(quiz) {
-  if (!quiz.history) return null;
-  return quiz.groups.map((g) => weightOfKey(quiz, g[0].answer));
+  if (!quiz.history && !quiz.itemHistory) return null;
+  return quiz.groups.map((g) => {
+    const at = quiz.itemHistory ? entryItem(quiz, g[0]) : null;
+    /* A comparison's groups are its answers, not intervals: by the tally. */
+    if (at && !g[0].judged) return weightOf(quiz.itemHistory[at.item]);
+    return weightOf(quiz.history && quiz.history[g[0].answer]);
+  });
 }
 
 /* A missed prompt whose turn has come, unless it would repeat the last one. */
@@ -372,6 +467,7 @@ function solve(quiz, nowMs) {
     }
     quiz.tally[key][0]++;
     if (!quiz.missed) quiz.tally[key][1]++;
+    countItem(quiz, quiz.entry, !quiz.missed);
     /* Missed: ask it again a few prompts on (the row already holds the next
      * few, so it lands after them). */
     if (quiz.missed) {

@@ -259,6 +259,15 @@ export function nameChord(pitches, fifths = 0, { inversions = false } = {}) {
   return null;
 }
 
+/* A close root-position chord's root and quality: { root, qualityId }, or
+ * null for a stack that is no chord over its lowest note. */
+export function chordOf(pitches) {
+  if (!pitches || pitches.length < 2) return null;
+  const low = Math.min(...pitches);
+  const q = qualityOfShape(pitches, low);
+  return q ? { root: low, qualityId: q.id } : null;
+}
+
 /* ---- Voicings ------------------------------------------------------------- */
 
 /*
