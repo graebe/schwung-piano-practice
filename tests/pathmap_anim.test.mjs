@@ -13,7 +13,7 @@ import assert from 'node:assert/strict';
 
 import {
   ANIMS, FLAG_MS, FIREWORKS_MS, ZOOM_MS, STAR_MS, FINALE_MS, SWEEP_MS, BANNER_MS,
-  flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, banner, sweepColors, sparkleColors, rng,
+  flagRise, fireworks, zoomIn, zoomOut, starBurst, starFit, finale, banner, sweepColors, sparkleColors, rng,
 } from '../src/pathmap/anim.mjs';
 import { layoutPlaces, cellRect, MAP_X, MAP_Y, MAP_W, MAP_H } from '../src/pathmap/layout.mjs';
 import { drawMap, placeGlyph, GLYPH_W, GLYPH_H } from '../src/pathmap/render.mjs';
@@ -260,6 +260,75 @@ test('the star: rays out and back, sparks between, none at the ends', () => {
   const edge = screen();
   starBurst(edge, { x: 2, y: 2, r: 4 }, STAR_MS / 2);
   assert.ok(!edge.outside(0, 0, 128, 64));
+});
+
+test('an elliptical star hugs a big score: clear of it, of the caption, inside the map', () => {
+  /* The result screen's case: a score at scale 3 ("100" is 33x15, "95"
+   * 21x15) with a 9 px caption underneath, at the bottom of the map area. */
+  const CAPTION = [45, 53];
+  const layouts = [
+    { name: 'centred above the caption', top: MAP_Y, bottom: CAPTION[0] - 2 },
+    { name: 'centred in the map area', top: MAP_Y, bottom: CAPTION[0] - 2, y: 31 },
+  ];
+  for (const [score, w] of [['100', 33], ['95', 21]]) {
+    for (const lay of layouts) {
+      const fit = starFit({ w, h: 15, top: lay.top, bottom: lay.bottom, y: lay.y });
+      const x = 64;
+      const box = [x - Math.ceil((w - 1) / 2), fit.y - 7, x + Math.ceil((w - 1) / 2), fit.y + 7];
+      let shown = 0;
+      for (let t = 0; t <= STAR_MS; t += 5) {
+        const c = screen();
+        starBurst(c, { x, y: fit.y, rx: fit.rx, ry: fit.ry, len: fit.len, seed: 3 }, t);
+        assert.ok(c.calls < 200);
+        for (let yy = 0; yy < 64; yy++) {
+          for (let xx = 0; xx < 128; xx++) {
+            if (!c.on(xx, yy)) continue;
+            shown++;
+            const at = `${score} ${lay.name} at ${t} ms: ${xx},${yy}`;
+            assert.ok(yy >= MAP_Y && yy <= MAP_Y + MAP_H - 1, `${at} leaves the map area`);
+            assert.ok(yy >= lay.top && yy <= lay.bottom, `${at} leaves its band`);
+            assert.ok(yy < CAPTION[0] - 1, `${at} touches the caption`);
+            assert.ok(xx < box[0] - 1 || xx > box[2] + 1 || yy < box[1] - 1 || yy > box[3] + 1, `${at} touches the score`);
+          }
+        }
+      }
+      assert.ok(shown > 100, `${score} ${lay.name}: the burst shows (${JSON.stringify(fit)})`);
+    }
+  }
+  /* The snug fits the result screen uses, and their shape. */
+  assert.deepEqual(starFit({ w: 33, h: 15, top: 10, bottom: 43 }), { rx: 28, ry: 11, len: 5, y: 27 });
+  assert.deepEqual(starFit({ w: 21, h: 15, top: 10, bottom: 43, y: 26 }), { rx: 22, ry: 10, len: 6, y: 26 });
+  /* No room for rays: sparks only, still clear of the score. */
+  const tight = starFit({ w: 33, h: 15, top: 20, bottom: 40, y: 30 });
+  assert.equal(tight.len, 0);
+  /* Deterministic, clamped, and the round form unchanged by the new one. */
+  const a = screen();
+  const b = screen();
+  starBurst(a, { x: 64, y: 27, rx: 28, ry: 11, len: 5, seed: 1 }, 300);
+  starBurst(b, { x: 64, y: 27, rx: 28, ry: 11, len: 5, seed: 1 }, 300);
+  assert.equal(a.key(), b.key());
+  const round = screen();
+  const same = screen();
+  starBurst(round, { x: 64, y: 31, r: 11, seed: 2 }, 300);
+  starBurst(same, { x: 64, y: 31, r: 11, seed: 2, rx: undefined }, 300);
+  assert.equal(round.key(), same.key());
+  /* The round form draws exactly what it drew before the ellipse existed:
+   * pixel hashes recorded from it, every 50 ms of { x: 64, y: 31, r: 11 }. */
+  const fnv = (px) => {
+    let hash = 0x811c9dc5;
+    for (const v of px) hash = Math.imul(hash ^ v, 0x01000193) >>> 0;
+    return hash.toString(16);
+  };
+  const recorded = [];
+  for (let t = 0; t <= STAR_MS; t += 50) {
+    const c = screen();
+    starBurst(c, { x: 64, y: 31, r: 11, seed: 2 }, t);
+    recorded.push(fnv(c.px));
+  }
+  assert.equal(recorded.join(','), 'bcc31dc5,74e7cb85,1eceb5d5,9bd16405,9bbfed2d,f88fda0d,de4cd26d,6295cd35,5eaedcc5,69794ecd,ee97a2fd,7df8bde5,bcc31dc5');
+  const ry = screen();
+  starBurst(ry, { x: 64, y: 31, rx: 14, seed: 2 }, 250);
+  assert.ok(ry.count() > 0, 'ry and len default to rx and 7');
 });
 
 test('the finale: every flag waves, and bold bursts go up over every island and the sky', () => {

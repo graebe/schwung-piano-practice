@@ -17,7 +17,8 @@
  *   zoomIn     350 ms  the whole map area: an island grows from its cell to
  *   zoomOut            the map in whole-pixel scales 1, 2, 3, in a frame
  *                      that opens to 128x44 (zoomOut is the same, backwards)
- *   starBurst  600 ms  over any screen: rays round a point (a big score)
+ *   starBurst  600 ms  over any screen: rays round a point or, sized by
+ *                      starFit, an ellipse that hugs a big score
  *   finale    2500 ms  the whole map: every flag waves, bursts climb over
  *                      every island and the sky between
  *   banner    1200 ms  over the map: a strip with a few words slides in,
@@ -210,20 +211,31 @@ export function zoomOut(ctx, args, t) {
 const onScreen = (v, max) => Math.min(max, Math.max(0, v));
 
 /*
- * args = { x, y, r, seed }: twelve rays round a point at radius r -- a big
- * score -- that shoot out and draw back in, turning a little, with sparks
- * that twinkle round them. Clipped to the screen.
+ * args = { x, y, rx, ry, len, seed }: twelve rays that start on the ellipse
+ * (rx, ry) round a point -- a big score -- and shoot out up to `len` px and
+ * draw back in, turning a little, with sparks that twinkle beside them. The
+ * sparks stay inside the band the rays span, so a burst sized by starFit
+ * keeps clear of the score and of what lies above and below it.
+ *
+ * The round form { x, y, r } is kept as it always drew: rays from r + 2
+ * out to r + 9, sparks round it, clipped to the screen.
  */
-export function starBurst(ctx, { x, y, r, seed = 1 }, t) {
+export function starBurst(ctx, { x, y, r, rx, ry, len, seed = 1 }, t) {
   const u = progress(t, STAR_MS);
-  const len = Math.round(7 * Math.sin(Math.PI * u));
-  if (len > 0) {
+  const round = rx == null;
+  const ax = round ? r + 2 : rx;
+  const ay = round ? r + 2 : (ry ?? rx);
+  const span = round ? 7 : (len ?? 7);
+  const l = Math.round(span * Math.sin(Math.PI * u));
+  if (l > 0) {
     for (let k = 0; k < 12; k++) {
       const a = (k / 12 + u / 12) * Math.PI * 2;
-      const x0 = x + Math.round(Math.cos(a) * (r + 2));
-      const y0 = y + Math.round(Math.sin(a) * (r + 2));
-      const x1 = x + Math.round(Math.cos(a) * (r + 2 + len));
-      const y1 = y + Math.round(Math.sin(a) * (r + 2 + len));
+      const c = Math.cos(a);
+      const s = Math.sin(a);
+      const x0 = x + Math.round(c * ax);
+      const y0 = y + Math.round(s * ay);
+      const x1 = round ? x + Math.round(c * (ax + l)) : x0 + Math.round(c * l);
+      const y1 = round ? y + Math.round(s * (ay + l)) : y0 + Math.round(s * l);
       ctx.line(onScreen(x0, 127), onScreen(y0, 63), onScreen(x1, 127), onScreen(y1, 63), 1);
     }
   }
@@ -231,14 +243,59 @@ export function starBurst(ctx, { x, y, r, seed = 1 }, t) {
     const rand = rng(seed);
     for (let k = 0; k < 4; k++) {
       const a = rand() * Math.PI * 2;
-      const d = r + 10 + rand() * 6;
-      const sx = Math.round(x + Math.cos(a) * d);
-      const sy = Math.round(y + Math.sin(a) * d);
+      const d = rand();
+      const sx = Math.round(x + Math.cos(a) * (round ? r + 10 + d * 6 : ax + span + 3 + d * 4));
+      const sy = Math.round(y + Math.sin(a) * (round ? r + 10 + d * 6 : ay + span + 3 + d * 4));
       if ((k + Math.floor(t / 90)) % 2 || sx < 1 || sy < 1 || sx > 126 || sy > 62) continue;
+      if (!round && (sy - 1 < y - ay - span || sy + 1 > y + ay + span)) continue;
       ctx.fillRect(sx - 1, sy, 3, 1, 1);
       ctx.fillRect(sx, sy - 1, 1, 3, 1);
     }
   }
+}
+
+/*
+ * The ellipse for a star burst round a text box: { rx, ry, len, y }.
+ *
+ *   w, h        the text box, centred on the burst
+ *   top, bottom the band the rays may use, inclusive (keep a caption or
+ *               the title bar out of it)
+ *   y           the box's centre row (by default the band's middle)
+ *   x           its centre column (default 64), for the room either side
+ *   maxLen      the longest the rays may get (7)
+ *
+ * Every ray starts with a pixel of air round the box -- rays run straight
+ * out from the centre, so a clear start keeps the whole ray clear -- and
+ * ends inside the band. Of the ellipses that do, it takes a snug one with
+ * long rays. Rays of 2 px or more must fit; if they cannot, it returns the
+ * shortest that does not touch the box, with len 0 (no rays: sparks only).
+ */
+export function starFit({ w, h, top, bottom, y, x = 64, maxLen = 7 }) {
+  const cy = Math.round(y ?? (top + bottom) / 2);
+  const room = Math.min(cy - top, bottom - cy);
+  const side = Math.min(x, 127 - x);
+  /* The box with its pixel of air: no ray pixel at |dx| < A and |dy| < B. */
+  const A = Math.ceil((w - 1) / 2) + 2;
+  const B = Math.ceil((h - 1) / 2) + 2;
+  const clear = (rx, ry) => {
+    for (let i = 0; i < 1440; i++) {
+      const a = (i / 1440) * Math.PI * 2;
+      if (Math.abs(Math.round(Math.cos(a) * rx)) < A && Math.abs(Math.round(Math.sin(a) * ry)) < B) return false;
+    }
+    return true;
+  };
+  let best = null;
+  for (let ry = B; ry <= room; ry++) {
+    const len = Math.min(maxLen, room - ry);
+    let rx = A;
+    while (rx + len <= side && !clear(rx, ry)) rx++;
+    if (rx + len > side) continue;
+    const score = (len >= 2 ? 3 * len : -100) - rx - ry;
+    if (!best || score > best.score) best = { rx, ry, len, y: cy, score };
+  }
+  if (!best) return { rx: A, ry: B, len: 0, y: cy };
+  if (best.len < 2) best.len = 0;
+  return { rx: best.rx, ry: best.ry, len: best.len, y: best.y };
 }
 
 /* ---- Finale -------------------------------------------------------------- */
