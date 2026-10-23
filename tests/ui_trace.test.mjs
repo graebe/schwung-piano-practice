@@ -255,7 +255,7 @@ const QUIET = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false, r
  * to finish something. Played an hour before the scenario's clock, so
  * nothing is due for review yet.
  */
-const TIPS_SEEN = ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'];
+const TIPS_SEEN = ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement', 'cells'];
 function progressWith(fn) {
   const p = PROG.emptyProgress();
   p.tips = TIPS_SEEN.slice();
@@ -289,7 +289,7 @@ function pathChart(id) {
 const islandPad = (n, i) => padOfCell(layoutPlaces(n, { kind: 'island' }).cells[i]) - 68;
 /* Welcomed, with every tip seen: the scenarios below are about what they
  * drive, not about the first-visit cards, which `welcome` and `sheet` cover. */
-const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
+const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement', 'cells'] });
 
 /*
  * Each scenario is a session someone might actually have. They start from
@@ -755,7 +755,7 @@ const SCENARIOS = {
    * stage, the Path as a list, I know this on its Continue and Continue then
    * opening the step after, and Settings... from home: the page, Start at.
    */
-  sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz', 'map', 'island'] }), play(d) {
+  sheet: { settings: QUIET, progress: JSON.stringify({ tips: ['welcome', 'practice', 'quiz', 'map', 'island', 'cells'] }), play(d) {
     d.run(100);
     d.click(); d.run(100);                        /* Path */
     d.shiftWith(JOG_CLICK); d.run(100);           /* 1 Grid and staff: its tip, over the sheet */

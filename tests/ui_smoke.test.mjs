@@ -64,7 +64,7 @@ const advanceMs = (ms, step = 20) => {
 const QUIET_SETTINGS = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false });
 /* Welcomed, every tip seen: a first launch's cards would sit over every
  * screen these tests drive. The welcome has its own tests. */
-const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
+const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement', 'cells'] });
 
 function installHostStubs() {
   const calls = { led: 0, midi: 0, writes: [], notes: [] };
@@ -951,7 +951,10 @@ test('Continue names the next step in the Path\'s list, and the options skip it'
   assert.match(skipped, /NAME NOTES \| 1\/6 \| Continue \| Name notes/, 'the step after the skipped one: ' + skipped);
 
   const quiz = screen.frame(click);                     /* Continue */
-  assert.match(quiz, /NOTES READ/, 'the step opens directly, as the trainer round it is now: ' + quiz);
+  /* As the Notes Read round it is now: the jog's choice in the title, the
+   * seven answers in the strip over their pads. */
+  assert.match(quiz, /^C \| 0\/10 \| C \| D \| E \| F \| G \| A \| B \|/,
+    'the step opens directly, as the trainer round it is now: ' + quiz);
   screen.restore();
 });
 

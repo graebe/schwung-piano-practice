@@ -52,6 +52,9 @@ function knobScreen(c, subject, circle, stored, focus) {
   });
 }
 
+const CHORD_STAFF = [{ part: 0, notes: [{ pitch: 61, diatonic: 28, alter: 1 }, { pitch: 64, diatonic: 30, alter: 0 },
+  { pitch: 68, diatonic: 32, alter: 1 }, { pitch: 71, diatonic: 34, alter: 0 }] }];
+
 function mapScreen(c, n, kind, at, opts = {}) {
   const places = Array.from({ length: n }, (_, i) => makePlace({
     label: kind === 'island' ? `${i + 1} Shapes and time` : `${3}.${i + 1} Advanced pieces`, percent: 100,
@@ -477,11 +480,23 @@ const SCREENS = {
     colours: ['blue', 'orange', 'cyan', 'pink', 'green', 'yellow', 'purple', 'red'],
     hint: 'which chord?', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
   }),
-  'read pick, a chord on the staff': (c) => V.drawReadPick(c, {
-    title: 'CHORDS READ', score: '19/20',
-    staff: [{ part: 0, notes: [{ pitch: 61, diatonic: 28, alter: 1 }, { pitch: 64, diatonic: 30, alter: 0 },
-      { pitch: 68, diatonic: 32, alter: 1 }, { pitch: 71, diatonic: 34, alter: 0 }] }],
-    option: 'Minor-maj 7th', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  /* The read strip: eight answers, two far apart, a struck one, and right
+   * with the longest label in the title. */
+  'read pick, a chord on the staff, eight answers': (c) => V.drawReadPick(c, {
+    title: 'CHORDS READ', score: '19/20', staff: CHORD_STAFF, index: 7,
+    options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
+    short: ['M', 'm', '°', '+', '7', 'M7', 'm7', 'mM'], eliminated: [2],
+    footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
+  'read pick, two answers': (c) => V.drawReadPick(c, {
+    title: 'INTERVALS READ', score: '0/10', staff: CHORD_STAFF, index: 1,
+    options: ['First bigger', 'Second bigger'], short: ['1', '2'],
+    footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
+  'read pick, right, a long label': (c) => V.drawReadPick(c, {
+    title: 'PROGS READ', score: '100/100', staff: CHORD_STAFF, index: 3, solved: true,
+    label: 'iii-vi-ii-V-I in F# minor', options: ['I-V-vi-IV', 'ii-V-I', 'vi-IV-I-V', 'iii-vi-ii-V-I'],
+    short: ['Ax', 'ii', 'vi', 'iii'], footer: hintFor('guess', {})[0],
   }),
   /* A scale both ways, fifteen notes, the longest name a scale has. */
   'line, half played': (c) => V.drawLineView(c, {
@@ -558,7 +573,7 @@ test('a Stats row keeps its whole label: thirteen characters beside the meters',
 });
 
 test('the name-lane rule is drawn only by the views that have a name lane', () => {
-  const laned = ['reading', 'guess', 'ready', 'read pick', 'line', 'chord row'];
+  const laned = ['reading', 'guess', 'ready', 'line', 'chord row'];
   for (const [name, draw] of Object.entries(SCREENS)) {
     const c = probe();
     draw(c);

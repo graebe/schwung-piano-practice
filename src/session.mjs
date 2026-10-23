@@ -870,7 +870,9 @@ export function createSession(fx, opts = {}) {
       announce('Note guesser. Play ' + promptName() + '.');
     }
     autoInfo({ id: quizId(spec) });
-    showTip(TIPS.QUIZ);
+    /* Answers drawn as cells over their pads get their own first tip. */
+    const cells = answerBarActive() && (readingCourse() || quiz.choices.length > AP.LIST_MAX);
+    showTip(cells ? TIPS.CELLS : TIPS.QUIZ);
   }
 
   /*
@@ -2574,6 +2576,55 @@ export function createSession(fx, opts = {}) {
   }
 
   /*
+   * A multiple-choice round as the Move draws it: `read` with the prompt on
+   * the staff and the answer strip under it (view.drawReadPick), else the
+   * question and the answers as a list or a map of their pads
+   * (view.drawPick). Where pads answer (answerBarActive), every answer is
+   * tied to its pad: its colour named in the list, its cell over its pad in
+   * the strip and the map. Null when no choice is open.
+   */
+  function pickScreen() {
+    if (view !== GUESS_VIEW || !quizPick || !quiz) return null;
+    const ear = quiz.kind === GUESS.EAR;
+    const score = quiz.roundSize > 0
+      ? quiz.correct + '/' + quiz.roundSize
+      : String(GUESS.quizStats(quiz).correct);
+    const options = quiz.choices.map((c) => GUESS.optionLabel(quiz, c));
+    const common = {
+      score, options,
+      short: quiz.choices.map(AP.shortLabel),
+      index: quiz.choiceIndex,
+      eliminated: quiz.eliminated,
+    };
+    if (quiz.exercise && quiz.exercise.read) {
+      return {
+        read: true,
+        state: {
+          ...common,
+          title: quizTitle() || 'READ ' + quiz.exercise.short.toUpperCase(),
+          staff: quiz.entry ? quiz.entry.staff : [],
+          solved: quiz.solved,
+          label: quiz.label,
+        },
+      };
+    }
+    let ask = 'which pad is lit?';
+    if (ear) ask = quiz.solved ? quiz.label : quiz.exercise.question;
+    else if (quiz.solved) ask = 'right';
+    return {
+      read: false,
+      state: {
+        ...common,
+        title: quizTitle() || (ear ? 'HEAR ' + quiz.exercise.short.toUpperCase()
+          : (quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE')),
+        /* Name has no answer pads: the lit pads are its question. */
+        colours: ear ? quiz.choices.map((c, i) => AP.answerColour(i).name) : null,
+        hint: ask,
+      },
+    };
+  }
+
+  /*
    * A line to play — a scale, an interval — as the Move and the page draw it:
    * its staff, how much of it shows, and the name lane. Its name is the
    * prompt when asked by name; heard, "?" (help names it); read, the staff
@@ -4046,6 +4097,7 @@ export function createSession(fx, opts = {}) {
     settingsTitle,
     trainerStatsTitle,
     quizTitle,
+    pickScreen,
     lineState,
     rowState,
     decorateRow,

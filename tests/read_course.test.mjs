@@ -141,15 +141,22 @@ test('a right answer sounds what was read, and counts', () => {
   assert.ok(h.log.slice(before).some((e) => e[0] === 'strike'));
 });
 
-test('the Move draws the prompt on the staff and the jog\'s answer in the lane', () => {
+test('the Move draws the prompt on the staff and its answers in the strip over their pads', () => {
   const ex = exerciseByKey('rd-cmp-6ths');
   const e = buildEarPool(ex, 'fix-up')[0];
   const c = createScreen();
-  V.drawReadPick(c, { title: 'READ 6THS', staff: e.staff, option: 'First bigger' });
+  V.drawReadPick(c, {
+    title: 'READ 6THS', staff: e.staff, options: ['First bigger', 'Second bigger'], short: ['1', '2'], index: 0,
+  });
   const xs = V.readColumnsX(e.staff);
   assert.equal(xs.length, 4);
   assert.ok(xs.every((x) => x > L.STAFF_LEFT_X + 6 && x < L.SCREEN_W - 2), xs.join());
-  assert.ok(countOn(c, 0, L.NAME_LANE_Y, L.SCREEN_W, L.TEXT_H) > 10, 'the answer is in the lane');
+  /* Two answers: pads 3 and 6 of the bottom row (answer_pads), so cells in
+   * columns 2 and 5, the jog's one filled; the other columns dotted. */
+  const cell = (col) => countOn(c, col * V.CELL_W + 1, V.STRIP_Y, V.CELL_W - 1, V.CELL_H);
+  assert.ok(cell(2) > 80, 'the jog\'s answer, filled');
+  assert.ok(cell(5) > 40 && cell(5) < 80, 'the other, outlined');
+  assert.ok(cell(0) < 30, 'no answer: dotted');
   const scale = buildEarPool(exerciseByKey('rd-sc-dim'), 'down')[0];
   const sx = V.readColumnsX(scale.staff);
   for (let i = 1; i < sx.length; i++) assert.ok(sx[i] - sx[i - 1] >= 11, 'room for an accidental between notes');

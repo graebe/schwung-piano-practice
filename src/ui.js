@@ -716,41 +716,11 @@ function draw() {
       scroll: infoScroll,
       footer: footer(),
     });
-  } else if (view === GUESS_VIEW && S.quizPick && quiz.exercise && quiz.exercise.read) {
-    const option = quiz.choices[quiz.choiceIndex];
-    VIEW.drawReadPick(ctx, {
-      title: S.quizTitle() || 'READ ' + quiz.exercise.short.toUpperCase(),
-      score: quiz.roundSize > 0
-        ? quiz.correct + '/' + quiz.roundSize
-        : String(GUESS.quizStats(quiz).correct),
-      staff: quiz.entry ? quiz.entry.staff : [],
-      option: option ? GUESS.optionLabel(quiz, option) : '',
-      struck: GUESS.isEliminated(quiz, quiz.choiceIndex),
-      solved: quiz.solved,
-      label: quiz.label,
-      footer: footer(),
-    });
   } else if (view === GUESS_VIEW && S.quizPick) {
-    const ear = quiz.kind === GUESS.EAR;
-    let ask = 'which pad is lit?';
-    if (ear) ask = quiz.solved ? quiz.label : quiz.exercise.question;
-    else if (quiz.solved) ask = 'right';
-    VIEW.drawPick(ctx, {
-      title: S.quizTitle() || (ear ? 'HEAR ' + quiz.exercise.short.toUpperCase()
-        : (quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE')),
-      score: quiz.roundSize > 0
-        ? quiz.correct + '/' + quiz.roundSize
-        : String(GUESS.quizStats(quiz).correct),
-      options: quiz.choices.map((c) => GUESS.optionLabel(quiz, c)),
-      /* The legend for the answer pads: their colours, and for a map the
-       * short names drawn where the pads sit. Name has no pads to explain. */
-      colours: ear ? quiz.choices.map((c, i) => AP.answerColour(i).name) : null,
-      short: quiz.choices.map(AP.shortLabel),
-      index: quiz.choiceIndex,
-      eliminated: quiz.eliminated,
-      hint: ask,
-      footer: footer(),
-    });
+    const pick = S.pickScreen();
+    const state = { ...pick.state, footer: footer() };
+    if (pick.read) VIEW.drawReadPick(ctx, state);
+    else VIEW.drawPick(ctx, state);
   } else if (view === GUESS_VIEW && S.rowState()) {
     /* A progression played chord by chord: from its numerals, or by ear. */
     const row = S.rowState();

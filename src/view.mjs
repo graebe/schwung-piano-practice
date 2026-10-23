@@ -20,7 +20,7 @@ import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
 import { drillLabel, sparkline, summarise, errorFraction, successSeries } from './stats.mjs';
 import { accuracySeries } from './progress.mjs';
-import { LIST_MAX, shortLabel } from './answer_pads.mjs';
+import { LIST_MAX, shortLabel, answerCell, answerRows } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
 import { drawMap } from './pathmap/render.mjs';
 import { createWalk } from './pathmap/walk.mjs';
@@ -1095,44 +1095,77 @@ function drawAnswerList(ctx, state, options) {
  * jog's choice spelled out in full underneath. Past four answers a list of
  * colour names stops being readable; the position carries the meaning.
  */
-const MAP_CELL_W = 16;
-const MAP_CELL_H = 11;
 const MAP_TOP_Y = 20;
 const MAP_NAME_Y = 46;
 
 function drawAnswerMap(ctx, state, options) {
-  const rows = options.length > 8 ? 2 : 1;
-  for (let i = 0; i < options.length; i++) {
-    const row = i >> 3;
-    const col = i & 7;
-    /* Row 0 is the bottom row of pads, so with two rows it is drawn lower. */
-    const y = rows === 2
-      ? MAP_TOP_Y + (1 - row) * (MAP_CELL_H + 1)
-      : MAP_TOP_Y + ((MAP_CELL_H + 1) >> 1);
-    const x = col * MAP_CELL_W;
-    const selected = i === state.index;
-    const short = state.short ? state.short[i] : shortLabel({ label: options[i] });
-    if (selected) ctx.fillRect(x + 1, y, MAP_CELL_W - 1, MAP_CELL_H, 1);
-    else ctx.drawRect(x + 1, y, MAP_CELL_W - 1, MAP_CELL_H, 1);
-    const tw = ctx.textWidth(short);
-    ctx.text(x + 1 + ((MAP_CELL_W - 1 - tw) >> 1), y + 2, short, selected ? 0 : 1);
-    if (state.eliminated && state.eliminated.indexOf(i) >= 0) {
-      ctx.line(x + 2, y + MAP_CELL_H - 2, x + MAP_CELL_W - 2, y + 1, selected ? 0 : 1);
-    }
-  }
+  const rows = answerRows(options.length);
+  const top = rows === 2 ? MAP_TOP_Y : MAP_TOP_Y + ((CELL_H + 1) >> 1);
+  drawAnswerCells(ctx, state, options, top);
   const name = truncate(ctx, options[state.index] || '', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(name)) >> 1, MAP_NAME_Y, name, 1);
 }
 
 /*
- * A reading course: the prompt on the staff, the answer under the jog in the
- * name lane. The staff needs the screen, so the answers are one line — the
- * jog walks them, the answer pads light them, the one under the jog pulses.
+ * The answer pads as cells, each over the column of its pad (answer_pads.mjs
+ * answerCell), the bottom row lowest: the answer's short name in it, the
+ * jog's choice inverted, a struck answer crossed out. A column of the row
+ * with no answer is a dotted cell, so the eight columns read as the pads
+ * they are even when two answers sit far apart. The Hear map and the read
+ * strip are this one drawing.
+ *
+ *   state = { index, short, eliminated }; `top` is the upper row's top.
+ */
+export const CELL_W = 16;
+export const CELL_H = 9;
+
+function drawAnswerCells(ctx, state, options, top) {
+  const rows = answerRows(options.length);
+  const used = [];
+  for (let i = 0; i < options.length; i++) {
+    const { row, col } = answerCell(options.length, i);
+    used[row * 8 + col] = true;
+    const x = col * CELL_W;
+    const y = top + (rows - 1 - row) * (CELL_H + 1);
+    const selected = i === state.index;
+    const short = state.short ? state.short[i] : shortLabel({ label: options[i] });
+    if (selected) ctx.fillRect(x + 1, y, CELL_W - 1, CELL_H, 1);
+    else ctx.drawRect(x + 1, y, CELL_W - 1, CELL_H, 1);
+    const tw = ctx.textWidth(short);
+    ctx.text(x + 1 + ((CELL_W - 1 - tw) >> 1), y + 1, short, selected ? 0 : 1);
+    if (state.eliminated && state.eliminated.indexOf(i) >= 0) {
+      ctx.line(x + 2, y + CELL_H - 2, x + CELL_W - 2, y + 1, selected ? 0 : 1);
+    }
+  }
+  for (let row = 0; row < rows; row++) {
+    const y = top + (rows - 1 - row) * (CELL_H + 1);
+    for (let col = 0; col < 8; col++) {
+      if (used[row * 8 + col]) continue;
+      const x = col * CELL_W + 1;
+      for (let d = 0; d < CELL_W - 1; d += 2) {
+        ctx.fillRect(x + d, y, 1, 1, 1);
+        ctx.fillRect(x + d, y + CELL_H - 1, 1, 1, 1);
+      }
+      for (let d = 2; d < CELL_H - 1; d += 2) {
+        ctx.fillRect(x, y + d, 1, 1, 1);
+        ctx.fillRect(x + CELL_W - 2, y + d, 1, 1, 1);
+      }
+    }
+  }
+}
+
+/*
+ * A reading course: the prompt on the staff, and under it the answer strip:
+ * a cell per answer over its pad, as the Hear map draws them. The jog's
+ * choice is inverted there and named in full in the title; a struck answer
+ * is crossed out. The strip is what says which pad to press — a lone
+ * "< Major >" named the jog's choice and left the pads a guess.
  *
  * Notes come spelled ({ diatonic, alter }): a read interval is counted by its
  * letters, so they are placed by letter, never re-spelled by a key.
  *
- * state = { title, score, staff: [{ part, notes }], option, solved, label, footer }
+ * state = { title, score, staff: [{ part, notes }], options, short, index,
+ *           eliminated, solved, label, footer }
  */
 const READ_LEFT_X = 26;
 const READ_RIGHT_X = 122;
@@ -1181,25 +1214,21 @@ export function drawReadPick(ctx, state) {
   }
   ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
   R.drawClef(ctx);
-  R.drawChrome(ctx, { left: state.title || 'READ', right: state.score || '', lane: true });
-
-  if (state.solved) {
-    /* Right: what it was, knocked out, as a solved prompt is everywhere. */
-    const text = truncate(ctx, state.label || '', L.TEXT_MAX_PX - 4);
-    const w = ctx.textWidth(text);
-    const x = (L.SCREEN_W - w) >> 1;
-    ctx.fillRect(x - 2, L.NAME_LANE_Y - 1, w + 4, L.TEXT_H + 1, 1);
-    ctx.text(x, L.NAME_LANE_Y, text, 0);
-  } else {
-    const text = truncate(ctx, state.option || '', L.TEXT_MAX_PX - 16);
-    ctx.text(1, L.NAME_LANE_Y, '<', 1);
-    ctx.text(L.SCREEN_W - 1 - ctx.textWidth('>'), L.NAME_LANE_Y, '>', 1);
-    ctx.text((L.SCREEN_W - ctx.textWidth(text)) >> 1, L.NAME_LANE_Y, text, 1);
-    if (state.struck) ctx.fillRect(8, L.NAME_LANE_Y + 3, L.SCREEN_W - 16, 1, 1);
-  }
+  /* The title names the jog's choice in full, or what it was once right;
+   * the strip below says which pad is which. */
+  const options = state.options || [];
+  const score = state.score || '';
+  const name = state.solved ? state.label || '' : options[state.index] || '';
+  const room = L.SCREEN_W - 2 - (score ? ctx.textWidth(score) + 6 : 0);
+  R.drawChrome(ctx, { left: truncate(ctx, name || state.title || 'READ', room), right: score });
+  drawAnswerCells(ctx, state, options, STRIP_Y);
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
 }
+
+/* The read screen's answer strip: where the name lane was, under the staff
+ * (whose lowest ledger, A3, ends at 45), a free row above the hint line. */
+export const STRIP_Y = L.STAFF_AREA_BOTTOM_Y + 1;
 
 /*
  * A line to play — a scale, from its name or by ear — drawn as it is played:

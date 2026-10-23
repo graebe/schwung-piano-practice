@@ -15,7 +15,7 @@ const coverage = process.env.PP_E2E_COVERAGE === '1';
 /* A learner already welcomed, with every first-visit tip seen: the cards
  * would otherwise sit over the screens the tests are about. A test of the
  * welcome itself says `test.use({ welcomed: false })`. */
-const SEEN = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
+const SEEN = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement', 'cells'] });
 
 export const test = base.extend({
   welcomed: [true, { option: true }],

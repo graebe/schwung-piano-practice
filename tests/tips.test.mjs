@@ -27,7 +27,7 @@ test('the welcome is four pages, in the shared words', () => {
 });
 
 test('the tips, in the shared words', () => {
-  assert.deepEqual(TIP_KEYS, [WELCOME, SHEET, PRACTICE, QUIZ, 'map', 'island']);
+  assert.deepEqual(TIP_KEYS, [WELCOME, SHEET, PRACTICE, QUIZ, 'map', 'island', 'cells']);
   assert.equal(words(tipCard('map')), 'Lit pads are places. Press one to walk there, again to go in. PLAY continues.');
   assert.equal(words(tipCard('island')), 'Each place is part of the stage. The fort is its checkpoint.');
   assert.equal(words(tipCard(SHEET)), 'Options for this row. JOG choose, CLICK do it, BACK close.');

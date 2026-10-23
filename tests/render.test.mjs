@@ -1722,8 +1722,12 @@ test('more than four answers draw a map of their pads, two rows past eight', () 
   };
   /* One row of boxes for five to eight: nothing in the upper row's band. */
   const five = shot(5);
-  assert.ok(countOn(five, 0, 26, 80, 11) > 40, 'the bottom row of cells');
-  assert.equal(countOn(five, 82, 20, 46, 24), 0, 'only five cells: the rest of the row is empty');
+  assert.ok(countOn(five, 0, 25, 80, 9) > 40, 'the bottom row of cells');
+  assert.equal(countOn(five, 0, 18, W, 7), 0, 'one row: nothing above it');
+  /* Columns 6 to 8 have no answer: dotted cells, so the row reads as the
+   * pads it is, but far lighter than an answer's. */
+  const empty = countOn(five, 81, 25, 47, 9);
+  assert.ok(empty > 0 && empty < countOn(five, 17, 25, 47, 9) / 2, 'the rest of the row dotted: ' + empty);
   /* Two rows for nine to twelve, the bottom row of pads drawn lower. */
   const twelve = shot(12);
   assert.ok(countOn(twelve, 0, 20, 64, 11) > 40, 'answers 9-12 above');
