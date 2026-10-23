@@ -45,7 +45,9 @@ export const CENTRE_DY = 8;
  * eight cells, top row first. 1..9 are the places in order, '.' is open water,
  * and an arrow is a route cell (water the route crosses) pointing to the next
  * cell of the walk. Out of a place the walk takes its one route neighbour it
- * has not walked yet. tests/pathmap_layout.test.mjs holds every picture to that.
+ * has not walked yet -- or, where another route passes close by, the one
+ * whose arrows lead to the next place. tests/pathmap_layout.test.mjs holds
+ * every picture to that.
  *
  * Every place has open water or its own route on all four sides, so islands
  * never touch. The journey starts low on the left, over the pad nearest the
@@ -103,7 +105,7 @@ const MAPS = {
   ],
   9: [
     '.>3v.>7v',
-    '>2.4.^.8',
+    '2^.4.^.8',
     '^..v.6.v',
     '1..>5^.9',
   ],
@@ -113,7 +115,8 @@ const MAPS = {
  * Island maps: the places of one stage, on one island. Same pictures, a
  * different shape -- a loop round the island: from low on the left it
  * climbs, runs along the top, comes down the right and back along the
- * bottom, and from seven places on the last (the fort) stands in the middle.
+ * bottom, and from seven places on the last (the fort) stands in the middle,
+ * in row 2, so the path along the top never runs over it.
  * The four corner cells stay empty, where the coast rounds off into the sea.
  * No island picture uses the cells of the world map with the same count.
  */
@@ -156,20 +159,20 @@ const ISLANDS = {
   ],
   7: [
     '.>3>>4v.',
-    '2^.7..>v',
-    '^<.^..v5',
+    '2^....>v',
+    '^<.7..v5',
     '.1.^6<<.',
   ],
   8: [
     '.>3>4>5.',
-    '2^.8..>v',
-    '^<.^..v6',
-    '.1.^<7<.',
+    '2^....>v',
+    '^<..8.v6',
+    '.1..^7<.',
   ],
   9: [
     '.>3>4>5.',
-    '2^.9..>v',
-    '^<.^..v6',
+    '2^.>v.>v',
+    '^<.^9.v6',
     '.1.8<7<.',
   ],
 };
@@ -188,18 +191,31 @@ export function parseMap(rows, n) {
   const cells = [cur];
   const route = [cur];
   const seen = new Set([cur.row * COLS + cur.col]);
+  /* Whether following the arrows from cell c ends at place `want`. */
+  const leadsTo = (c, want) => {
+    for (let k = 0; k <= MAX_PLACES; k++) {
+      const ch = at(c.col, c.row);
+      if (!STEP[ch]) return isPlaceChar(ch) && ch.charCodeAt(0) - 48 === want;
+      c = { col: c.col + STEP[ch][0], row: c.row + STEP[ch][1] };
+    }
+    return false;
+  };
   while (cells.length < n) {
     const ch = at(cur.col, cur.row);
     let next;
     if (STEP[ch]) {
       next = { col: cur.col + STEP[ch][0], row: cur.row + STEP[ch][1] };
     } else {
-      const out = [];
+      let out = [];
       for (const d of Object.values(STEP)) {
         const c = { col: cur.col + d[0], row: cur.row + d[1] };
         if (STEP[at(c.col, c.row)] && !seen.has(c.row * COLS + c.col)) out.push(c);
       }
-      if (out.length !== 1) throw new Error(`pathmap: map ${n} has ${out.length} ways out of place ${cells.length}`);
+      /* Two ways out (a route passing close by): the one whose arrows lead
+       * to the next place is this place's own. */
+      const ways = out.length;
+      if (ways > 1) out = out.filter((c) => leadsTo(c, cells.length + 1));
+      if (out.length !== 1) throw new Error(`pathmap: map ${n} has ${ways} ways out of place ${cells.length}`);
       next = out[0];
     }
     const nch = at(next.col, next.row);

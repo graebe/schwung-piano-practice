@@ -28,6 +28,8 @@
  *   npm run preview -- --view map --places 5|7|8                the Path map: piano's
  *                                    world (5), drums' world (7), a piano island (8)
  *   npm run preview -- --view home --selected 2 --t 60          the home screen, mid-grow
+ *   npm run preview -- --view home --items quiz-piano --selected 1   a ring one level down
+ *                                    (practice-drums|quiz-drums|practice-piano|quiz-piano)
  *   npm run preview -- --view map --map drums                   a drums island (7)
  *   npm run preview -- --view map --map done                    fill levels, avatar on a flag
  *   npm run preview -- --view map --kind island --map drums|piano   one stage's island
@@ -241,7 +243,19 @@ const HOME_ITEMS = [
   { key: 'settings', label: 'Settings', icon: 'settings' },
 ];
 
+/* The ring menus one level down (--items): Practice and Quiz, per module. */
+const RINGS = {
+  'practice-drums': { title: 'PRACTICE', items: [['Subdivisions', 'notes'], ['Grooves', 'kit'], ['Rudiments', 'sticks'], ['Random', 'dice'], ['Other', 'folder']] },
+  'quiz-drums': { title: 'QUIZ', items: [['Guess: drum', 'staff'], ['Hear: drum', 'ear'], ['Pick: drum', 'padpick'], ['Hear: subdivision', 'metronome'], ['Pick: groove', 'loop']] },
+  'practice-piano': { title: 'PRACTICE', items: [['Scales', 'stairs'], ['Chords', 'chord'], ['Progressions', 'progression'], ['Random', 'dice'], ['Songs', 'song']] },
+  'quiz-piano': { title: 'QUIZ', items: [['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keyletter']] },
+};
+
 if (view === 'home') {
+  const ring = arg('items', null);
+  if (ring && !RINGS[ring]) throw new Error(`--items ${Object.keys(RINGS).join('|')}`);
+  const items = ring ? RINGS[ring].items.map(([label, icon]) => ({ key: icon, label, icon })) : HOME_ITEMS;
+  const title = ring ? RINGS[ring].title : 'PIANO';
   const sel = Number(arg('selected', 0));
   const t = arg('t', null);
   const film = arg('film', null);
@@ -253,9 +267,9 @@ if (view === 'home') {
       startGrow(grow, sel, 0);
     }
     /* The module's own screen: its title bar, the engine's band, the hint. */
-    const c = V.drawHomeScreen(createScreen(), { title: 'PIANO', items: HOME_ITEMS, selected: sel, grow,
+    const c = V.drawHomeScreen(createScreen(), { title, items, selected: sel, grow,
       now: now ?? GROW_MS, footer: hintFor('home')[Number(arg('part', 0))] });
-    show(`home, ${HOME_ITEMS[sel].label}${now === null ? '' : ` growing @ ${now}ms`} (${c.calls} draw calls)`, c);
+    show(`${ring || 'home'}, ${items[sel].label}${now === null ? '' : ` growing @ ${now}ms`} (${c.calls} draw calls)`, c);
   }
 } else if (view === 'anim') {
   /*

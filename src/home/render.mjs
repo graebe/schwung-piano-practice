@@ -1,8 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 Torben Gräber
 /*
- * render.mjs — the home screen: five circles with icons, the selected one
- * filled and grown, its label underneath.
+ * render.mjs — a ring menu: two to five circles with icons, the selected one
+ * filled and grown, its label underneath. The home screen is the ring of
+ * five; Practice and Quiz are rings of their own.
+ *
+ * The circles are spaced evenly across the screen (homeLayout) and each has
+ * a pad in the bottom row, centred under the ring (homePads).
  *
  * drawHome draws the band between the title bar and the hint line (y 10..54);
  * both of those are the module's own chrome.
@@ -25,7 +29,36 @@
 
 import { ICONS } from './icons.mjs';
 
-export const HOME_X = Object.freeze([13, 38, 64, 90, 115]);
+export const HOME_MAX = 5;
+
+/*
+ * The circles' centres for a ring of n (1..5): evenly across the 128 px,
+ * circle i at the middle of its fifth, quarter, third or half. Five gives
+ * the home screen's 13, 38, 64, 90, 115 exactly.
+ */
+const layouts = [];
+export function homeLayout(n) {
+  const k = Math.max(1, Math.min(HOME_MAX, n | 0));
+  if (!layouts[k]) layouts[k] = Object.freeze(Array.from({ length: k }, (_, i) => Math.round(((i + 0.5) * 128) / k)));
+  return layouts[k];
+}
+
+/*
+ * One pad per circle, left to right, in the bottom row, centred under the
+ * ring: five on columns 1..5, four on 2..5, three on 2..4, two on 3..4.
+ */
+const padSets = [];
+export function homePads(n) {
+  const k = Math.max(1, Math.min(HOME_MAX, n | 0));
+  if (!padSets[k]) {
+    const first = Math.floor((8 - k) / 2);
+    padSets[k] = Object.freeze(Array.from({ length: k }, (_, i) => 68 + first + i));
+  }
+  return padSets[k];
+}
+
+/* The home screen's ring of five, as it has always been. */
+export const HOME_X = homeLayout(5);
 export const HOME_Y = 30;
 export const HOME_COUNT = HOME_X.length;
 export const R_SMALL = 9;
@@ -37,8 +70,8 @@ export const GROW_MS = 160;
 /* The band drawHome owns: below the title bar, above the hint line. */
 export const BAND_Y = 10;
 export const BAND_H = 45;
-/* One pad per circle, left to right: the bottom row, columns 1..5. */
-export const HOME_PADS = Object.freeze([69, 70, 71, 72, 73]);
+/* The home screen's pads: the bottom row, columns 1..5. */
+export const HOME_PADS = homePads(5);
 
 /* ---- Compiling ASCII rows ------------------------------------------------ */
 
@@ -204,14 +237,15 @@ export function growing(grow, now) {
 
 /* ---- The screen ---------------------------------------------------------- */
 
-/* The circle a pad opens, or -1. */
-export function itemOfPad(note) {
-  return HOME_PADS.indexOf(note);
+/* The circle a pad opens in a ring of n (five unless told), or -1. */
+export function itemOfPad(note, n = HOME_COUNT) {
+  return homePads(n).indexOf(note);
 }
 
 /*
  * state = { items, selected, grow, now }
- *   items     [{ key, label, icon }], up to five, left to right
+ *   items     [{ key, label, icon }], two to five, left to right (a sixth
+ *             and on are not drawn: a module shows a longer menu as a list)
  *   selected  the chosen circle (grow.to wins when a grow is given)
  *   grow      from createGrow/startGrow; none, every circle at rest
  *
@@ -221,10 +255,11 @@ export function itemOfPad(note) {
 export function drawHome(ctx, { items, selected = 0, grow = null, now = 0 }) {
   ctx.fillRect(0, BAND_Y, 128, BAND_H, 0);
   const sel = grow ? grow.to : selected;
-  const n = Math.min(items.length, HOME_COUNT);
+  const n = Math.min(items.length, HOME_MAX);
+  const xs = homeLayout(n);
   for (let i = 0; i < n; i++) {
     const r = grow ? radiusAt(grow, i, now) : i === sel ? R_LARGE : R_SMALL;
-    const cx = HOME_X[i];
+    const cx = xs[i];
     const filled = i === sel;
     const c = circleRuns(r);
     blit(ctx, filled ? c.fill : c.outline, cx - r, HOME_Y - r, 1);
