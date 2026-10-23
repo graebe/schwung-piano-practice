@@ -1598,7 +1598,7 @@ test('the LEVEL box: a big digit, its G or S, arrows only where the jog goes on,
     return c;
   };
   const b = V.READY_BOX;
-  const right = (c) => countOn(c, V.READY_SPLIT_X + 1, b.y + 1, b.x + b.w - V.READY_SPLIT_X - 2, b.h - 2);
+  const right = (c) => countOn(c, V.READY_SPLIT_X + 1, b.y + 1, b.x + b.w - V.READY_SPLIT_X - 2, V.READY_TEMPO_RULE - 1);
   const mid = draw(LEVELS4);
   const first = draw({ ...LEVELS4, index: 0, stage: 1 });
   const last = draw({ ...LEVELS4, index: 3, stage: 2 });
@@ -1616,10 +1616,36 @@ test('the LEVEL box: a big digit, its G or S, arrows only where the jog goes on,
   /* Scrubbed away, the box steps aside; the bottom line stays. */
   const scrubbed = createScreen();
   V.drawReadyView(scrubbed, { chart, run, songBeats: 4, pxPerBeat: 24, level: LEVELS4, footerLeft: 'L1 LH bass  Solo' });
-  const split = (c) => countOn(c, V.READY_SPLIT_X, b.y + 1, 1, b.h - 2);
-  assert.equal(split(mid), b.h - 2, 'the box splits at 64 px');
+  const split = (c) => countOn(c, V.READY_SPLIT_X, b.y + 1, 1, V.READY_TEMPO_RULE - 1);
+  assert.equal(split(mid), V.READY_TEMPO_RULE - 1, 'the box splits at 64 px, down to the tempo\'s rule');
   assert.ok(split(scrubbed) < 10, 'gone once scrubbed: only the staff lines cross there');
   assert.ok(countOn(scrubbed, 0, L.FOOTER_Y - 2, 100, 8) > 20);
+});
+
+test('the ready box\'s last row: under a rule, knob 8 and the tempo, two or three digits in place', () => {
+  const b = V.READY_BOX;
+  assert.equal(V.tempoRow(92), 'Knob 8:  92 bpm');
+  assert.equal(V.tempoRow(120), 'Knob 8: 120 bpm');
+  const draw = (state) => {
+    const c = createScreen();
+    const texts = [];
+    const text = c.text.bind(c);
+    c.text = (x, y, s, v) => { texts.push({ x, y, s }); return text(x, y, s, v); };
+    V.drawReadyView(c, { chart, run: createRun(chart), songBeats: 0, pxPerBeat: 24, ...state });
+    return { c, row: texts.find((t) => /^Knob 8:/.test(t.s)) };
+  };
+  for (const [state, want] of [[{ level: LEVELS4, bpm: 92 }, 'Knob 8:  92 bpm'], [{ bpm: 200 }, 'Knob 8: 200 bpm'],
+    [{}, V.tempoRow(chart.bpm)]]) {
+    const { c, row } = draw(state);
+    assert.equal(row.s, want, 'with levels or without, the chart\'s tempo by default');
+    assert.equal(row.y, b.y + V.READY_TEMPO_Y);
+    assert.ok(row.x > b.x && row.x + c.textWidth(row.s) < b.x + b.w - 1, 'inside the box: ' + row.s);
+    assert.equal(countOn(c, b.x + 1, b.y + V.READY_TEMPO_RULE, b.w - 2, 1), b.w - 2, 'the rule above it');
+    assert.ok(b.y + b.h <= L.FOOTER_Y - 3 - 2, 'the box ends with a gap above the bottom line');
+    assert.equal(countOn(c, b.x, b.y + b.h, b.w, L.FOOTER_Y - 3 - (b.y + b.h)), 0, 'the gap is clear');
+  }
+  /* Scrubbed away the box and its row are gone. */
+  assert.equal(draw({ songBeats: 4 }).row, undefined, 'drawn only at the start');
 });
 
 test('four answers or fewer list each with the colour of its pad', () => {

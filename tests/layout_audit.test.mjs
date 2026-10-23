@@ -85,7 +85,9 @@ const QUIZ_RING = ring([['Ear', 'ear'], ['Reading', 'staff'], ['Keys', 'keylette
  * Erasure has to be modelled or the transcript lies: the ready view draws the
  * whole reading view and then blanks the bottom band before writing its own
  * hint there, so the progress counter underneath is intent that never reaches
- * the screen. A text fully covered by a LATER blanking rect is dropped.
+ * the screen. A text fully covered by a LATER blanking rect is dropped, and
+ * a rule cuts a text only where it still shows: a box drawn over the rule
+ * (the ready screen's, across the name rule) erases it under the box.
  */
 function probe() {
   const c = createScreen();
@@ -100,7 +102,7 @@ function probe() {
     return text(x, y, s, v);
   };
   c.fillRect = (x, y, w, h, v) => {
-    if (v && x <= 0 && w >= L.SCREEN_W && h === 1) rules.push(y);
+    if (v && x <= 0 && w >= L.SCREEN_W && h === 1) rules.push({ y, seq });
     if (!v) erases.push({ x, y, w, h, seq });
     seq++;
     return fillRect(x, y, w, h, v);
@@ -109,14 +111,18 @@ function probe() {
     texts: texts.filter((t) => !erases.some((e) => e.seq > t.seq
       && e.x <= t.x && e.x + e.w >= t.x + t.w
       && e.y <= t.y && e.y + e.h >= t.y + L.TEXT_H)),
-    rules,
+    rules: rules.map((r) => r.y),
+    /* Whether rule `r` still shows anywhere across x0..x1, or was blanked
+     * there by something drawn after it. */
+    ruleShows: (y, x0, x1) => rules.some((r) => r.y === y && !erases.some((e) => e.seq > r.seq
+      && e.y <= y && e.y + e.h > y && e.x <= x0 && e.x + e.w >= x1)),
   });
   return c;
 }
 
 /* Every way one draw can spoil another, as one list of complaints. */
 function collisions(c) {
-  const { texts, rules } = c.transcript();
+  const { texts, rules, ruleShows } = c.transcript();
   const bad = [];
   for (const t of texts) {
     if (t.x < 0 || t.x + t.w > L.SCREEN_W) {
@@ -126,7 +132,7 @@ function collisions(c) {
       bad.push(`off screen: ${JSON.stringify(t.s)} at y=${t.y}`);
     }
     for (const r of rules) {
-      if (r > t.y && r < t.y + L.TEXT_H) {
+      if (r > t.y && r < t.y + L.TEXT_H && ruleShows(r, t.x, t.x + t.w)) {
         bad.push(`rule at y=${r} cuts ${JSON.stringify(t.s)} at y=${t.y}`);
       }
     }
@@ -263,6 +269,15 @@ const SCREENS = {
     chart, run: createRun(chart), songBeats: 6, pxPerBeat: 48,
     level: { index: 2, stage: 1, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3' }] },
     footerLeft: 'L2 RH chords  Guided',
+  }),
+  'ready, three-digit tempo, levels, names on': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16', names: true, bpm: 200,
+    level: { index: 3, stage: 2, ladder: true, levels: [{ step: 'L1' }, { step: 'L1' }, { step: 'L2' }, { step: 'L3', learned: true }] },
+    footerLeft: 'L3 Both hands', footerRight: 'Solo',
+  }),
+  'ready, three-digit tempo, no levels': (c) => V.drawReadyView(c, {
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16', names: true, bpm: 120,
+    footer: hintFor('ready', { stages: true, stage: 1 })[0],
   }),
   'ready, stage 2': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',

@@ -629,6 +629,21 @@ test('the knob scrubs only while paused, and does so continuously', () => {
  * screen could not scrub, or if Play threw the position away — which is
  * exactly what it did before, via armRun.
  */
+test('the ready box names knob 8 and its tempo, and the number follows the knob', () => {
+  freezeClock();
+  const screen = capture();
+  armScale();
+  assert.match(screen.frame(), /Knob 8:  80 bpm/, 'the drill\'s tempo, as the box says it');
+  for (let i = 0; i < 5; i++) globalThis.onMidiMessageInternal(CC(KNOB1 + 7, 1));
+  assert.match(screen.frame(), /Knob 8:  85 bpm/, 'knob 8: the shown tempo moves with it');
+  for (let i = 0; i < 40; i++) globalThis.onMidiMessageInternal(CC(KNOB1 + 7, 1));
+  assert.match(screen.frame(), /Knob 8: 125 bpm/, 'three digits, in place');
+  for (let i = 0; i < 45; i++) globalThis.onMidiMessageInternal(CC(KNOB1 + 7, 127));
+  assert.match(screen.frame(), /Knob 8:  80 bpm/, 'and back, for the tests after this one');
+  screen.restore();
+  thawClock();
+});
+
 test('the ready screen scrubs, and Play takes it from there', () => {
   const printed = [];
   const realPrint = globalThis.print;

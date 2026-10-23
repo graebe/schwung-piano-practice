@@ -424,7 +424,7 @@ if (view === 'home') {
   const level = S.levelInfo();
   V.drawReadyView(c, {
     chart: S.chart, run: S.run, songBeats: S.songBeats, pxPerBeat: S.settings.pxPerBeat, names: S.namesShown(),
-    outLabel: S.songBeats > 0 ? '' : 'piano all', level,
+    outLabel: S.songBeats > 0 ? '' : 'piano all', level, bpm: Number(arg('bpm', S.chart.bpm)),
     ...V.readyLine(level.name, S.hint(), Number(arg('t', 0)), (x) => c.textWidth(x)),
   });
   show(`${S.chart.name}: ${level.name}`, c);
@@ -480,8 +480,8 @@ if (view === 'home') {
 } else if (view === 'ready') {
   const c = createScreen();
   V.drawReadyView(c, {
-    chart, run: createRun(chart), songBeats: 0, pxPerBeat: px,
-    message: 'PLAY button', subMessage: 'to start',
+    chart, run: createRun(chart), songBeats: 0, pxPerBeat: px, names: true, bpm: Number(arg('bpm', chart.bpm)),
+    message: 'PLAY button', subMessage: 'to start', footer: 'REC start',
   });
   show('ready', c);
 } else {
