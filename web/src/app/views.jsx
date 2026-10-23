@@ -19,7 +19,7 @@ import { MODES } from '../../../src/generator.mjs';
 import { layoutPlaces, cellRect, MAP_X, MAP_Y, MAP_W, MAP_H } from '../../../src/pathmap/layout.mjs';
 import { createWalk, walkTo, arrived } from '../../../src/pathmap/walk.mjs';
 import { drawMap } from '../../../src/pathmap/render.mjs';
-import { compile, HOME_X, HOME_Y, R_SMALL, R_LARGE } from '../../../src/home/render.mjs';
+import { compile, homeLayout, HOME_Y, R_SMALL, R_LARGE } from '../../../src/home/render.mjs';
 
 const MARKS = { done: '✓', half: '◐', skip: '⤼', next: 'next', assumed: '◌' };
 const MARK_INFO = { done: 'both stages passed', half: 'Guided passed', skip: 'skipped', next: 'the next step', assumed: 'assumed: in a stage you skipped' };
@@ -188,10 +188,12 @@ function iconRects(rows) {
 export function HomeView(props) {
   const home = () => props.vm().home;
   const selected = () => home().items[home().selected];
+  /* The engine's spacing for this many circles: home's five, Quiz's three. */
+  const xs = () => homeLayout(home().items.length);
   return (
     <section class="screen home-screen" aria-labelledby="home-title">
       <header class="screen-head">
-        <h1 id="home-title" class="t-title">Piano</h1>
+        <h1 id="home-title" class="t-title">{props.vm().nav ? props.vm().nav.title : 'Piano'}</h1>
         <p class="t-hint">{selected() ? selected().label : ''}</p>
       </header>
       {/* The picture is for the pointer; the rows below say the same to a
@@ -204,10 +206,10 @@ export function HomeView(props) {
           return (
             <g class="home-item" classList={{ on: on() }} data-key={it.key} data-info={`${it.label} — open it`}
                onClick={() => props.dispatch({ type: 'homeGo', index: i() })}>
-              <circle class="home-circle" cx={HOME_X[i()] + 0.5} cy={HOME_Y + 0.5}
+              <circle class="home-circle" cx={xs()[i()] + 0.5} cy={HOME_Y + 0.5}
                       style={{ r: `${(on() ? R_LARGE : R_SMALL) + (on() ? 0.5 : 0)}px` }} />
               <g class="home-icon" shape-rendering="crispEdges"
-                 transform={`translate(${HOME_X[i()] - half()} ${HOME_Y - half()})`}>
+                 transform={`translate(${xs()[i()] - half()} ${HOME_Y - half()})`}>
                 <For each={iconRects(rows())}>{(r) => <rect x={r[0]} y={r[1]} width={r[2]} height={r[3]} />}</For>
               </g>
             </g>

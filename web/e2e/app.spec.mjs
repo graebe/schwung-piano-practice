@@ -40,7 +40,7 @@ test('home is five circles: a click opens one, Back finds it selected', async ({
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('home.png', { fullPage: true });
   await page.locator('.home .home-item[data-key="quiz"]').click();
-  await expect(page.locator('#list-title')).toHaveText(/quiz/i);
+  await expect(page.locator('#home-title')).toHaveText('Quiz');
   await page.keyboard.press('Escape');
   await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'quiz', { message: 'its circle' });
   /* Options: home as a list for the session; Back is the circles again. */
@@ -53,18 +53,35 @@ test('home is five circles: a click opens one, Back finds it selected', async ({
   await expect(page.locator('.home-screen')).toBeVisible();
 });
 
-test('the lesson list opens folders and steps back out', async ({ page }) => {
+test('Practice and Quiz are rings: circles spaced by their count, a click opens, Back finds the circle', async ({ page }) => {
   await page.locator('.row', { hasText: /^Practice/ }).click();
-  await expect(page.locator('#list-title')).toHaveText(/practice/i);
-  await expect(page.locator('.row')).toHaveCount(5);
+  await expect(page.locator('#home-title')).toHaveText('Practice');
+  await expect(page.locator('.home-rows .row-label')).toHaveText(['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
+  await expect(page.locator('.home .home-item')).toHaveCount(5);
+  await expect(page.getByRole('button', { name: 'Back' })).toBeEnabled();
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot('ring-practice.png', { fullPage: true });
+  const fiveX = await page.locator('.home .home-item circle').evaluateAll((cs) => cs.map((c) => +c.getAttribute('cx')));
+  await page.locator('.home .home-item[data-key="songs"]').click();
+  await expect(page.locator('#list-title')).toHaveText(/songs/i, { message: 'deeper levels stay lists' });
   await page.keyboard.press('Escape');
-  await expect(page.locator('.home-rows .row')).toHaveCount(5);
-  await expect(page.locator('.row.on')).toHaveText(/Practice/, { message: 'back where it came from' });
-  await page.keyboard.press('ArrowDown');
-  await expect(page.locator('.row.on')).toHaveText(/Quiz/);
+  await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'songs', { message: 'its circle' });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#home-title')).toHaveText('Piano');
+  await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'basics', { message: 'home, on Practice' });
+  await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Enter');
-  await expect(page.locator('#list-title')).toHaveText(/quiz/i);
-  await expect(page.locator('.row .row-label')).toHaveText(['Ear', 'Reading', 'Keys']);
+  await expect(page.locator('#home-title')).toHaveText('Quiz');
+  await expect(page.locator('.home .home-item')).toHaveCount(3);
+  await expect(page.locator('.home-rows .row-label')).toHaveText(['Ear', 'Reading', 'Keys']);
+  const threeX = await page.locator('.home .home-item circle').evaluateAll((cs) => cs.map((c) => +c.getAttribute('cx')));
+  expect(threeX[1]).toBeCloseTo(64.5, 0);
+  expect(threeX[0]).not.toBe(fiveX[0]);
+  expect(threeX[0] + threeX[2]).toBeCloseTo(129, 0);
+  await page.mouse.move(0, 0);
+  await expect(page).toHaveScreenshot('ring-quiz.png', { fullPage: true });
+  await page.locator('.home .home-item[data-key="keys"]').click();
+  await expect(page.locator('.row .row-label')).toHaveText(['Notes by alphabet', 'Chords by name', 'Name notes', 'Name chords']);
 });
 
 test('the Learning Path is five stages, each ending on its Checkpoint; Continue opens the next step', async ({ page }) => {
@@ -113,7 +130,9 @@ test('the Learning Path is a map: click an island to walk there, again to go in,
 /* A scene lasts a third of a second: a picture of it is taken as it plays and
  * attached to the report, not held to a baseline, which could only catch it
  * by luck. The screens either side of it are baselines. */
-test('an island zooms in from the world, and Back zooms out; a click skips', async ({ page }, info) => {
+/* That any key or pad skips a scene is held by the session's tests: a third
+ * of a second is too short to aim a click at from here without a race. */
+test('an island zooms in from the world, and Back zooms out', async ({ page }, info) => {
   await openPath(page, ['Learning Path']);
   const first = page.locator('.map .place-hit').first();
   await first.click();                                    /* the avatar is there: in */
@@ -128,10 +147,6 @@ test('an island zooms in from the world, and Back zooms out; a click skips', asy
   await expect(page.locator('#anim-title')).toHaveText('World map.');
   await info.attach('zoom-out', { body: await page.screenshot(), contentType: 'image/png' });
   await expect(page.locator('#map-title')).toHaveText('Learning Path');
-  /* In again, and a click skips the zoom straight to the island. */
-  await first.click();
-  await page.locator('.anim-screen').click();
-  await expect(page.locator('.map-places .row').first()).toHaveText(/1\.1 Find the notes/);
 });
 
 test('the options of a row: Test out: checkpoint plays the exam Solo', async ({ page }) => {
@@ -165,8 +180,10 @@ test('the Learning Path as a list starts with Continue; its options skip the ste
 test('the hint line names the Move\'s keys on every screen', async ({ page }) => {
   await expect(page.locator('.move-hint')).toContainText('JOG choose');
   await openPath(page, ['Practice']);
+  await expect(page.locator('.move-hint')).toContainText('PAD open', { message: 'a ring' });
+  await openPath(page, ['Scales']);
   await expect(page.locator('.move-hint')).toContainText('CLICK open  BACK up');
-  await openPath(page, ['Scales', 'Major', 'Up & down']);
+  await openPath(page, ['Major', 'Up & down']);
   await expect(page.locator('.move-hint')).toContainText('REC start');
 });
 
@@ -651,9 +668,12 @@ test('screens look as designed', async ({ page }, info) => {
   await expect(page).toHaveScreenshot('top.png', { fullPage: true });
   /* By the keys: a click would leave the pointer over the keyboard below. */
   await page.keyboard.press('ArrowRight');
-  await page.keyboard.press('Enter');
-  await expect(page.locator('#list-title')).toHaveText(/practice/i);
+  await page.keyboard.press('Enter');                     /* the Practice ring */
+  await expect(page.locator('#home-title')).toHaveText('Practice');
+  await page.keyboard.press('Enter');                     /* Scales: a list */
+  await expect(page.locator('#list-title')).toHaveText(/scales/i);
   await expect(page).toHaveScreenshot('list.png', { fullPage: true });
+  await page.keyboard.press('Escape');
   await page.keyboard.press('Escape');
   await openPath(page, SCALE);
   await closeInfo(page);

@@ -169,7 +169,7 @@ export function App(props) {
   });
 
   /* Home's circles are the top; home shown as a list goes back to them. */
-  const atTop = () => vm() && vm().screen === 'menu' && Boolean(vm().home);
+  const atTop = () => vm() && vm().screen === 'menu' && Boolean(vm().home) && vm().nav.path.length <= 1;
   const crumb = () => {
     const v = vm();
     if (!v) return '';

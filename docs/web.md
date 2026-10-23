@@ -57,7 +57,9 @@ The page opens on **home**, as the Move does: five circles, **Learning Path**,
 own pictures. Click a circle, or its row below, to open it; the arrow keys
 choose (the chosen circle grows) and Enter opens. Behind each circle the list
 is a tree: click a folder to open it, **Back** (or Escape) to go up, and Back
-from a section returns home with its circle chosen.
+from a section returns home with its circle chosen. **Practice** and **Quiz**
+are rings of their own, five and three circles spaced as on the Move; their
+folders below are lists.
 [Finding your way](finding-your-way.md) walks through it.
 
 **Info** (or I) is the Move's Menu: help for whatever is in front of you —
