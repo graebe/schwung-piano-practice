@@ -379,6 +379,15 @@ function earPage(exKey, levelKey) {
  * which is the point of them.
  */
 const TRAINER_TEXT = {
+  prog: {
+    ring: 'Progressions, as a trainer. Read one off the staff, hear one after its home chord, or play one from its numerals; Learn holds the eleven charts; Stats shows which progressions you know.',
+    read: 'A progression on the staff. Play it as written, voiced and in a rhythm of your choice, or name which progression it is.',
+    hear: 'The home chord, then a progression. Play its chords back, each in any voicing, or name it from a short list.',
+    play: 'A progression in numerals, like I-V-vi-IV, and its key. Play its chords in turn, each in any voicing. Key all 12 walks it round the circle of fifths, a key a time.',
+    stats: 'Every progression you have been asked, weakest first: how much of it was right read, heard and played. Right means the whole progression.',
+    ladder: 'Level 1 is the four cadences, how a phrase ends; each level adds: the foundations; pop; minor; jazz basics; the blues; borrowed and modal chords; secondary dominants and jazz substitutes. Custom picks your own.',
+    terms: ['progression', 'numerals', 'voicing', 'level'],
+  },
   scale: {
     ring: 'Scales, as a trainer. Read a scale off the staff, hear one, or play one from its name; Learn holds the scale drills, one folder a scale; Stats shows which scales you know and which you do not yet.',
     read: 'A scale on the staff. Play it as it is written, a chart with its pattern, or name it from a short list.',
@@ -413,7 +422,7 @@ export function trainerPage(subject, circle, label) {
   } else {
     sections.push(sec('', CIRCLE_TEXT.common));
   }
-  const name = { scale: 'Scales', chord: 'Chords' }[subject];
+  const name = { scale: 'Scales', chord: 'Chords', prog: 'Progressions' }[subject];
   return page('trainer:' + subject + (circle ? ':' + circle : ''), label || name, sections, t.terms);
 }
 

@@ -129,7 +129,7 @@ export function chooseVoicing(candidates, prev, home) {
  * drill never thins: there the lowest note is the whole point and there is no
  * left hand to cover it.
  */
-function voiceRightHand(tones, rootPc, bassPc, bassBelow, floor, hi, bottomPc, prev) {
+export function voiceRightHand(tones, rootPc, bassPc, bassBelow, floor, hi, bottomPc, prev) {
   const attempts = [tones];
   if (bassBelow && bottomPc == null) {
     const noBass = tones.filter((pc) => pc !== bassPc);

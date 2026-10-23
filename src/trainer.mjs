@@ -36,6 +36,15 @@ import { together, broken, ev, NOTE_GAP, rootName } from './ear_core.mjs';
 import { rng, PC_NAMES, playableRange, scalePitches, keyForScale } from './generator.mjs';
 import { spellLine } from './read_course.mjs';
 import { SCALE_GAP } from './ear_course.mjs';
+import {
+  PROGRESSION_LEVELS, progressionById, progressionChords, progressionKey, keyName, numeralsLabel,
+  progressionDistance,
+} from './progressions.mjs';
+import { CIRCLE } from './chord_lessons.mjs';
+import {
+  voiceChords, compEvents, beatsOf, VOICINGS, RHYTHMS, VOICING_TEXT, RHYTHM_TEXT,
+} from './comping.mjs';
+import { chordSymbol } from './chords.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
 
 export const CIRCLES = ['read', 'hear', 'play'];
@@ -76,8 +85,8 @@ const SCALE = {
   name: 'Scales',
   noun: ['scale', 'scales'],
   levels: SCALE_LEVELS,
-  levelText: ['major minor', '+ major modes', '+ harm mel', '+ phr loc', '+ pentatonic', '+ whole tone',
-    '+ diminished', '+ mel modes', '+ harm modes', '+ world'],
+  levelText: ['major minor', '+ modes', '+ harm mel', '+ phr loc', '+ pent', '+ whole', '+ dim',
+    '+ melodic', '+ harmonic', '+ world'],
   itemLabel: (id) => scaleById(id).label,
   fields: {
     read: ['answer', 'level', 'key', 'direction', 'pattern', 'round'],
@@ -91,7 +100,35 @@ const SCALE = {
   spec: (...a) => scaleSpec(...a),
 };
 
-export const SUBJECTS = { scale: SCALE, chord: CHORD };
+/*
+ * Progressions: cadences first, then whole patterns. A progression is in a
+ * key — the Key's, any, or all twelve round the circle of fifths — and its
+ * own mode (each item is major or minor); voiced and in a rhythm when it is
+ * read and played, voiced when it is read or heard.
+ */
+const PROG = {
+  key: 'prog',
+  name: 'Progressions',
+  /* A round's header holds the title and its score: PROGS PLAY 10/10. */
+  short: 'Progs',
+  noun: ['progression', 'progressions'],
+  levels: PROGRESSION_LEVELS.map((lv) => lv.map((p) => p.id)),
+  levelText: ['cadences', '+ basics', '+ pop', '+ minor', '+ jazz', '+ blues', '+ modal', '+ jazz subs'],
+  itemLabel: (id) => progressionById(id).name,
+  allKeys: true,
+  fields: {
+    read: ['answer', 'level', 'key', 'voicing', 'rhythm', 'round'],
+    hear: ['answer', 'level', 'key', 'voicing', 'round'],
+    play: ['level', 'key', 'round'],
+  },
+  defaults: { answer: 'play', level: 1, voicing: 'smooth', rhythm: 'block', round: 10 },
+  /* Read and played, a round is one chart: no Round; read and named, no Rhythm. */
+  hidden: (f, circle, setup) => circle === 'read'
+    && ((f === 'round' && setup.answer === 'play') || (f === 'rhythm' && setup.answer === 'name')),
+  spec: (...a) => progSpec(...a),
+};
+
+export const SUBJECTS = { scale: SCALE, chord: CHORD, prog: PROG };
 
 export function subjectOf(key) {
   return SUBJECTS[key] || null;
@@ -125,9 +162,11 @@ const FIELDS = {
   },
   key: {
     label: 'Key',
-    values: () => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'random'],
-    text: (v) => (v === 'random' ? 'random' : PC_NAMES[v]),
+    values: (s) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'random'].concat(s.allKeys ? ['all'] : []),
+    text: (v) => (v === 'random' ? 'random' : v === 'all' ? 'all 12' : PC_NAMES[v]),
   },
+  voicing: { label: 'Voicing', values: () => VOICINGS, text: (v) => VOICING_TEXT[v] },
+  rhythm: { label: 'Rhythm', values: () => RHYTHMS, text: (v) => RHYTHM_TEXT[v] },
   scale: { label: 'Scale', values: () => SCALE_IDS, text: (v) => MODE_LABELS[v] || v },
   roots: {
     label: 'Roots',
@@ -557,4 +596,148 @@ function scaleSpec(s, circle, setup, ctx, base) {
     });
   return namingSpec(s, circle, set, prompts, scaleDistance, (q) => scaleById(q).mark, 'which scale?',
     { ...base, context, gen: { rootPc: 0, mode: 'chromatic' } });
+}
+
+/* ---- Progressions ---- */
+
+/* A tonic chord, then the progression, a chord at a time: the ear needs a
+ * home before it can hear where a progression goes. */
+function progEvents(item, tonicPc, voiced, transpose) {
+  const home = voiceChords([{ root: tonicPc, quality: item.mode === 'minor' ? 'min' : 'maj' }], 'root', transpose)[0];
+  const out = together(home.rh, 0, 900);
+  voiced.forEach((v, i) => {
+    const notes = (v.bass != null ? [v.bass] : []).concat(v.rh);
+    out.push(...together(notes, 1300 + i * 900, 800));
+  });
+  return out;
+}
+
+/* Each chord a column on the staff, spelled in the progression's key. */
+function progStaff(voiced, key) {
+  return voiced.map((v) => ({
+    part: 0,
+    notes: (v.bass != null ? [v.bass] : []).concat(v.rh).map((p) => {
+      const sp = spell(p, key);
+      return { pitch: p, diatonic: sp.diatonic, alter: sp.alter };
+    }),
+  }));
+}
+
+/* The keys a prompt may be in: the Key's, or all twelve. */
+const keysOf = (setup) => (typeof setup.key === 'number' ? [setup.key] : CIRCLE.slice());
+
+/*
+ * Read, play: a chart — the progression voiced and in its rhythm, once
+ * through for a long one and twice for a short one, as the Learn charts go.
+ * Its name says the key: "F#m Andalusian".
+ */
+export function progChart(id, tonicPc, setup, { bpm = 80, transpose = DEFAULT_TRANSPOSE } = {}) {
+  const item = progressionById(id);
+  const once = progressionChords(item, tonicPc);
+  const times = item.steps.length <= 4 ? 2 : 1;
+  let chords = [];
+  for (let i = 0; i < times; i++) chords = chords.concat(once);
+  const key = progressionKey(item, tonicPc);
+  const voiced = voiceChords(chords, setup.voicing, transpose);
+  const symbols = chords.map((c) => chordSymbol(c.root + 60, qualityById(c.quality), key));
+  const minorKey = typeof key === 'object' ? key : null;
+  const tonic = spell(tonicPc + 60, key).label + (item.mode === 'minor' ? 'm' : '');
+  const chart = {
+    id: 'trainer-prog-' + id.replace(/\s+/g, '-') + '-' + tonicPc,
+    name: tonic + ' ' + item.name,
+    bpm,
+    timeSig: [beatsOf(setup.rhythm), 4],
+    keySig: minorKey ? minorKey.fifths : key,
+    events: compEvents(voiced, setup.rhythm, symbols),
+  };
+  if (minorKey) chart.spelling = minorKey.map;
+  return chart;
+}
+
+function progSpec(s, circle, setup, ctx, base) {
+  const rand = rng(ctx.seed || 1);
+  const set = itemSet(s.key, setup);
+  const transpose = ctx.transpose == null ? DEFAULT_TRANSPOSE : ctx.transpose;
+  const context = { k: typeof setup.key === 'number' ? setup.key : setup.key === 'all' ? -2 : -1, v: setup.voicing };
+  if (circle === 'read' && setup.answer === 'play') {
+    /*
+     * Key = all 12: the same progression, the next key round the circle of
+     * fifths, every round, until all twelve are played; then another. `walk`
+     * is where the last round was.
+     */
+    let id;
+    let tonic;
+    const walk = ctx.walk && set.indexOf(ctx.walk.item) >= 0 ? ctx.walk : null;
+    if (setup.key === 'all' && walk && walk.at + 1 < 12) {
+      id = walk.item;
+      tonic = CIRCLE[walk.at + 1];
+    } else {
+      id = drawWeighted(set, rand, ctx.history);
+      tonic = setup.key === 'all' ? CIRCLE[0] : setup.key === 'random' ? Math.floor(rand() * 12) : setup.key;
+    }
+    const chart = progChart(id, tonic, setup, { bpm: ctx.bpm, transpose });
+    return {
+      ...base, chart, item: id, root: tonic, gen: { rootPc: tonic, mode: progressionById(id).mode },
+      walk: { item: id, at: CIRCLE.indexOf(tonic) },
+      context: { ...context, r: setup.rhythm },
+      remake: (c) => progChart(id, tonic, setup, c),
+    };
+  }
+  const entry = (id, tonic, voicing) => {
+    const item = progressionById(id);
+    const chords = progressionChords(item, tonic);
+    const key = progressionKey(item, tonic);
+    const voiced = voiceChords(chords, voicing, transpose);
+    return { item, chords, key, voiced };
+  };
+  if (setup.answer === 'play' || circle === 'play') {
+    /* Played back, or from the numerals: each chord in any voicing. Key = all
+     * 12 walks one progression round the circle, a key a prompt. */
+    const make = (id, tonic) => {
+      const e = entry(id, tonic, 'smooth');
+      const name = keyName(e.item, tonic);
+      const flat = [];
+      for (const v of e.voiced) for (const p of v.rh) if (flat.indexOf(p) < 0) flat.push(p);
+      return {
+        pitches: flat, chords: e.voiced.map((v) => v.rh), item: id, root: tonic,
+        label: e.item.name + ' in ' + name,
+        tokens: e.item.numerals.trim().split(/\s+/),
+        keyText: 'in ' + name,
+        events: progEvents(e.item, tonic, e.voiced, transpose),
+        staff: progStaff(e.voiced, e.key),
+      };
+    };
+    let pool;
+    let sequence = false;
+    if (setup.key === 'all') {
+      const id = drawWeighted(set, rand, ctx.history);
+      pool = CIRCLE.map((tonic) => make(id, tonic));
+      sequence = true;
+    } else {
+      pool = [];
+      for (const id of set) for (const tonic of keysOf(setup)) pool.push(make(id, tonic));
+    }
+    const how = { kind: 'chords', how: 'name', pool, sequence, context, gen: { rootPc: 0, mode: 'chromatic' } };
+    if (circle === 'play') return { ...base, ...how, read: 'name' };
+    return { ...base, ...how, hear: true };
+  }
+  /* Naming: which progression it is, heard after its tonic or read. */
+  const read = circle === 'read';
+  const prompts = () => {
+    const out = [];
+    for (const id of set) {
+      for (const tonic of keysOf(setup)) {
+        const e = entry(id, tonic, setup.voicing);
+        const p = {
+          answer: id, root: tonic, label: e.item.name + ' in ' + keyName(e.item, tonic),
+          events: progEvents(e.item, tonic, e.voiced, transpose),
+        };
+        if (read) p.staff = progStaff(e.voiced, e.key);
+        out.push(p);
+      }
+    }
+    return out;
+  };
+  return namingSpec(s, circle, set, prompts, progressionDistance, (q) => progressionById(q).mark,
+    'which progression?', { ...base, context, gen: { rootPc: 0, mode: 'chromatic' } });
 }

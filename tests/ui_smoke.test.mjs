@@ -461,7 +461,7 @@ test('a chord lesson opens from Practice and arms at both hands', () => {
   open();                        /* Chords: the trainer's ring */
   jog(3);
   open();                        /* Learn */
-  assert.match(screen(), /CHORDS: LEARN/);
+  assert.match(screen(), /^CHORDS 1\/13 Triads/);
   jog(4);
   open();                        /* Sevenths */
   assert.match(screen(), /Major 7th/);

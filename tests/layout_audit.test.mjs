@@ -472,6 +472,21 @@ const SCREENS = {
   'line, heard, nothing yet': (c) => V.drawLineView(c, {
     title: 'SCALES HEAR', score: '0/20', staff: LINE, shown: 0, label: '?', footer: hintFor('guess', {})[0],
   }),
+  /* The longest row of numerals the ladder has, half played. */
+  'chord row, the twelve-bar blues': (c) => V.drawChordRow(c, {
+    title: 'PROGS PLAY', score: '19/20', done: 5,
+    tokens: ['i7', 'i7', 'i7', 'i7', 'iv7', 'iv7', 'i7', 'i7', 'VI7', 'V7', 'i7', 'V7'],
+    keyText: 'in F# minor', footer: hintFor('guess', { hintsLeft: true, streak: 999 })[0],
+  }),
+  'chord row, jazz, solved': (c) => V.drawChordRow(c, {
+    title: 'PROGS HEAR', score: '20/20', solved: true, hidden: true,
+    tokens: ['iii7', 'vi7', 'ii7', 'V7', 'Imaj7'], label: 'iii-vi-ii-V-I in F# minor',
+    footer: hintFor('guess', {})[0],
+  }),
+  'chord row, heard': (c) => V.drawChordRow(c, {
+    title: 'PROGS HEAR', score: '0/20', hidden: true, tokens: ['I', 'V/V', 'V', 'I'], keyText: '?',
+    footer: hintFor('guess', {})[0],
+  }),
   'ready': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
   }),
@@ -520,7 +535,7 @@ test('a Stats row keeps its whole label: thirteen characters beside the meters',
 });
 
 test('the name-lane rule is drawn only by the views that have a name lane', () => {
-  const laned = ['reading', 'guess', 'ready', 'read pick', 'line'];
+  const laned = ['reading', 'guess', 'ready', 'read pick', 'line', 'chord row'];
   for (const [name, draw] of Object.entries(SCREENS)) {
     const c = probe();
     draw(c);

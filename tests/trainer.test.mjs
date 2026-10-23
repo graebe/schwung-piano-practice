@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import {
   CIRCLES, MAX_CHOICES, coerceSetup, setupRows, applySetup, customRows, toggleCustom, itemSet,
   customHash, trainerId, parseTrainerId, trainerLabel, trainerSpec, choicesFor, qualityDistance,
-  allItems, subjectOf, startBlock, scaleChart, scaleDistance,
+  allItems, subjectOf, startBlock, scaleChart, scaleDistance, progChart,
 } from '../src/trainer.mjs';
 import { CHORD_LEVELS, playable, qualityById } from '../src/chords.mjs';
 import { createQuiz, pressPitch, pickChoice, CORRECT, WRONG, EAR } from '../src/guess.mjs';
@@ -72,7 +72,10 @@ test('every value of every row fits beside its label', () => {
         for (const scale of Object.keys(MODES)) {
           const s = fresh(circle, { level, key, scale: scale === 'chromatic' ? 'major' : scale, roots: 'chromatic' });
           for (const r of setupRows('chord', circle, s)) {
-            assert.ok(r.label.length + 1 + r.value.length <= 21, `${r.label} ${r.value}`);
+            /* Scale is the Settings row's twin: "Maj Pentatonic" in brackets
+             * shortens the label there too (drawList fits it by measure). */
+            if (r.field === 'scale') continue;
+            assert.ok(r.label.length + 1 + r.value.length + 2 <= 21, `${r.label} [${r.value}]`);
           }
         }
       }
@@ -254,7 +257,7 @@ test('the scale trainer: its rows, each value fitting, Pattern only for a played
   assert.deepEqual(rows('play', {}), ['level', 'key', 'direction', 'round', 'start']);
   for (let level = 1; level <= 10; level++) {
     for (const r of setupRows('scale', 'read', { ...coerceSetup('scale', 'read', null), level, pattern: 'straight', key: 'random' })) {
-      assert.ok(r.label.length + 1 + r.value.length <= 21, `${r.label} ${r.value}`);
+      assert.ok(r.label.length + 1 + r.value.length + 2 <= 21, `${r.label} [${r.value}]`);
     }
   }
   assert.equal(coerceSetup('scale', 'read', null).scale, undefined, 'a scale has no Scale row');
@@ -328,4 +331,81 @@ test('the drawing leans on what was missed', () => {
   }
   assert.ok(dorian > 80, `dorian drawn ${dorian} of 200 (1 in 5 unweighted)`);
   assert.ok(scaleDistance('major', 'lydian') === 2 && scaleDistance('major', 'major') === 0);
+});
+
+/* ---- Progressions --------------------------------------------------------- */
+
+test('the progression trainer: its rows, Key all 12, no Scale row', () => {
+  const s = coerceSetup('prog', 'read', null, { rootPc: 0, mode: 'dorian' });
+  assert.equal(s.scale, undefined);
+  const fields = setupRows('prog', 'read', s).map((r) => r.field || r.act);
+  assert.deepEqual(fields, ['answer', 'level', 'key', 'voicing', 'rhythm', 'start']);
+  for (let i = 0; i < 13; i++) applySetup('prog', s, 'key', 1);
+  assert.equal(s.key, 'all');
+  assert.equal(setupRows('prog', 'read', s).find((r) => r.field === 'key').value, 'all 12');
+  for (let level = 1; level <= 8; level++) {
+    for (const r of setupRows('prog', 'hear', { ...coerceSetup('prog', 'hear', null), level, voicing: 'guide' })) {
+      assert.ok(r.label.length + 1 + r.value.length + 2 <= 21, `${r.label} [${r.value}]`);
+    }
+  }
+  assert.equal(coerceSetup('chord', 'read', { key: 'all' }).key, 0, 'all 12 is the progressions\' alone');
+});
+
+test('progSpec: every circle x answer x level runs, asks only its progressions', () => {
+  for (const circle of CIRCLES) {
+    for (const answer of circle === 'play' ? ['play'] : ['play', 'name']) {
+      for (let level = 1; level <= 8; level++) {
+        for (const key of [2, 'random', 'all']) {
+          const setup = { ...coerceSetup('prog', circle, null), answer, level, key, voicing: 'smooth', rhythm: 'pop' };
+          const spec = trainerSpec('prog', circle, setup, { seed: level });
+          const set = itemSet('prog', setup);
+          const where = `${circle}/${answer}/L${level}/${key}`;
+          if (spec.chart) {
+            assert.ok(set.indexOf(spec.item) >= 0, where);
+            for (const e of spec.chart.events) assert.ok(playable(e.pitches), where);
+            continue;
+          }
+          const quiz = createQuiz({ ...spec, seed: 2 });
+          assert.ok(quiz.pool.length > 0, where);
+          assert.equal(quiz.subject, 'prog');
+          assert.equal(quiz.mode, circle);
+          for (const e of quiz.pool) assert.ok(set.indexOf(e.item || e.answer) >= 0, where);
+          if (answer === 'name') assert.ok(quiz.choices.length >= 2 && quiz.choices.length <= MAX_CHOICES, where);
+          else assert.equal(quiz.entry.chords.length, quiz.entry.tokens.length, where);
+        }
+      }
+    }
+  }
+});
+
+test('Key all 12 walks round the circle: a key a prompt, a key a chart', () => {
+  const setup = { ...coerceSetup('prog', 'play', null), level: 2, key: 'all' };
+  const quiz = createQuiz({ ...trainerSpec('prog', 'play', setup, { seed: 5 }), seed: 5 });
+  const roots = quiz.queue.map((e) => e.root);
+  assert.deepEqual(roots, [0, 5, 10, 3, 8, 1]);
+  assert.equal(new Set(quiz.pool.map((e) => e.item)).size, 1, 'the same progression');
+  const read = { ...coerceSetup('prog', 'read', null), level: 2, key: 'all' };
+  const first = trainerSpec('prog', 'read', read, { seed: 1 });
+  assert.equal(first.root, 0);
+  const second = trainerSpec('prog', 'read', read, { seed: 9, walk: first.walk });
+  assert.deepEqual([second.item, second.root], [first.item, 5]);
+  const last = trainerSpec('prog', 'read', read, { seed: 9, walk: { item: first.item, at: 11 } });
+  assert.equal(last.root, 0, 'after the twelfth key, a new walk');
+});
+
+test('a progression played back: chord by chord by name, a wrong chord played again', () => {
+  const setup = { ...coerceSetup('prog', 'hear', null), level: 2, key: 0 };
+  const quiz = createQuiz({ ...trainerSpec('prog', 'hear', setup, { seed: 3 }), seed: 3 });
+  const chords = quiz.entry.chords;
+  /* The first chord, inverted: right by name. */
+  const inv = chords[0].slice(1).concat([chords[0][0] + 12]);
+  let res;
+  for (const p of inv) res = pressPitch(quiz, p);
+  assert.equal(quiz.chordAt, 1);
+  assert.equal(pressPitch(quiz, chords[1][0] + 1), WRONG);
+  assert.equal(quiz.chordAt, 1, 'the same chord again');
+  for (let i = 1; i < chords.length; i++) for (const p of chords[i]) res = pressPitch(quiz, p);
+  assert.equal(res, CORRECT);
+  assert.deepEqual(quiz.items[quiz.entry.item].n, [1, 0], 'right only when the whole of it was');
+  assert.ok(progChart('Pachelbel', 7, { voicing: 'bass', rhythm: 'waltz' }).timeSig[0] === 3);
 });

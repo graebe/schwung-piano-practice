@@ -45,7 +45,7 @@ test('Practice › Chords is a ring of the five circles', () => {
   assert.deepEqual(ring.children.map((c) => c.icon), ['staff', 'ear', 'keyletter', 'book', 'progress']);
   assert.ok(S(h).onHome(), 'drawn as circles');
   openPath(S(h), ['Learn']);
-  assert.equal(S(h).listTitle(), 'Chords: learn');
+  assert.equal(S(h).listTitle(), 'Chords');
   assert.equal(S(h).nav[S(h).nav.length - 1].node.children[0].label, 'Triads');
 });
 
@@ -241,7 +241,7 @@ test('Scales: read and play is a chart; its result files the scale; next is anot
   const ring = S(h).nav[S(h).nav.length - 1].node;
   assert.deepEqual(ring.children.map((c) => c.label), ['Read', 'Hear', 'Play', 'Learn', 'Stats']);
   openPath(S(h), ['Learn']);
-  assert.equal(S(h).listTitle(), 'Scales: learn');
+  assert.equal(S(h).listTitle(), 'Scales');
   S(h).back();
   openPath(S(h), ['Read']);
   S(h).activate(false);
@@ -279,4 +279,45 @@ test('Scales: heard and played back, note by note, filed under hear', () => {
   const items = JSON.parse(h.files.get('stats.json')).items.scale;
   const heard = Object.values(items).reduce((n, r) => n + r.hear[0], 0);
   assert.equal(heard, 10);
+});
+
+/* ---- Progressions ------------------------------------------------------------ */
+
+test('Progressions: Key all 12 walks the circle, a chart a key; Learn keeps its charts', () => {
+  const h = fakeHost();
+  S(h).init();
+  openPath(S(h), ['Practice', 'Progressions', 'Learn']);
+  assert.equal(S(h).nav[S(h).nav.length - 1].node.children[0].id, 'basics/progressions/I-IV-V-I');
+  S(h).back();
+  openPath(S(h), ['Read']);
+  const key = S(h).settingsRows().findIndex((r) => r.field === 'key');
+  for (let i = 0; i < 13; i++) S(h).editRow(key, 1);
+  S(h).selectSettingRow(S(h).settingsRows().length - 1);
+  S(h).activate(false);
+  assert.equal(S(h).view, 'ready');
+  const first = S(h).chart.name;
+  assert.match(first, /^Cm? /);
+  playChart(h);
+  for (let i = 0; i < 20 && S(h).view !== RESULT_VIEW; i++) { S(h).activate(false); h.run(200); }
+  S(h).activate(false);                       /* next */
+  assert.equal(S(h).view, 'ready');
+  assert.equal(S(h).chart.name.replace(/^\S+ /, ''), first.replace(/^\S+ /, ''), 'the same progression');
+  assert.match(S(h).chart.name, /^Fm? /, 'in the next key round the circle');
+});
+
+test('Progressions: heard and played back, chord by chord, filed under hear', () => {
+  const h = fakeHost();
+  S(h).init();
+  openPath(S(h), ['Practice', 'Progressions', 'Hear']);
+  S(h).activate(false);
+  assert.equal(S(h).quizTitle(), 'PROGS HEAR');
+  for (let i = 0; i < 400 && S(h).view === GUESS_VIEW; i++) {
+    const q = S(h).quiz;
+    if (!q.solved) for (const c of q.entry.chords) { for (const p of c) S(h).play(p, 100); for (const p of c) S(h).release(p); }
+    h.run(1600);
+  }
+  for (let i = 0; i < 20 && S(h).view !== RESULT_VIEW; i++) { S(h).activate(false); h.run(200); }
+  assert.equal(S(h).lastResult.drill, 'prog:hear:play:L1');
+  const items = JSON.parse(h.files.get('stats.json')).items.prog;
+  assert.equal(Object.values(items).reduce((n, r) => n + r.hear[1], 0), 10);
 });

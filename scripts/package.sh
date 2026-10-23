@@ -24,7 +24,7 @@ PATHMAP="model layout walk places render leds anim scenes"
 # map's). Not HOME: that is the shell's own.
 HOMESCREEN="icons render leds"
 
-MODULES="layout notation staff_render chart scoring verdict scales generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices chord_lessons progressions trainer catalog progress curriculum program ear_core ear_course read_course ear answer_pads info cues hints tips row_sheet map_places session view_model actions remote"
+MODULES="layout notation staff_render chart scoring verdict scales generator exercise_io levels padmap view controls settings_def guess led_paint chords stats choices chord_lessons progressions comping trainer catalog progress curriculum program ear_core ear_course read_course ear answer_pads info cues hints tips row_sheet map_places session view_model actions remote"
 
 # Cache-bust the sibling modules.
 #

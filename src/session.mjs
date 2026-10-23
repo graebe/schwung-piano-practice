@@ -531,6 +531,9 @@ export function createSession(fx, opts = {}) {
   /* A trainer's round played as a chart (Scales › Read, play): its spec, so
    * the result files the item and its next is another round. */
   let armedTrainer = null;
+  /* Where Key = all 12 has got to, per subject: the next chart is the same
+   * progression in the next key round the circle. For the session only. */
+  const trainerWalk = {};
   /* A trainer's Stats open: its subject, its rows, the cursor. */
   let statsSubject = null;
   let statsRows = [];
@@ -860,6 +863,7 @@ export function createSession(fx, opts = {}) {
       how: spec.how || null,
       subject: spec.subject || null,
       choicesFor: spec.choicesFor || null,
+      sequence: Boolean(spec.sequence),
       roundSize: spec.roundSize != null ? spec.roundSize : settings.roundSize,
       fifths: keyFifths(),
       read: quizRead(spec),
@@ -2381,6 +2385,7 @@ export function createSession(fx, opts = {}) {
       bpm: settings.bpm,
       seed: (wallNow() & 0x7fffffff) || 1,
       history: STATS.itemHistory(stats, subject, circle),
+      walk: trainerWalk[subject] || null,
     };
   }
 
@@ -2398,6 +2403,7 @@ export function createSession(fx, opts = {}) {
       build: () => ({ ...spec.chart, source: 'generated' }) };
     if (!armNode(node)) return;
     armedTrainer = { spec, pinned };
+    if (spec.walk) trainerWalk[spec.trainer.subject] = spec.walk;
     announce(chart.name + '. Read it. Press play to start.');
   }
 
@@ -2457,7 +2463,8 @@ export function createSession(fx, opts = {}) {
    * as its setup page, whichever engine runs it. Null for any other quiz. */
   function quizTitle() {
     if (!quizSpec || !quizSpec.trainer) return null;
-    return (TRAIN.subjectOf(quizSpec.trainer.subject).name + ' '
+    const s = TRAIN.subjectOf(quizSpec.trainer.subject);
+    return ((s.short || s.name) + ' '
       + TRAIN.CIRCLE_LABEL[quizSpec.trainer.circle]).toUpperCase();
   }
 

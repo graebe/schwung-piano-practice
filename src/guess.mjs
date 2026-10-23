@@ -146,6 +146,7 @@ export function createQuiz({
   how = null,           /* 'exact' | 'name': how a played answer is judged */
   subject = null,       /* what the per-item table files it under */
   choicesFor = null,    /* entry -> the answers to offer for it, of the exercise's */
+  sequence = false,     /* the pool is asked in its own order, round and round */
 } = {}) {
   const ear = kind === EAR ? (typeof exercise === 'object' && exercise ? exercise : exerciseByKey(exercise)) : null;
   const earLevel = ear ? levelByKey(ear, level) : null;
@@ -183,6 +184,8 @@ export function createQuiz({
     held: [],
     /* A line (a scale played note by note): what has been played of it. */
     played: [],
+    /* A row of chords (a progression played back): the one being played. */
+    chordAt: 0,
     asked: 0,
     correct: 0,
     wrong: 0,
@@ -218,6 +221,8 @@ export function createQuiz({
     finishedAt: null,
   };
   quiz.how = how === 'exact' || how === 'name' ? how : null;
+  quiz.sequence = Boolean(sequence);
+  quiz.seqAt = 0;
   quiz.choicesFor = typeof choicesFor === 'function' ? choicesFor : null;
   quiz.subject = subject || quizSubject(quiz);
   quiz.mode = quizMode(quiz);
@@ -307,6 +312,7 @@ export function nextPrompt(quiz) {
   }
   quiz.held = [];
   quiz.played = [];
+  quiz.chordAt = 0;
   quiz.solved = false;
   quiz.penalised = false;
   quiz.missed = false;
@@ -321,6 +327,7 @@ const promptKey = (e) => e.pitches.join(',') + '|' + (e.label || '');
 function randomEntry(quiz, before) {
   const previous = before ? promptKey(before) : '';
   const same = (e) => promptKey(e) === previous;
+  if (quiz.sequence) return quiz.pool[quiz.seqAt++ % quiz.pool.length];
   const draw = quiz.history || quiz.itemHistory
     ? () => weightedEntry(quiz)
     : () => quiz.pool[Math.floor(quiz.rand() * quiz.pool.length)];
@@ -457,6 +464,7 @@ export function pressPitch(quiz, pitch, nowMs = 0) {
   if (quiz.startedAt === null && nowMs) quiz.startedAt = nowMs;
   if (quiz.solved) return CORRECT;
   if (quiz.entry && quiz.entry.line) return pressLine(quiz, pitch, nowMs);
+  if (quiz.entry && quiz.entry.chords) return pressChords(quiz, pitch, nowMs);
   /* Two pads can be the same pitch on this grid; count it once. */
   if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
 
@@ -520,6 +528,38 @@ function pressLine(quiz, pitch, nowMs) {
     quiz.played = [];
   }
   return result;
+}
+
+/*
+ * A row of chords, each judged by name as it goes down (chords.matchChord):
+ * a chord right moves on to the next — what is still held of it no longer
+ * counts — and a wrong one is a miss, the same chord to play again. The row
+ * is right when every chord is; any miss on the way and it is asked again.
+ */
+function pressChords(quiz, pitch, nowMs) {
+  if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
+  const want = quiz.entry.chords[quiz.chordAt];
+  const result = matchChord(quiz.held, want, quiz.how || 'name');
+  if (result === WRONG) {
+    miss(quiz);
+    quiz.penalised = false;
+    quiz.held = [];
+    return WRONG;
+  }
+  if (result === INCOMPLETE) return INCOMPLETE;
+  quiz.chordAt++;
+  quiz.held = [];
+  if (quiz.chordAt < quiz.entry.chords.length) return INCOMPLETE;
+  solve(quiz, nowMs);
+  return CORRECT;
+}
+
+/* How much of a line or a row of chords is down: notes, or chords. */
+export function lineProgress(quiz) {
+  if (!quiz.entry) return 0;
+  if (quiz.entry.line) return quiz.played.length;
+  if (quiz.entry.chords) return quiz.chordAt;
+  return 0;
 }
 
 export function releasePitch(quiz, pitch) {

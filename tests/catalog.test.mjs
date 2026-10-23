@@ -91,7 +91,8 @@ test('Basics holds scales, chords, progressions and the random drills', () => {
   /* Chords is a trainer: five circles, its lessons under Learn. */
   assert.deepEqual(labels(b.children[1]), ['Read', 'Hear', 'Play', 'Learn', 'Stats']);
   assert.deepEqual(labels(b.children[1].children[3]), CHORD_FAMILIES.map((f) => f.name));
-  assert.deepEqual(labels(b.children[2]), PROGRESSIONS.map((p) => p.id));
+  assert.deepEqual(labels(b.children[2]), ['Read', 'Hear', 'Play', 'Learn', 'Stats'], 'a trainer too');
+  assert.deepEqual(labels(b.children[2].children[3]), PROGRESSIONS.map((p) => p.id));
 });
 
 test('a trainer keeps its lessons under their old ids', () => {
@@ -155,7 +156,7 @@ test('every Basics lesson is regenerated from the settings, never fixed like a f
 });
 
 test('a progression follows the key it was built in', () => {
-  const prog = (rootPc) => basics({ rootPc }).children[2].children[0].levels[3].build();
+  const prog = (rootPc) => basics({ rootPc }).children[2].children[3].children[0].levels[3].build();
   assert.notDeepEqual(prog(0).events, prog(7).events);
   assert.match(prog(7).name, /^G /);
 });

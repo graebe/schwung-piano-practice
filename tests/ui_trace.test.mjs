@@ -300,7 +300,9 @@ const SCENARIOS = {
    * edit that rebuilds. */
   navigate: { settings: QUIET, progress: WELCOMED, play(d) {
     d.run(100);
-    d.jog(1); d.click(); d.jog(2); d.click(); d.press(BACK); d.press(BACK);   /* Practice › Progressions */
+    d.jog(1); d.click(); d.jog(2); d.click();     /* Practice › Progressions: a trainer */
+    d.jog(3); d.click();                          /* its Learn: the charts */
+    d.press(BACK); d.press(BACK); d.press(BACK);
     d.click(); d.jog(4); d.click(); d.jog(1); d.click(); d.jog(1);           /* Practice › Songs › Electronic */
     d.press(BACK); d.press(BACK); d.press(BACK);
     d.jog(60); d.click();                         /* Settings: the page */
@@ -594,6 +596,44 @@ const SCENARIOS = {
     d.click(); d.run(300);                        /* a chart on its ready screen */
     d.knob(7, -2); d.run(200);                    /* Knob 8: slower */
     d.press(BACK); d.run(100);                    /* its setup */
+    d.press(BACK); d.run(100);
+  } },
+
+  /* Progressions, heard: played back chord by chord after the home chord,
+   * a wrong chord on the way; then named. */
+  'prog-hear': { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);              /* Practice */
+    d.jog(2); d.click(); d.run(200);              /* Progressions: the trainer's ring */
+    d.jog(1); d.click(); d.run(100);              /* Hear: its setup */
+    d.click(); d.run(5000);                       /* Start: listen */
+    for (const p of [3, 7, 10]) d.pad(p, 80);     /* a chord */
+    d.pad(1, 80);                                 /* a wrong note */
+    d.press(RECORD); d.run(5000);                 /* help: again, slower */
+    d.press(BACK); d.run(100);
+    d.jog(-6); d.click(); d.jog(1); d.click();    /* Answer: name */
+    d.jog(20); d.click(); d.run(5000);
+    for (let i = 0; i < 6; i++) { d.jog(1); d.click(); d.run(1500); }
+    d.press(BACK); d.press(BACK); d.run(100);
+  } },
+
+  /* Progressions, played: from the numerals with Key all 12, then read as a
+   * chart in pop eighths. */
+  'prog-play': { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);
+    d.jog(2); d.click(); d.run(200);
+    d.jog(2); d.click(); d.run(100);              /* Play: its setup */
+    d.jog(-2); d.click(); d.jog(20); d.click();   /* Key: all 12 */
+    d.jog(20); d.click(); d.run(400);             /* Start */
+    for (const p of [3, 7, 10, 8, 12, 15]) d.pad(p, 60);
+    d.run(600);
+    d.press(BACK); d.press(BACK); d.run(100);
+    d.jog(-2); d.click(); d.run(100);             /* Read */
+    d.jog(-1); d.click(); d.jog(1); d.click();    /* Rhythm: pop 8ths */
+    d.jog(20); d.click(); d.run(300);             /* a chart on its ready screen */
+    d.press(PLAY); d.run(3000);                   /* listen */
+    d.press(BACK); d.press(BACK); d.run(100);     /* its setup */
     d.press(BACK); d.run(100);
   } },
 

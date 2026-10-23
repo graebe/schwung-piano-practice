@@ -1212,6 +1212,52 @@ export function drawLineView(ctx, state) {
 }
 
 /*
+ * A row of chords to play — a progression from its numerals, or heard and
+ * played back. The numerals stand where the staff is, in lines, as a chart
+ * reads; each one inverts as its chord goes down, so the row shows how far
+ * you are. Heard, each is a "?" until the row is played: you hear how many
+ * chords there are, not which. The name lane says the key (from the
+ * numerals), or the progression once it is played.
+ *
+ *   state = { title, score, tokens, done, hidden, keyText, label, solved, footer }
+ */
+export function drawChordRow(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: true });
+  const words = state.tokens.map((w) => (state.hidden && !state.solved ? '?' : w));
+  const gap = ctx.textWidth(' ') + 2;
+  const lines = [[]];
+  let width = 0;
+  for (const w of words) {
+    const ww = ctx.textWidth(w) + 4;
+    if (width && width + gap + ww > L.SCREEN_W - 4) { lines.push([]); width = 0; }
+    width += (width ? gap : 0) + ww;
+    lines[lines.length - 1].push(w);
+  }
+  const lineH = L.TEXT_H + 4;
+  const top = L.HEADER_H + 2 + Math.max(0, ((L.NAME_RULE_Y - L.HEADER_H - 2) - lines.length * lineH) >> 1);
+  let at = 0;
+  lines.forEach((line, row) => {
+    const total = line.reduce((n, w) => n + ctx.textWidth(w) + 4, 0) + gap * (line.length - 1);
+    let x = (L.SCREEN_W - total) >> 1;
+    const y = top + row * lineH;
+    for (const w of line) {
+      const ww = ctx.textWidth(w) + 4;
+      const done = state.solved || at < (state.done || 0);
+      if (done) ctx.fillRect(x, y - 1, ww, L.TEXT_H + 2, 1);
+      else if (at === (state.done || 0)) ctx.drawRect(x, y - 2, ww, L.TEXT_H + 4, 1);
+      ctx.text(x + 2, y, w, done ? 0 : 1);
+      x += ww + gap;
+      at++;
+    }
+  });
+  const lane = truncate(ctx, state.solved ? (state.label || '') : (state.keyText || '?'), L.TEXT_MAX_PX - 4);
+  ctx.text((L.SCREEN_W - ctx.textWidth(lane)) >> 1, L.NAME_LANE_Y, lane, 1);
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
  * An Info page: what a practice is and the words it uses. Wrapped text,
  * scrolled a line at a time with the jog, headings underlined, and a bar at
  * the right edge saying how much there is and where you are in it.

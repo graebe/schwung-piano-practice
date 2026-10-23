@@ -216,8 +216,9 @@ export function randomFolder(gen = {}) {
  */
 export function trainerFolder(subject, label, learn, learnId) {
   learn.label = 'Learn';
-  /* Its list says whose lessons they are: "Learn" alone could be any. */
-  learn.title = label + ': learn';
+  /* Its list is titled as it always was, with the subject's name: "Learn"
+   * alone could be any trainer's. */
+  learn.title = label;
   learn.key = learnId;
   learn.absolute = true;
   const circle = (c, name) => ({ label: name, value: '', key: c, trainer: { subject, circle: c } });
@@ -262,7 +263,7 @@ export function basics(gen = {}, more = []) {
   return folder('Practice', [
     trainerFolder('scale', 'Scales', lazyFolder('Scales', scales), 'basics/scales'),
     trainerFolder('chord', 'Chords', lazyFolder('Chords', families), 'basics/chords'),
-    lazyFolder('Progressions', progressions),
+    trainerFolder('prog', 'Progressions', lazyFolder('Progressions', progressions), 'basics/progressions'),
     randomFolder(gen),
   ].concat(more), 'basics');
 }

@@ -748,6 +748,19 @@ function draw() {
       hint: ask,
       footer: footer(),
     });
+  } else if (view === GUESS_VIEW && quiz.entry && quiz.entry.chords) {
+    /* A progression played chord by chord: from its numerals, or by ear. */
+    VIEW.drawChordRow(ctx, {
+      title: S.quizTitle() || 'PLAY',
+      score: quiz.roundSize > 0 ? quiz.correct + '/' + quiz.roundSize : String(GUESS.quizStats(quiz).correct),
+      tokens: quiz.entry.tokens,
+      done: GUESS.lineProgress(quiz),
+      hidden: quiz.read !== GUESS.READ_NAME && quiz.hint === 0,
+      keyText: quiz.read === GUESS.READ_NAME ? quiz.entry.keyText : '?',
+      label: quiz.entry.label,
+      solved: quiz.solved,
+      footer: footer(),
+    });
   } else if (view === GUESS_VIEW && quiz.entry && quiz.entry.line) {
     /* A scale played as a line: from its name, or heard and played back. */
     const named = quiz.read === GUESS.READ_NAME || quiz.solved;

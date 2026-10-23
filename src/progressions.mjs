@@ -150,9 +150,26 @@ export const PROGRESSION_LEVELS = [
   ],
 ];
 
+/*
+ * Two characters for a cell of the answer map (the jog's choice shows the
+ * whole name): the name's initials, or the numerals' degrees where the name
+ * is the numerals. Each one different.
+ */
+const MARKS = {
+  'V-I': 'AC', 'IV-I': 'PC', 'I-V': 'HC', 'V-vi': 'DC', 'I-IV-V-I': '14', 'I-V-vi-IV': 'Ax',
+  'vi-IV-I-V': '64', 'I-vi-IV-V': '50', 'IV-V-iii-vi': 'RR', 'i-iv-V-i': 'mc', 'i-VI-III-VII': '63',
+  'i-VII-VI-V': 'An', 'i-iv-v-i modal': 'mo', 'ii-V-I': '25', 'vi-ii-V-I': '62', 'I-vi-ii-V': 'Tu',
+  'iii-vi-ii-V-I': '36', '12-bar blues': 'Bl', 'quick-change blues': 'QC', 'minor blues': 'mB',
+  'I-bVII-IV': 'Mx', 'bVI-bVII-I': '67', 'I-iv-I': 'mP', 'i-bII': 'Pv', 'I-V/V-V-I': 'Sd',
+  'ii-V-i minor': '2m', 'ii-bII7-I': 'TT', 'iv7-bVII7-I': 'BD', Pachelbel: 'Pa',
+};
+
 /* Every progression, in ladder order, each with its steps parsed. */
 export const PROGRESSIONS = [].concat(...PROGRESSION_LEVELS);
-for (const item of PROGRESSIONS) item.steps = parseNumerals(item.numerals, item.mode);
+for (const item of PROGRESSIONS) {
+  item.steps = parseNumerals(item.numerals, item.mode);
+  item.mark = MARKS[item.id];
+}
 
 /* The Learn charts, in the order Practice › Progressions has always listed them. */
 export const LESSON_PROGRESSIONS = PROGRESSIONS
@@ -184,6 +201,24 @@ export function numeralsLabel(item) {
 export function progressionKey(item, tonicPc) {
   if (item.mode === 'minor') return scaleKey(tonicPc, MODES.harmonicMinor, 'harmonicMinor');
   return majorKeyFifths(tonicPc);
+}
+
+/* "D", "F# minor": the key a progression is in, as a name says it. */
+export function keyName(item, tonicPc) {
+  const key = progressionKey(item, tonicPc);
+  return spell(tonicPc + 60, key).label + (item.mode === 'minor' ? ' minor' : '');
+}
+
+/* How far apart two progressions are: their lengths' difference, and every
+ * place where their chords differ. */
+export function progressionDistance(a, b) {
+  const x = progressionById(a).steps;
+  const y = progressionById(b).steps;
+  let d = Math.abs(x.length - y.length);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) {
+    if (x[i][0] !== y[i][0] || x[i][1] !== y[i][1]) d++;
+  }
+  return d;
 }
 
 /* The chords on `tonicPc`: [{ root, quality }], root a pitch class. */
