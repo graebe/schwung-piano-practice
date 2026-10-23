@@ -31,8 +31,11 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { padPitch } from '../src/padmap.mjs';
+import { padPitch, padsForPitch, DEFAULT_TRANSPOSE } from '../src/padmap.mjs';
 import { layoutPlaces, padOfCell } from '../src/pathmap/layout.mjs';
+import * as PROG from '../src/progress.mjs';
+import * as PLAN from '../src/program.mjs';
+import * as CAT from '../src/catalog.mjs';
 import { fakeDsp } from './support/fake_dsp.mjs';
 
 const SRC = new URL('../src/', import.meta.url).pathname;
@@ -220,15 +223,70 @@ function driver(host) {
     }
     for (const n of down.keys()) midi([0x80, n, 0]);
   };
+  /*
+   * A player who knows the piece: REC, then every note of `chart` on its beat
+   * after the count-in, whether or not a pad is lit (Solo keeps them dark).
+   */
+  const playChart = (chart) => {
+    press(RECORD);
+    const start = host.now() - 20;
+    const msPerBeat = 60000 / chart.bpm;
+    for (const e of chart.events) {
+      const at = start + (e.beat + 4) * msPerBeat;
+      while (host.now() < at) tick();
+      for (const pitch of e.pitches) midi([0x90, padsForPitch(pitch, DEFAULT_TRANSPOSE)[0], 100]);
+      tick();
+      for (const pitch of e.pitches) midi([0x80, padsForPitch(pitch, DEFAULT_TRANSPOSE)[0], 0]);
+    }
+    run(3000);
+  };
   /* Back up to home, the top of the lesson list, and no further: one Back
    * more would close the module. Home's title is the module's name. */
   const toTop = () => {
     for (let i = 0; i < 8 && !host.screen().startsWith('PIANO | '); i++) press(BACK);
   };
-  return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, toTop, host };
+  return { tick, run, midi, cc, press, jog, click, pad, knob, shiftWith, follow, playChart, toTop, host };
 }
 
 const QUIET = JSON.stringify({ version: 7, autoInfo: false, quizSounds: false, roundSize: 10 });
+
+/*
+ * Progress for the scenes: what the Learning Path holds when a take is about
+ * to finish something. Played an hour before the scenario's clock, so
+ * nothing is due for review yet.
+ */
+const TIPS_SEEN = ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'];
+function progressWith(fn) {
+  const p = PROG.emptyProgress();
+  p.tips = TIPS_SEEN.slice();
+  const at = EPOCH - 3600000;
+  const learn = (id) => {
+    PROG.recordAttempt(p, id, { stage: 1, score: 1, at });
+    PROG.recordAttempt(p, id, { stage: 2, score: 1, at });
+  };
+  const guided = (id) => PROG.recordAttempt(p, id, { stage: 1, score: 1, at });
+  fn({ learn, guided, phases: PLAN.buildProgram() });
+  return PROG.serialiseProgress(p);
+}
+/* 1.3 Major scale with Major down left to play Solo. */
+const LAST_OF_UNIT = progressWith(({ learn, guided }) => {
+  learn('basics/scales/major/up-down');
+  guided('basics/scales/major/down');
+});
+/* Stage 1 learned but Major up & down, which its checkpoint plays Solo. */
+const LAST_OF_STAGE = progressWith(({ learn, guided, phases }) => {
+  for (const step of PLAN.phaseSteps(phases[0])) if (step.id !== 'basics/scales/major/up-down') learn(step.id);
+  guided('basics/scales/major/up-down');
+});
+/* A Path step's chart, as the session builds it: in C, at the settings' tempo. */
+function pathChart(id) {
+  const pinned = CAT.basics({ rootPc: 0, mode: 'major', bpm: 80, transpose: DEFAULT_TRANSPOSE, seed: 1,
+    ...PLAN.PROGRAM_GEN });
+  CAT.stampChildren([pinned], '');
+  return CAT.findById({ children: [pinned] }, id).node.build();
+}
+/* Island 1's places: a pad for each, the island's own layout. */
+const islandPad = (n, i) => padOfCell(layoutPlaces(n, { kind: 'island' }).cells[i]) - 68;
 /* Welcomed, with every tip seen: the scenarios below are about what they
  * drive, not about the first-visit cards, which `welcome` and `sheet` cover. */
 const WELCOMED = JSON.stringify({ tips: ['welcome', 'sheet', 'practice', 'quiz', 'map', 'island', 'placement'] });
@@ -436,6 +494,56 @@ const SCENARIOS = {
     d.press(BACK); d.run(100);                    /* the map again */
     d.press(BACK); d.run(400);                    /* up to the world */
     d.press(PLAY); d.run(600);                    /* Continue */
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * Into an island and out: the zoom in (frames on the way), Back's zoom out,
+   * and a zoom skipped by the jog, which only skips.
+   */
+  zoom: { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.click(); d.run(300);                        /* the world */
+    d.click();                                    /* into stage 1: the zoom */
+    for (let i = 0; i < 4; i++) d.run(100);
+    d.press(BACK);                                /* out again */
+    for (let i = 0; i < 4; i++) d.run(100);
+    d.click(); d.run(60); d.jog(1); d.run(100);   /* in, and a skip mid-zoom */
+    d.press(BACK); d.run(400);
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * The last step of a place played Solo: a star round the score (learned),
+   * then Next: the flag up on 1.3 Major scale, the walk to the next place,
+   * and its step armed.
+   */
+  'next-walk': { settings: QUIET, progress: LAST_OF_UNIT, play(d) {
+    d.run(100);
+    d.click(); d.run(300);                        /* the world */
+    d.click(); d.run(400);                        /* island 1 */
+    d.pad(islandPad(9, 2), 60); d.run(1000);      /* walk to 1.3 Major scale */
+    d.pad(islandPad(9, 2), 60); d.run(100);       /* and in */
+    d.jog(1); d.click(); d.run(100);              /* Major down, Solo */
+    d.playChart(pathChart('basics/scales/major/down'));
+    d.run(700);                                   /* the star */
+    d.click();                                    /* Next: the flag, the walk */
+    d.run(4000);
+    d.toTop(); d.run(200);
+  } },
+
+  /*
+   * A stage's checkpoint passed: fireworks over the fort, CHECKPOINT PASSED,
+   * out to the world, the sail to stage 2, in, and on.
+   */
+  'stage-done': { settings: QUIET, progress: LAST_OF_STAGE, play(d) {
+    d.run(100);
+    d.click(); d.run(300);                        /* the world */
+    d.shiftWith(JOG_CLICK); d.jog(2); d.click(); d.run(100);   /* Test out: checkpoint */
+    d.playChart(pathChart('basics/scales/major/up-down'));
+    d.run(700);                                   /* the star */
+    d.click();                                    /* Next */
+    d.run(8000);
     d.toTop(); d.run(200);
   } },
 
