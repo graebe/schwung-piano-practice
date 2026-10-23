@@ -59,7 +59,7 @@ test('the format is KEY verb, two spaces between pairs, in the suggested words',
   for (const view of VIEWS) {
     for (const part of hintFor(view, {})) {
       for (const pair of part.split('  ')) {
-        assert.match(pair, /^((JOG|CLICK|BACK|MENU|SHIFT|PLAY|REC|PAD|ANY KEY) |Guided: |Solo: |PAUSED$|streak )/, `${view}: "${pair}"`);
+        assert.match(pair, /^((JOG|CLICK|BACK|MENU|SHIFT|PLAY|REC|PAD|KNOB|ANY KEY) |Guided: |Solo: |PAUSED$|streak )/, `${view}: "${pair}"`);
       }
     }
   }

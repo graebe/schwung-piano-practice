@@ -27,7 +27,7 @@ import { createWalk } from './pathmap/walk.mjs';
 import { cellCentre } from './pathmap/layout.mjs';
 import { flagRise, fireworks, zoomIn, zoomOut, starBurst, starFit, finale, banner, FLAG_MS } from './pathmap/anim.mjs';
 import { ZOOM, CELEBRATE, FINALE, BANNER } from './pathmap/scenes.mjs';
-import { drawHome } from './home/render.mjs';
+import { drawHome, circleRuns, circleRows } from './home/render.mjs';
 import { mapTitle } from './map_places.mjs';
 
 /* Every footer is a part of a hint from hints.mjs: the caller picks the part
@@ -80,6 +80,23 @@ export function fitWords(ctx, text, maxPx) {
     }
   }
   return front(words, '') || truncate(ctx, words[0] || text, maxPx);
+}
+
+/*
+ * A level and its items ("8  maj m dim aug sus2 ..."): as many whole items as
+ * fit, then "+n" for the ones left out, so a long level never ends mid-word
+ * and still says that there is more.
+ */
+export function fitItems(ctx, text, maxPx) {
+  if (ctx.textWidth(text) <= maxPx) return text;
+  const at = text.indexOf('  ');
+  const head = at < 0 ? '' : text.slice(0, at + 2);
+  const items = (at < 0 ? text : text.slice(at + 2)).split(' ').filter(Boolean);
+  for (let n = items.length - 1; n > 0; n--) {
+    const s = head + items.slice(0, n).join(' ') + ' +' + (items.length - n);
+    if (ctx.textWidth(s) <= maxPx) return s;
+  }
+  return truncate(ctx, head + '+' + items.length, maxPx);
 }
 
 /*
@@ -1510,6 +1527,107 @@ export function infoLines(ctx, paragraphs) {
 }
 
 /* Scrolling list used for both the exercise picker and the settings page. */
+/*
+ * A trainer circle's setup, as a row of eight knobs mirroring the hardware:
+ * each knob drawn where it sits under the screen, its number inside, an arc
+ * along its rim as far as its value stands — from 7 o'clock for the first
+ * value to 5 o'clock for the last, as a real knob turns — and the value's two
+ * characters under it. A knob this circle does not use is a dotted ring with
+ * nothing in it. The knob in focus (last turned or touched) is filled, and
+ * the area under the rule names it and spells out its value. Play starts;
+ * while starting is blocked the second detail line says why.
+ *
+ *   state = { title, knobs: [{ n, field, label, short, text, pos }], focus,
+ *             blocked, footer }
+ */
+export const KNOB_R = 6;
+export const KNOB_Y = 16;
+export const knobX = (n) => 8 + 16 * (n - 1);
+export const KNOB_VALUE_Y = 26;
+const KNOB_RULE_Y = 35;
+const KNOB_DETAIL_Y = [37, 46];
+
+let dottedRing = null;
+/* Every other pixel of the ring, as single rects: "nothing here". */
+function dotted() {
+  if (dottedRing) return dottedRing;
+  const rows = circleRows(KNOB_R).outline;
+  dottedRing = [];
+  rows.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch === '#' && (x + y) % 2 === 0) dottedRing.push([x, y, 1, 1]);
+  }));
+  return dottedRing;
+}
+
+function blitRects(ctx, rects, x, y, v) {
+  for (let i = 0; i < rects.length; i++) ctx.fillRect(x + rects[i][0], y + rects[i][1], rects[i][2], rects[i][3], v);
+}
+
+/*
+ * The value as an arc: the ring drawn double from 7 o'clock, clockwise, as far
+ * as the value stands, to 5 o'clock for the last; a real knob's travel. A
+ * single dot on a 13-pixel ring read as a thicker outline, not a position.
+ * The arc is the ring one pixel in, as rects relative to the knob's box, one
+ * set per step of the travel (cached).
+ */
+const KNOB_TRAVEL = 300;
+const arcCache = new Map();
+export function knobArc(pos) {
+  const deg = Math.round(KNOB_TRAVEL * Math.max(0, Math.min(1, pos)));
+  let rects = arcCache.get(deg);
+  if (rects) return rects;
+  /* The ring's pixels along the travel; the first is lit at the first value,
+   * all of them at the last. */
+  const r = KNOB_R - 1;
+  const ring = [];
+  circleRows(r).outline.forEach((row, y) => [...row].forEach((ch, x) => {
+    if (ch !== '#') return;
+    const t = ((Math.atan2(x - r, r - y) * 180) / Math.PI - 210 + 720) % 360;
+    if (t <= KNOB_TRAVEL) ring.push({ x: x + 1, y: y + 1, t });
+  }));
+  const t0 = Math.min(...ring.map((p) => p.t));
+  const t1 = Math.max(...ring.map((p) => p.t));
+  const upTo = t0 + ((t1 - t0) * deg) / KNOB_TRAVEL + 0.5;
+  rects = ring.filter((p) => p.t <= upTo).map((p) => [p.x, p.y, 1, 1]);
+  arcCache.set(deg, rects);
+  return rects;
+}
+
+export function drawKnobSetup(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title, right: state.blocked ? '' : '> PLAY' });
+  const runs = circleRuns(KNOB_R);
+  for (const k of state.knobs) {
+    const cx = knobX(k.n);
+    const ox = cx - KNOB_R;
+    const oy = KNOB_Y - KNOB_R;
+    if (!k.field) {
+      blitRects(ctx, dotted(), ox, oy, 1);
+      continue;
+    }
+    const focus = k.n === state.focus;
+    blitRects(ctx, focus ? runs.fill : runs.outline, ox, oy, 1);
+    const ink = focus ? 0 : 1;
+    ctx.text(cx - 2, KNOB_Y - 3, String(k.n), ink);
+    blitRects(ctx, knobArc(k.pos), ox, oy, ink);
+    const w = ctx.textWidth(k.short);
+    ctx.text(cx - ((w + 1) >> 1) + 1, KNOB_VALUE_Y, k.short, 1);
+  }
+  ctx.fillRect(0, KNOB_RULE_Y, L.SCREEN_W, 1, 1);
+  const k = state.knobs.find((x) => x.n === state.focus && x.field);
+  if (k) {
+    ctx.text(2, KNOB_DETAIL_Y[0], truncate(ctx, 'KNOB ' + k.n + '  ' + k.label.toUpperCase(), L.TEXT_MAX_PX - 2), 1);
+    /* Blocked, the reason is what matters: the value waits. */
+    const max = L.TEXT_MAX_PX - 2;
+    const second = state.blocked
+      ? ['to start: ' + state.blocked, 'start: ' + state.blocked, state.blocked].find((s) => ctx.textWidth(s) <= max) || state.blocked
+      : k.field === 'level' ? fitItems(ctx, k.text, max) : fitWords(ctx, k.text, max);
+    ctx.text(2, KNOB_DETAIL_Y[1], truncate(ctx, second, max), 1);
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
 /*
  * A trainer's Stats: its items, weakest first, and how much of each was right
  * read, heard and played — a meter each under R H P.

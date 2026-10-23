@@ -50,7 +50,7 @@ import * as CAT from './catalog.mjs';
 import {
   createSession, OUT_TRACK, OUT_USB, OUT_INTERNAL,
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
-  SHEET_VIEW, CARD_VIEW, ANIM_VIEW, TRAINER_STATS,
+  SHEET_VIEW, CARD_VIEW, ANIM_VIEW, TRAINER_STATS, TRAINER_SETUP,
 } from './session.mjs';
 import { hintPart, ROTATE_MS } from './hints.mjs';
 import { mapPadColors } from './pathmap/leds.mjs';
@@ -523,7 +523,8 @@ function paintPads() {
   const view = S.view;
   const quiz = S.quiz;
   const ledView = view === GUESS_VIEW ? CTRL.GUESS : view;
-  setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, S.listening, S.paused));
+  const blocked = view === TRAINER_SETUP && Boolean(S.knobSetup().blocked);
+  setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, S.listening, S.paused, blocked));
   setButtonLED(CC_RECORD, CTRL.recordLedColor(ledView, S.listening, ledPhase,
     Boolean(quiz && GUESS.hintsLeft(quiz) === 0), S.paused));
 }
@@ -693,6 +694,8 @@ function draw() {
       centreFooter: true,
       editing: S.settingsEditing,
     });
+  } else if (view === TRAINER_SETUP) {
+    VIEW.drawKnobSetup(ctx, { ...S.knobSetup(), footer: footer() });
   } else if (view === TRAINER_STATS) {
     VIEW.drawTrainerStats(ctx, {
       title: S.trainerStatsTitle().toUpperCase(),
@@ -969,6 +972,11 @@ function inSong() {
 }
 
 function onKnob(index, delta) {
+  /* A trainer's setup: knob n is setting n, one value a detent. */
+  if (S.view === TRAINER_SETUP) {
+    S.knobTurn(index + 1, delta > 0 ? 1 : -1);
+    return;
+  }
   if (inSong()) {
     if (index === 0) {
       /*
@@ -1006,6 +1014,10 @@ function onKnob(index, delta) {
  * by resting a finger on a knob.
  */
 function onKnobTouch(index) {
+  if (S.view === TRAINER_SETUP) {
+    S.knobTouch(index + 1);
+    return;
+  }
   if (S.view !== SETTINGS || index >= SETTINGS_PER_PAGE) return;
   const row = settingsPageTop() + index;
   if (row >= S.settingsRows().length) return;

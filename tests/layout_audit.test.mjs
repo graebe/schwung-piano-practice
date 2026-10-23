@@ -38,8 +38,20 @@ import { createWalk, walkTo } from '../src/pathmap/walk.mjs';
 import { mapTitle } from '../src/map_places.mjs';
 import { createGrow, startGrow } from '../src/home/render.mjs';
 import { PRACTICE_PIANO } from '../src/home/icons.mjs';
+import * as TRAIN from '../src/trainer.mjs';
 
 /* A map at its worst: long names, three-digit percents, reviews due. */
+/* A trainer's knob screen as the session hands it to the view. */
+function knobScreen(c, subject, circle, stored, focus) {
+  const setup = TRAIN.coerceSetup(subject, circle, stored);
+  const blocked = TRAIN.startBlock(subject, circle, setup);
+  return V.drawKnobSetup(c, {
+    title: (TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle]).toUpperCase(),
+    knobs: TRAIN.knobsOf(subject, circle, setup), focus, blocked,
+    footer: hintFor('trainer-setup', { blocked, custom: setup.level === 'custom' })[0],
+  });
+}
+
 function mapScreen(c, n, kind, at, opts = {}) {
   const places = Array.from({ length: n }, (_, i) => makePlace({
     label: kind === 'island' ? `${i + 1} Shapes and time` : `${3}.${i + 1} Advanced pieces`, percent: 100,
@@ -449,6 +461,15 @@ const SCREENS = {
   'trainer stats, nothing yet': (c) => V.drawTrainerStats(c, {
     title: 'CHORDS', rows: [], cursor: 0, footer: hintFor('trainer-stats', { empty: true })[0],
   }),
+  /* The knob screen: three, five and eight knobs in use, the focus at
+   * either end, the longest level, and a Custom pick too small to start. */
+  'knobs, Notes Play: three': (c) => knobScreen(c, 'note', 'play', {}, 2),
+  'knobs, Scales Read: five, focus last': (c) => knobScreen(c, 'scale', 'read', { answer: 'name' }, 5),
+  'knobs, Chords Hear: eight, focus first': (c) => knobScreen(c, 'chord', 'hear', { answer: 'name' }, 1),
+  'knobs, Chords Hear: eight, focus last': (c) => knobScreen(c, 'chord', 'hear', { round: 0 }, 8),
+  'knobs, Chords Read: the top level': (c) => knobScreen(c, 'chord', 'read', { level: 10 }, 2),
+  'knobs, Progressions Read: blocked': (c) =>
+    knobScreen(c, 'prog', 'read', { answer: 'name', level: 'custom', custom: [] }, 2),
   'pick, eight chord answers on the map': (c) => V.drawPick(c, {
     title: 'CHORDS HEAR', score: '19/20', index: 7,
     options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
@@ -573,6 +594,16 @@ test('every footer this module can show fits across the screen', () => {
     'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim', 'trainer-stats']) {
     for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
   }
+  /* The knob screen, ready, on Custom, and with each trainer's reason not
+   * to start. */
+  const knobStates = [{}, { custom: true }];
+  for (const s of Object.keys(TRAIN.SUBJECTS)) {
+    const noun = TRAIN.subjectOf(s).noun;
+    knobStates.push({ blocked: 'tick 1 ' + noun[0], custom: true }, { blocked: 'tick 2 ' + noun[1], custom: true });
+  }
+  for (const st of knobStates) {
+    footers.push(...hintFor('trainer-setup', st), ...hintFor('trainer-setup', { ...st, shift: true }));
+  }
   for (const f of footers) {
     assert.ok(c.textWidth(f) <= L.TEXT_MAX_PX, `${JSON.stringify(f)} is ${c.textWidth(f)}px`);
   }
@@ -665,5 +696,34 @@ test('the star stays in its room: clear of the digits and the caption, inside th
       }
     }
     assert.ok(rays > 0, 'a star is drawn');
+  }
+});
+
+/* Every circle of every trainer: the knob screen's values sit under their
+ * knobs, inside the screen, and its two detail lines fit, whichever knob is in
+ * focus and whatever its value. */
+test('the knob screen fits for every knob of every circle at every value', () => {
+  for (const subject of Object.keys(TRAIN.SUBJECTS)) {
+    for (const circle of TRAIN.CIRCLES) {
+      const setup = TRAIN.coerceSetup(subject, circle, { answer: 'name' });
+      const knobs = TRAIN.knobsOf(subject, circle, setup);
+      for (const k of knobs.filter((x) => x.field)) {
+        for (const v of TRAIN.knobValues(subject, circle, setup, k.field)) {
+          const c = probe();
+          const s = TRAIN.coerceSetup(subject, circle, { ...setup, [k.field]: v.value });
+          V.drawKnobSetup(c, {
+            title: subject.toUpperCase(), knobs: TRAIN.knobsOf(subject, circle, s), focus: k.n,
+            blocked: TRAIN.startBlock(subject, circle, s), footer: 'KNOB set  PLAY start',
+          });
+          const bad = collisions(c);
+          assert.deepEqual(bad, [], `${subject} ${circle} knob ${k.n} = ${v.short}\n  ` + bad.join('\n  '));
+          const { texts } = c.transcript();
+          /* A value is narrower than the 16 px between two knobs. */
+          for (const tx of texts.filter((x) => x.y === V.KNOB_VALUE_Y)) {
+            assert.ok(tx.w <= 14, `${subject} ${circle}: value ${tx.s} is ${tx.w}px, wider than its knob`);
+          }
+        }
+      }
+    }
   }
 });

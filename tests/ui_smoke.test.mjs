@@ -122,8 +122,8 @@ const click = () => {
  * 2-3 Ear, 4-5 Name notes and chords.
  */
 /*
- * Practice › a trainer › a circle: its setup page, on Start. Subjects and
- * circles by their place in the rings.
+ * Practice › a trainer › a circle: its knob screen. Subjects and circles by
+ * their place in the rings.
  */
 const SUBJECT = { notes: 0, intervals: 1, scales: 2, chords: 3, progs: 4 };
 const CIRCLE = { read: 0, hear: 1, play: 2 };
@@ -136,26 +136,24 @@ function openSetup(subject, circle) {
   jog(circle);
   click();
 }
-/* On a setup page, from Start: the row `up` above it turned `by`, then Start again. */
-function turnRow(up, by) {
-  jog(-up);
-  click();
-  jog(by);
-  click();
-  jog(up);
+/* On the knob screen: knob n turned `by` detents. */
+function turnKnob(n, by) {
+  for (let i = 0; i < Math.abs(by); i++) globalThis.onMidiMessageInternal(CC(KNOB1 + n - 1, by > 0 ? 1 : 127));
+  globalThis.tick();
 }
+const startRound = () => { globalThis.onMidiMessageInternal(CC(PLAY, 127)); globalThis.tick(); };
 /* The rounds the tests play, each a trainer's circle as set up. */
 const ROUNDS = [
   () => openSetup(SUBJECT.notes, CIRCLE.play),                                        /* a note by name */
   () => openSetup(SUBJECT.notes, CIRCLE.read),                                        /* a note on the staff */
   () => openSetup(SUBJECT.intervals, CIRCLE.hear),                                    /* an interval, named */
   () => openSetup(SUBJECT.chords, CIRCLE.hear),                                       /* a chord, played back */
-  () => { openSetup(SUBJECT.notes, CIRCLE.read); turnRow(3, 1); },                    /* a note, named */
-  () => { openSetup(SUBJECT.chords, CIRCLE.read); turnRow(7, 1); },                   /* a chord, named */
+  () => { openSetup(SUBJECT.notes, CIRCLE.read); turnKnob(1, 1); },                  /* a note, named */
+  () => { openSetup(SUBJECT.chords, CIRCLE.read); turnKnob(1, 1); },                 /* a chord, named */
 ];
 function openQuiz(row) {
   ROUNDS[row]();
-  click();                                                                            /* Start */
+  startRound();                                                                       /* PLAY */
 }
 function openProgress() {
   globalThis.init();
@@ -1204,8 +1202,8 @@ test('Practice is the five trainers, each the same five circles', () => {
 const THIRDS = { pads: [2, 5], gaps: [0, 1, 3, 4, 6, 7] };
 function openThirds() {
   openSetup(SUBJECT.intervals, CIRCLE.hear);
-  turnRow(3, 1);                                     /* Level 2 */
-  click();                                           /* Start */
+  turnKnob(2, 1);                                    /* Level 2 */
+  startRound();
 }
 
 test('an answer pad answers without a sound, and the bar shows the answers', async () => {
@@ -1440,9 +1438,9 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
 test('hearing help: Record replays slower, then strikes an answer; Play repeats', () => {
   freezeClock();
   openSetup(SUBJECT.chords, CIRCLE.hear);     /* Chords › Hear, named: four triads, block */
-  turnRow(8, 1);
-  turnRow(7, 1);
-  click();
+  turnKnob(1, 1);
+  turnKnob(2, 1);
+  startRound();
   advanceMs(3000);
   hostCalls.notes.length = 0;
   globalThis.onMidiMessageInternal(CC(PLAY, 127));
@@ -1466,7 +1464,7 @@ test('every trainer\'s Hear opens and sounds without throwing', () => {
   for (const [name, subject] of Object.entries(SUBJECT)) {
     hostCalls.notes.length = 0;
     openSetup(subject, CIRCLE.hear);
-    click();                                          /* Start */
+    startRound();
     advanceMs(400);
     assert.ok(noteOns().length >= 1, `${name} played nothing`);
     globalThis.onMidiMessageInternal(CC(JOG_TURN, 1));

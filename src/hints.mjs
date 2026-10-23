@@ -44,6 +44,8 @@ const HOME = 'home';
 const ANIM = 'anim';
 /* A trainer's Stats: its items, weakest first. */
 const TRAINER_STATS = 'trainer-stats';
+/* A trainer circle's setup: eight knobs. */
+const TRAINER_SETUP = 'trainer-setup';
 
 /* Shift+Back leaves the module from anywhere (ui.js). */
 const QUIT = 'BACK quit';
@@ -106,6 +108,12 @@ function table(screen, s) {
         shift: ['CLICK close', QUIT] };
     case TRAINER_STATS:
       return { keys: s.empty ? ['BACK up'] : ['CLICK detail', 'BACK up'], shift: [QUIT] };
+    case TRAINER_SETUP:
+      /* Blocked, the reason stands where PLAY start would. */
+      return {
+        keys: ['KNOB set', s.blocked || 'PLAY start'].concat(s.custom ? ['CLICK custom'] : []),
+        shift: ['CLICK as list', QUIT],
+      };
     case PROGRESS:
       return { keys: ['CLICK chart', 'BACK up'], shift: [QUIT] };
     case PROGRESS_DETAIL:
@@ -158,6 +166,9 @@ function about(screen, s) {
       return s.ear ? 'A listening round: name what you hear.'
         : s.pick ? 'A round of naming: name what the lit pads play.'
           : 'A round: play what is asked, on the pads.';
+    case TRAINER_SETUP:
+      return 'A round\'s setup, on the knobs under the screen: each turns one setting, the same knob in every trainer'
+        + (s.knobs ? ' (' + s.knobs + ')' : '') + '. A touch names a knob, the jog walks them, PLAY starts the round.';
     case TRAINER_STATS:
       return 'What you have played of this subject, weakest first: how much of each was right read, heard and played. CLICK shows one in detail.';
     case SETTINGS:

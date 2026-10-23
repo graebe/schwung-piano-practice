@@ -120,11 +120,13 @@ export const HOME_SCREEN = 'home';
 export const ANIM_VIEW = 'anim';
 /* A trainer's Stats: its items, weakest first (trainer.mjs, stats.items). */
 export const TRAINER_STATS = 'trainer-stats';
+/* A trainer circle's setup: a row of eight knobs (trainer.mjs knobsOf). */
+export const TRAINER_SETUP = 'trainer-setup';
 
 /* Every screen, for whoever must cover them all (hints.mjs, its test). */
 export const VIEWS = [
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
-  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN, ANIM_VIEW, TRAINER_STATS,
+  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN, ANIM_VIEW, TRAINER_STATS, TRAINER_SETUP,
 ];
 
 /* What the session keeps, by name; the host decides where. */
@@ -1933,8 +1935,9 @@ export function createSession(fx, opts = {}) {
     if (view === GUESS_VIEW && quizSpec) return { id: quizId(quizSpec), label: quizSpec.label };
     if (view === RESULT_VIEW) return { kind: 'result' };
     if (view === PROGRESS_VIEW || view === PROGRESS_DETAIL) return { kind: 'progress' };
-    if (view === SETTINGS && settingsGroup === TRAINER_GROUP && trainerOpen) {
-      return { id: 'basics/' + trainerOpen.subject + '-trainer/' + trainerOpen.circle, label: settingsTitle() };
+    if ((view === SETTINGS && settingsGroup === TRAINER_GROUP && trainerOpen) || view === TRAINER_SETUP) {
+      return { id: 'basics/' + trainerOpen.subject + '-trainer/' + trainerOpen.circle,
+        label: settingsTitleOf(trainerOpen.subject, trainerOpen.circle) };
     }
     if (view === SETTINGS) return { kind: 'settings', group: settingsGroup };
     if (view === TRAINER_STATS) return { id: 'basics/' + statsSubject + '-trainer/stats', label: trainerStatsTitle() };
@@ -2161,18 +2164,16 @@ export function createSession(fx, opts = {}) {
   /* Back from a page: a group to Advanced's list, the page to its origin. */
   function closeSettings() {
     settingsEditing = false;
-    if (settingsGroup === TRAINER_GROUP && trainerOpen && trainerOpen.custom) {
-      /* The tick list goes back to its setup, on the row that opened it. */
+    if (settingsGroup === TRAINER_GROUP && trainerOpen && trainerOpen.custom && !trainerOpen.fromKnobs) {
+      /* The tick list goes back to the setup as a list, on the row that opened it. */
       trainerOpen.custom = false;
       settingsCursor = Math.max(0, settingsRows().findIndex((r) => r.act === 'custom'));
       dirty = true;
       return;
     }
     if (settingsGroup === TRAINER_GROUP) {
-      settingsGroup = SET.MAIN_GROUP.key;
-      view = MENU;
-      dirty = true;
-      ledDirty = true;
+      /* The tick list from the knobs, and the setup as a list: the knobs again. */
+      openSetup(trainerOpen.subject, trainerOpen.circle);
       return;
     }
     if (!onMain()) view = MENU;
@@ -2334,10 +2335,107 @@ export function createSession(fx, opts = {}) {
     saveProgress();
   }
 
-  /* A circle's setup page, the cursor on Start: the usual next thing is to go. */
+  /*
+   * A circle's setup: one screen, a row of eight knobs mirroring the
+   * hardware's (trainer.mjs knobsOf). A knob turns its setting, a touch
+   * names it, the jog walks the focus, a click on Level = Custom opens the
+   * tick list, PLAY starts. The focus is kept per circle, so a round's Back
+   * finds it where it was; it opens on Level.
+   */
+  const knobFocus = {};
+  const knobKey = () => trainerOpen.subject + ':' + trainerOpen.circle;
+
   function openSetup(subject, circle) {
     trainerOpen = { subject, circle, custom: false };
+    settingsGroup = SET.MAIN_GROUP.key;
+    settingsEditing = false;
+    view = TRAINER_SETUP;
+    dirty = true;
+    ledDirty = true;
+    announce(settingsTitleOf(subject, circle) + '. Turn the knobs; Play starts.');
+  }
+
+  function settingsTitleOf(subject, circle) {
+    return TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle];
+  }
+
+  /* The knob screen as ui.js and the page draw it. */
+  function knobSetup() {
+    if (!trainerOpen) return null;
+    const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
+    const knobs = TRAIN.knobsOf(trainerOpen.subject, trainerOpen.circle, setup);
+    let focus = knobFocus[knobKey()] || TRAIN.KNOB_OF.level;
+    if (!knobs[focus - 1].field) focus = TRAIN.KNOB_OF.level;
+    return {
+      title: settingsTitleOf(trainerOpen.subject, trainerOpen.circle).toUpperCase(),
+      knobs,
+      focus,
+      custom: setup.level === 'custom',
+      blocked: TRAIN.startBlock(trainerOpen.subject, trainerOpen.circle, setup),
+    };
+  }
+
+  /* Knob n (1..8) turned: its setting, one value a detent, and the focus. */
+  function knobTurn(n, delta) {
+    if (view !== TRAINER_SETUP || !delta) return;
+    const k = knobSetup().knobs[n - 1];
+    if (!k || !k.field) return;
+    knobFocus[knobKey()] = n;
+    const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
+    if (TRAIN.applySetup(trainerOpen.subject, setup, k.field, delta)) saveTrainerSetup(setup);
+    const now = knobSetup().knobs[n - 1];
+    announce(now.label + ' ' + now.text + '.');
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* Knob n touched: it is named, nothing changes. */
+  function knobTouch(n) {
+    if (view !== TRAINER_SETUP) return;
+    const k = knobSetup().knobs[n - 1];
+    if (!k || !k.field) return;
+    knobFocus[knobKey()] = n;
+    announce('Knob ' + n + ', ' + k.label + ': ' + k.text + '.');
+    dirty = true;
+  }
+
+  /* The jog walks the focus over the knobs in use. */
+  function knobJog(delta) {
+    const ks = knobSetup();
+    const used = ks.knobs.filter((k) => k.field).map((k) => k.n);
+    const at = used.indexOf(ks.focus);
+    const to = used[clamp(at + (delta > 0 ? 1 : -1), 0, used.length - 1)];
+    knobFocus[knobKey()] = to;
+    dirty = true;
+  }
+
+  /* A click: on Level = Custom the tick list; the setup as a list with Shift. */
+  function knobClick(shiftHeld) {
+    const ks = knobSetup();
+    if (shiftHeld) {
+      openSetupList();
+      return;
+    }
+    if (ks.focus === TRAIN.KNOB_OF.level && ks.custom) {
+      trainerOpen.custom = true;
+      trainerOpen.fromKnobs = true;
+      settingsGroup = TRAINER_GROUP;
+      settingsCursor = 0;
+      settingsEditing = false;
+      view = SETTINGS;
+      dirty = true;
+      ledDirty = true;
+      announce(settingsTitle() + '.');
+      return;
+    }
+    announce(ks.blocked ? 'Not yet: ' + ks.blocked + '.' : 'Press play to start.');
+  }
+
+  /* The same setup as rows of a list, for Shift + click: Start last. */
+  function openSetupList() {
     settingsGroup = TRAINER_GROUP;
+    trainerOpen.custom = false;
+    trainerOpen.fromKnobs = false;
     settingsOver = 'menu';
     settingsEditing = false;
     settingsCursor = settingsRows().length - 1;
@@ -2803,6 +2901,12 @@ export function createSession(fx, opts = {}) {
       st.trainer = settingsGroup === TRAINER_GROUP;
     }
     if (view === TRAINER_STATS) st.empty = !statsRows.length;
+    if (view === TRAINER_SETUP) {
+      const ks = knobSetup();
+      st.custom = ks.custom && ks.focus === TRAIN.KNOB_OF.level;
+      st.blocked = ks.blocked || null;
+      st.knobs = ks.knobs.filter((k) => k.field).map((k) => k.n + ' ' + k.label).join(', ');
+    }
     if (view === CARD_VIEW && card) {
       st.pages = card.pages.length;
       st.choice = Boolean(card.pages[card.page].choices);
@@ -3393,6 +3497,10 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
+    if (view === TRAINER_SETUP) {
+      knobJog(delta);
+      return;
+    }
     if (view === PROGRESS_DETAIL) {
       if (progressRows.length > 1) {
         progressCursor = (progressCursor + (delta > 0 ? 1 : -1) + progressRows.length)
@@ -3488,6 +3596,10 @@ export function createSession(fx, opts = {}) {
       openStatsDetail();
       return;
     }
+    if (view === TRAINER_SETUP) {
+      knobClick(shiftHeld);
+      return;
+    }
     switch (CTRL.jogClickAction(view, shiftHeld)) {
       case 'next':
         goNext();
@@ -3525,6 +3637,11 @@ export function createSession(fx, opts = {}) {
   function playButton() {
     if (skipScene()) return;
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
+    /* A trainer's setup: Play starts, unless the pick is too small. */
+    if (view === TRAINER_SETUP) {
+      startTrainer(trainerOpen.subject, trainerOpen.circle);
+      return;
+    }
     /* Home offers nothing to play. */
     if (onHome()) return;
     /* On the map Play is Continue: the one button. */
@@ -3627,7 +3744,7 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
-    if (view === PROGRESS_VIEW || view === TRAINER_STATS) {
+    if (view === PROGRESS_VIEW || view === TRAINER_STATS || view === TRAINER_SETUP) {
       view = MENU;
       dirty = true;
       ledDirty = true;
@@ -3901,6 +4018,9 @@ export function createSession(fx, opts = {}) {
     openSheet,
     openItem,
     selectStatsRow,
+    knobSetup,
+    knobTurn,
+    knobTouch,
     pickSheet,
     pickCard,
     /* The Settings page over the list, as the web page's top bar opens it. */
