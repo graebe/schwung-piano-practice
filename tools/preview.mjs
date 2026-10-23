@@ -32,7 +32,8 @@
  *   npm run preview -- --view map --map done                    fill levels, avatar on a flag
  *   npm run preview -- --view map --kind island --map drums|piano   one stage's island
  *   npm run preview -- --view anim --name flag|fireworks|zoomIn|zoomOut|star|finale|banner [--t ms]
- *                                    (--text 'CHECKPOINT PASSED' for the banner)
+ *                                    (--text 'CHECKPOINT PASSED' for the banner,
+ *                                     --score 100|95 for the star round a big score)
  *   npm run preview -- --view map --places 7 --to 6 --film 0,90,400   walk there
  *
  * The list, the sheet and the cards come from a session, as on the Move, with
@@ -56,7 +57,17 @@ const cellRectOf = (layout, i) => cellRect(layout.cells[i], layout.kind);
 import { createWalk, walkTo, posAt } from '../src/pathmap/walk.mjs';
 import { makePlace } from '../src/pathmap/model.mjs';
 import { drawMap } from '../src/pathmap/render.mjs';
-import { ANIMS, flagRise, fireworks, zoomIn, zoomOut, starBurst, finale, banner } from '../src/pathmap/anim.mjs';
+import { ANIMS, flagRise, fireworks, zoomIn, zoomOut, starBurst, starFit, finale, banner } from '../src/pathmap/anim.mjs';
+
+/* Digits 3x5, for --view anim --name star --score: a stand-in for the
+ * modules' big score font at scale 3. */
+const DIGITS_3X5 = {
+  0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'],
+  2: ['###', '..#', '###', '#..', '###'], 3: ['###', '..#', '.##', '..#', '###'],
+  4: ['#.#', '#.#', '###', '..#', '..#'], 5: ['###', '#..', '###', '..#', '###'],
+  6: ['###', '#..', '###', '#.#', '###'], 7: ['###', '..#', '.#.', '.#.', '.#.'],
+  8: ['###', '#.#', '###', '#.#', '###'], 9: ['###', '#.#', '###', '..#', '###'],
+};
 import { createGrow, startGrow, GROW_MS } from '../src/home/render.mjs';
 import { hintFor } from '../src/hints.mjs';
 import { PRACTICE_PIANO, PRACTICE_DRUMS } from '../src/home/icons.mjs';
@@ -284,6 +295,23 @@ if (view === 'home') {
       R.drawChrome(c, { left: 'Stage 3' });
       drawMap(c, { places, layout, route: false });
       banner(c, { text: arg('text', 'STAGE COMPLETE') }, t);
+    } else if (name === 'star' && arg('score', null)) {
+      /* The result screen's case: a score in 3x5 digits at scale 3, a
+       * caption on the map area's bottom 9 rows, the burst sized by starFit. */
+      const score = arg('score', '100');
+      const w = score.length * 12 - 3;
+      const fit = starFit({ w, h: 15, top: 10, bottom: 43 });
+      R.drawChrome(c, { left: 'RESULT' });
+      let x0 = 64 - Math.ceil((w - 1) / 2);
+      for (const ch of score) {
+        DIGITS_3X5[ch].forEach((row, y) => [...row].forEach((on, x) => {
+          if (on === '#') c.fillRect(x0 + x * 3, fit.y - 7 + y * 3, 3, 3, 1);
+        }));
+        x0 += 12;
+      }
+      const caption = 'level learned';
+      c.text((128 - c.textWidth(caption)) >> 1, 46, caption, 1);
+      starBurst(c, { x: 64, y: fit.y, rx: fit.rx, ry: fit.ry, len: fit.len, seed: 3 }, t);
     } else if (name === 'star') {
       R.drawChrome(c, { left: 'RESULT' });
       const score = '92%';
