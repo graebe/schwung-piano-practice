@@ -36,7 +36,7 @@ test('the list arrives decorated, with its path and cursor', () => {
 test('a running drill sends its chart, judgements, markers and clock', () => {
   const h = fakeHost({ opts: { keepMarkersBeats: 16 } });
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   const ready = viewModel(h.session);
   assert.equal(ready.screen, READY);
   assert.equal(ready.chart.name, 'C Major');
@@ -69,7 +69,7 @@ test('a running drill sends its chart, judgements, markers and clock', () => {
 test('stuck on a note: the block index and the stuck cue say which', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   h.session.recordButton();
   h.run(10000);
   const vm = viewModel(h.session);
@@ -81,7 +81,7 @@ test('stuck on a note: the block index and the stuck cue say which', () => {
 test('listening: the cue names what is sounding', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   h.session.playButton();
   const beatMs = 60000 / h.session.chart.bpm;
   h.run((h.session.settings.countIn + 0.2) * beatMs);
@@ -191,7 +191,7 @@ test('results and progress charts are data', () => {
 test('encode and decode round-trip, one string per field', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   const vm = viewModel(h.session);
   const flat = encodeViewModel(vm);
   for (const v of Object.values(flat)) assert.equal(typeof v, 'string');
@@ -233,7 +233,7 @@ test('every bundled song at every level fits Schwung\'s 64KB state key', () => {
 test('the clock alone is small and moves with the run', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   h.session.playButton();
   const a = clockOf(h.session);
   h.run(1000);
@@ -245,7 +245,7 @@ test('the clock alone is small and moves with the run', () => {
 test('the clock says when it was taken, how long a beat is, and where it will wait', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   h.session.recordButton();
   h.run(500);
   const c = clockOf(h.session, 12345.5);
@@ -257,7 +257,7 @@ test('the clock says when it was taken, how long a beat is, and where it will wa
   /* Listening never waits. */
   const l = fakeHost();
   l.session.init();
-  openPath(l.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(l.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   l.session.playButton();
   l.run(500);
   assert.equal(clockOf(l.session).waitAt, null);
@@ -273,7 +273,7 @@ test('cue.playing is every note sounding, on any screen, but the click', () => {
   assert.deepEqual(viewModel(h.session).cue.playing, [64], 'a pad held in the list');
   h.session.release(64);
   assert.deepEqual(viewModel(h.session).cue.playing, []);
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   h.session.playButton();
   let clicked = false;
   for (let i = 0; i < 400 && !clicked; i++) {
@@ -292,7 +292,7 @@ test('without the option, marks go at the panel\'s edge, as on the Move', () => 
   /* Wait off, so the scroll keeps moving and the mark scrolls away. */
   const h = fakeHost({ settings: { version: 7, autoInfo: false, quizSounds: false, waitForNote: false } });
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   h.session.recordButton();
   h.run(5000);
   h.session.play(61, 90);

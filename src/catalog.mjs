@@ -260,7 +260,7 @@ export function basics(gen = {}, more = []) {
   });
 
   return folder('Practice', [
-    lazyFolder('Scales', scales),
+    trainerFolder('scale', 'Scales', lazyFolder('Scales', scales), 'basics/scales'),
     trainerFolder('chord', 'Chords', lazyFolder('Chords', families), 'basics/chords'),
     lazyFolder('Progressions', progressions),
     randomFolder(gen),

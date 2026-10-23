@@ -10,7 +10,7 @@
  */
 
 import { scaleKey } from './notation.mjs';
-import { MODES, MODE_LABELS } from './scales.mjs';
+import { MODES, MODE_LABELS, scaleById } from './scales.mjs';
 import { DEFAULT_TRANSPOSE, MIDI_BASE_NOTE, ABS_SEMI_LO, ABS_SEMI_HI } from './padmap.mjs';
 
 /*
@@ -24,6 +24,18 @@ import { DEFAULT_TRANSPOSE, MIDI_BASE_NOTE, ABS_SEMI_LO, ABS_SEMI_HI } from './p
  * there, so the drill shows notes without claiming a name.
  */
 export { MODES, MODE_LABELS };
+
+/* A scale's steps and its short name, by id: Move's scales and the course's
+ * alike (a scale trainer asks for Lydian dominant too); major for an unknown
+ * id, as the Scale setting has always fallen back. */
+function stepsOf(mode) {
+  return (scaleById(mode) || scaleById('major')).steps;
+}
+
+function labelOf(mode) {
+  const sc = scaleById(mode);
+  return sc ? sc.short : mode;
+}
 
 export const PC_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -49,7 +61,7 @@ export function rng(seed) {
 
 /* Ascending scale pitches of `mode` rooted on `rootPc`, inside [lo, hi]. */
 export function scalePitches(rootPc, mode, lo, hi) {
-  const ivs = MODES[mode] || MODES.major;
+  const ivs = stepsOf(mode);
   const out = [];
   for (let pitch = lo; pitch <= hi; pitch++) {
     const rel = (((pitch - rootPc) % 12) + 12) % 12;
@@ -91,7 +103,7 @@ export function fitsTriad(pitches, index) {
  * is Eb Ab Bb, F# major has its E#) and the signature it would carry.
  */
 export function keyForScale(rootPc, mode) {
-  return scaleKey(rootPc, MODES[mode] || MODES.major, mode);
+  return scaleKey(rootPc, stepsOf(mode), mode);
 }
 
 function makeChart(id, name, bpm, key, events, extra = {}) {
@@ -113,7 +125,7 @@ export function scaleRun({
 } = {}) {
   const { lo, hi } = playableRange(transpose);
   const all = scalePitches(rootPc, mode, lo, hi);
-  const degrees = (MODES[mode] || MODES.major).length;
+  const degrees = stepsOf(mode).length;
   let start = 0;
   if (startPitch != null) {
     start = all.findIndex((p) => p >= startPitch);
@@ -141,7 +153,7 @@ export function scaleRun({
   /* The display label, not the id: the header has room for "C# Phryg Dom",
    * and "C# phrygianDominant scale" ran off the end of it. */
   const key = keyForScale(rootPc, mode);
-  const name = `${key.root} ${MODE_LABELS[mode] || mode}`;
+  const name = `${key.root} ${labelOf(mode)}`;
   return makeChart(`scale-${rootPc}-${mode}-${direction}-${octaves}`, name, bpm, key, events);
 }
 
@@ -185,7 +197,7 @@ export function triadDrill({
 } = {}) {
   const { lo, hi } = playableRange(transpose);
   const all = scalePitches(rootPc, mode, lo, hi);
-  const size = (MODES[mode] || MODES.major).length;
+  const size = stepsOf(mode).length;
   /* Root the set as high as the range allows while still leaving room for the
    * top tone of the highest chord — otherwise stepInScale() clamps and IV and
    * V collapse into unisons. */

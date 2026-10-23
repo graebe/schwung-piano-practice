@@ -61,7 +61,7 @@ await page.locator('svg.home[data-ring="Practice"]').waitFor();
 await shoot(page, 'web-ring.png');
 
 /* Listening to a drill: the staff scrolls and the keys light. */
-await openPath(page, ['Scales', 'Major', 'Up & down']);
+await openPath(page, ['Scales', 'Learn', 'Major', 'Up & down']);
 await page.locator('#piece-title').waitFor();
 await page.setViewportSize({ width: 1280, height: 760 });
 await page.getByRole('button', { name: 'Listen' }).click();
@@ -99,7 +99,7 @@ await page.close();
 
 /* A result: a drill played twice, by the lit keys, at a brisk tempo. */
 page = await open({ width: 1280, height: 640 }, { version: 8, autoInfo: false, bpm: 160, countIn: 1 });
-await openPath(page, ['Practice', 'Scales', 'Major', 'Up']);
+await openPath(page, ['Practice', 'Scales', 'Learn', 'Major', 'Up']);
 for (let round = 0; round < 2; round++) {
   await page.getByRole('button', { name: round ? 'Again' : 'Practice' }).click();
   for (let i = 0; i < 80 && !(await page.locator('.result-screen').count()); i++) {

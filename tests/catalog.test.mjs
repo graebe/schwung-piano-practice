@@ -86,7 +86,8 @@ test('isFolder is false for leaves and for nothing', () => {
 test('Basics holds scales, chords, progressions and the random drills', () => {
   const b = basics({});
   assert.deepEqual(labels(b), ['Scales', 'Chords', 'Progressions', 'Random']);
-  assert.equal(b.children[0].children.length, Object.keys(MODES).length, 'one folder per Move scale');
+  assert.deepEqual(labels(b.children[0]), ['Read', 'Hear', 'Play', 'Learn', 'Stats'], 'Scales is a trainer');
+  assert.equal(b.children[0].children[3].children.length, Object.keys(MODES).length, 'one folder per Move scale');
   /* Chords is a trainer: five circles, its lessons under Learn. */
   assert.deepEqual(labels(b.children[1]), ['Read', 'Hear', 'Play', 'Learn', 'Stats']);
   assert.deepEqual(labels(b.children[1].children[3]), CHORD_FAMILIES.map((f) => f.name));

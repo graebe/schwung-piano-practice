@@ -314,7 +314,8 @@ const SCENARIOS = {
 
   /* Practice › Scales › Major › Up & down: listen, pause, scrub, resume, restart. */
   listen: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(1); d.click(); d.click(); d.click(); d.click();
+    d.jog(1); d.click(); d.click();               /* Practice › Scales: the trainer */
+    d.jog(3); d.click(); d.click(); d.click();    /* Learn › Major › Up & down */
     d.press(PLAY); d.run(4000);
     d.press(PLAY); d.run(200);                    /* pause */
     d.knob(0, 12); d.knob(0, -5); d.run(100);     /* scrub */
@@ -326,7 +327,8 @@ const SCENARIOS = {
   /* The same drill practised, played from the guide pads to its result, then
    * again with a few wrong pads and a wait; then on from the result. */
   practice: { settings: QUIET, progress: WELCOMED, play(d) {
-    d.jog(1); d.click(); d.click(); d.click(); d.click();
+    d.jog(1); d.click(); d.click();
+    d.jog(3); d.click(); d.click(); d.click();
     d.press(RECORD); d.follow(26000);
     d.run(1000);
     d.press(RECORD); d.run(3500);
@@ -415,7 +417,8 @@ const SCENARIOS = {
     d.run(2500);                                  /* unwatched: reads, nudges */
     dsp.openPage(); d.run(1200);
     for (const a of [{ type: 'move', delta: 1 }, { type: 'open' }, { type: 'open' },
-      { type: 'open' }, { type: 'open' }]) {
+      { type: 'move', delta: 1 }, { type: 'move', delta: 1 }, { type: 'move', delta: 1 },
+      { type: 'open' }, { type: 'open' }, { type: 'open' }]) {
       dsp.act(a); d.run(250);
     }
     dsp.act({ type: 'listen' }); d.run(2000);
@@ -557,6 +560,41 @@ const SCENARIOS = {
     d.jog(20); d.click(); d.run(2500);
     for (let i = 0; i < 4; i++) { d.pad(i, 60); d.run(1500); }
     d.press(BACK); d.press(BACK); d.run(100);
+  } },
+
+  /* Scales, heard: one played back on the pads (a wrong note starts it
+   * again), then named, up and down. */
+  'scale-hear': { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);              /* Practice */
+    d.click(); d.run(200);                        /* Scales: the trainer's ring */
+    d.jog(1); d.click(); d.run(100);              /* Hear: its setup */
+    d.click(); d.run(4500);                       /* Start: listen */
+    for (const p of [0, 2, 3]) d.pad(p, 60);      /* a wrong note in it */
+    d.press(RECORD); d.run(4500);                 /* help: again, slower */
+    d.press(BACK); d.run(100);
+    d.jog(-6); d.click(); d.jog(1); d.click();    /* Answer: name */
+    d.jog(3); d.click(); d.jog(2); d.click();     /* Direction: both */
+    d.jog(20); d.click(); d.run(8000);
+    for (let i = 0; i < 6; i++) { d.jog(1); d.click(); d.run(1500); }
+    d.press(BACK); d.press(BACK); d.run(100);
+  } },
+
+  /* Scales, played: from the name, then read and played as a chart. */
+  'scale-play': { settings: QUIET, progress: WELCOMED, play(d) {
+    d.run(100);
+    d.jog(1); d.click(); d.run(200);
+    d.click(); d.run(200);
+    d.jog(2); d.click(); d.run(100);              /* Play: its setup */
+    d.click(); d.run(400);                        /* Start: C major, by name */
+    for (const p of [3, 5, 7, 8, 10, 12, 14, 15]) d.pad(p, 60);   /* C D E F G A B C */
+    d.run(800);
+    d.press(BACK); d.press(BACK); d.run(100);     /* the setup, the ring */
+    d.jog(-2); d.click(); d.run(100);             /* Read: on Start */
+    d.click(); d.run(300);                        /* a chart on its ready screen */
+    d.knob(7, -2); d.run(200);                    /* Knob 8: slower */
+    d.press(BACK); d.run(100);                    /* its setup */
+    d.press(BACK); d.run(100);
   } },
 
   /* Stats: a round heard, then the list, a row's detail and Back. */

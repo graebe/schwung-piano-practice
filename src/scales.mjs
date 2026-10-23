@@ -87,6 +87,23 @@ export const SCALE_LIST = [
   s('halfWhole', [0, 1, 3, 4, 6, 7, 9, 10], 'Half-whole dim', 'Half-whole dim', { letters: [0, 1, 2, 2, 3, 4, 5, 6] }),
 ];
 
+/*
+ * Two characters for a cell of the answer map, where a name cannot fit (the
+ * jog's choice shows the whole name): the start of the name, or for the
+ * altered modes the mode and its changed degree. Each one different.
+ */
+const MARKS = {
+  major: 'M', minor: 'm', dorian: 'Do', mixolydian: 'Mx', lydian: 'Ly', phrygian: 'Ph',
+  locrian: 'Lo', majorPent: 'P', minorPent: 'p', minorBlues: 'Bl', harmonicMinor: 'hm',
+  melodicMinor: 'mm', wholeTone: 'WT', superLocrian: 'SL', phrygianDominant: 'PD',
+  bhairav: 'Bh', hungarianMinor: 'Hu', hirajoshi: 'Hi', inSen: 'In', iwato: 'Iw', kumoi: 'Ku',
+  chromatic: 'Ch', locrianSharp6: 'L6', ionianSharp5: 'I5', dorianSharp4: 'D4',
+  lydianSharp2: 'Y2', alteredDim: 'Ad', dorianFlat2: 'D2', lydianAugmented: 'Y+',
+  lydianDominant: 'YD', mixolydianFlat6: 'X6', locrianSharp2: 'L2', altered: 'Al',
+  wholeHalf: 'WH', halfWhole: 'HW',
+};
+for (const sc of SCALE_LIST) sc.mark = MARKS[sc.id];
+
 const BY_ID = new Map(SCALE_LIST.map((x) => [x.id, x]));
 
 export function scaleById(id) {

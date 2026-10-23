@@ -748,6 +748,18 @@ function draw() {
       hint: ask,
       footer: footer(),
     });
+  } else if (view === GUESS_VIEW && quiz.entry && quiz.entry.line) {
+    /* A scale played as a line: from its name, or heard and played back. */
+    const named = quiz.read === GUESS.READ_NAME || quiz.solved;
+    VIEW.drawLineView(ctx, {
+      title: S.quizTitle() || 'PLAY',
+      score: quiz.roundSize > 0 ? quiz.correct + '/' + quiz.roundSize : String(GUESS.quizStats(quiz).correct),
+      staff: quiz.entry.staff,
+      shown: quiz.solved ? quiz.entry.staff.length : quiz.played.length,
+      label: named ? quiz.entry.label : (quiz.hint > 0 ? quiz.entry.label : '?'),
+      solved: quiz.solved,
+      footer: footer(),
+    });
   } else if (view === GUESS_VIEW && quiz.read) {
     const st = GUESS.quizStats(quiz);
     const staff = quiz.read === GUESS.READ_STAFF;

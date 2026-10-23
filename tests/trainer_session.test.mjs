@@ -217,3 +217,66 @@ test('a round opens by its id, as Review and Continue open it', () => {
   S(h2).openItem('quiz:chord:read:play:C-zzzzzz');
   assert.equal(S(h2).view, MENU);
 });
+
+/* ---- Scales ------------------------------------------------------------------ */
+
+/* Every note of the armed chart, on time, to its result. */
+function playChart(h) {
+  S(h).recordButton();
+  const beatMs = 60000 / S(h).chart.bpm;
+  const t0 = h.ms;
+  for (const e of S(h).chart.events) {
+    const at = t0 + (S(h).settings.countIn + e.beat) * beatMs;
+    if (at > h.ms) h.run(at - h.ms);
+    for (const p of e.pitches) S(h).play(p, 100);
+    for (const p of e.pitches) S(h).release(p);
+  }
+  h.run(4000);
+}
+
+test('Scales: read and play is a chart; its result files the scale; next is another', () => {
+  const h = fakeHost();
+  S(h).init();
+  openPath(S(h), ['Practice', 'Scales']);
+  const ring = S(h).nav[S(h).nav.length - 1].node;
+  assert.deepEqual(ring.children.map((c) => c.label), ['Read', 'Hear', 'Play', 'Learn', 'Stats']);
+  openPath(S(h), ['Learn']);
+  assert.equal(S(h).listTitle(), 'Scales: learn');
+  S(h).back();
+  openPath(S(h), ['Read']);
+  S(h).activate(false);
+  assert.equal(S(h).view, 'ready');
+  assert.equal(S(h).armedId, 'quiz:scale:read:play:L1');
+  const name = S(h).chart.name;
+  assert.match(name, /^C (Major|Minor)$/);
+  playChart(h);
+  for (let i = 0; i < 20 && S(h).view !== RESULT_VIEW; i++) { S(h).activate(false); h.run(200); }
+  assert.equal(S(h).view, RESULT_VIEW);
+  const items = JSON.parse(h.files.get('stats.json')).items.scale;
+  const id = name.endsWith('Major') ? 'major' : 'minor';
+  assert.deepEqual(items[id].read, [1, 1]);
+  assert.ok(S(h).progress.items['quiz:scale:read:play:L1']);
+  S(h).activate(false);
+  assert.equal(S(h).view, 'ready', 'next: another scale');
+  S(h).back();
+  assert.equal(S(h).view, SETTINGS, 'Back from its ready screen: the setup');
+});
+
+test('Scales: heard and played back, note by note, filed under hear', () => {
+  const h = fakeHost();
+  S(h).init();
+  openPath(S(h), ['Practice', 'Scales', 'Hear']);
+  S(h).activate(false);
+  assert.equal(S(h).view, GUESS_VIEW);
+  assert.equal(S(h).quizTitle(), 'SCALES HEAR');
+  for (let i = 0; i < 400 && S(h).view === GUESS_VIEW; i++) {
+    const q = S(h).quiz;
+    if (!q.solved) for (const p of q.entry.line) { S(h).play(p + 12, 100); S(h).release(p + 12); }
+    h.run(1600);
+  }
+  for (let i = 0; i < 20 && S(h).view !== RESULT_VIEW; i++) { S(h).activate(false); h.run(200); }
+  assert.equal(S(h).lastResult.drill, 'scale:hear:play:L1');
+  const items = JSON.parse(h.files.get('stats.json')).items.scale;
+  const heard = Object.values(items).reduce((n, r) => n + r.hear[0], 0);
+  assert.equal(heard, 10);
+});

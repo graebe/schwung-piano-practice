@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import {
   CIRCLES, MAX_CHOICES, coerceSetup, setupRows, applySetup, customRows, toggleCustom, itemSet,
   customHash, trainerId, parseTrainerId, trainerLabel, trainerSpec, choicesFor, qualityDistance,
-  allItems, subjectOf, startBlock,
+  allItems, subjectOf, startBlock, scaleChart, scaleDistance,
 } from '../src/trainer.mjs';
 import { CHORD_LEVELS, playable, qualityById } from '../src/chords.mjs';
 import { createQuiz, pressPitch, pickChoice, CORRECT, WRONG, EAR } from '../src/guess.mjs';
@@ -241,4 +241,91 @@ test('a new Custom pick starts as the level it was chosen from; Start needs enou
   u.custom = ['maj', 'min'];
   assert.equal(startBlock('chord', 'read', u), null);
   assert.equal(setupRows('chord', 'read', u).at(-1).value, '>');
+});
+
+/* ---- Scales ---------------------------------------------------------------- */
+
+test('the scale trainer: its rows, each value fitting, Pattern only for a played chart', () => {
+  const rows = (circle, over) => setupRows('scale', circle, { ...coerceSetup('scale', circle, null, { rootPc: 2 }), ...over })
+    .map((r) => r.field || r.act);
+  assert.deepEqual(rows('read', {}), ['answer', 'level', 'key', 'direction', 'pattern', 'start']);
+  assert.deepEqual(rows('read', { answer: 'name', level: 2 }), ['answer', 'level', 'key', 'direction', 'round', 'start']);
+  assert.deepEqual(rows('hear', {}), ['answer', 'level', 'key', 'direction', 'round', 'start']);
+  assert.deepEqual(rows('play', {}), ['level', 'key', 'direction', 'round', 'start']);
+  for (let level = 1; level <= 10; level++) {
+    for (const r of setupRows('scale', 'read', { ...coerceSetup('scale', 'read', null), level, pattern: 'straight', key: 'random' })) {
+      assert.ok(r.label.length + 1 + r.value.length <= 21, `${r.label} ${r.value}`);
+    }
+  }
+  assert.equal(coerceSetup('scale', 'read', null).scale, undefined, 'a scale has no Scale row');
+});
+
+test('scaleChart: one scale, its pattern and direction, playable and spelled', () => {
+  const s = { pattern: 'straight', direction: 'up' };
+  const up = scaleChart('dorian', 2, s);
+  assert.deepEqual(up.events.map((e) => e.pitches[0] % 12), [2, 4, 5, 7, 9, 11, 0, 2]);
+  assert.equal(up.name, 'D Dorian');
+  const both = scaleChart('major', 0, { pattern: 'straight', direction: 'both' });
+  assert.equal(both.events.length, 15);
+  const thirds = scaleChart('major', 0, { pattern: '3rds', direction: 'up' });
+  const p = thirds.events.map((e) => e.pitches[0]);
+  assert.deepEqual(p.slice(0, 4).map((x) => x - p[0]), [0, 4, 2, 5], 'C E, D F...');
+  /* A course scale Move does not have: Lydian dominant is still a chart. */
+  const ld = scaleChart('lydianDominant', 7, { pattern: '5ths', direction: 'down' });
+  assert.ok(ld.events.length > 8);
+  for (const c of [up, both, thirds, ld]) for (const e of c.events) assert.ok(playable(e.pitches), c.name);
+});
+
+test('scaleSpec: every circle x answer x level runs, asks only its scales', () => {
+  for (const circle of CIRCLES) {
+    for (const answer of circle === 'play' ? ['play'] : ['play', 'name']) {
+      for (let level = 1; level <= 10; level++) {
+        for (const direction of ['up', 'down', 'both']) {
+          const setup = { ...coerceSetup('scale', circle, null, { rootPc: 0 }), answer, level, direction, key: 'random' };
+          const spec = trainerSpec('scale', circle, setup, { seed: level });
+          const set = itemSet('scale', setup);
+          const where = `${circle}/${answer}/L${level}/${direction}`;
+          if (spec.chart) {
+            assert.ok(set.indexOf(spec.item) >= 0, where);
+            continue;
+          }
+          const quiz = createQuiz({ ...spec, seed: 2 });
+          assert.ok(quiz.pool.length > 0, where);
+          assert.equal(quiz.subject, 'scale', where);
+          assert.equal(quiz.mode, circle, where);
+          for (const e of quiz.pool) assert.ok(set.indexOf(e.item || e.answer) >= 0, where);
+          if (answer === 'name') assert.ok(quiz.choices.length >= 2 && quiz.choices.length <= MAX_CHOICES, where);
+          else assert.equal(quiz.entry.line.length, direction === 'both' ? quiz.entry.staff.length : quiz.entry.line.length);
+        }
+      }
+    }
+  }
+});
+
+test('a scale played from its name: note by note, any octave, a wrong note starts it again', () => {
+  const setup = { ...coerceSetup('scale', 'play', null, { rootPc: 0 }), level: 2 };
+  const quiz = createQuiz({ ...trainerSpec('scale', 'play', setup, { seed: 4 }), seed: 4 });
+  const line = quiz.entry.line;
+  pressPitch(quiz, line[0] + 12);
+  pressPitch(quiz, line[1] - 12);
+  assert.equal(quiz.played.length, 2);
+  assert.equal(pressPitch(quiz, line[2] + 1), WRONG);
+  assert.equal(quiz.played.length, 0, 'from the top');
+  let res;
+  for (const p of line) res = pressPitch(quiz, p);
+  assert.equal(res, CORRECT);
+  assert.equal(quiz.correct, 1);
+  assert.deepEqual(Object.keys(quiz.items), [quiz.entry.item]);
+  assert.deepEqual(quiz.items[quiz.entry.item].n, [1, 0], 'missed once: asked, not right');
+});
+
+test('the drawing leans on what was missed', () => {
+  const setup = { ...coerceSetup('scale', 'read', null, { rootPc: 0 }), level: 2 };
+  let dorian = 0;
+  for (let seed = 1; seed <= 200; seed++) {
+    const spec = trainerSpec('scale', 'read', setup, { seed, history: { dorian: [10, 0] } });
+    if (spec.item === 'dorian') dorian++;
+  }
+  assert.ok(dorian > 80, `dorian drawn ${dorian} of 200 (1 in 5 unweighted)`);
+  assert.ok(scaleDistance('major', 'lydian') === 2 && scaleDistance('major', 'major') === 0);
 });

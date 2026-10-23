@@ -379,6 +379,15 @@ function earPage(exKey, levelKey) {
  * which is the point of them.
  */
 const TRAINER_TEXT = {
+  scale: {
+    ring: 'Scales, as a trainer. Read a scale off the staff, hear one, or play one from its name; Learn holds the scale drills, one folder a scale; Stats shows which scales you know and which you do not yet.',
+    read: 'A scale on the staff. Play it as it is written, a chart with its pattern, or name it from a short list.',
+    hear: 'A scale sounds, from its root. Play it back, note by note in any octave, or name it from a short list.',
+    play: 'A scale\'s name, like D Dorian. Play it note by note from its root, up, down or both; any octave counts. A wrong note starts it again.',
+    stats: 'Every scale you have been asked, weakest first: how much of it was right read, heard and played.',
+    ladder: 'Level 1 is major and minor; each level adds: Dorian, Lydian, Mixolydian; harmonic and melodic minor; Phrygian and Locrian; the pentatonics and the blues; whole tone and its kin; the diminished scales; the modes of melodic minor; of harmonic minor; and six scales from India, Hungary and Japan. Custom picks your own.',
+    terms: ['scale', 'mode', 'tonic', 'level'],
+  },
   chord: {
     ring: 'Chords, as a trainer. Read a chord off the staff, hear one, or play one from its name; Learn holds the lessons by family; Stats shows which chords you know and which you do not yet.',
     read: 'A chord on the staff. Play exactly what is written, every note in its octave, or name it from a short list.',
@@ -391,7 +400,7 @@ const TRAINER_TEXT = {
 };
 
 const CIRCLE_TEXT = {
-  setup: 'The setup: what a round asks and how. Answer is play or name; Level what it asks; Key the key it is in, or random; Roots which chords are asked on which notes; Round how many right answers make a round.',
+  setup: 'The setup: what a round asks and how. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round.',
   common: 'The same five circles in every trainer: Read, Hear, Play, Learn, Stats.',
 };
 
@@ -404,7 +413,8 @@ export function trainerPage(subject, circle, label) {
   } else {
     sections.push(sec('', CIRCLE_TEXT.common));
   }
-  return page('trainer:' + subject + (circle ? ':' + circle : ''), label || 'Chords', sections, t.terms);
+  const name = { scale: 'Scales', chord: 'Chords' }[subject];
+  return page('trainer:' + subject + (circle ? ':' + circle : ''), label || name, sections, t.terms);
 }
 
 function quizPage(drill, label) {

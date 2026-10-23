@@ -15,7 +15,7 @@ import {
 function ready() {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   return h;
 }
 

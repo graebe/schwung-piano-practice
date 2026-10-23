@@ -101,7 +101,7 @@ test('a late subscriber gets the current picture at once', () => {
 test('practice through the browser: notes reach the piano and the judgement comes back', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(l, label);
+  for (const label of ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']) select(l, label);
   assert.equal(l.backend.viewModel.screen, 'ready');
   l.backend.dispatch({ type: 'practice' });
   l.advance(4000);
@@ -124,7 +124,7 @@ test('a piano with a metronome of its own clicks; one without gets notes', () =>
   plain.storage.setItem('piano-practice:settings.json', JSON.stringify({ ...settings, click: true }));
   for (const s of [l, plain]) {
     s.backend.start();
-    for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(s, label);
+    for (const label of ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']) select(s, label);
     s.backend.dispatch({ type: 'practice' });
     s.advance(6000);
   }
@@ -137,7 +137,7 @@ test('a piano with a metronome of its own clicks; one without gets notes', () =>
 test('the playhead moves without republishing every tick', () => {
   const l = local();
   l.backend.start();
-  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(l, label);
+  for (const label of ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']) select(l, label);
   let published = 0;
   l.backend.subscribe(() => published++);
   l.backend.dispatch({ type: 'listen' });
@@ -192,7 +192,7 @@ test('without a piano the session still runs, silently', () => {
   const l = local({ piano: null });
   l.backend.start();
   assert.equal(l.backend.capabilities.audio, false);
-  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(l, label);
+  for (const label of ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']) select(l, label);
   l.backend.dispatch({ type: 'listen' });
   l.advance(6000);                               /* past the four-beat count-in */
   assert.ok(l.backend.clock().beats > 2);
@@ -215,7 +215,7 @@ function fakeBridge() {
 test('the Move\'s view model arrives through the bridge, field by field', () => {
   const src = local();
   src.backend.start();
-  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(src, label);
+  for (const label of ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']) select(src, label);
   const flat = encodeViewModel(viewModel(src.backend.session));
 
   let t = 0;
@@ -252,7 +252,7 @@ test('between updates the Move\'s playhead is carried forward, unless it stands 
 test('a field that did not change keeps its object, so the staff is not rebuilt', () => {
   const src = local();
   src.backend.start();
-  for (const label of ['Practice', 'Scales', 'Major', 'Up & down']) select(src, label);
+  for (const label of ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']) select(src, label);
   const flat = encodeViewModel(viewModel(src.backend.session));
   const bridge = fakeBridge();
   const remote = createSchwungSession({ bridge, now: () => 0 });

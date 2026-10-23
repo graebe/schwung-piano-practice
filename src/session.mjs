@@ -528,6 +528,9 @@ export function createSession(fx, opts = {}) {
   /* The trainer setup open on the Settings page (settingsGroup 'trainer'):
    * { subject, circle, custom } — custom while its tick list is shown. */
   let trainerOpen = null;
+  /* A trainer's round played as a chart (Scales › Read, play): its spec, so
+   * the result files the item and its next is another round. */
+  let armedTrainer = null;
   /* A trainer's Stats open: its subject, its rows, the cursor. */
   let statsSubject = null;
   let statsRows = [];
@@ -1140,6 +1143,7 @@ export function createSession(fx, opts = {}) {
   function armLeaf(node, forceStage) {
     /* Opened again, a song starts at its written tempo. */
     sessionTempo = null;
+    armedTrainer = null;
     if (!armNode(node, forceStage)) return;
     announce(chart.name + '. ' + (stage === 2 ? 'Solo' : 'Guided') + '. Press play to start.');
     autoInfo({ id: armedId, label: chart.name });
@@ -1246,6 +1250,11 @@ export function createSession(fx, opts = {}) {
    * came from, or wherever Continue would send you.
    */
   function goNext() {
+    /* A trainer's chart from Practice: the next is another scale. */
+    if (lastResult && lastResult.kind === 'exercise' && armedTrainer && !armedTrainer.pinned) {
+      startTrainer(armedTrainer.spec.trainer.subject, armedTrainer.spec.trainer.circle);
+      return;
+    }
     /* A trainer's round from Practice: the next is another, as set up. */
     if (lastResult && lastResult.kind === 'quiz' && quizSpec && quizSpec.trainer && !quizSpec.pinned) {
       againQuiz();
@@ -1549,6 +1558,15 @@ export function createSession(fx, opts = {}) {
       timing: SCORE.timingSummary(run),
     };
     lastResult.twoNext = twoNext();
+    /* A trainer's chart: one item, right when the run passed. */
+    if (armedTrainer) {
+      const { spec } = armedTrainer;
+      const right = score >= PROG.PASS ? 1 : 0;
+      STATS.addItems(stats, spec.trainer.subject, spec.trainer.circle,
+        { [spec.item]: { n: [1, right], keys: { [spec.root]: [1, right] } } });
+      saveStats();
+      lastResult.twoNext = false;
+    }
     armRun();
     view = RESULT_VIEW;
     dirty = true;
@@ -2284,6 +2302,11 @@ export function createSession(fx, opts = {}) {
       /* A step of the program keeps the options it pinned; a Quiz row follows. */
       startQuiz(quizSpec.pinned ? quizSpec
         : { ...quizSpec, halfTones: settings.halfTones, chordSet: settings.chordSet });
+    } else if (res.rebuild && armedTrainer && armedTrainer.spec.remake
+      && CTRL.shouldRebuildChart(view, chart && chart.source)) {
+      /* A trainer's chart is no row of the tree: it is made again from its spec. */
+      chart = { ...armedTrainer.spec.remake({ bpm: settings.bpm, transpose: settings.transpose }), source: 'generated' };
+      armRun();
     } else if (res.rebuild && CTRL.shouldRebuildChart(view, chart && chart.source)) {
       const row = armedId ? findLeaf(armedId) : null;
       if (row && row.build) {
@@ -2347,9 +2370,35 @@ export function createSession(fx, opts = {}) {
     }
     trainerOpen = { subject, circle, custom: false };
     settingsGroup = SET.MAIN_GROUP.key;
-    startQuiz(TRAIN.trainerSpec(subject, circle, setup, {
-      transpose: settings.transpose, seed: (wallNow() & 0x7fffffff) || 1,
-    }));
+    runTrainer(TRAIN.trainerSpec(subject, circle, setup, trainerCtx(subject, circle)));
+  }
+
+  /* What a round is drawn with: the octave, the tempo, a fresh seed, and the
+   * circle's history in the per-item table, so a missed item comes up more. */
+  function trainerCtx(subject, circle) {
+    return {
+      transpose: settings.transpose,
+      bpm: settings.bpm,
+      seed: (wallNow() & 0x7fffffff) || 1,
+      history: STATS.itemHistory(stats, subject, circle),
+    };
+  }
+
+  /* A round on its engine: a quiz, or a chart on the ready screen. */
+  function runTrainer(spec, pinned = false, label = null) {
+    if (!spec.chart) {
+      startQuiz(pinned ? { ...spec, pinned: true, label } : spec);
+      return;
+    }
+    allNotesOff();
+    quizSpec = null;
+    armedUnit = null;
+    sessionTempo = null;
+    const node = { id: 'quiz:' + spec.trainer.id, label: label || spec.chart.name,
+      build: () => ({ ...spec.chart, source: 'generated' }) };
+    if (!armNode(node)) return;
+    armedTrainer = { spec, pinned };
+    announce(chart.name + '. Read it. Press play to start.');
   }
 
   /*
@@ -2367,13 +2416,7 @@ export function createSession(fx, opts = {}) {
       if (!sets[t.hash]) return;
       setup.custom = sets[t.hash].slice();
     }
-    startQuiz({
-      ...TRAIN.trainerSpec(t.subject, t.circle, setup, {
-        transpose: settings.transpose, seed: (wallNow() & 0x7fffffff) || 1,
-      }),
-      pinned: true,
-      label,
-    });
+    runTrainer(TRAIN.trainerSpec(t.subject, t.circle, setup, trainerCtx(t.subject, t.circle)), true, label);
   }
 
   /* Another round of what was just played: a trainer's is drawn again, a
@@ -3559,6 +3602,14 @@ export function createSession(fx, opts = {}) {
     /* Back from a ready screen lands on the folder it was opened from — for a
      * song, its ladder: having just played the right hand, the next thing you
      * want is the left hand of the same piece, one rung away. */
+    /* A trainer's chart goes back to its setup too. */
+    if (view === READY && armedTrainer && !armedTrainer.pinned) {
+      const t = armedTrainer.spec.trainer;
+      armedTrainer = null;
+      allNotesOff();
+      openSetup(t.subject, t.circle);
+      return;
+    }
     if (view === READY || view === GUESS_VIEW) {
       allNotesOff();
       view = MENU;

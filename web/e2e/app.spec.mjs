@@ -10,7 +10,7 @@ import { viewModel, encodeViewModel } from '../../src/view_model.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 import { homeLayout } from '../../src/home/render.mjs';
 
-const SCALE = ['Practice', 'Scales', 'Major', 'Up & down'];
+const SCALE = ['Practice', 'Scales', 'Learn', 'Major', 'Up & down'];
 /* Settings is one short page; Advanced on it lists the groups, each a page. */
 async function openSettings(page, group) {
   await page.getByRole('button', { name: 'Settings' }).click();
@@ -209,7 +209,7 @@ test('the hint line names the Move\'s keys on every screen', async ({ page }) =>
   await expect(page.locator('.move-hint')).toContainText('JOG choose');
   await openPath(page, ['Practice']);
   await expect(page.locator('.move-hint')).toContainText('PAD open', { message: 'a ring' });
-  await openPath(page, ['Scales']);
+  await openPath(page, ['Scales', 'Learn']);
   await expect(page.locator('.move-hint')).toContainText('CLICK open  BACK up');
   await openPath(page, ['Major', 'Up & down']);
   await expect(page.locator('.move-hint')).toContainText('REC start');

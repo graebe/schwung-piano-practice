@@ -18,6 +18,7 @@
  * gives, so the scale's map does (scaleKey, below).
  */
 
+import { scaleById } from './scales.mjs';
 import { ANCHOR_DIATONIC, ANCHOR_Y, STEP_PX, STAFF_LINE_YS } from './layout.mjs';
 
 export const LETTERS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -110,18 +111,11 @@ export function spell(pitch, key = 0) {
  * them: the pentatonics skip two letters, the blues' b5 shares the 5th's
  * letter, whole tone uses six, the diminished scales repeat one.
  */
-export const SCALE_LETTERS = {
-  majorPent: [0, 1, 2, 4, 5],
-  minorPent: [0, 2, 3, 4, 6],
-  minorBlues: [0, 2, 3, 4, 4, 6],
-  wholeTone: [0, 1, 2, 3, 4, 5],
-  wholeHalf: [0, 1, 2, 3, 4, 5, 5, 6],
-  halfWhole: [0, 1, 2, 2, 3, 4, 5, 6],
-};
-
-/* Otherwise nearest: a step of s semitones is about s * 7/12 letters. */
+/* The letters are the scale list's own (scales.mjs); a set of steps it does
+ * not name is written nearest: a step of s semitones is about s * 7/12 letters. */
 export function scaleLetters(steps, name) {
-  if (SCALE_LETTERS[name]) return SCALE_LETTERS[name];
+  const known = scaleById(name);
+  if (known && known.letters) return known.letters;
   if (steps.length === 7) return [0, 1, 2, 3, 4, 5, 6];
   return steps.map((s) => Math.floor((s * 7) / 12 + 0.5));
 }

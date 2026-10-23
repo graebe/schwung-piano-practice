@@ -27,6 +27,7 @@ import {
   QUALITIES, ADVANCED_QUALITIES, nameChord, chordPool, matchChord, qualityById, chordOf,
 } from './chords.mjs';
 import { CORRECT, WRONG, INCOMPLETE } from './verdict.mjs';
+import { matchScale } from './scales.mjs';
 import { buildChoices } from './choices.mjs';
 import { itemHistory } from './stats.mjs';
 import { spell, chordLabel } from './notation.mjs';
@@ -180,6 +181,8 @@ export function createQuiz({
     hint: 0,            /* rungs taken on this prompt */
     hintsUsed: 0,       /* across the round, for the record */
     held: [],
+    /* A line (a scale played note by note): what has been played of it. */
+    played: [],
     asked: 0,
     correct: 0,
     wrong: 0,
@@ -256,6 +259,8 @@ export function itemOf(quiz, entry) {
     if (quiz.subject === 'int' && !entry.judged && !/^[mMPTd]/.test(item)) return null;
     return { item, pc: pcOf(entry.root), way: entry.way || null };
   }
+  /* A trainer's entry says what it is. */
+  if (entry.item) return { item: entry.item, pc: pcOf(entry.root), way: entry.way || null };
   if (quiz.kind === NOTES) {
     return { item: spell(entry.pitches[0], quiz.fifths).label, pc: pcOf(entry.pitches[0]), way: null };
   }
@@ -301,6 +306,7 @@ export function nextPrompt(quiz) {
     quiz.choiceIndex = 0;
   }
   quiz.held = [];
+  quiz.played = [];
   quiz.solved = false;
   quiz.penalised = false;
   quiz.missed = false;
@@ -420,7 +426,7 @@ function dueReask(quiz, before) {
  * After the first hint a hearing prompt plays slower, chords broken first.
  */
 export function promptEvents(quiz) {
-  if (quiz.kind !== EAR || !quiz.entry) return null;
+  if (!quiz.entry || !quiz.entry.events) return null;
   return quiz.hint >= 1 ? slowed(quiz.entry.events) : quiz.entry.events;
 }
 
@@ -450,6 +456,7 @@ function evaluate(quiz) {
 export function pressPitch(quiz, pitch, nowMs = 0) {
   if (quiz.startedAt === null && nowMs) quiz.startedAt = nowMs;
   if (quiz.solved) return CORRECT;
+  if (quiz.entry && quiz.entry.line) return pressLine(quiz, pitch, nowMs);
   /* Two pads can be the same pitch on this grid; count it once. */
   if (quiz.held.indexOf(pitch) < 0) quiz.held.push(pitch);
 
@@ -495,6 +502,24 @@ function miss(quiz) {
   quiz.penalised = true;
   quiz.wrong++;
   quiz.streak = 0;
+}
+
+/*
+ * A line is played note by note, in order (scales.mjs matchScale): exactly,
+ * or any octave when it was asked by name or by ear. A wrong note counts as a
+ * miss and the line starts again from its first note — a scale with a hole in
+ * it is not the scale.
+ */
+function pressLine(quiz, pitch, nowMs) {
+  quiz.played.push(pitch);
+  const result = matchScale(quiz.played, quiz.entry.line, quiz.how === 'exact' ? 'exact' : 'any');
+  if (result === CORRECT) solve(quiz, nowMs);
+  else if (result === WRONG) {
+    miss(quiz);
+    quiz.penalised = false;
+    quiz.played = [];
+  }
+  return result;
 }
 
 export function releasePitch(quiz, pitch) {

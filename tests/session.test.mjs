@@ -19,7 +19,7 @@ import { settingIndex } from '../src/settings_def.mjs';
 
 function armScale(h) {
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   assert.equal(h.session.view, READY);
 }
 
@@ -252,7 +252,7 @@ test('Settings is one short page, edited in place; Advanced holds the groups', (
 test('Shift + click on a piece opens the page; Shift + click on any settings page goes back to the piece', () => {
   const h = fakeHost();
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   h.session.activate(true);
   assert.equal(h.session.view, SETTINGS);
   assert.equal(h.session.settingsGroup, 'main');
@@ -269,7 +269,7 @@ test('Shift + click on a piece opens the page; Shift + click on any settings pag
   assert.equal(h.session.settingsGroup, 'practice');
   h.session.activate(true);
   assert.equal(h.session.view, READY);
-  assert.deepEqual(h.session.nav.map((n) => n.node.label), ['Piano', 'Practice', 'Scales', 'Major'],
+  assert.deepEqual(h.session.nav.map((n) => n.node.label), ['Piano', 'Practice', 'Scales', 'Learn', 'Major'],
     'the list underneath is where it was');
   /* And Back from Advanced's group goes the long way round, to the piece. */
   h.session.activate(true);
@@ -497,7 +497,7 @@ test('Progress lists the overview and tracks; a row opens its chart data', () =>
 test('first-time Info opens by itself when Auto info is on, once', () => {
   const h = fakeHost({ settings: { ...QUIET, autoInfo: true } });
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   assert.equal(h.session.view, INFO_VIEW);
   h.session.back();
   assert.equal(h.session.view, READY);
@@ -774,7 +774,7 @@ test('program steps are built in C, whatever the Key and Scale settings say', ()
     h.session.back();
     h.run(400);                                  /* the island zooms out to the world */
   }
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   assert.notEqual(h.session.chart.keySig, 0, 'Practice follows the settings');
   for (let i = 0; i < 5; i++) h.session.back();
   openPath(h.session, ['Learning Path', '1 Grid and staff', '1.1 Find the notes', 'Notes by alphabet']);
@@ -876,7 +876,7 @@ test('BACK dismisses the welcome; an existing learner is never shown it', () => 
 test('a first-visit tip shows once, over the screen it explains', () => {
   const h = fakeHost({ progress: { tips: ['welcome'] } });
   h.session.init();
-  openPath(h.session, ['Practice', 'Scales', 'Major', 'Up & down']);
+  openPath(h.session, ['Practice', 'Scales', 'Learn', 'Major', 'Up & down']);
   assert.equal(h.session.view, CARD_VIEW);
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^REC plays and scores it/);
   h.session.activate(false);
@@ -884,7 +884,7 @@ test('a first-visit tip shows once, over the screen it explains', () => {
   h.session.back();
   openPath(h.session, ['Down']);
   assert.equal(h.session.view, READY, 'shown once');
-  for (let i = 0; i < 4; i++) h.session.back();
+  for (let i = 0; i < 5; i++) h.session.back();
   openPath(h.session, ['Quiz', 'Keys', 'Name notes']);
   assert.equal(h.session.view, CARD_VIEW);
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^Answer with the lit pads/);
@@ -930,7 +930,7 @@ test('the hint line names the keys of every screen, and the Shift layer while Sh
   assert.deepEqual(h.session.hint({ shift: true }), ['SHIFT: CLICK options', 'SHIFT: BACK quit']);
   openPath(h.session, ['Practice']);
   assert.deepEqual(h.session.hint(), ['JOG choose', 'CLICK open  PAD open', 'MENU help'], 'a ring');
-  openPath(h.session, ['Scales']);
+  openPath(h.session, ['Scales', 'Learn']);
   assert.deepEqual(h.session.hint(), ['CLICK open  BACK up']);
   openPath(h.session, ['Major', 'Up & down']);
   assert.deepEqual(h.session.hint(), ['JOG Solo  REC start', 'PLAY listen']);

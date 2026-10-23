@@ -28,10 +28,15 @@
 import {
   CHORD_LEVELS, chordsAtLevel, qualityById, chordPool,
 } from './chords.mjs';
-import { MODES, MODE_LABELS } from './scales.mjs';
-import { scaleKey, spell } from './notation.mjs';
-import { together, broken } from './ear_core.mjs';
-import { rng, PC_NAMES } from './generator.mjs';
+import {
+  MODES, MODE_LABELS, SCALE_LEVELS, scaleById, scalePool, lettersOf,
+} from './scales.mjs';
+import { scaleKey, spell, MIN_PITCH, MAX_PITCH } from './notation.mjs';
+import { together, broken, ev, NOTE_GAP, rootName } from './ear_core.mjs';
+import { rng, PC_NAMES, playableRange, scalePitches, keyForScale } from './generator.mjs';
+import { spellLine } from './read_course.mjs';
+import { SCALE_GAP } from './ear_course.mjs';
+import { DEFAULT_TRANSPOSE } from './padmap.mjs';
 
 export const CIRCLES = ['read', 'hear', 'play'];
 export const CIRCLE_LABEL = { read: 'Read', hear: 'Hear', play: 'Play' };
@@ -41,8 +46,8 @@ export const MAX_CHOICES = 8;
 
 /*
  * What a subject brings: its items in ladder order, its levels and what each
- * adds (`levelText`, for the Level row), the setup rows each circle shows, and
- * its defaults. Only the chord trainer is here yet.
+ * adds (`levelText`, for the Level row), the setup rows each circle shows,
+ * its defaults, and `spec`: how a round of it runs (below).
  */
 const CHORD = {
   key: 'chord',
@@ -58,9 +63,35 @@ const CHORD = {
     play: ['level', 'key', 'scale', 'roots', 'inversions', 'round'],
   },
   defaults: { answer: 'play', level: 1, roots: 'diatonic', inversions: false, sound: 'block', round: 10 },
+  spec: (...a) => chordSpec(...a),
 };
 
-export const SUBJECTS = { chord: CHORD };
+/*
+ * Scales: the ear course's teaching order. A scale is asked on a root —
+ * the Key's, or any — and played as a line, up, down or both; read and
+ * played, it is a chart with a pattern (straight, in 3rds, in 5ths).
+ */
+const SCALE = {
+  key: 'scale',
+  name: 'Scales',
+  noun: ['scale', 'scales'],
+  levels: SCALE_LEVELS,
+  levelText: ['major minor', '+ major modes', '+ harm mel', '+ phr loc', '+ pentatonic', '+ whole tone',
+    '+ diminished', '+ mel modes', '+ harm modes', '+ world'],
+  itemLabel: (id) => scaleById(id).label,
+  fields: {
+    read: ['answer', 'level', 'key', 'direction', 'pattern', 'round'],
+    hear: ['answer', 'level', 'key', 'direction', 'round'],
+    play: ['level', 'key', 'direction', 'round'],
+  },
+  defaults: { answer: 'play', level: 1, direction: 'up', pattern: 'straight', round: 10 },
+  /* Read and played, a round is one chart: no Round; named, no Pattern. */
+  hidden: (f, circle, setup) => circle === 'read'
+    && ((f === 'round' && setup.answer === 'play') || (f === 'pattern' && setup.answer === 'name')),
+  spec: (...a) => scaleSpec(...a),
+};
+
+export const SUBJECTS = { scale: SCALE, chord: CHORD };
 
 export function subjectOf(key) {
   return SUBJECTS[key] || null;
@@ -105,6 +136,12 @@ const FIELDS = {
   },
   inversions: { label: 'Inversions', values: () => [false, true], text: (v) => (v ? 'on' : 'off') },
   sound: { label: 'Sound', values: () => ['block', 'broken'], text: (v) => v },
+  direction: { label: 'Direction', values: () => ['up', 'down', 'both'], text: (v) => v },
+  pattern: {
+    label: 'Pattern',
+    values: () => ['straight', '3rds', '5ths'],
+    text: (v) => ({ straight: 'straight', '3rds': 'in 3rds', '5ths': 'in 5ths' })[v],
+  },
   round: {
     label: 'Round',
     values: () => [10, 20, 30, 0],
@@ -125,11 +162,10 @@ function firstNamingLevel(s) {
 export function coerceSetup(subject, circle, stored, ctx = {}) {
   const s = subjectOf(subject);
   const src = stored && typeof stored === 'object' ? stored : {};
-  const setup = {
-    ...s.defaults,
-    key: ctx.rootPc == null ? 0 : ctx.rootPc,
-    scale: MODES[ctx.mode] && ctx.mode !== 'chromatic' ? ctx.mode : 'major',
-  };
+  const setup = { ...s.defaults, key: ctx.rootPc == null ? 0 : ctx.rootPc };
+  if (s.fields.read.indexOf('scale') >= 0) {
+    setup.scale = MODES[ctx.mode] && ctx.mode !== 'chromatic' ? ctx.mode : 'major';
+  }
   if (circle === 'play') setup.answer = 'play';
   for (const f of s.fields[circle]) {
     if (src[f] !== undefined && valuesOf(s, setup, f).indexOf(src[f]) >= 0) setup[f] = src[f];
@@ -157,6 +193,7 @@ export function setupRows(subject, circle, setup) {
   const s = subjectOf(subject);
   const rows = [];
   for (const f of s.fields[circle]) {
+    if (s.hidden && s.hidden(f, circle, setup)) continue;
     rows.push({ label: FIELDS[f].label, value: FIELDS[f].text(setup[f], s), edit: 'trainer', field: f });
     if (f === 'level' && setup.level === 'custom') {
       rows.push({ label: s.name, value: setup.custom.length + ' >', act: 'custom' });
@@ -312,21 +349,57 @@ function staffColumn(pitches, key) {
  */
 export function trainerSpec(subject, circle, setup, ctx = {}) {
   const s = subjectOf(subject);
-  const rand = rng(ctx.seed || 1);
-  const rootPc = setup.key === 'random' ? Math.floor(rand() * 12) : setup.key;
-  const key = scaleKey(rootPc, MODES[setup.scale], setup.scale);
-  const set = itemSet(subject, setup);
-  const pool = chordPool({
-    qualities: set, roots: setup.roots, rootPc, mode: setup.scale,
-    transpose: ctx.transpose, fifths: key, inversions: setup.inversions,
-  });
   const id = trainerId(subject, circle, setup);
   const base = {
     trainer: { subject, circle, answer: circle === 'play' ? 'play' : setup.answer, id, setup },
     subject,
-    gen: { rootPc, mode: setup.scale },
     roundSize: setup.round,
     label: s.name + ' ' + CIRCLE_LABEL[circle],
+  };
+  return s.spec(s, circle, setup, ctx, base);
+}
+
+/*
+ * Naming, for any subject: the option engine with the items the pool can ask
+ * as its answers — an answer that is never right teaches nothing (in C major
+ * with diatonic roots no chord is augmented) — at most eight a prompt, the
+ * nearest near misses, in ladder order.
+ */
+function namingSpec(s, circle, set, prompts, distance, mark, question, base) {
+  const raw = prompts();
+  const asked = set.filter((q) => raw.some((e) => e.answer === q));
+  const answers = asked.map((q) => ({ key: q, label: s.itemLabel(q), short: mark(q) }));
+  const read = circle === 'read';
+  const exercise = {
+    key: 'trainer-' + s.key + '-' + circle,
+    name: s.name,
+    short: s.name,
+    question,
+    read,
+    answers,
+    levels: [{ key: 'trainer', name: '', staffOnly: read, prompts: () => raw }],
+  };
+  const choices = (entry) => {
+    const keep = choicesFor(asked, entry.answer, distance);
+    return answers.filter((a) => keep.indexOf(a.key) >= 0);
+  };
+  return { ...base, kind: 'ear', exercise, level: 'trainer', hear: !read, pick: true, choicesFor: choices };
+}
+
+/* ---- Chords ---- */
+
+function chordSpec(s, circle, setup, ctx, base0) {
+  const rand = rng(ctx.seed || 1);
+  const rootPc = setup.key === 'random' ? Math.floor(rand() * 12) : setup.key;
+  const key = scaleKey(rootPc, MODES[setup.scale], setup.scale);
+  const set = itemSet(s.key, setup);
+  const pool = chordPool({
+    qualities: set, roots: setup.roots, rootPc, mode: setup.scale,
+    transpose: ctx.transpose, fifths: key, inversions: setup.inversions,
+  });
+  const base = {
+    ...base0,
+    gen: { rootPc, mode: setup.scale },
     context: { k: rootPc, r: setup.roots, i: setup.inversions ? 1 : 0 },
   };
   const entries = pool.map((e) => ({
@@ -338,11 +411,6 @@ export function trainerSpec(subject, circle, setup, ctx = {}) {
     /* Hear, play it back: by name, any voicing (owner, 2026-10-23). */
     return { ...base, kind: 'chords', hear: true, how: 'name', pool: entries };
   }
-  /* Naming: the option engine, with the qualities of the level as answers —
-   * those the pool can ask: in C major with diatonic roots no chord is
-   * augmented, and an answer that is never right teaches nothing. */
-  const asked = set.filter((q) => pool.some((e) => e.qualityId === q));
-  const answers = asked.map((q) => ({ key: q, label: s.itemLabel(q), short: qualityById(q).short }));
   const read = circle === 'read';
   const prompts = () => pool.map((e) => {
     const entry = {
@@ -354,18 +422,139 @@ export function trainerSpec(subject, circle, setup, ctx = {}) {
     if (read) entry.staff = staffColumn(e.pitches, key);
     return entry;
   });
-  const exercise = {
-    key: 'trainer-' + subject + '-' + circle,
-    name: s.name,
-    short: s.name,
-    question: 'which chord?',
-    read,
-    answers,
-    levels: [{ key: 'trainer', name: '', staffOnly: read, prompts }],
+  return namingSpec(s, circle, set, prompts, qualityDistance, (q) => qualityById(q).short, 'which chord?', base);
+}
+
+/* ---- Scales ---- */
+
+/* How far apart two scales sound: the degrees one has and the other lacks. */
+export function scaleDistance(a, b) {
+  const x = new Set(scaleById(a).steps);
+  const y = new Set(scaleById(b).steps);
+  let d = 0;
+  for (const p of x) if (!y.has(p)) d++;
+  for (const p of y) if (!x.has(p)) d++;
+  return d;
+}
+
+/* A line from a scale pool entry, the way the setup says: up through the
+ * octave, down from it, or up and back down. */
+function directed(line, direction) {
+  if (direction === 'down') return line.slice().reverse();
+  if (direction === 'both') return line.concat(line.slice(0, -1).reverse());
+  return line.slice();
+}
+
+/* Quicker than an interval's notes: a scale is heard as a line. */
+function lineEvents(line) {
+  return line.map((p, i) => ev(p, i * SCALE_GAP, i === line.length - 1 ? NOTE_GAP : SCALE_GAP - 30));
+}
+
+/* Where a root may be: the Key's alone, or any. */
+const rootOk = (setup) => (root) => setup.key === 'random' || ((root % 12) + 12) % 12 === setup.key;
+
+/*
+ * Weighted by what has been missed: a scale you get wrong comes up more often
+ * (stats.items, as every trainer's drawing does), each still drawable.
+ */
+function drawWeighted(set, rand, history) {
+  const w = set.map((id) => {
+    const t = history && history[id];
+    return t && t[0] > 0 ? 1 + 3 * ((t[0] - t[1]) / t[0]) : 1;
+  });
+  let r = rand() * w.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < set.length; i++) {
+    r -= w[i];
+    if (r < 0) return set[i];
+  }
+  return set[set.length - 1];
+}
+
+/*
+ * Read, play: a chart, one scale a round, as the Practice scale drills are —
+ * the ready screen, its Knob 8 tempo and the scored run — drawn from the
+ * level, the scale you miss more often. Its pattern: straight, or in 3rds or
+ * 5ths, each step a degree and the one two or four above it.
+ */
+export function scaleChart(id, rootPc, setup, { bpm = 80, transpose = DEFAULT_TRANSPOSE } = {}) {
+  const { lo, hi } = playableRange(transpose);
+  const all = scalePitches(rootPc, id, lo, hi);
+  const n = scaleById(id).steps.length;
+  const skip = { straight: 0, '3rds': 2, '5ths': 4 }[setup.pattern] || 0;
+  /* The lowest root with room for the octave and the pattern's reach above it. */
+  let start = 0;
+  for (let i = 0; i < all.length; i++) {
+    if ((((all[i] - rootPc) % 12) + 12) % 12 === 0 && i + n + skip < all.length) { start = i; break; }
+  }
+  const up = [];
+  for (let i = 0; i <= n; i++) {
+    up.push(all[start + i]);
+    if (skip && i < n) up.push(all[Math.min(all.length - 1, start + i + skip)]);
+  }
+  const line = directed(up, setup.direction);
+  const key = keyForScale(rootPc, id);
+  return {
+    id: 'trainer-scale-' + id + '-' + rootPc,
+    name: key.root + ' ' + scaleById(id).short,
+    bpm,
+    timeSig: [4, 4],
+    keySig: key.fifths,
+    spelling: key.map,
+    events: line.map((pitch, i) => ({ beat: i, durBeats: 1, pitches: [pitch] })),
   };
-  const choices = (entry) => {
-    const keep = choicesFor(asked, entry.answer, qualityDistance);
-    return answers.filter((a) => keep.indexOf(a.key) >= 0);
-  };
-  return { ...base, kind: 'ear', exercise, level: 'trainer', hear: !read, pick: true, choicesFor: choices };
+}
+
+function scaleSpec(s, circle, setup, ctx, base) {
+  const rand = rng(ctx.seed || 1);
+  const set = itemSet(s.key, setup);
+  const ok = rootOk(setup);
+  const transpose = ctx.transpose == null ? DEFAULT_TRANSPOSE : ctx.transpose;
+  if (circle === 'read' && setup.answer === 'play') {
+    const id = drawWeighted(set, rand, ctx.history);
+    const rootPc = setup.key === 'random' ? Math.floor(rand() * 12) : setup.key;
+    const chart = scaleChart(id, rootPc, setup, { bpm: ctx.bpm, transpose });
+    return {
+      ...base, chart, item: id, root: rootPc, gen: { rootPc, mode: id },
+      /* The same scale again at a new tempo or octave (the settings). */
+      remake: (c) => scaleChart(id, rootPc, setup, c),
+      context: { k: rootPc, d: setup.direction, p: setup.pattern },
+    };
+  }
+  const context = { k: setup.key === 'random' ? -1 : setup.key, d: setup.direction };
+  if (setup.answer === 'play' || circle === 'play') {
+    /* Played back or from the name: a line on the pads, any octave. */
+    const range = playableRange(transpose);
+    const pool = scalePool({ ids: set, range, spell: spellLine })
+      .filter((e) => ok(e.root))
+      .map((e) => {
+        const line = directed(e.pitches, setup.direction);
+        const notes = directed(e.notes, setup.direction);
+        return {
+          pitches: line, line, item: e.id, root: e.root,
+          label: rootName(e.root).label + ' ' + scaleById(e.id).label,
+          events: lineEvents(line),
+          staff: notes.map((n) => ({ part: 0, notes: [n] })),
+        };
+      });
+    const how = { kind: 'notes', how: 'any', pool, context, gen: { rootPc: 0, mode: 'chromatic' } };
+    if (circle === 'play') return { ...base, ...how, read: 'name' };
+    return { ...base, ...how, hear: true };
+  }
+  /* Naming. Read: written on the staff, a root it cannot be written on not
+   * asked. Hear: anywhere the pads and the staff reach. */
+  const read = circle === 'read';
+  const range = read ? { lo: MIN_PITCH, hi: MAX_PITCH } : playableRange(transpose);
+  const prompts = () => scalePool({ ids: set, range, spell: read ? spellLine : null })
+    .filter((e) => ok(e.root))
+    .map((e) => {
+      const line = directed(e.pitches, setup.direction);
+      const entry = {
+        answer: e.id, events: lineEvents(line), root: e.root,
+        label: rootName(e.root).label + ' ' + scaleById(e.id).label,
+      };
+      if (read) entry.staff = directed(e.notes, setup.direction).map((n) => ({ part: 0, notes: [n] }));
+      return entry;
+    });
+  return namingSpec(s, circle, set, prompts, scaleDistance, (q) => scaleById(q).mark, 'which scale?',
+    { ...base, context, gen: { rootPc: 0, mode: 'chromatic' } });
 }

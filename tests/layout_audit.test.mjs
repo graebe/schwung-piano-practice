@@ -181,6 +181,13 @@ function attempts(n) {
   return out;
 }
 
+/* C# major up and back down, on the staff, sharps and all. */
+const LINE = (() => {
+  const up = [[61, 28, 1], [63, 29, 1], [65, 30, 1], [66, 31, 1], [68, 32, 1], [70, 33, 1], [72, 34, 1], [73, 35, 1]]
+    .map(([pitch, diatonic, alter]) => ({ part: 0, notes: [{ pitch, diatonic, alter }] }));
+  return up.concat(up.slice(0, -1).reverse());
+})();
+
 const SCREENS = {
   'exercise result, worst case': (c) => V.drawExerciseResult(c, {
     name: 'Scarborough Fair L3 Both hands', percent: 100, hits: 188, total: 188, wrong: 120,
@@ -453,6 +460,18 @@ const SCREENS = {
       { pitch: 68, diatonic: 32, alter: 1 }, { pitch: 71, diatonic: 34, alter: 0 }] }],
     option: 'Minor-maj 7th', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
   }),
+  /* A scale both ways, fifteen notes, the longest name a scale has. */
+  'line, half played': (c) => V.drawLineView(c, {
+    title: 'SCALES PLAY', score: '19/20', staff: LINE, shown: 7, label: 'C# Lydian augmented',
+    footer: hintFor('guess', { hintsLeft: true, streak: 999 })[0],
+  }),
+  'line, solved': (c) => V.drawLineView(c, {
+    title: 'SCALES HEAR', score: '20/20', staff: LINE, shown: LINE.length, label: 'C# Lydian augmented',
+    solved: true, footer: hintFor('guess', { streak: 999 })[0],
+  }),
+  'line, heard, nothing yet': (c) => V.drawLineView(c, {
+    title: 'SCALES HEAR', score: '0/20', staff: LINE, shown: 0, label: '?', footer: hintFor('guess', {})[0],
+  }),
   'ready': (c) => V.drawReadyView(c, {
     chart, run: createRun(chart), songBeats: 0, pxPerBeat: 48, outLabel: 'trk+USB 16',
   }),
@@ -501,7 +520,7 @@ test('a Stats row keeps its whole label: thirteen characters beside the meters',
 });
 
 test('the name-lane rule is drawn only by the views that have a name lane', () => {
-  const laned = ['reading', 'guess', 'ready', 'read pick'];
+  const laned = ['reading', 'guess', 'ready', 'read pick', 'line'];
   for (const [name, draw] of Object.entries(SCREENS)) {
     const c = probe();
     draw(c);

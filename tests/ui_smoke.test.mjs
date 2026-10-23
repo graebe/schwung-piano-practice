@@ -136,12 +136,14 @@ function openProgress() {
   jog(TOP.progress);
   click();
 }
-/* Practice › Scales › Major, highlight on its first drill, Up & down. */
+/* Practice › Scales › Learn › Major, highlight on its first drill, Up & down. */
 function toScale() {
   globalThis.init();
   jog(TOP.practice);
   click();
-  click();
+  click();                                    /* Scales: the trainer's ring */
+  jog(3);
+  click();                                    /* Learn */
   click();
 }
 function armScale() {
@@ -494,7 +496,9 @@ test('a second source on the same pitch is heard, and does not cut the first', a
   globalThis.init();
   jog(TOP.practice);
   click();                                              /* the Practice ring */
-  click();                                              /* Scales, a list: the pads are the piano */
+  click();                                              /* Scales: the trainer's ring */
+  jog(3);
+  click();                                              /* Learn, a list: the pads are the piano */
   globalThis.tick();
   const struck = () => { const n = hostCalls.notes.slice(); hostCalls.notes.length = 0; return n; };
   struck();
@@ -1035,6 +1039,8 @@ test('on the map a pad walks there, a second press goes in, and pads make no sou
   jog(TOP.practice);
   click();
   click();                                              /* Practice › Scales */
+  jog(3);
+  click();                                              /* its Learn, a list */
   /* In a list the pads are the piano again. */
   globalThis.onMidiMessageInternal([0x90, PAD, 100]);
   globalThis.onMidiMessageInternal([0x80, PAD, 0]);
@@ -1331,8 +1337,10 @@ test('the first time a kind of practice is opened, its Info comes first, once', 
     globalThis.init();
     jog(TOP.practice);
     click();
-    click();
-    click();                                            /* Practice › Scales › Major */
+    click();                                            /* Practice › Scales */
+    jog(3);
+    click();                                            /* Learn */
+    click();                                            /* Major */
     const first = screen.frame(click);                  /* Up & down */
     assert.match(first, /INFO/, 'shown by itself: ' + first);
     assert.match(first, /A piece, armed/, 'the screen first');

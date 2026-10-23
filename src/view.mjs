@@ -1183,6 +1183,35 @@ export function drawReadPick(ctx, state) {
 }
 
 /*
+ * A line to play — a scale, from its name or by ear — drawn as it is played:
+ * the notes so far appear where the whole line will stand, so the staff fills
+ * left to right and a wrong note (the line starts again) empties it. The name
+ * lane holds the name, or "?" while the line is still to be heard.
+ *
+ *   state = { title, score, staff: [{ part, notes }], shown, label, footer }
+ */
+export function drawLineView(ctx, state) {
+  ctx.clear();
+  R.drawStaff(ctx);
+  const columns = state.staff || [];
+  const xs = readColumnsX(columns);
+  for (let i = 0; i < Math.min(state.shown || 0, columns.length); i++) drawReadColumn(ctx, xs[i], columns[i].notes);
+  ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
+  R.drawClef(ctx);
+  R.drawChrome(ctx, { left: state.title || 'PLAY', right: state.score || '', lane: true });
+  const text = truncate(ctx, state.label || '?', L.TEXT_MAX_PX - 4);
+  const x = (L.SCREEN_W - ctx.textWidth(text)) >> 1;
+  if (state.solved) {
+    ctx.fillRect(x - 2, L.NAME_LANE_Y - 1, ctx.textWidth(text) + 4, L.TEXT_H + 1, 1);
+    ctx.text(x, L.NAME_LANE_Y, text, 0);
+  } else {
+    ctx.text(x, L.NAME_LANE_Y, text, 1);
+  }
+  if (state.footer) drawFooterHint(ctx, state.footer);
+  return ctx;
+}
+
+/*
  * An Info page: what a practice is and the words it uses. Wrapped text,
  * scrolled a line at a time with the jog, headings underlined, and a bar at
  * the right edge saying how much there is and where you are in it.
