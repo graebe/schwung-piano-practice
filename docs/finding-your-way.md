@@ -194,7 +194,9 @@ at both ends. A new level starts from bar 1. The bottom line names it, and
 takes turns with the keys.
 
 Under them the box names **knob 8** and the tempo it sets, live as you turn
-it. A drill without levels has the same row.
+it. A drill without levels has the same row. On a song knob 8 slows (or
+speeds) the song itself, for as long as it stays open: learn it slowly,
+then build it up. Opened again, it starts at its written tempo.
 
 A step of the Learning Path, Continue and Review open the level they are about.
 

@@ -121,7 +121,10 @@ level is learned. Turn the **jog** and you walk the levels and their two ways to
 1 Solo, 2 Guided, 2 Solo... The bottom line names it — `L2 RH chords  Solo` — and takes turns with
 the keys. A new level starts again from bar 1. A step of the Learning Path, Continue and Review arm the
 level they name. Under the controls and the LEVEL box the ready box ends with **Knob 8** and the tempo
-— `Knob 8:  72 bpm` — the knob that sets it; every drill's ready screen has that row.
+— `Knob 8:  72 bpm` — the knob that sets it; every drill's ready screen has that row. On a song knob 8
+turns the song's own tempo, live, to learn it slowly and build it up: it is not saved, its other levels
+keep it while the song stays open, and opened again it is back at the written tempo. A take at a slower
+tempo is judged like any other (90% passes) and keeps its tempo in the attempt's history.
 
 | | | |
 | --- | --- | --- |
@@ -498,7 +501,8 @@ hands alternate — which is the coordination techno keys ask for.
 | Quartal | stacked fourths in parallel over a held A | Detroit, UR |
 | Thirds Cycle | m11 chords a minor third apart: C, E♭, F♯, A | symmetric harmony |
 
-The written tempos are the genre's, 118–130. Knob 8 slows any of them while a study is new.
+The written tempos are the genre's, 118–130. Knob 8 slows any of them while a study is new: on a song
+it turns the song's own tempo for the session, and opened again the study is back at its written tempo.
 
 ## Styles
 
@@ -1011,7 +1015,7 @@ Four beats count you in, counted down on screen.
 | **Back** | from a running exercise or a result, **back to the start**; from the ready screen, up a level — so twice gets you out, and there is no separate stop button to learn |
 | **Shift + Back** | close immediately from anywhere |
 | **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. The pads light the note the playhead has landed on, at either stage, so you can see where you are on the grid as well as on the staff; they go dark again the moment the music runs. Find your spot, then Play or Record from there |
-| **Knob 8** | tempo, 40–200 |
+| **Knob 8** | tempo, 40–200: a drill's Tempo setting, or a song's own tempo for the session (not saved) |
 
 The knobs mean different things in different places, and **only Settings changes settings**: in an
 exercise they are the two above, in Settings they are the four rows on screen, and everywhere else
@@ -1065,7 +1069,7 @@ in `settings.json`.
 
 | Setting | Default | |
 | --- | --- | --- |
-| Tempo | **80** | beats a minute for the generated drills (a song keeps its own); knob 8 changes it on a piece |
+| Tempo | **80** | beats a minute for the generated drills; knob 8 changes it on a drill. On a song knob 8 turns the song's own tempo instead, for the session only |
 | Read ahead | **24** | pixels a beat: how far ahead the staff shows |
 | Any octave | off | accept the right note in the wrong register |
 | Wait | **on** | stop the scroll at a note until it is played. A note waited for still scores a miss — you get the ✗ and you still have to play it |
@@ -1151,8 +1155,8 @@ from that beat on.
 three quarter-beats to the bar. There is no rest event: a gap in the beat numbers is a rest, and
 a piece with a pickup simply starts at a later beat so its downbeats stay on the bar lines.
 
-A file exercise keeps its own `bpm` — the tempo knob only drives the generated ones — so pick a
-tempo the piece is actually playable at. A note more than 180 ms late is gone, which makes
+A file exercise is armed at its own `bpm` — knob 8 can slow it for the session, but every opening
+starts at the written tempo — so write the tempo the piece is meant to be played at. A note more than 180 ms late is gone, which makes
 sixteenths at anything past walking pace a losing fight; write them as eighths and halve the bpm.
 
 ### The one-screen rule
