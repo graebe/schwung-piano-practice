@@ -198,7 +198,12 @@ export function HomeView(props) {
       </header>
       {/* The picture is for the pointer; the rows below say the same to a
         * screen reader, so it is hidden from one. */}
-      <svg class="home" viewBox={`0 ${HOME_TOP} 128 ${HOME_H}`} aria-hidden="true">
+      {/* The ring it draws, said on the element: which folder, how many
+        * circles at which spacing, and the chosen one -- so whoever reads
+        * the picture can wait for the ring it expects. */}
+      <svg class="home" viewBox={`0 ${HOME_TOP} 128 ${HOME_H}`} aria-hidden="true"
+           data-ring={props.vm().nav ? props.vm().nav.title : ''} data-count={home().items.length}
+           data-xs={xs().join(' ')} data-selected={selected() ? selected().key : ''}>
         <For each={home().items}>{(it, i) => {
           const on = () => i() === home().selected;
           const rows = () => (on() ? it.large : it.small);

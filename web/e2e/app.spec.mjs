@@ -8,6 +8,7 @@ import { test, expect, openPath, closeInfo } from './fixtures.mjs';
 import { createSession } from '../../src/session.mjs';
 import { viewModel, encodeViewModel } from '../../src/view_model.mjs';
 import { readFileSync, existsSync } from 'node:fs';
+import { homeLayout } from '../../src/home/render.mjs';
 
 const SCALE = ['Practice', 'Scales', 'Major', 'Up & down'];
 /* Settings is one short page; Advanced on it lists the groups, each a page. */
@@ -55,31 +56,46 @@ test('home is five circles: a click opens one, Back finds it selected', async ({
   await expect(page.locator('.home-screen')).toBeVisible();
 });
 
+/*
+ * Every read waits for the ring it expects, by the state the picture states
+ * on its element (data-ring, data-count, data-xs, data-selected), never by
+ * time: a loaded machine draws the ring later, not differently. The circles'
+ * places are compared as the engine lays them out (homeLayout), retried
+ * until the picture shows that ring.
+ */
 test('Practice and Quiz are rings: circles spaced by their count, a click opens, Back finds the circle', async ({ page }) => {
+  const ring = page.locator('svg.home');
+  const xsOf = (n) => homeLayout(n).join(' ');
   await page.locator('.row', { hasText: /^Practice/ }).click();
+  await expect(ring).toHaveAttribute('data-ring', 'Practice');
+  await expect(ring).toHaveAttribute('data-count', '5');
+  await expect(ring).toHaveAttribute('data-xs', xsOf(5), { message: 'five, as home spaces them' });
   await expect(page.locator('#home-title')).toHaveText('Practice');
   await expect(page.locator('.home-rows .row-label')).toHaveText(['Scales', 'Chords', 'Progressions', 'Random', 'Songs']);
   await expect(page.locator('.home .home-item')).toHaveCount(5);
   await expect(page.getByRole('button', { name: 'Back' })).toBeEnabled();
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('ring-practice.png', { fullPage: true });
-  const fiveX = await page.locator('.home .home-item circle').evaluateAll((cs) => cs.map((c) => +c.getAttribute('cx')));
   await page.locator('.home .home-item[data-key="songs"]').click();
   await expect(page.locator('#list-title')).toHaveText(/songs/i, { message: 'deeper levels stay lists' });
   await page.keyboard.press('Escape');
-  await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'songs', { message: 'its circle' });
+  await expect(ring).toHaveAttribute('data-ring', 'Practice');
+  await expect(ring).toHaveAttribute('data-selected', 'songs', { message: 'its circle' });
   await page.keyboard.press('Escape');
-  await expect(page.locator('#home-title')).toHaveText('Piano');
-  await expect(page.locator('.home .home-item.on')).toHaveAttribute('data-key', 'basics', { message: 'home, on Practice' });
+  await expect(ring).toHaveAttribute('data-ring', 'Piano');
+  await expect(ring).toHaveAttribute('data-selected', 'basics', { message: 'home, on Practice' });
   await page.keyboard.press('ArrowRight');
+  await expect(ring).toHaveAttribute('data-selected', 'quiz');
   await page.keyboard.press('Enter');
-  await expect(page.locator('#home-title')).toHaveText('Quiz');
+  await expect(ring).toHaveAttribute('data-ring', 'Quiz');
+  await expect(ring).toHaveAttribute('data-count', '3');
+  await expect(ring).toHaveAttribute('data-xs', xsOf(3), { message: 'three, spaced for three' });
   await expect(page.locator('.home .home-item')).toHaveCount(3);
   await expect(page.locator('.home-rows .row-label')).toHaveText(['Ear', 'Reading', 'Keys']);
-  const threeX = await page.locator('.home .home-item circle').evaluateAll((cs) => cs.map((c) => +c.getAttribute('cx')));
-  expect(threeX[1]).toBeCloseTo(64.5, 0);
-  expect(threeX[0]).not.toBe(fiveX[0]);
-  expect(threeX[0] + threeX[2]).toBeCloseTo(129, 0);
+  /* And the circles stand where the element says. */
+  await expect.poll(() => page.locator('.home .home-item circle')
+    .evaluateAll((cs) => cs.map((c) => +c.getAttribute('cx') - 0.5).join(' '))).toBe(xsOf(3));
+  expect(homeLayout(3)[0]).not.toBe(homeLayout(5)[0]);
   await page.mouse.move(0, 0);
   await expect(page).toHaveScreenshot('ring-quiz.png', { fullPage: true });
   await page.locator('.home .home-item[data-key="keys"]').click();
