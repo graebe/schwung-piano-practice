@@ -343,14 +343,15 @@ const WAVE = compile(['.##..', '#..##']);
 const RIPPLE = compile(['.##..', '...##']);
 
 /*
- * Where the route stays out of a place: a pixel round anything its shape or
- * the flag and due markers can light, so the route reaches a place but never
- * touches it. The avatar's spot is left open, so a route arriving from above
- * comes down onto the ground; the spot is cleared when the avatar or the
- * current marker is in it. Indexed from (-1, -1).
+ * Where the route stays out of a place: a pixel round what the place can
+ * actually light -- its shape (every wall, filled or not), its flag where it
+ * flies (the pole only down to where it stands), and its due dot -- so the
+ * route reaches a place but never touches it, and runs on undisturbed past
+ * a building's empty corners. The avatar's spot is left open, so a route
+ * arriving from above comes down onto the ground; the spot is cleared when
+ * the avatar or the current marker is in it. Indexed from (-1, -1).
  *
- * The world map keeps clear of every world shape at once, as it always has;
- * an island map of the shapes it actually shows.
+ * Each place keeps clear of its own kind only, on both maps.
  */
 const MASK_W = GLYPH_W + 2;
 const MASK_H = GLYPH_H + 2;
@@ -364,9 +365,9 @@ function keepClear(kinds, slot = false, island = false) {
   for (const k of kinds) {
     shapeRows(k, island).forEach((row, y) => [...row].forEach((ch, x) => { if (ch !== '.') lit(x, y); }));
     /* Its flag, where it flies: on an island each building has its own spot. */
-    const f = island ? flagOf(k, true) : { x: POLE_X, pennant: PENNANT };
+    const f = flagOf(k, island);
     for (const [x, y] of f.pennant) lit(x, y);
-    for (let y = 0; y < GLYPH_H; y++) lit(f.x, y);
+    for (let y = 0; y < f.end; y++) lit(f.x, y);
   }
   for (const [x, y] of DUE) lit(x, y);
   if (slot) {
@@ -374,7 +375,34 @@ function keepClear(kinds, slot = false, island = false) {
   }
   return mask;
 }
-const WORLD_CLEAR = keepClear(Object.keys(BODIES));
+const clearCache = new Map();
+/* The keep-out of one kind, cached: on a map of either kind. */
+function clearOf(kind, island, slot = false) {
+  const key = `${kind}|${island ? 1 : 0}|${slot ? 1 : 0}`;
+  let m = clearCache.get(key);
+  if (!m) {
+    m = keepClear([kind], slot, island);
+    clearCache.set(key, m);
+  }
+  return m;
+}
+
+/*
+ * The keep-out of a place, as a set of screen pixels (for the tests and the
+ * scene player): pixels the route stays off round place i of `layout`.
+ */
+export function placeKeepOut(layout, i, kind) {
+  const island = layout.kind === 'island';
+  const m = clearOf(shapeKind(kind), island);
+  const r = cellRect(layout.cells[i], layout.kind);
+  const out = new Set();
+  for (let gy = -1; gy <= GLYPH_H; gy++) {
+    for (let gx = -1; gx <= GLYPH_W; gx++) {
+      if (m[(gy + 1) * MASK_W + gx + 1]) out.add((r.y + gy) * 128 + r.x + GLYPH_DX + gx);
+    }
+  }
+  return out;
+}
 /* The avatar's spot and the sky above it, cleared under the figure or the
  * marker so a route coming down never touches its head. */
 const SLOT = [STAND_X, 0, AVATAR_W, STAND_Y + AVATAR_H];
@@ -391,14 +419,12 @@ function nearPlace(layout, masks, x, y) {
 }
 
 /*
- * The route as dots. At sea, 1px every 2, on the even diagonal so corners
- * stay in step; on an island the footpath is lighter, 1px every 4, counted
- * along the path so its corners stay even too.
+ * The route as dots, 1px every 2, on the even diagonal so corners stay in
+ * step -- at sea and on an island alike.
  */
-function routeDots(layout, masks, every = 2) {
+function routeDots(layout, masks) {
   const seen = new Set();
   const dots = [];
-  let step = 0;
   for (let i = 1; i < layout.route.length; i++) {
     const a = cellCentre(layout.route[i - 1], layout.kind);
     const b = cellCentre(layout.route[i], layout.kind);
@@ -406,8 +432,7 @@ function routeDots(layout, masks, every = 2) {
     const dy = Math.sign(b.y - a.y);
     for (let x = a.x, y = a.y; ; x += dx, y += dy) {
       const k = y * 256 + x;
-      const on = every === 2 ? (x + y) % 2 === 0 : !seen.has(k) && step++ % every === 0;
-      if (on && !seen.has(k) && !nearPlace(layout, masks, x, y)) dots.push(x, y);
+      if ((x + y) % 2 === 0 && !seen.has(k) && !nearPlace(layout, masks, x, y)) dots.push(x, y);
       seen.add(k);
       if (x === b.x && y === b.y) break;
     }
@@ -490,9 +515,9 @@ function scene(layout, places, island) {
   let s = byKinds.get(key);
   if (s) return s;
   if (island) {
-    const masks = kinds.map((k) => keepClear([k], false, true));
-    const coastMasks = kinds.map((k) => keepClear([k], true, true));
-    s = { dots: routeDots(layout, masks, 4), waves: SEA_WAVES, coast: coastRects(layout, coastMasks) };
+    const masks = kinds.map((k) => clearOf(k, true));
+    const coastMasks = kinds.map((k) => clearOf(k, true, true));
+    s = { dots: routeDots(layout, masks), waves: SEA_WAVES, coast: coastRects(layout, coastMasks) };
   } else {
     const onRoute = new Set(layout.route.map((c) => c.row * COLS + c.col));
     const waves = [];
@@ -504,7 +529,7 @@ function scene(layout, places, island) {
         waves.push(r.x + 3 + ((col * 7 + row * 3) % 6), r.y + 3 + ((col + row * 2) % 3) * 2);
       }
     }
-    s = { dots: routeDots(layout, layout.cells.map(() => WORLD_CLEAR)), waves, coast: null };
+    s = { dots: routeDots(layout, kinds.map((k) => clearOf(k, false))), waves, coast: null };
   }
   byKinds.set(key, s);
   return s;

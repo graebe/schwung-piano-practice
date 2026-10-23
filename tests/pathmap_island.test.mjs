@@ -180,23 +180,48 @@ test('round every building the screen shows the building alone: no coast, no pat
   }
 });
 
-test('an island map draws only the map area, and under 200 ctx calls a frame', () => {
-  let worst = 0;
-  for (const kinds of [DRUMS, PIANO, NINE]) {
-    const L = layoutPlaces(kinds.length, { kind: 'island' });
-    const places = placesOf(kinds);
-    const w = createWalk(L, 0);
-    walkTo(w, kinds.length - 1, 0);
-    for (const t of [0, 200, 900, 99999]) {
-      const c = screen(1);
-      drawMap(c, { places, layout: L, walk: w, now: t });
-      for (let x = 0; x < 128; x++) {
-        for (const y of [0, 9, 54, 63]) assert.ok(c.on(x, y), 'title bar and hint line untouched');
+test('a map draws only the map area, and within its call budget', () => {
+  /*
+   * THE BUDGET. The route is dotted 1 px in 2 on both maps (each dot one
+   * call) and a skipped or ahead place draws its outline a pixel at a time,
+   * so the worst frame -- nine places all dotted, the route dense, the
+   * avatar walking -- measures 273 calls. The budget is that plus about 10%.
+   * At ~490 ns per host call that is ~0.15 ms, far inside the 250 ms the
+   * Move allows a slow frame; a map redraws only while something moves.
+   * Past nine places (the serpentine, which no module shows) it is 360.
+   */
+  const BUDGET = 300;
+  const BUDGET_SERPENTINE = 360;
+  const ALL = ['sign', 'bell', 'clock', 'workshop', 'stage', 'library', 'temple', 'stairs', 'market', 'cove', 'fort'];
+  for (const kind of ['world', 'island']) {
+    for (let n = 2; n <= 12; n++) {
+      let worst = 0;
+      const L = layoutPlaces(n, { kind });
+      for (const state of [...STATES, 'mixed']) {
+        const places = Array.from({ length: n }, (_, i) => makePlace({
+          kind: kind === 'island' ? ALL[i % ALL.length] : 'island',
+          state: state === 'mixed' ? STATES[i % 6] : state, percent: 60, due: 1,
+        }));
+        const w = createWalk(L, 0);
+        walkTo(w, n - 1, 0);
+        for (const t of [0, 150, 99999]) {
+          const c = screen(1);
+          drawMap(c, { places, layout: L, walk: w, now: t });
+          for (let x = 0; x < 128; x++) {
+            for (const y of [0, 9, 54, 63]) assert.ok(c.on(x, y), 'title bar and hint line untouched');
+          }
+          worst = Math.max(worst, c.calls);
+        }
       }
-      worst = Math.max(worst, c.calls);
+      assert.ok(worst < (n <= 9 ? BUDGET : BUDGET_SERPENTINE), `${kind} n=${n}: worst frame ${worst} calls`);
     }
   }
-  assert.ok(worst < 200, `worst island frame: ${worst} calls`);
+  /* The maps the modules show, in the states they mostly are, stay lean. */
+  for (const kinds of [DRUMS, PIANO]) {
+    const c = screen();
+    drawMap(c, { places: placesOf(kinds), layout: layoutPlaces(kinds.length, { kind: 'island' }) });
+    assert.ok(c.calls < 230, `${kinds.length} places: ${c.calls}`);
+  }
   /* A celebration can leave the route out. */
   const L = layoutPlaces(8, { kind: 'island' });
   const a = screen();
@@ -221,10 +246,16 @@ test('the kind follows the layout unless it is given', () => {
 
 /* ---- The world, as it was ------------------------------------------------------ */
 
-test('world maps are exactly as they were before islands had a shape of their own', () => {
-  /* Pixel hashes of the world maps recorded from the engine before the island
-   * work (and checked against it frame by frame while it was written). */
-  const GOLDEN = { 5: ['a4b43237', 'c0f6b0e6'], 7: ['d4ed5a7d', '568dd094'], 8: ['b4e5436', 'a627943'], 9: ['aaaf2052', 'b838439b'] };
+test('world maps are what they were, but for the route dots the island-path fix brought back', () => {
+  /* Pixel hashes of the world maps. Recorded first from the engine before the
+   * island work; re-recorded once (2026-10-23) when the route's keep-out
+   * moved from every world shape at once to each place's own lit pixels.
+   * That change was checked frame by frame against the old engine on 792
+   * world frames: not one pixel went dark, and every pixel added is a route
+   * dot (on the even diagonal, in the route's line). The map of 9 was also
+   * redrawn so its places 2 and 3 are joined by a visible route; no module
+   * shows nine islands. */
+  const GOLDEN = { 5: ['fd775db2', '6833856b'], 7: ['a7b6d148', 'ed6eee28'], 8: ['2adbc17', 'c283e803'], 9: ['437d5d85', 'afa39568'] };
   for (const [n, kinds] of [[5, ['island']], [7, ['island']], [8, ['place', 'place', 'place', 'place', 'place', 'place', 'place', 'fort']], [9, ['island']]]) {
     const places = Array.from({ length: n }, (_, i) => makePlace({
       state: STATES[i % 6], percent: (i * 37) % 101, due: i % 3 === 0 ? 1 : 0, kind: kinds[i % kinds.length],

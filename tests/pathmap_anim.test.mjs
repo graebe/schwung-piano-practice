@@ -148,7 +148,8 @@ test('they draw where they may: the map area, or (the star) the screen', () => {
   }
 });
 
-test('a frame stays under 200 ctx calls, with the map it plays over', () => {
+test('a frame stays within the map budget, with the map it plays over', () => {
+  /* The map's budget (tests/pathmap_island.test.mjs says why): 300 calls. */
   let worst = 0;
   const place = (kind, state) => makePlace({ kind, state, percent: 60, due: 1 });
   for (const [name, run] of Object.entries(CASES)) {
@@ -161,7 +162,7 @@ test('a frame stays under 200 ctx calls, with the map it plays over', () => {
       worst = Math.max(worst, c.calls);
     }
   }
-  assert.ok(worst < 200, `worst frame: ${worst}`);
+  assert.ok(worst < 300, `worst frame: ${worst}`);
 });
 
 test('the flag climbs from the roof and ends where a done place flies it', () => {

@@ -82,7 +82,16 @@ const glyphAt = (c, L, i) => {
  * open sky a route may cross unless the figure or the marker is in it. */
 function assertGlyph(c, L, i, want, slotToo, msg) {
   const got = glyphAt(c, L, i);
-  const mask = (rows) => rows.map((r, y) => (slotToo || y >= STAND_Y + AVATAR_H ? r : r.slice(0, STAND_X) + '?'.repeat(AVATAR_W)));
+  /* Only what the place draws and the pixel of air round it are its own: the
+   * route may run through the empty rest of its box. */
+  const near = (x, y) => {
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (want[y + dy]?.[x + dx] === '#') return true;
+    return false;
+  };
+  const mask = (rows) => rows.map((r, y) => [...r].map((ch, x) => {
+    if (!slotToo && y < STAND_Y + AVATAR_H && x >= STAND_X && x < STAND_X + AVATAR_W) return '?';
+    return near(x, y) ? ch : '?';
+  }).join(''));
   assert.deepEqual(mask(got), mask(want), msg);
 }
 
