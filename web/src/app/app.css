@@ -343,6 +343,38 @@ button.status-pill { cursor: pointer; }
 }
 .stat-bar > span { display: block; height: 100%; background: var(--uv-deep); }
 
+/* A trainer's knob screen: eight knobs in a row, as on the Move. The dial's
+ * arc runs from 7 o'clock as far as the value stands (--pos, 0..1). */
+.knob-row {
+  display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: var(--space-2);
+  list-style: none; margin: 0; padding: 0;
+}
+.knob-cell {
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-1); min-width: 0;
+  padding: var(--space-2) var(--space-1); border: 1px solid var(--line-100);
+}
+.knob-cell.on { border-color: var(--uv); box-shadow: var(--glow-focus); }
+.knob-cell.unused { opacity: 0.45; border-style: dashed; }
+.knob-dial {
+  --pos: 0; position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%;
+  background: conic-gradient(from 210deg, var(--uv) calc(var(--pos) * 300deg + 6deg), var(--line-200) 0 300deg, transparent 0);
+}
+.knob-dial::before { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--bg-100); }
+.knob-dial > span { position: relative; }
+.knob-cell.unused .knob-dial { background: none; border: 1px dashed var(--line-200); }
+.knob-label { all: unset; cursor: pointer; font-size: 11px; text-align: center; }
+.knob-cell.unused .knob-label { cursor: default; }
+.knob-value {
+  font-family: var(--font-mono); font-size: 12px; text-align: center; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.6em;
+}
+.knob-steps { display: flex; gap: var(--space-1); }
+.knob-steps .btn { min-width: 28px; padding: 0 var(--space-1); }
+.knob-detail { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; }
+@media (max-width: 640px) {
+  .knob-row { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+
 /* A progression's numerals, each marked as its chord goes down. */
 .chord-row { display: flex; flex-wrap: wrap; gap: var(--space-2); list-style: none; margin: 0; padding: 0; }
 .chord-token { padding: var(--space-1) var(--space-2); border: 1px solid var(--line-100); color: var(--ink-muted); }

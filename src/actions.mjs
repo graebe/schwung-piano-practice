@@ -49,7 +49,7 @@
  * verdict, which a renderer flashes; otherwise null.
  */
 
-import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS, TRAINER_STATS } from './session.mjs';
+import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS, TRAINER_STATS, TRAINER_SETUP } from './session.mjs';
 import { beatsPerBar } from './chart.mjs';
 
 /* The knob's scrub resolution (ui.js / session.mjs: SCRUB_UNITS_PER_BAR). */
@@ -59,6 +59,7 @@ export const ACTIONS = [
   'noteOn', 'noteOff', 'select', 'open', 'back', 'move', 'options', 'sheet', 'sheetPick', 'cardPick', 'mapGo',
   'homeGo', 'skip', 'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'level',
   'scrubTo', 'tempo', 'editSetting', 'selectSetting', 'editRow', 'settingRow', 'progress', 'trainerStats',
+  'knob', 'focusKnob', 'play', 'customPick',
 ];
 
 const MIDI = (n) => Number.isInteger(n) && n >= 0 && n <= 127;
@@ -168,6 +169,22 @@ export function applyAction(S, a) {
       S.dirty = true;
       return null;
     }
+    /* A trainer's knob screen: a knob turned one step, a knob pointed at,
+     * PLAY, and the Custom tick list (a click on knob 2 on the Move). */
+    case 'knob':
+      if (S.view === TRAINER_SETUP && a.delta) S.knobTurn(a.n | 0, a.delta > 0 ? 1 : -1);
+      return null;
+    case 'focusKnob':
+      S.knobTouch(a.n | 0);
+      return null;
+    case 'play':
+      if (S.view === TRAINER_SETUP) S.playButton();
+      return null;
+    case 'customPick':
+      if (S.view !== TRAINER_SETUP) return null;
+      S.knobTouch(2);
+      S.activate(false);
+      return null;
     case 'trainerStats':
       if (S.view !== TRAINER_STATS) return null;
       S.selectStatsRow(a.index | 0);

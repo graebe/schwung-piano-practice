@@ -166,10 +166,14 @@ Progressions — each the same five circles: **Read**, **Hear**, **Play**,
 
 ![A trainer's five circles](media/web-trainer.png)
 
-**Read**, **Hear** and **Play** open a setup page: the rows a round asks for,
-each with **−** and **+**, and **Start** last. It remembers what you set.
+**Read**, **Hear** and **Play** open the knob screen, as on the Move: eight
+knobs in a row, the same knob the same setting in every trainer. Each shows
+its number, what it sets and its value, with **−** and **+** to turn it; a
+knob the circle does not use is greyed. The knob last turned is spelled out
+under the row. **Play** starts a round; while a Custom pick is too small it
+waits and says why. It remembers what you set.
 
-![A setup page](media/web-setup.png)
+![The knob screen](media/web-setup.png)
 
 A round of naming offers its answers as buttons, each in the colour its pad
 has on the Move. Choose one; a wrong answer is counted once and the question

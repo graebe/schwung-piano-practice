@@ -34,23 +34,43 @@ it and find it; you are told its name and play it.
 
 ## Setting up a round
 
-Read, Hear and Play each open a **setup page**. It works like Settings: turn the jog to a row,
-click to edit, turn to change, click again. The last row, **Start**, runs a round.
+Read, Hear and Play each open the **knob screen**: a row of eight knobs, drawn as the Move's own
+eight sit under the display. Each knob sets one thing. Its number is inside it, an arc round it
+shows how far the value has turned, and two letters under it say the value (`nm` for name, `L3`
+for level 3). Turn a knob to change its setting; touch one to see what it is without changing it.
+The knob you turned or touched is spelled out under the row: its name and its whole value. **PLAY**
+starts a round.
 
-![The setup page of Chords › Read](media/move-setup.png)
+![The knob screen of Chords › Read](media/move-setup.png)
 
-The page remembers what you set, for each trainer and each circle, so the next time you open it,
-Start is one click away.
+The same knob sets the same thing in every trainer, so knowing one trainer is knowing them all:
 
-The rows you will see:
+| Knob | Sets |
+| --- | --- |
+| 1 | Answer |
+| 2 | Level |
+| 3 | Key |
+| 4 | Scale (chords), Direction (scales, intervals) |
+| 5 | Roots (chords), Pattern (scales), Voicing (progressions) |
+| 6 | Inversions (chords), Rhythm (progressions) |
+| 7 | Sound (chords heard) |
+| 8 | Round |
+
+A knob a circle does not use is drawn dotted and empty. The jog walks along the knobs too, for
+anyone who prefers it, and **Shift + click** shows the same setup as a list. The screen remembers
+what you set, for each trainer and each circle, so the next time you open it, a round is one press
+of PLAY away.
+
+What the knobs set:
 
 - **Answer** — how you answer: **play** it on the pads, or **name** it from a short list. Intervals
   can also **compare** two (which is bigger?). Notes heard are **played back** or answered **higher
   or lower**: naming a single pitch out of nowhere is not a skill worth drilling. Play has no answer
   to choose; you always play.
-- **Level** — the trainer's ladder, simple first (below). **Custom** lets you tick your own set: a
-  new Custom pick starts as the level you came from, and Start waits until it has enough — one
-  thing to play, two to tell apart when naming.
+- **Level** — the trainer's ladder, simple first (below). **Custom** lets you tick your own set:
+  turned to Custom, **click** opens the tick list. A new Custom pick starts as the level you came
+  from, and PLAY waits until it has enough — one thing to play, two to tell apart when naming. While
+  it waits, the PLAY light is dark and the screen says what is missing (`tick 2 chords`).
 - **Key** — the key a round is in, or **random**. For progressions there is also **all 12**: the
   same progression in every key, walking round the circle of fifths.
 - The subject's own rows: for chords the key's **Scale**, which **Roots** (diatonic — only the
@@ -66,10 +86,21 @@ counts once and the question stays: getting it right is what moves you on. The s
 right answers a minute, and how many of your attempts were right.
 
 **Naming.** The answers are on the bottom row of pads, each its own colour, and the screen is the
-legend. You get at most eight: the right one and its nearest near misses, in the same order every
-time, so where an answer sits becomes habit.
+legend: wherever pads answer, the screen says which pad is which. You get at most eight: the right
+one and its nearest near misses, in the same order every time, so where an answer sits becomes
+habit.
+
+- **Heard**, four answers or fewer are a list, each with the colour of its pad; more are a map of
+  cells, each over its pad, holding the answer's short name.
 
 ![Chords › Hear, named](media/move-hear-name.png)
+
+- **Read**, the staff needs the screen, so under it sits an **answer strip**: one cell per answer,
+  over its pad's column, the same cells as the Hear map. The column of a pad with no answer is
+  dotted, so the row reads as the pads it is. The jog's choice is filled, and its full name is in
+  the title; an answer Help struck out is crossed through.
+
+![Chords › Read, named: Minor under the jog, its pad the middle cell](media/move-read-name.png)
 
 **Playing.** What counts depends on the circle:
 
@@ -91,7 +122,8 @@ time, so where an answer sits becomes habit.
 out a wrong answer, or names what you are finding. A hinted answer still counts, but the round
 records how many hints you took.
 
-**Back** from a round is its setup page; from the setup page, the trainer's ring. From a result,
+**Back** from a round is its knob screen, the knob you last turned still in focus; from there, the
+trainer's ring. From a result,
 **CLICK** runs another round as set up.
 
 ## The ladders
@@ -140,7 +172,7 @@ subject, until you stop missing it.
 
 ## On the page
 
-In a browser the trainers work the same way: the rings, the setup page with − and + on each row,
+In a browser the trainers work the same way: the rings, the eight knobs with − and + on each,
 the answer buttons in their pad colours, and Stats as a table with a chart of the row you pick.
 See [the page](web.md#trainers).
 

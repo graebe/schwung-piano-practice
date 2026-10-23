@@ -9,7 +9,7 @@ import assert from 'node:assert/strict';
 import { fakeHost, openPath } from './support/fake_host.mjs';
 import { applyAction, ACTIONS } from '../src/actions.mjs';
 import {
-  MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
+  MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW, TRAINER_SETUP,
 } from '../src/session.mjs';
 
 function ready() {
@@ -276,4 +276,33 @@ test('mapGo walks to a place, then goes in; off the map it does nothing', () => 
   assert.equal(h.session.mapModel().at, 4);
   applyAction(h.session, { type: 'mapGo', index: 4 });
   assert.equal(h.session.nav.at(-1).node.label, '5 Colour');
+});
+
+test('the knob screen from a page: a knob a step, a knob pointed at, Custom, Play', () => {
+  const h = fakeHost();
+  h.session.init();
+  openPath(h.session, ['Practice', 'Chords', 'Hear']);
+  assert.equal(h.session.view, TRAINER_SETUP);
+  const knob = (n) => h.session.knobSetup().knobs[n - 1];
+  applyAction(h.session, { type: 'knob', n: 3, delta: 5 });
+  assert.equal(knob(3).short, 'C#', 'one step, however far the page asks');
+  assert.equal(h.session.knobSetup().focus, 3);
+  applyAction(h.session, { type: 'focusKnob', n: 8 });
+  assert.equal(h.session.knobSetup().focus, 8);
+  assert.equal(knob(3).short, 'C#', 'pointing changes nothing');
+  applyAction(h.session, { type: 'customPick' });
+  assert.equal(h.session.view, TRAINER_SETUP, 'no Custom level: nothing to tick');
+  applyAction(h.session, { type: 'knob', n: 2, delta: 1 });
+  for (let i = 0; i < 20; i++) applyAction(h.session, { type: 'knob', n: 2, delta: 1 });
+  assert.equal(knob(2).short, 'Cu');
+  applyAction(h.session, { type: 'customPick' });
+  assert.equal(h.session.view, SETTINGS, 'its tick list');
+  h.session.back();
+  assert.equal(h.session.view, TRAINER_SETUP);
+  applyAction(h.session, { type: 'play' });
+  assert.equal(h.session.view, GUESS_VIEW, 'Play starts');
+  applyAction(h.session, { type: 'play' });
+  assert.equal(h.session.view, GUESS_VIEW, 'and off the knob screen is not this action');
+  applyAction(h.session, { type: 'knob', n: 1, delta: 1 });
+  assert.equal(h.session.view, GUESS_VIEW);
 });

@@ -726,6 +726,68 @@ export function TrainerStatsView(props) {
   );
 }
 
+/* ---- A trainer's knob screen --------------------------------------------------- */
+
+/*
+ * A trainer circle's setup, as the Move shows it: eight knobs in a row, the
+ * same knob the same setting in every trainer. Each cell is a knob: its
+ * number, what it sets, its value in words (the page has the room the
+ * Move's two letters lack), and − / + for a step either way (a knob
+ * this circle does not use is greyed). The knob last touched is spelled out
+ * under the row; Play starts, and while a Custom pick is too small it says
+ * why instead.
+ */
+export function KnobSetupView(props) {
+  const ks = () => props.vm().trainerSetup;
+  const focused = () => ks() && ks().knobs.find((k) => k.n === ks().focus && k.field);
+  const turn = (n, delta) => props.dispatch({ type: 'knob', n, delta });
+  return (
+    <Show when={ks()}>
+      <section class="screen knob-screen" aria-labelledby="knob-title">
+        <header class="screen-head">
+          <h1 id="knob-title" class="t-title">{ks().title}</h1>
+          <p class="t-hint">Turn the knobs; Play starts. The same knob sets the same thing in every trainer.</p>
+        </header>
+        <ol class="knob-row" aria-label="The eight knobs">
+          <For each={ks().knobs}>{(k) => (
+            <li class="knob-cell" classList={{ on: k.n === ks().focus, unused: !k.field }} data-knob={k.n}
+                data-field={k.field || ''}>
+              <span class="knob-dial" aria-hidden="true"
+                    style={{ '--pos': k.field ? k.pos : 0 }}><span class="t-value">{k.n}</span></span>
+              <Show when={k.field} fallback={<span class="t-hint knob-label">unused</span>}>
+                <button class="knob-label t-label" type="button" onClick={() => props.dispatch({ type: 'focusKnob', n: k.n })}
+                        data-info={`Knob ${k.n}: ${k.label}`}>{k.label}</button>
+                <span class="knob-value t-value" title={k.text}>{k.text}</span>
+                <span class="knob-steps">
+                  <Button info={`${k.label}: one back`} ariaLabel={`Knob ${k.n}, ${k.label}: down`}
+                          onClick={() => turn(k.n, -1)}>−</Button>
+                  <Button info={`${k.label}: one on`} ariaLabel={`Knob ${k.n}, ${k.label}: up`}
+                          onClick={() => turn(k.n, 1)}>+</Button>
+                </span>
+              </Show>
+            </li>
+          )}</For>
+        </ol>
+        <Show when={focused()}>
+          <p class="knob-detail" aria-live="polite">
+            <span class="t-label">Knob {focused().n} · {focused().label}</span>
+            <span class="t-value">{ks().blocked ? 'to start: ' + ks().blocked : focused().text}</span>
+          </p>
+        </Show>
+        <div class="transport">
+          <Button onClick={() => props.dispatch({ type: 'back' })} info="Back to the trainer">Back</Button>
+          <Show when={ks().custom}>
+            <Button onClick={() => props.dispatch({ type: 'customPick' })} info="Tick the items of your own level">Custom…</Button>
+          </Show>
+          <Button icon="play" disabled={Boolean(ks().blocked)}
+                  info={ks().blocked ? 'Not yet: ' + ks().blocked : 'Start a round'}
+                  onClick={() => props.dispatch({ type: 'play' })}>Play</Button>
+        </div>
+      </section>
+    </Show>
+  );
+}
+
 /* ---- The options of a row ---------------------------------------------------- */
 
 /* Shift + click on the Move: what can be done with the row besides opening it. */
