@@ -124,9 +124,10 @@ test('every trainer\'s Read and Hear, with every answer that names, ties each an
           const h = fakeHost();
           h.session.init();
           openPath(h.session, ['Practice', name, TRAIN.CIRCLE_LABEL[circle]]);
-          /* Knob 1 is Level, knob 2 Answer, in every trainer. */
-          for (let i = 0; i < answers.length; i++) h.session.knobStep(2, -1);
-          for (let i = 0; i < a; i++) h.session.knobStep(2, 1);
+          /* Knob 1 is Level in every trainer; Answer's knob by the page. */
+          const ans = h.session.knobSetup().knobs.find((k) => k.field === 'answer').n;
+          for (let i = 0; i < answers.length; i++) h.session.knobStep(ans, -1);
+          for (let i = 0; i < a; i++) h.session.knobStep(ans, 1);
           if (level === 'top') for (let i = 0; i < 20; i++) h.session.knobStep(1, 1);
           h.session.knobStep(1, -1);
           if (level === 1) for (let i = 0; i < 20; i++) h.session.knobStep(1, -1);

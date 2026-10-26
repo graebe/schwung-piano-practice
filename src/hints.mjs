@@ -109,9 +109,10 @@ function table(screen, s) {
     case TRAINER_STATS:
       return { keys: s.empty ? ['BACK up'] : ['CLICK detail', 'BACK up'], shift: [QUIT] };
     case TRAINER_SETUP:
-      /* Blocked, the reason stands where PLAY start would. */
+      /* The bottom bar: what PLAY starts ("PLAY  10 chords"), or, blocked,
+       * why not; taking turns with how to change it. */
       return {
-        keys: ['KNOB set', s.blocked || 'PLAY start'].concat(s.custom ? ['CLICK custom'] : []),
+        keys: [s.blocked || s.play || 'PLAY start', 'TOUCH a knob to set'].concat(s.custom ? ['CLICK custom'] : []),
         shift: ['CLICK as list', QUIT],
       };
     case PROGRESS:
@@ -167,8 +168,8 @@ function about(screen, s) {
         : s.pick ? 'A round of naming: name what the lit pads play.'
           : 'A round: play what is asked, on the pads.';
     case TRAINER_SETUP:
-      return 'A round\'s setup: a tile for each setting, numbered for the knob under the screen that turns it'
-        + (s.knobs ? ' (' + s.knobs + ')' : '') + '. A touch names a knob in full, the jog walks them, PLAY starts the round.';
+      return 'A round\'s setup: its settings, each turned by a knob under the screen'
+        + (s.knobs ? ' (' + s.knobs + ')' : '') + '. Touch a knob to see it and its options; turn it to change. PLAY starts the round.';
     case TRAINER_STATS:
       return 'What you have played of this subject, weakest first: how much of each was right read, heard and played. CLICK shows one in detail.';
     case SETTINGS:

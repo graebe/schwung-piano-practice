@@ -2348,23 +2348,36 @@ export function createSession(fx, opts = {}) {
   }
 
   /*
-   * A circle's setup: one box, a tile per setting this circle has, each
-   * numbered for the knob that turns it (trainer.mjs knobsOf). A knob turns
-   * its setting, a touch names it, the jog walks the focus, a click on
-   * Level = Custom opens the tick list, PLAY starts. The focus is kept per
-   * circle, so a round's Back finds it where it was; it opens on Level.
-   * A touch or a turn puts the knob's whole name and value in the PLAY
-   * strip for KNOB_FEEDBACK_MS.
+   * A circle's setup: a page of its settings (trainer.mjs knobsOf), each
+   * turned by a knob numbered in the page's reading order. Touching a knob
+   * opens the overlay — which knob, what it changes, its options — and
+   * letting go closes it a moment later (KNOB_OVERLAY_MS); with no touch (a
+   * turn alone, the jog) it closes that long after the last turn. Back
+   * closes it and stays; PLAY closes it and starts; another knob takes it
+   * over. A click on Level = Custom opens the tick list. The focus (the knob
+   * last used) is kept per circle, so a round's Back finds it where it was;
+   * it opens on Level.
    */
   const knobFocus = {};
   const knobKey = () => trainerOpen.subject + ':' + trainerOpen.circle;
-  const KNOB_FEEDBACK_MS = 2000;
-  let knobFeedback = null;      /* { n, until } */
+  const KNOB_OVERLAY_MS = 1500;
+  /* KNOBS on the Move: touches 0..7 are knobs, 8 and 9 the volume and jog. */
+  const KNOB_COUNT = 8;
+  let knobOverlay = null;      /* { n, held, until } */
   const levelKnob = (knobs) => (knobs.find((k) => k.field === 'level') || knobs[0]).n;
 
-  function showKnobFeedback(n) {
-    knobFeedback = { n, until: now() + KNOB_FEEDBACK_MS };
+  /* The overlay over knob n: held while touched, else until a moment on. */
+  function openOverlay(n, held) {
+    const keep = knobOverlay && knobOverlay.n === n && knobOverlay.held;
+    knobOverlay = { n, held: held || keep, until: held || keep ? Infinity : now() + KNOB_OVERLAY_MS };
     dirty = true;
+  }
+
+  function closeOverlay() {
+    if (!knobOverlay) return false;
+    knobOverlay = null;
+    dirty = true;
+    return true;
   }
 
   function openSetup(subject, circle) {
@@ -2372,33 +2385,42 @@ export function createSession(fx, opts = {}) {
     settingsGroup = SET.MAIN_GROUP.key;
     settingsEditing = false;
     view = TRAINER_SETUP;
-    knobFeedback = null;
+    knobOverlay = null;
     settingsAccel.reset();
     dirty = true;
     ledDirty = true;
-    announce(settingsTitleOf(subject, circle) + '. Turn the knobs; Play starts.');
+    announce(settingsTitleOf(subject, circle) + '. Touch a knob to change; Play starts.');
   }
 
   function settingsTitleOf(subject, circle) {
     return TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle];
   }
 
-  /* The knob screen as ui.js and the page draw it. */
+  /* The setup page as ui.js and the page draw it. */
   function knobSetup() {
     if (!trainerOpen) return null;
     const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
     const knobs = TRAIN.knobsOf(trainerOpen.subject, trainerOpen.circle, setup);
     let focus = knobFocus[knobKey()] || levelKnob(knobs);
     if (!knobs[focus - 1]) focus = levelKnob(knobs);
-    const fb = knobFeedback && now() < knobFeedback.until ? knobs[knobFeedback.n - 1] : null;
+    const round = knobs.find((k) => k.field === 'round');
+    const blocked = TRAIN.startBlock(trainerOpen.subject, trainerOpen.circle, setup);
     return {
       title: settingsTitleOf(trainerOpen.subject, trainerOpen.circle).toUpperCase(),
       knobs,
       focus,
       levelKnob: levelKnob(knobs),
       custom: setup.level === 'custom',
-      blocked: TRAIN.startBlock(trainerOpen.subject, trainerOpen.circle, setup),
-      feedback: fb ? { n: fb.n, label: fb.label, text: fb.text, brief: fb.blurb ? (fb.digit === 'Cu' ? '' : fb.digit + ' ') + fb.blurb[0] : null } : null,
+      blocked,
+      /* What PLAY starts: the round ("10 chords"), or a chart. */
+      bar: {
+        play: 'PLAY ' + (round ? round.phrase[0] : 'start'),
+        alt: round ? round.phrase[1] || null : null,
+        blocked,
+      },
+      overlay: knobOverlay && now() < knobOverlay.until
+        ? { n: knobOverlay.n, unused: !knobs[knobOverlay.n - 1] }
+        : null,
     };
   }
 
@@ -2409,52 +2431,68 @@ export function createSession(fx, opts = {}) {
    */
   const settingsAccel = createKnobAccumulator();
 
-  /* Knob n turned on the Move, by `units`: a value per ten of them. */
+  /* Knob n turned on the Move, by `units`: its overlay, and a value per ten. */
   function knobTurn(n, units) {
-    if (view !== TRAINER_SETUP || !units) return;
+    if (view !== TRAINER_SETUP || !units || n < 1 || n > KNOB_COUNT) return;
+    openOverlay(n, false);
     const k = knobSetup().knobs[n - 1];
-    if (!k || !k.field) return;
+    if (!k) return;
+    knobFocus[knobKey()] = n;
     const step = settingsAccel.feed('setup:' + n, units, now());
     if (step) knobStep(n, step);
-    else knobTouch(n, true);
   }
 
   /* Knob n's setting one value on (+1) or back (-1), and the focus. */
   function knobStep(n, delta) {
     if (view !== TRAINER_SETUP || !delta) return;
     const k = knobSetup().knobs[n - 1];
-    if (!k || !k.field) return;
+    if (!k) return;
     knobFocus[knobKey()] = n;
     const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
     if (TRAIN.applySetup(trainerOpen.subject, setup, k.field, delta)) saveTrainerSetup(setup);
-    showKnobFeedback(n);
     const turned = knobSetup().knobs[n - 1];
-    announce(turned.label + ' ' + turned.text + '.');
+    announce(turned.label + ' ' + turned.options[turned.at].text + '.');
     dirty = true;
     ledDirty = true;
   }
 
-  /* Knob n touched (or turned less than a value): named, nothing changes. */
-  function knobTouch(n, quiet = false) {
-    if (view !== TRAINER_SETUP) return;
-    const k = knobSetup().knobs[n - 1];
-    if (!k || !k.field) return;
-    const was = knobFocus[knobKey()];
-    knobFocus[knobKey()] = n;
-    showKnobFeedback(n);
-    if (quiet && was === n) return;
-    announce('Knob ' + n + ', ' + k.label + ': ' + k.text + '.');
-    dirty = true;
+  /* Knob n set to its option `index` at once: the page's picker. */
+  function knobPick(n, index) {
+    const k = view === TRAINER_SETUP && knobSetup().knobs[n - 1];
+    if (!k) return;
+    const to = clamp(index | 0, 0, k.count - 1);
+    for (let i = 0; i < k.count && knobSetup().knobs[n - 1].at !== to; i++) {
+      knobStep(n, to > knobSetup().knobs[n - 1].at ? 1 : -1);
+    }
   }
 
-  /* The jog walks the focus over the knobs in use. */
+  /* Knob n touched: its overlay, held until it is let go. */
+  function knobTouch(n) {
+    if (view !== TRAINER_SETUP || n < 1 || n > KNOB_COUNT) return;
+    openOverlay(n, true);
+    const k = knobSetup().knobs[n - 1];
+    if (!k) {
+      announce('Knob ' + n + ': knobs 1 to ' + knobSetup().knobs.length + ' set this trainer.');
+      return;
+    }
+    knobFocus[knobKey()] = n;
+    announce('Knob ' + n + ', ' + k.label + ': ' + k.options[k.at].text + '.');
+  }
+
+  /* Knob n let go: its overlay closes a moment later. */
+  function knobRelease(n) {
+    if (!knobOverlay || knobOverlay.n !== n) return;
+    knobOverlay = { n, held: false, until: now() + KNOB_OVERLAY_MS };
+  }
+
+  /* The jog walks the knobs in use, showing each one's overlay. */
   function knobJog(delta) {
     const ks = knobSetup();
-    const used = ks.knobs.filter((k) => k.field).map((k) => k.n);
+    const used = ks.knobs.map((k) => k.n);
     const at = used.indexOf(ks.focus);
     const to = used[clamp(at + (delta > 0 ? 1 : -1), 0, used.length - 1)];
     knobFocus[knobKey()] = to;
-    dirty = true;
+    openOverlay(to, false);
   }
 
   /* A click: on Level = Custom the tick list; the setup as a list with Shift. */
@@ -3002,6 +3040,7 @@ export function createSession(fx, opts = {}) {
       const ks = knobSetup();
       st.custom = ks.custom && ks.focus === ks.levelKnob;
       st.blocked = ks.blocked || null;
+      st.play = ks.bar.play;
       st.knobs = ks.knobs.map((k) => k.n + ' ' + k.label).join(', ');
     }
     if (view === CARD_VIEW && card) {
@@ -3734,8 +3773,10 @@ export function createSession(fx, opts = {}) {
   function playButton() {
     if (skipScene()) return;
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
-    /* A trainer's setup: Play starts, unless the pick is too small. */
+    /* A trainer's setup: Play closes the knob overlay and starts, unless the
+     * pick is too small. */
     if (view === TRAINER_SETUP) {
+      closeOverlay();
       startTrainer(trainerOpen.subject, trainerOpen.circle);
       return;
     }
@@ -3841,6 +3882,8 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
+    /* Back over a knob's overlay closes it and stays. */
+    if (view === TRAINER_SETUP && closeOverlay()) return;
     if (view === PROGRESS_VIEW || view === TRAINER_STATS || view === TRAINER_SETUP) {
       view = MENU;
       dirty = true;
@@ -3962,9 +4005,9 @@ export function createSession(fx, opts = {}) {
    */
   function tick(t) {
     if (view === ANIM_VIEW) serviceScenes(t);
-    /* The PLAY strip says PLAY again once a knob's feedback has had its time. */
-    if (knobFeedback && now() >= knobFeedback.until) {
-      knobFeedback = null;
+    /* The knob overlay closes a moment after its knob is let go. */
+    if (knobOverlay && now() >= knobOverlay.until) {
+      knobOverlay = null;
       dirty = true;
     }
     if (view === MENU) serviceMap(t);
@@ -4123,6 +4166,8 @@ export function createSession(fx, opts = {}) {
     knobSetup,
     knobTurn,
     knobStep,
+    knobPick,
+    knobRelease,
     settingsKnob,
     knobTouch,
     pickSheet,

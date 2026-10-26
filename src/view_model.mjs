@@ -418,12 +418,14 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
       const ks = S.knobSetup();
       return {
         title: ks.title, focus: ks.focus, blocked: ks.blocked, custom: ks.custom, levelKnob: ks.levelKnob,
-        feedback: ks.feedback,
-        /* A tile per setting, as the Move's box has them (trainer.mjs knobsOf). */
+        bar: { ...ks.bar },
+        /* A setting each, as the Move's page has them (trainer.mjs knobsOf):
+         * its phrase, its options and what each means, for the picker. */
         knobs: ks.knobs.map((k) => ({
-          n: k.n, field: k.field, kind: k.kind, row: k.row, col: k.col, label: k.label, short: k.short,
-          plain: k.plain, text: k.text, tile: k.tile.slice(), pos: k.pos, count: k.count,
-          ...(k.digit ? { digit: k.digit, blurb: k.blurb.slice() } : {}),
+          n: k.n, field: k.field, kind: k.kind, row: k.row, col: k.col, pair: k.pair, label: k.label,
+          phrase: k.phrase[0], meaning: k.meaning, at: k.at, count: k.count,
+          options: k.options.map((o) => ({ text: o.text, meaning: o.meaning })),
+          ...(k.digit ? { digit: k.digit, blurb: k.blurb[0] } : {}),
         })),
       };
     })() : null,

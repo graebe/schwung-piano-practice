@@ -1081,9 +1081,9 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
 
   if (status === 0x90 || status === 0x80) {
     if (d1 < 10) {
-      /* Knob capacitive touch. Used in Settings to point at the row the knob
-       * edits; ignored everywhere else. */
+      /* Knob touch (onKnobTouch); let go, a setup's overlay closes. */
       if (status === 0x90 && d2 > 0) onKnobTouch(d1);
+      else if (S.view === TRAINER_SETUP) S.knobRelease(d1 + 1);
       return;
     }
     if (!PAD.isPad(d1)) return;

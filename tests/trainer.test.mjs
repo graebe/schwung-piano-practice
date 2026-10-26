@@ -557,7 +557,7 @@ test('the old drills map as the plan\'s table has them', () => {
 
 /* ---- The knobs ----------------------------------------------------------------- */
 
-import { knobsOf, knobValues, SUBJECTS } from '../src/trainer.mjs';
+import { knobsOf, knobValues, SUBJECTS, ACCEPTED_SHORT } from '../src/trainer.mjs';
 import { SETUP_LAYOUTS } from '../src/setup_layout.mjs';
 
 /* Every answer a circle offers, with the setup made whole around it. */
@@ -572,37 +572,56 @@ function everySetup(fn) {
   }
 }
 
-test('knobsOf: a tile per setting the circle has, none for the rest, knobs 1..n with LEVEL first', () => {
+test('knobsOf: every setting the circle has exactly once, knobs 1..n, LEVEL first, Round last', () => {
   everySetup((subject, circle, setup) => {
     const s = SUBJECTS[subject];
     const tiles = knobsOf(subject, circle, setup);
     const shown = s.fields[circle].filter((f) => !(s.hidden && s.hidden(f, circle, setup)));
     const where = `${subject}/${circle}/${setup.answer}`;
-    assert.deepEqual(tiles.map((k) => k.field).sort(), shown.slice().sort(), `${where}: exactly one tile a setting`);
+    assert.deepEqual(tiles.map((k) => k.field).sort(), shown.slice().sort(), `${where}: each setting once`);
     assert.deepEqual(tiles.map((k) => k.n), tiles.map((_, i) => i + 1), `${where}: knobs 1..n`);
     assert.equal(tiles[0].field, 'level', `${where}: LEVEL is knob 1`);
-    if (shown.includes('answer')) assert.equal(tiles[1].field, 'answer', `${where}: Answer is knob 2`);
-    /* Reading order: row by row, left to right, then the strip. */
-    const order = tiles.slice(1).map((k) => [k.row, k.col]);
-    const sorted = order.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+    if (shown.includes('round')) assert.equal(tiles.at(-1).field, 'round', `${where}: Round last, on the bar`);
+    /* Reading order: row by row, left to right, a pair in turn, the bar last. */
+    const order = tiles.slice(1).map((k) => [k.row, k.col, k.pair || 0]);
+    const sorted = order.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2]);
     assert.deepEqual(order, sorted, `${where}: reading order`);
+    assert.ok(Math.max(...tiles.map((k) => k.row)) <= 3, `${where}: three rows and the bar`);
     for (const k of tiles) {
       assert.ok(k.pos >= 0 && k.pos <= 1);
-      assert.ok(k.short.length >= 1 && k.short.length <= 2, `${k.field}: "${k.short}"`);
-      assert.ok(k.text.length > 0 && k.plain.length > 0 && k.tile.length > 0);
-      if (k.kind !== 'level' && k.kind !== 'strip') assert.equal(k.of, { row: 1, half: 2, third: 3 }[k.kind]);
+      assert.ok(k.phrase.length > 0 && k.meaning.length > 0, `${where}: ${k.field} reads and means`);
+      assert.equal(k.options.length, k.count);
     }
   });
 });
 
-test('every layout places only settings its trainer has', () => {
+test('every layout places exactly the settings its trainer has', () => {
   for (const [subject, layout] of Object.entries(SETUP_LAYOUTS)) {
+    const placed = [...layout.rows.flat(2), ...layout.bar];
     const fields = new Set(Object.values(SUBJECTS[subject].fields).flat());
-    for (const f of [...layout.rows.flat(), ...layout.strip]) assert.ok(fields.has(f), `${subject}: ${f}`);
-    for (const f of fields) {
-      if (f !== 'level') assert.ok([...layout.rows.flat(), ...layout.strip].includes(f), `${subject}: no place for ${f}`);
-    }
+    for (const f of placed) assert.ok(fields.has(f), `${subject}: ${f}`);
+    for (const f of fields) if (f !== 'level') assert.ok(placed.includes(f), `${subject}: no place for ${f}`);
+    assert.equal(new Set(placed).size, placed.length, `${subject}: a setting placed twice`);
   }
+});
+
+test('every value of every setting has a phrase; a shorter form is only ever an accepted one', () => {
+  everySetup((subject, circle, setup) => {
+    for (const k of knobsOf(subject, circle, setup)) {
+      for (const v of knobValues(subject, circle, setup, k.field)) {
+        const s = { ...setup, [k.field]: v.value };
+        if (v.value === 'custom') s.custom = allItems(subject).slice(0, 2);
+        const t = knobsOf(subject, circle, s).find((x) => x.field === k.field);
+        if (!t) continue;
+        assert.ok(t.phrase[0] && (t.phrase[0] === 'up' || !/^[A-Za-z]{2}$/.test(t.phrase[0])), `${subject}/${k.field}=${v.value}: "${t.phrase[0]}"`);
+        for (const shorter of t.phrase.slice(1)) {
+          const parts = shorter.replace(/, any key$/, '').replace(/^[A-G]#? /, '');
+          assert.ok(ACCEPTED_SHORT.includes(shorter) || ACCEPTED_SHORT.includes(parts),
+            `${subject}/${k.field}=${v.value}: "${shorter}" is not an accepted short form`);
+        }
+      }
+    }
+  });
 });
 
 test('every value of every knob has a short, unique within its knob; pos runs 0 to 1', () => {
@@ -640,12 +659,19 @@ test('the LEVEL tile: its digit, what the level adds, and the whole of it for th
   assert.equal(knobsOf('int', 'hear', coerceSetup('int', 'hear', null))[0].text, '1  m2 M2');
 });
 
-test('a tile says what its value is: "key C", "10 right", "in 3rds"', () => {
-  const tiles = knobsOf('scale', 'read', { ...coerceSetup('scale', 'read', null), pattern: '3rds', direction: 'both' })
-    .concat(knobsOf('scale', 'hear', { ...coerceSetup('scale', 'hear', null), round: 10 }));
-  const by = (f) => tiles.find((k) => k.field === f).tile;
-  assert.deepEqual(by('key'), ['key C', 'C']);
-  assert.deepEqual(by('round'), ['10 right', '10x']);
-  assert.deepEqual(by('pattern'), ['in 3rds', '3rds']);
-  assert.deepEqual(by('direction'), ['up+down', 'both']);
+test('a value says what it is: "key C", "in 3rds", "C# harmonic minor", "10 chords"', () => {
+  const by = (tiles, f) => tiles.find((k) => k.field === f).phrase;
+  const read = knobsOf('scale', 'read', { ...coerceSetup('scale', 'read', null), pattern: '3rds', direction: 'both' });
+  assert.deepEqual(by(read, 'key'), ['key C']);
+  assert.deepEqual(by(read, 'pattern'), ['in 3rds']);
+  assert.deepEqual(by(read, 'direction'), ['up + down']);
+  const hear = knobsOf('chord', 'hear', { ...coerceSetup('chord', 'hear', null), key: 1, scale: 'harmonicMinor', round: 10 });
+  assert.deepEqual(by(hear, 'key'), ['C# harmonic minor', 'C# harm min'], 'Key and Scale: one phrase');
+  assert.deepEqual(by(hear, 'scale'), by(hear, 'key'));
+  assert.deepEqual(by(hear, 'round'), ['10 chords', '10 right']);
+  const any = knobsOf('chord', 'hear', { ...coerceSetup('chord', 'hear', null), key: 'random', scale: 'harmonicMinor' });
+  assert.deepEqual(by(any, 'key'), ['harmonic minor, any key', 'harm min, any key']);
+  const roots = hear.find((k) => k.field === 'roots');
+  assert.deepEqual(roots.options.map((o) => o.text), ['diatonic', 'in key', 'chromatic']);
+  assert.equal(roots.options[2].meaning, 'any of the 12 roots');
 });

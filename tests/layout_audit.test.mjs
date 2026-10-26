@@ -41,19 +41,24 @@ import { PRACTICE_PIANO } from '../src/home/icons.mjs';
 import * as TRAIN from '../src/trainer.mjs';
 
 /* A map at its worst: long names, three-digit percents, reviews due. */
-/* A trainer's setup box as the session hands it to the view; `touched` is
- * the knob whose feedback the PLAY strip shows. */
-function setupScreen(c, subject, circle, stored, touched = 0) {
+/* A trainer's setup page as the session hands it to the view: `overlay` the
+ * knob whose overlay is open, `turn` which part of the bottom line shows. */
+function setupState(subject, circle, stored, overlay = 0, turn = 0) {
   const setup = TRAIN.coerceSetup(subject, circle, stored);
   const blocked = TRAIN.startBlock(subject, circle, setup);
   const knobs = TRAIN.knobsOf(subject, circle, setup);
-  const k = knobs[touched - 1];
-  return V.drawTrainerSetup(c, {
+  const round = knobs.find((k) => k.field === 'round');
+  const bar = { play: 'PLAY ' + (round ? round.phrase[0] : 'start'), alt: round ? round.phrase[1] || null : null, blocked };
+  const parts = hintFor('trainer-setup', { blocked, play: bar.play, custom: setup.level === 'custom' });
+  return {
     title: (TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle]).toUpperCase(),
-    knobs, blocked,
-    feedback: k ? { n: k.n, label: k.label, text: k.text, brief: k.blurb ? k.blurb[0] : null } : null,
-    footer: hintFor('trainer-setup', { blocked, custom: setup.level === 'custom' })[0],
-  });
+    knobs, blocked, bar,
+    overlay: overlay ? { n: overlay, unused: !knobs[overlay - 1] } : null,
+    footer: parts[turn % parts.length],
+  };
+}
+function setupScreen(c, ...args) {
+  return V.drawTrainerSetup(c, setupState(...args));
 }
 
 const CHORD_STAFF = [{ part: 0, notes: [{ pitch: 61, diatonic: 28, alter: 1 }, { pitch: 64, diatonic: 30, alter: 0 },
@@ -470,25 +475,26 @@ const SCREENS = {
   }),
   /* The knob screen: three, five and eight knobs in use, the focus at
    * either end, the longest level, and a Custom pick too small to start. */
-  /* The setup box: each trainer's busiest circle, the longest level, Custom,
-   * blocked, and a knob's feedback in the PLAY strip. */
-  'setup, Notes Play: two tiles': (c) => setupScreen(c, 'note', 'play', {}),
+  /* The setup page: each trainer's busiest circle, the longest values,
+   * Custom, blocked, and the bottom line's other turn. */
+  'setup, Notes Play: the level alone': (c) => setupScreen(c, 'note', 'play', {}),
   'setup, Notes Hear: higher or lower, endless': (c) => setupScreen(c, 'note', 'hear', { answer: 'hilo', round: 0 }),
   'setup, Intervals Read: compare, together': (c) => setupScreen(c, 'int', 'read', { answer: 'compare', direction: 'together' }),
   'setup, Scales Read: played, in 3rds': (c) => setupScreen(c, 'scale', 'read', { answer: 'play', pattern: '3rds', direction: 'both' }),
-  'setup, Chords Hear: eight tiles': (c) =>
-    setupScreen(c, 'chord', 'hear', { answer: 'name', roots: 'chromatic', inversions: true, sound: 'broken', scale: 'harmonicMinor' }),
-  'setup, Chords Read: the top level': (c) => setupScreen(c, 'chord', 'read', { level: 10, key: 'random' }),
-  'setup, Progressions Read: guide tones, pop 8ths': (c) =>
-    setupScreen(c, 'prog', 'read', { voicing: 'guide', rhythm: 'pop', key: 'all' }),
-  'setup, Progressions Read: Custom, blocked': (c) =>
-    setupScreen(c, 'prog', 'read', { answer: 'name', level: 'custom', custom: [] }),
-  'setup, Chords Hear: Custom of 27': (c) =>
-    setupScreen(c, 'chord', 'hear', { answer: 'name', level: 'custom', custom: TRAIN.allItems('chord') }),
-  'setup, Chords Hear: Level touched': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', level: 8 }, 1),
-  'setup, Chords Hear: Custom touched': (c) =>
+  'setup, Chords Hear: every setting': (c) => setupScreen(c, 'chord', 'hear',
+    { answer: 'name', key: 1, roots: 'chromatic', inversions: true, sound: 'broken', scale: 'phrygianDominant' }),
+  'setup, Chords Hear: any key, harmonic minor': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', key: 'random', scale: 'harmonicMinor' }),
+  'setup, Progressions Read: guide tones, pop 8ths': (c) => setupScreen(c, 'prog', 'read', { voicing: 'guide', rhythm: 'pop', key: 'all' }),
+  'setup, Progressions Hear: 30 to go': (c) => setupScreen(c, 'prog', 'hear', { voicing: 'bass', round: 30 }),
+  'setup, Progressions Read: Custom, blocked': (c) => setupScreen(c, 'prog', 'read', { answer: 'name', level: 'custom', custom: [] }),
+  'setup, Chords Hear: Custom of 27, its keys turn': (c) =>
+    setupScreen(c, 'chord', 'hear', { answer: 'name', level: 'custom', custom: TRAIN.allItems('chord') }, 0, 1),
+  'overlay, Chords Hear: Level': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', level: 8 }, 1),
+  'overlay, Chords Hear: Key': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', key: 11 }, 2),
+  'overlay, Chords Hear: Custom': (c) =>
     setupScreen(c, 'chord', 'hear', { answer: 'name', level: 'custom', custom: TRAIN.allItems('chord') }, 1),
-  'setup, Progressions Read: Voicing touched': (c) => setupScreen(c, 'prog', 'read', { voicing: 'bass' }, 4),
+  'overlay, Progressions Read: Voicing': (c) => setupScreen(c, 'prog', 'read', { voicing: 'bass' }, 4),
+  'overlay, a knob with no setting': (c) => setupScreen(c, 'note', 'play', {}, 7),
   'pick, eight chord answers on the map': (c) => V.drawPick(c, {
     title: 'CHORDS HEAR', score: '19/20', index: 7,
     options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
@@ -733,54 +739,96 @@ test('the star stays in its room: clear of the digits and the caption, inside th
 /* Every circle of every trainer: the knob screen's values sit under their
  * knobs, inside the screen, and its two detail lines fit, whichever knob is in
  * focus and whatever its value. */
-test('the setup box fits every circle at every value of every setting, touched or not', () => {
-  const B = V.SETUP_BOX;
+/* What the page may say for a value: its phrase, the words its options use,
+ * or an accepted short form (trainer.mjs ACCEPTED_SHORT) — never a code. */
+function acceptable(k, text) {
+  if ((k.phrase || []).includes(text) && ((k.phrase || []).indexOf(text) === 0 || accepted(text))) return true;
+  return Boolean(k.options && k.options[k.at] && k.options[k.at].text === text);
+}
+function accepted(text) {
+  const part = text.replace(/, any key$/, '').replace(/^[A-G]#? /, '');
+  return TRAIN.ACCEPTED_SHORT.includes(text) || TRAIN.ACCEPTED_SHORT.includes(part);
+}
+
+/* Every text run on one line keeps two characters (12 px) from the next. */
+function gaps(c, ys) {
+  const bad = [];
+  const { texts } = c.transcript();
+  for (const y of ys) {
+    const line = texts.filter((t) => t.y === y).sort((a, b) => a.x - b.x);
+    for (let i = 1; i < line.length; i++) {
+      const gap = line[i].x - (line[i - 1].x + line[i - 1].w);
+      if (gap < V.SETUP_GAP) bad.push(`${JSON.stringify(line[i - 1].s)} and ${JSON.stringify(line[i].s)}: ${gap} px apart`);
+    }
+  }
+  return bad;
+}
+
+/* Each value of a field to check: the first, the middle and the last, or all. */
+const pick = (all, every) => (every ? all : [all[0], all[all.length >> 1], all[all.length - 1]]);
+
+function eachValue(fn, every = true) {
   for (const subject of Object.keys(TRAIN.SUBJECTS)) {
     for (const circle of TRAIN.CIRCLES) {
       for (const answer of TRAIN.knobValues(subject, circle, TRAIN.coerceSetup(subject, circle, {}), 'answer')) {
         const setup = TRAIN.coerceSetup(subject, circle, { answer: answer.value });
         for (const k of TRAIN.knobsOf(subject, circle, setup)) {
-          for (const v of TRAIN.knobValues(subject, circle, setup, k.field)) {
+          for (const v of pick(TRAIN.knobValues(subject, circle, setup, k.field), every)) {
             const s = { ...setup, [k.field]: v.value };
             if (v.value === 'custom') s.custom = TRAIN.allItems(subject);
-            for (const touched of [0, k.n]) {
-              const c = probe();
-              setupScreen(c, subject, circle, s, touched);
-              const where = `${subject} ${circle} ${answer.value}: ${k.field} = ${v.short}${touched ? ', touched' : ''}`;
-              const bad = collisions(c);
-              assert.deepEqual(bad, [], `${where}\n  ` + bad.join('\n  '));
-              for (const tx of c.transcript().texts) {
-                if (tx.y >= L.FOOTER_Y - 3) continue;            /* the hint line */
-                if (tx.y < L.HEADER_H) continue;                  /* the title */
-                assert.ok(tx.x > B.x && tx.x + tx.w < B.x + B.w - 1 && tx.y > B.y && tx.y + L.TEXT_H < B.y + B.h,
-                  `${where}: ${JSON.stringify(tx.s)} @${tx.x},${tx.y} leaves the box`);
-              }
-            }
+            fn(subject, circle, s, k, `${subject} ${circle} ${answer.value}: ${k.field} = ${v.short}`);
           }
         }
       }
     }
   }
-});
+}
 
-test('a setup tile keeps to its own room: no tile reaches the next', () => {
-  for (const subject of Object.keys(TRAIN.SUBJECTS)) {
-    for (const circle of TRAIN.CIRCLES) {
-      const tiles = TRAIN.knobsOf(subject, circle, TRAIN.coerceSetup(subject, circle, { answer: 'name' }))
-        .map((k) => V.tileBox(k)).filter(Boolean);
-      for (let i = 0; i < tiles.length; i++) {
-        for (let j = i + 1; j < tiles.length; j++) {
-          const a = tiles[i];
-          const b = tiles[j];
-          const apart = a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + a.h <= b.y || b.y + b.h <= a.y;
-          assert.ok(apart, `${subject} ${circle}: tiles ${i + 1} and ${j + 1} overlap`);
-        }
+test('the setup page fits every circle at every value of every setting, in words', () => {
+  const B = V.SETUP_BOX;
+  eachValue((subject, circle, s, _k, where) => {
+    for (const turn of [0, 1]) {
+      const c = probe();
+      const state = setupState(subject, circle, s, 0, turn);
+      V.drawTrainerSetup(c, state);
+      const bad = collisions(c).concat(gaps(c, [V.SETUP_LEVEL_Y, ...V.SETUP_ROW_Y]));
+      assert.deepEqual(bad, [], `${where}\n  ` + bad.join('\n  '));
+      for (const tx of c.transcript().texts) {
+        if (tx.y < L.HEADER_H || tx.y >= V.SETUP_BAR.y) continue;
+        assert.ok(tx.x > B.x && tx.x + tx.w < B.x + B.w - 1 && tx.y > B.y && tx.y + L.TEXT_H < B.y + B.h,
+          `${where}: ${JSON.stringify(tx.s)} @${tx.x},${tx.y} leaves the box`);
+      }
+      for (const { k, text } of V.setupTexts(c, state.knobs)) {
+        assert.ok(acceptable(k, text), `${where}: ${k.field} reads "${text}", not its phrase or an accepted short`);
       }
     }
-  }
-  /* The rhythm: two clear rows above each row of settings. */
+  });
+});
+
+test('the overlay fits every setting at its first, middle and last option', () => {
+  const B = V.SETUP_BOX;
+  eachValue((subject, circle, s, k, where) => {
+    const c = probe();
+    const state = setupState(subject, circle, s, k.n);
+    V.drawTrainerSetup(c, state);
+    const bad = collisions(c).concat(gaps(c, [B.y + 2, ...V.OVERLAY_ROW_Y]));
+    assert.deepEqual(bad, [], `${where}, overlay\n  ` + bad.join('\n  '));
+    for (const tx of c.transcript().texts) {
+      if (tx.y < L.HEADER_H || tx.y >= V.SETUP_BAR.y) continue;
+      assert.ok(tx.x > B.x && tx.x + tx.w < B.x + B.w - 1 && tx.y > B.y && tx.y + L.TEXT_H < B.y + B.h,
+        `${where}, overlay: ${JSON.stringify(tx.s)} @${tx.x},${tx.y} leaves the box`);
+    }
+    /* The option set, whole, and what it means, as far as it fits. */
+    const t = V.overlayTexts(c, state);
+    const kk = state.knobs.find((x) => x.n === k.n);
+    assert.equal(t.rows[1], kk.options[kk.at].text, `${where}: the option set, in full`);
+    assert.ok(t.meaning.length > 0);
+  }, false);
+});
+
+test('the setup page\'s rhythm: two clear rows above each row, the box clear of the bar', () => {
   assert.equal(V.SETUP_ROW_Y[0] - V.SETUP_RULE_Y, 3);
-  assert.equal(V.SETUP_ROW_Y[1] - V.SETUP_ROW_Y[0], L.TEXT_H + 2);
-  assert.ok(V.SETUP_STRIP.y + V.SETUP_STRIP.h <= V.SETUP_BOX.y + V.SETUP_BOX.h - 1, 'the strip inside the box');
-  assert.ok(V.SETUP_BOX.y + V.SETUP_BOX.h + 1 < L.FOOTER_Y - 2, 'the box clear of the hint line');
+  for (let i = 1; i < V.SETUP_ROW_Y.length; i++) assert.equal(V.SETUP_ROW_Y[i] - V.SETUP_ROW_Y[i - 1], L.TEXT_H + 2);
+  assert.ok(V.SETUP_ROW_Y.at(-1) + L.TEXT_H + 2 <= V.SETUP_BOX.y + V.SETUP_BOX.h - 1, 'two clear rows above the box\'s bottom');
+  assert.ok(V.SETUP_BOX.y + V.SETUP_BOX.h < V.SETUP_BAR.y, 'the box clear of the bar');
 });

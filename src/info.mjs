@@ -429,7 +429,7 @@ const TRAINER_TEXT = {
 };
 
 const CIRCLE_TEXT = {
-  setup: 'The setup: what a round asks and how, a tile a setting, numbered for the knob that turns it; LEVEL is knob 1 in every trainer. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round. PLAY starts.',
+  setup: 'The setup: what a round asks and how, each setting in words. Touch a knob to see which setting it turns and its options; LEVEL is knob 1 in every trainer. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round, what PLAY starts.',
   common: 'The same five circles in every trainer: Read, Hear, Play, Learn, Stats.',
 };
 

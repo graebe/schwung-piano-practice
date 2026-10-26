@@ -1556,157 +1556,121 @@ export function infoLines(ctx, paragraphs) {
 }
 
 /*
- * A trainer circle's setup: a box of the song ready box's family — the same
- * frame and the LEVEL with its big digit — holding a tile for each setting
- * the circle really has and nothing for the rest. Each trainer arranges its
- * own (setup_layout.mjs): LEVEL across the top, under a rule one or two rows
- * of settings, and across the bottom the PLAY strip, saying in so many words
- * that PLAY starts. Every tile carries its knob's number in a small inverted
- * badge; the numbers run 1..n in reading order (LEVEL is knob 1), so the knob
- * to turn is the number you see.
+ * A trainer circle's setup: the settings, not the knobs. A box of the song
+ * ready box's family — the LEVEL band with its big digit and what the level
+ * adds, under a rule up to three rows of values that explain themselves
+ * ("C harmonic minor", "name it", "broken chords"; a full row of one setting
+ * says its name too) — and under the box, as the bottom line, an inverted
+ * bar: "PLAY  10 chords", the Round being what PLAY starts. No knob numbers:
+ * touching a knob opens the overlay (drawSetupOverlay), which names it and
+ * lists its options. The bar takes turns with "TOUCH a knob to change", as
+ * every bottom line takes turns with its keys; blocked (a Custom pick too
+ * small to start) it is not inverted and says what is missing.
  *
- * A value is fitted by measure: its full words where they fit, then shorter
- * ones, then its two-letter short. A full row says the setting's name too.
- * The whole of a value is one touch away: for two seconds after a knob is
- * touched or turned the PLAY strip names it in full ("Roots: diatonic") and
- * its tile is inverted. Blocked (a Custom pick too small to start), the
- * strip is not inverted and says what is missing.
+ * A value is fitted by measure: its phrase, then a shorter accepted form
+ * (trainer.mjs ACCEPTED_SHORT), never a code. Two values on a row keep two
+ * clear characters between them.
  *
- *   y 10        the box's top                x 2..125
- *   y 13        LEVEL: badge, the word, the digit (12..21), what it adds
+ *   y 10        the box's top                 x 2..125
+ *   y 13        LEVEL, the digit (12..21), what the level adds
  *   y 23        the rule
- *   y 26 / 35   the rows of settings, two clear rows above each
- *   y 43..52    the PLAY strip, its words at 44; the box's bottom at 53
+ *   y 26/35/44  the rows, two clear rows above each; the box's bottom at 53
+ *   y 55..63    the bar, its words at 56
  *
- *   state = { title, knobs (trainer.mjs knobsOf), blocked, feedback:
- *             { n, label, text } | null, footer }
+ *   state = { title, knobs (trainer.mjs knobsOf), bar: { play, alt,
+ *             blocked }, overlay, footer }
  */
 export { SETUP_LAYOUTS } from './setup_layout.mjs';
 export const SETUP_BOX = { x: 2, y: 10, w: 124, h: 44 };
 export const SETUP_LEVEL_Y = 13;
 export const SETUP_RULE_Y = 23;
-export const SETUP_ROW_Y = [26, 35];
-export const SETUP_STRIP = { y: 43, h: 10, textY: 44 };
-const SETUP_INNER = { x: SETUP_BOX.x + 2, w: SETUP_BOX.w - 4 };
+export const SETUP_ROW_Y = [26, 35, 44];
+export const SETUP_BAR = { y: 55, textY: 56 };
+export const SETUP_INNER = { x: SETUP_BOX.x + 2, w: SETUP_BOX.w - 4 };
+/* Two clear characters between two values on one row. */
+export const SETUP_GAP = 12;
 const SETUP_DIGIT_SCALE = 2;
-export const BADGE_W = 7;
-const BADGE_GAP = 1;
-const SETUP_GUTTER = 3;
 
-/* A knob's number, inverted: the badge every tile carries. On an inverted
- * band (`ink` 0) it is the other way round. */
-function drawBadge(ctx, x, y, n, ink = 1) {
-  ctx.fillRect(x, y, BADGE_W, L.TEXT_H, ink);
-  ctx.text(x + 1, y, String(n), ink ? 0 : 1);
-}
-
-/* The first of a value's words that fits `w`, else its short. */
-function fitValue(ctx, k, w) {
-  for (const s of k.tile || []) if (ctx.textWidth(s) <= w) return s;
+/* The first of a value's words that fits `w`; its short only if none does
+ * (the layout audit fails on that). */
+function fitPhrase(ctx, k, w) {
+  for (const s of k.phrase || []) if (ctx.textWidth(s) <= w) return s;
   return truncate(ctx, k.short, w);
 }
 
-/* Where a tile sits: { x, y, w, h }. Rows split into halves or thirds with a
- * column of space between. */
-export function tileBox(k) {
-  if (k.kind === 'level') return { x: SETUP_BOX.x + 1, y: SETUP_BOX.y + 1, w: SETUP_BOX.w - 2, h: SETUP_RULE_Y - SETUP_BOX.y - 1 };
-  if (k.kind === 'strip') return null;
-  const of = k.of || 1;
-  const w = Math.floor((SETUP_INNER.w - (of - 1) * SETUP_GUTTER) / of);
-  return { x: SETUP_INNER.x + k.col * (w + SETUP_GUTTER), y: SETUP_ROW_Y[k.row], w, h: L.TEXT_H };
+/* Where a row's value may go: { x, w } (halves keep SETUP_GAP between). */
+export function setupCell(k) {
+  const y = SETUP_ROW_Y[k.row];
+  if (k.kind === 'row') return { x: SETUP_INNER.x, y, w: SETUP_INNER.w };
+  const w = (SETUP_INNER.w - SETUP_GAP) >> 1;
+  return { x: SETUP_INNER.x + k.col * (w + SETUP_GAP), y, w };
 }
 
-/* A row, a half or a third: the badge, then the value (a full row: the
- * setting's name, and its value at the right); inverted while it speaks. */
-function drawSettingTile(ctx, k, lit) {
-  const b = tileBox(k);
-  const ink = lit ? 0 : 1;
-  if (lit) ctx.fillRect(b.x - 1, b.y - 1, b.w + 2, L.TEXT_H + 2, 1);
-  drawBadge(ctx, b.x, b.y, k.n, ink);
-  const x = b.x + BADGE_W + BADGE_GAP + 1;
-  const room = b.x + b.w - x;
-  if (k.kind === 'row') {
-    /* A full row names the setting, so its value can be the plain word. */
-    const value = fitValue(ctx, { tile: [k.plain, k.short], short: k.short }, room - ctx.textWidth(k.label) - 6);
-    if (ctx.textWidth(k.label) + 6 + ctx.textWidth(value) <= room) {
-      ctx.text(x, b.y, k.label, ink);
-      ctx.text(b.x + b.w - ctx.textWidth(value), b.y, value, ink);
-      return;
+/*
+ * What the page says for each tile: [{ k, text, label }] (a pair once),
+ * fitted by measure. Pure but for measuring, so the audit checks exactly
+ * what is drawn.
+ */
+export function setupTexts(ctx, knobs) {
+  const out = [];
+  for (const k of knobs) {
+    if (k.kind !== 'row' && k.kind !== 'half') continue;
+    if (k.pair === 1) continue;
+    const c = setupCell(k);
+    if (k.kind === 'row' && k.pair === undefined) {
+      /* A full row says the setting's name, and beside it the value as its
+       * options read ("Key  C", "Voicing  guide tones"). */
+      const room = c.w - ctx.textWidth(k.label) - SETUP_GAP;
+      const named = k.options && k.options[k.at] ? [k.options[k.at].text] : [];
+      const value = named.concat(k.phrase || []).find((s) => ctx.textWidth(s) <= room);
+      if (value) {
+        out.push({ k, label: k.label, text: value });
+        continue;
+      }
     }
+    out.push({ k, text: fitPhrase(ctx, k, c.w) });
   }
-  ctx.text(x, b.y, fitValue(ctx, k, room), ink);
+  return out;
 }
 
-/* LEVEL, the hero: its badge and name, the big digit, what it adds. */
-function drawLevelTile(ctx, k, lit) {
-  const b = tileBox(k);
-  const ink = lit ? 0 : 1;
-  if (lit) ctx.fillRect(b.x, b.y, b.w, b.h, 1);
+function drawLevelBand(ctx, k) {
   const y = SETUP_LEVEL_Y;
-  drawBadge(ctx, SETUP_INNER.x, y, k.n, ink);
-  const lx = SETUP_INNER.x + BADGE_W + BADGE_GAP + 1;
-  ctx.text(lx, y, 'LEVEL', ink);
+  const lx = SETUP_INNER.x + 2;
+  ctx.text(lx, y, 'LEVEL', 1);
   const digit = k.digit || '';
   const dx = lx + ctx.textWidth('LEVEL') + 6;
-  R.drawBigText(ctx, dx, y - 1, digit, SETUP_DIGIT_SCALE, ink);
-  const bx = dx + R.bigTextWidth(digit, SETUP_DIGIT_SCALE) + 6;
+  R.drawBigText(ctx, dx, y - 1, digit, SETUP_DIGIT_SCALE, 1);
+  const bx = dx + R.bigTextWidth(digit, SETUP_DIGIT_SCALE) + 8;
   const room = SETUP_INNER.x + SETUP_INNER.w - bx;
   const blurbs = (k.blurb || []).flatMap((s) => [s, s.replace(/^\+ /, '+').replace('octaves', 'oct')]);
   const blurb = blurbs.find((s) => ctx.textWidth(s) <= room) || fitWords(ctx, blurbs[1] || '', room);
-  ctx.text(bx, y, truncate(ctx, blurb, room), ink);
-  ctx.fillRect(SETUP_BOX.x + 1, SETUP_RULE_Y, SETUP_BOX.w - 2, 1, 1);
+  ctx.text(bx, y, truncate(ctx, blurb, room), 1);
 }
 
-/* The PLAY strip: PLAY start (or why not), a knob's feedback, and the
- * settings that live at its right end. */
-function drawPlayStrip(ctx, state, stripKnobs) {
-  const x0 = SETUP_BOX.x + 1;
-  const w = SETUP_BOX.w - 2;
-  const { y, h, textY } = SETUP_STRIP;
-  const fb = state.feedback;
-  const inverted = Boolean(fb) || !state.blocked;
+/*
+ * The bottom bar. `part` is the bottom line's turn now (hints.mjs): the PLAY
+ * part gets the play glyph and the round ("PLAY  10 chords", or "PLAY  10
+ * right" where the noun does not fit); other parts are the keys. Inverted,
+ * unless starting is blocked.
+ */
+export function drawSetupBar(ctx, part, bar = {}) {
+  const { y, textY } = SETUP_BAR;
+  const inverted = !bar.blocked;
   const ink = inverted ? 0 : 1;
-  if (inverted) ctx.fillRect(x0, y, w, h, 1);
-  let right = x0 + w - 2;
-  if (!fb) {
-    /* Settings at the end of the strip, right to left. */
-    for (let i = stripKnobs.length - 1; i >= 0; i--) {
-      const k = stripKnobs[i];
-      const text = fitValue(ctx, k, 30);
-      const tx = right - ctx.textWidth(text);
-      ctx.text(tx, textY, text, ink);
-      drawBadge(ctx, tx - BADGE_W - 2, textY, k.n, inverted ? 0 : 1);
-      right = tx - BADGE_W - 6;
-    }
-  }
-  const left = x0 + 3;
-  if (fb) {
-    drawBadge(ctx, left, textY, fb.n, 0);
-    const room = x0 + w - 2 - (left + BADGE_W + 3);
-    /* The whole value; a level lists what it asks, as many as fit and "+n",
-     * or when none fits, how many. */
-    const full = fb.label + ': ' + fb.text;
-    const items = fb.text.indexOf('  ') > 0 ? fitItems(ctx, full, room) : '';
-    const kept = items ? items.slice(items.indexOf('  ') + 2).split(' ').filter((w) => !/^\+\d+$/.test(w)).length : 0;
-    const said = ctx.textWidth(full) <= room ? full
-      : kept >= 3 ? items
-        : fb.brief && ctx.textWidth(fb.label + ': ' + fb.brief) <= room ? fb.label + ': ' + fb.brief
-          : fitWords(ctx, fb.text, room);
-    ctx.text(left + BADGE_W + 3, textY, truncate(ctx, said, room), 0);
+  ctx.fillRect(0, y, L.SCREEN_W, L.SCREEN_H - y, inverted ? 1 : 0);
+  if (!part) return;
+  if (inverted && part.indexOf('PLAY') === 0) {
+    const gh = 7;
+    const gx = 3;
+    R.drawPlayGlyph(ctx, gx, textY, gh, 0);
+    const tx = gx + R.playGlyphWidth(gh) + 3;
+    const room = L.SCREEN_W - 2 - tx;
+    const said = [part, bar.alt ? 'PLAY ' + bar.alt : null].filter(Boolean).find((s) => ctx.textWidth(s) <= room);
+    ctx.text(tx, textY, said || truncate(ctx, part, room), 0);
     return;
   }
-  const room = right - left;
-  if (state.blocked) {
-    /* "tick 2 progressions", or with Round beside it "tick 2 progs". */
-    const said = [state.blocked, state.blocked.replace(/(\w{4})\w+s$/, '$1s')]
-      .find((s) => ctx.textWidth(s) <= room) || truncate(ctx, state.blocked, room);
-    ctx.text(left, textY, said, 1);
-    return;
-  }
-  const gh = 7;
-  R.drawPlayGlyph(ctx, left, textY, gh, 0);
-  const tx = left + R.playGlyphWidth(gh) + 3;
-  ctx.text(tx, textY, truncate(ctx, 'PLAY start', right - tx), 0);
+  const s = truncate(ctx, part, L.TEXT_MAX_PX);
+  ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, textY, s, ink);
 }
 
 export function drawTrainerSetup(ctx, state) {
@@ -1714,16 +1678,95 @@ export function drawTrainerSetup(ctx, state) {
   R.drawChrome(ctx, { left: state.title, right: '' });
   const b = SETUP_BOX;
   ctx.drawRect(b.x, b.y, b.w, b.h, 1);
-  const lit = state.feedback ? state.feedback.n : 0;
-  const strip = [];
-  for (const k of state.knobs) {
-    if (k.kind === 'level') drawLevelTile(ctx, k, k.n === lit);
-    else if (k.kind === 'strip') strip.push(k);
-    else drawSettingTile(ctx, k, k.n === lit);
+  const level = state.knobs.find((k) => k.kind === 'level');
+  if (level) drawLevelBand(ctx, level);
+  ctx.fillRect(b.x + 1, SETUP_RULE_Y, b.w - 2, 1, 1);
+  for (const { k, text, label } of setupTexts(ctx, state.knobs)) {
+    const c = setupCell(k);
+    if (label) {
+      ctx.text(c.x, c.y, label, 1);
+      ctx.text(c.x + c.w - ctx.textWidth(text), c.y, text, 1);
+    } else {
+      ctx.text(c.x + ((c.w - ctx.textWidth(text)) >> 1), c.y, text, 1);
+    }
   }
-  drawPlayStrip(ctx, state, strip);
-  if (state.footer) drawFooterHint(ctx, state.footer);
+  if (state.overlay) drawSetupOverlay(ctx, state);
+  drawSetupBar(ctx, state.footer, state.bar);
   return ctx;
+}
+
+/*
+ * The knob overlay, over the box while a knob is touched or turned (and a
+ * moment after): which knob, what it changes, a window of three of its
+ * options with the one set in the middle, inverted, marks where more are
+ * hidden, its place n/N, and a line on what it means. A knob with no setting
+ * here says which knobs do. The title and the bottom bar stay.
+ *
+ *   y 11..19   the header, inverted: KNOB n NAME, and n/N where it fits
+ *   y 21/29/37 the options; the one set at 29, inverted 28..36 (its n/N
+ *              beside it when the header is full)
+ *   y 45       what it means
+ *
+ *   state.overlay = { n, unused, of } with state.knobs
+ */
+export const OVERLAY_ROW_Y = [21, 29, 37];
+export const OVERLAY_MEANING_Y = 45;
+
+/* A small solid triangle, 5 wide and 3 high, pointing up or down. */
+function drawMark(ctx, x, y, up, ink) {
+  for (let r = 0; r < 3; r++) {
+    const w = up ? 1 + 2 * r : 5 - 2 * r;
+    ctx.fillRect(x + ((5 - w) >> 1), y + r, w, 1, ink);
+  }
+}
+
+export function overlayTexts(ctx, state) {
+  const o = state.overlay;
+  const k = state.knobs.find((x) => x.n === o.n);
+  const inner = SETUP_INNER.w - 4;
+  if (!k) {
+    const last = state.knobs.length;
+    return { head: 'KNOB ' + o.n, lines: ['Knobs 1-' + last + ' set', 'this trainer'], k: null };
+  }
+  const opts = k.options || [];
+  const window = [k.at - 1, k.at, k.at + 1].map((i) => (i >= 0 && i < opts.length ? i : -1));
+  const place = (k.at + 1) + '/' + opts.length;
+  const head = truncate(ctx, 'KNOB ' + k.n + ' ' + k.label.toUpperCase(), inner);
+  /* Its place n/N at the header's end, or where that is full ("KNOB 6
+   * INVERSIONS"), beside the option set. Options keep clear of the marks. */
+  const placeInHead = ctx.textWidth(head) + SETUP_GAP + ctx.textWidth(place) <= inner;
+  const rows = window.map((i, r) => (i < 0 ? ''
+    : truncate(ctx, opts[i].text, inner - 8 - (r === 1 && !placeInHead ? ctx.textWidth(place) + SETUP_GAP : 10))));
+  const meaningText = opts[k.at] ? opts[k.at].meaning : k.meaning;
+  const meaning = k.field === 'level' ? fitItems(ctx, meaningText, inner) : fitWords(ctx, meaningText, inner);
+  return { head, place, placeInHead, rows, meaning: truncate(ctx, meaning, inner), more: [k.at > 1, k.at < opts.length - 2], k };
+}
+
+export function drawSetupOverlay(ctx, state) {
+  const b = SETUP_BOX;
+  ctx.fillRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2, 0);
+  const t = overlayTexts(ctx, state);
+  const x0 = b.x + 1;
+  const w = b.w - 2;
+  ctx.fillRect(x0, b.y + 1, w, 9, 1);
+  ctx.text(SETUP_INNER.x + 1, b.y + 2, t.head, 0);
+  if (t.placeInHead) ctx.text(SETUP_INNER.x + SETUP_INNER.w - 1 - ctx.textWidth(t.place), b.y + 2, t.place, 0);
+  if (!t.k) {
+    t.lines.forEach((s, i) => ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, OVERLAY_ROW_Y[i] + 4, s, 1));
+    return;
+  }
+  t.rows.forEach((s, i) => {
+    const y = OVERLAY_ROW_Y[i];
+    const on = i === 1;
+    if (on) ctx.fillRect(x0, y - 1, w, L.TEXT_H + 2, 1);
+    if (s) ctx.text(SETUP_INNER.x + 8, y, s, on ? 0 : 1);
+    if (on && !t.placeInHead) ctx.text(SETUP_INNER.x + SETUP_INNER.w - 1 - ctx.textWidth(t.place), y, t.place, 0);
+  });
+  /* Marks where more options are hidden, above and below the window. */
+  const mx = SETUP_INNER.x + SETUP_INNER.w - 7;
+  if (t.more[0]) drawMark(ctx, mx, OVERLAY_ROW_Y[0] + 2, true, 1);
+  if (t.more[1]) drawMark(ctx, mx, OVERLAY_ROW_Y[2] + 2, false, 1);
+  ctx.text((L.SCREEN_W - ctx.textWidth(t.meaning)) >> 1, OVERLAY_MEANING_Y, t.meaning, 1);
 }
 
 /*

@@ -59,8 +59,9 @@ test('a circle opens its knob screen; PLAY runs a round; next is another', () =>
   const ks = S(h).knobSetup();
   assert.equal(ks.title, 'CHORDS READ');
   assert.equal(ks.focus, 1, 'it opens on Level, knob 1');
-  assert.deepEqual(ks.knobs.map((k) => k.field), ['level', 'answer', 'key', 'scale', 'roots', 'inversions', 'round'],
-    'only the settings Read has: no Sound, no empty knob');
+  assert.deepEqual(ks.knobs.map((k) => k.field), ['level', 'key', 'scale', 'answer', 'roots', 'inversions', 'round'],
+    'only the settings Read has, in reading order: no Sound, no empty knob');
+  assert.equal(ks.bar.play, 'PLAY 10 chords', 'the bar says what PLAY starts');
   assert.deepEqual(ks.knobs.map((k) => k.n), [1, 2, 3, 4, 5, 6, 7]);
   S(h).activate(false);
   assert.equal(S(h).view, TRAINER_SETUP, 'a click starts nothing');
@@ -76,20 +77,10 @@ test('a circle opens its knob screen; PLAY runs a round; next is another', () =>
   assert.equal(S(h).quizTitle(), 'CHORDS READ');
 });
 
-test('knobs: each turns its own setting; a touch names one; the jog walks the used ones', () => {
+test('knobs: each turns its own setting, in reading order; the jog walks them', () => {
   const h = start();
   openPath(S(h), ['Hear']);
-  const before = JSON.stringify(S(h).knobSetup().knobs.map((k) => k.short));
-  S(h).knobTouch(5);
-  assert.equal(S(h).knobSetup().focus, 5, 'touched: in focus');
-  assert.equal(JSON.stringify(S(h).knobSetup().knobs.map((k) => k.short)), before, 'and nothing changed');
-  assert.ok(h.said().some((t) => /^Knob 5, Roots: diatonic/.test(t)));
-  assert.deepEqual(S(h).knobSetup().feedback, {
-    n: 5, label: 'Roots', text: 'diatonic', brief: null,
-  }, 'the PLAY strip names it in full');
-  h.run(2100);
-  assert.equal(S(h).knobSetup().feedback, null, 'for two seconds');
-  for (const [n, field, want] of [[2, 'answer', 'nm'], [1, 'level', 'L3'], [3, 'key', 'C#'], [4, 'scale', 'm'],
+  for (const [n, field, want] of [[4, 'answer', 'nm'], [1, 'level', 'L3'], [2, 'key', 'C#'], [3, 'scale', 'm'],
     [5, 'roots', 'ik'], [6, 'inversions', 'on'], [7, 'sound', 'bn'], [8, 'round', '20']]) {
     S(h).knobStep(n, 1);
     const k = S(h).knobSetup().knobs[n - 1];
@@ -97,23 +88,79 @@ test('knobs: each turns its own setting; a touch names one; the jog walks the us
     assert.equal(k.short, want, field);
     assert.equal(S(h).knobSetup().focus, n);
   }
-  S(h).knobStep(2, -1);                              /* back to play: Level stays at 2 */
+  assert.equal(S(h).knobSetup().bar.play, 'PLAY 20 chords');
   const saved = JSON.parse(h.files.get('progress.json')).trainers.chord.hear;
   assert.equal(saved.round, 20);
-  /* The jog walks the tiles. Chords › Play has six: no Answer, no Sound. */
+  /* The jog walks the knobs in use, each one's overlay showing. */
   S(h).back();
   openPath(S(h), ['Play']);
   assert.equal(S(h).knobSetup().knobs.length, 6);
   S(h).knobTouch(5);
+  S(h).knobRelease(5);
   S(h).moveSelection(1);
   assert.equal(S(h).knobSetup().focus, 6);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'the jog shows the knob it reached');
   S(h).moveSelection(1);
   assert.equal(S(h).knobSetup().focus, 6, 'clamped');
   for (let i = 0; i < 9; i++) S(h).moveSelection(-1);
   assert.equal(S(h).knobSetup().focus, 1);
-  S(h).knobStep(7, 1);
+});
+
+test('the overlay: a touch opens it on its knob, letting go closes it 1.5 s later', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  assert.equal(S(h).knobSetup().overlay, null, 'the page alone at first');
+  S(h).knobTouch(5);
+  assert.deepEqual(S(h).knobSetup().overlay, { n: 5, unused: false });
+  assert.ok(h.said().some((t) => /^Knob 5, Roots: diatonic/.test(t)));
+  h.run(5000);
+  assert.equal(S(h).knobSetup().overlay.n, 5, 'held: it stays');
+  S(h).knobTouch(6);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'another knob takes it over');
+  S(h).knobRelease(5);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'letting go of the old one changes nothing');
+  S(h).knobRelease(6);
+  h.run(1400);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'a moment after letting go: still there');
+  h.run(200);
+  assert.equal(S(h).knobSetup().overlay, null, '1.5 s after: gone');
+});
+
+test('the overlay: a turn without a touch opens it too, and it closes 1.5 s after the last turn', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  const roots = () => S(h).knobSetup().knobs[4];
+  for (let i = 0; i < 9; i++) { S(h).knobTurn(5, 1); h.run(20); }
+  assert.equal(roots().short, 'dt', 'nine units: nothing yet');
+  assert.equal(S(h).knobSetup().overlay.n, 5, 'but the overlay shows it');
+  S(h).knobTurn(5, 1);
+  assert.equal(roots().short, 'ik', 'the tenth: one value');
+  h.run(1400);
+  assert.ok(S(h).knobSetup().overlay);
+  h.run(200);
+  assert.equal(S(h).knobSetup().overlay, null);
+});
+
+test('the overlay: Back closes it and stays; PLAY closes it and starts; a knob with no setting says which do', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  S(h).knobTouch(2);
+  S(h).back();
+  assert.equal(S(h).view, TRAINER_SETUP, 'Back: still the setup');
+  assert.equal(S(h).knobSetup().overlay, null, 'the overlay gone');
+  openPath(S(h), []);
+  S(h).back();
+  assert.equal(S(h).view, MENU, 'Back again leaves');
+  openPath(S(h), ['Play']);
   S(h).knobTouch(8);
-  assert.equal(S(h).knobSetup().focus, 1, 'a knob with no tile does nothing');
+  assert.deepEqual(S(h).knobSetup().overlay, { n: 8, unused: true }, 'Chords > Play has six knobs');
+  assert.ok(h.said().some((t) => /knobs 1 to 6 set this trainer/.test(t)));
+  S(h).knobRelease(8);
+  S(h).knobTouch(1);
+  S(h).playButton();
+  assert.equal(S(h).view, GUESS_VIEW, 'PLAY starts');
+  S(h).back();
+  assert.equal(S(h).knobSetup().overlay, null, 'and the overlay is not waiting on the way back');
 });
 
 test('Back: the round to its knobs, focus kept; the knobs to the ring; the ring to Practice', () => {
@@ -156,7 +203,7 @@ test('Custom: a click opens the tick list, Back returns to the knobs; a round of
   assert.equal(tile(h, 'level').short, 'Cu');
   assert.equal(tile(h, 'level').digit, 'Cu');
   assert.deepEqual(tile(h, 'level').blurb, ['27 chords', '27 ticked']);
-  assert.deepEqual(S(h).hint(), ['KNOB set  PLAY start', 'CLICK custom']);
+  assert.deepEqual(S(h).hint(), ['PLAY 10 chords', 'TOUCH a knob to set', 'CLICK custom']);
   S(h).activate(false);
   assert.equal(S(h).view, SETTINGS);
   assert.equal(S(h).settingsTitle(), 'Chords custom');
@@ -187,7 +234,7 @@ test('PLAY waits for enough ticked: one to play, two to name; the Play LED goes 
   for (const r of S(h).settingsRows().filter((x) => x.value === 'on')) untick(r.item);
   S(h).back();
   assert.equal(S(h).knobSetup().blocked, 'tick 1 chord');
-  assert.deepEqual(S(h).hint(), ['KNOB set', 'tick 1 chord', 'CLICK custom'], 'the reason where PLAY start was');
+  assert.deepEqual(S(h).hint(), ['tick 1 chord', 'TOUCH a knob to set', 'CLICK custom'], 'the reason where PLAY was');
   assert.equal(CTRL.playLedColor('trainer-setup', 1, false, false, true), CTRL.OFF);
   assert.notEqual(CTRL.playLedColor('trainer-setup', 1, false, false, false), CTRL.OFF);
   S(h).playButton();
@@ -405,12 +452,18 @@ test('the page gets a line, a row of chords, a setup and Stats as the Move draws
   assert.equal(vm.trainerSetup.title, 'SCALES PLAY');
   assert.deepEqual(vm.trainerSetup.knobs.map((k) => k.field), ['level', 'key', 'direction', 'round']);
   assert.deepEqual(vm.trainerSetup.knobs.map((k) => k.n), [1, 2, 3, 4]);
-  assert.deepEqual(vm.trainerSetup.knobs[0], {
-    n: 1, field: 'level', kind: 'level', row: -1, col: 0, label: 'Level', short: 'L1', plain: '1 major minor',
-    text: '1  Major Minor', tile: ['1 major minor'], pos: 0, count: 11, digit: '1', blurb: ['major minor'],
-  });
+  const lv = vm.trainerSetup.knobs[0];
+  assert.equal(lv.field, 'level');
+  assert.equal(lv.phrase, '1  major minor');
+  assert.equal(lv.digit, '1');
+  assert.equal(lv.blurb, 'major minor');
+  assert.equal(lv.at, 0);
+  assert.equal(lv.options.length, 11);
+  assert.deepEqual(lv.options[0], { text: '1  major minor', meaning: '1  Major Minor' });
+  assert.deepEqual(vm.trainerSetup.knobs[1].options.slice(0, 2), [
+    { text: 'C', meaning: 'everything in C' }, { text: 'C#', meaning: 'everything in C#' }]);
+  assert.equal(vm.trainerSetup.bar.play, 'PLAY 10 scales');
   assert.equal(vm.trainerSetup.focus, 1);
-  assert.equal(vm.trainerSetup.feedback, null);
   assert.equal(vm.trainerSetup.blocked, null);
   S(h).playButton();
   vm = viewModel(S(h));

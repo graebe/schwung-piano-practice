@@ -151,7 +151,7 @@ const ROUNDS = [
   () => openSetup(SUBJECT.intervals, CIRCLE.hear),                                    /* an interval, named */
   () => openSetup(SUBJECT.chords, CIRCLE.hear),                                       /* a chord, played back */
   () => { openSetup(SUBJECT.notes, CIRCLE.read); turnKnob(2, 1); },                  /* a note, named */
-  () => { openSetup(SUBJECT.chords, CIRCLE.read); turnKnob(2, 1); },                 /* a chord, named */
+  () => { openSetup(SUBJECT.chords, CIRCLE.read); turnKnob(4, 1); },                 /* a chord, named (knob 4: Answer) */
 ];
 function openQuiz(row) {
   ROUNDS[row]();
@@ -1443,7 +1443,7 @@ test('a hearing drill plays a line, takes its answer from the jog, and shows wha
 test('hearing help: Record replays slower, then strikes an answer; Play repeats', () => {
   freezeClock();
   openSetup(SUBJECT.chords, CIRCLE.hear);     /* Chords › Hear, named: four triads, block */
-  turnKnob(2, 1);                              /* knob 2: Answer, name */
+  turnKnob(4, 1);                              /* knob 4: Answer, name */
   turnKnob(1, 1);                              /* knob 1: Level */
   startRound();
   advanceMs(3000);
