@@ -34,24 +34,26 @@ it and find it; you are told its name and play it.
 
 ## Setting up a round
 
-Read, Hear and Play each open a **setup box**, the same family as the box a song waits in: the
-**LEVEL** across the top with its big number and what that level adds, under it a tile for each
-setting this circle has, and across the bottom a strip that says **▶ PLAY start**. There is a tile
-only for a setting the circle really has: Notes › Play has two, Chords › Hear eight.
+Read, Hear and Play each open a **setup page** that shows the settings, not the knobs: the
+**LEVEL** across the top with its big number and what that level adds, then the settings this
+circle really has, each in words that say what it is — `C# harmonic minor`, `name it`,
+`chromatic`, `broken chords` — and at the bottom a bar that says what PLAY starts:
+**▶ PLAY 10 chords**. Notes › Play shows only its level; Chords › Hear all of it.
 
-![The setup box of Chords › Read](media/move-setup.png)
+![The setup page of Chords › Hear](media/move-setup.png)
 
-Every tile carries a small number: the knob under the screen that turns it. The numbers run in
-reading order, and **LEVEL is knob 1 in every trainer**, **Answer knob 2** wherever there is one.
-A tile says its value in words that tell you what it is — `key C`, `10 right`, `in 3rds` — and
-falls back to fewer letters only where the room runs out.
+**Touch a knob** and an overlay opens over the page: which knob it is, what it changes, three of its
+options with the one set in the middle, and a line on what that option means. **Turn** it and the
+list steps one option at a time; a deliberate turn is one value, never racing. **Let go** and the
+overlay closes a moment later. LEVEL is knob 1 in every trainer, then the knobs follow the page in
+reading order, Round last.
 
-- **Turn** a knob to change its setting. A deliberate turn is one value: the knobs gather a whole
-  turn before they move, so a setting never races past where you wanted it.
-- **Touch** a knob to see it whole: for two seconds the PLAY strip names it in full
-  (`Roots: diatonic`) and its tile lights up.
-- **PLAY** starts. The jog walks along the tiles too, and **Shift + click** shows the same setup as
-  a list. The box remembers what you set, for each trainer and each circle.
+![The overlay of knob 5, Roots](media/move-overlay.png)
+
+- **BACK** closes the overlay at once and stays on the page; **PLAY** closes it and starts.
+- A knob this circle has no setting for says which knobs do.
+- The jog walks the knobs too, **Shift + click** shows the setup as a list, and the page remembers
+  what you set, for each trainer and each circle.
 
 What the settings are:
 
@@ -62,7 +64,7 @@ What the settings are:
 - **Level** — the trainer's ladder, simple first (below). **Custom** lets you tick your own set:
   turned to Custom, **click** opens the tick list. A new Custom pick starts as the level you came
   from, and PLAY waits until it has enough — one thing to play, two to tell apart when naming. While
-  it waits, the PLAY light is dark and the strip says what is missing (`tick 2 chords`).
+  it waits, the PLAY light is dark and the bar says what is missing (`tick 2 chords`).
 - **Key** — the key a round is in, or **random**. For progressions there is also **all 12**: the
   same progression in every key, walking round the circle of fifths.
 - The subject's own rows: for chords the key's **Scale**, which **Roots** (diatonic — only the
@@ -114,7 +116,7 @@ habit.
 out a wrong answer, or names what you are finding. A hinted answer still counts, but the round
 records how many hints you took.
 
-**Back** from a round is its setup box, the knob you last turned still in focus; from there, the
+**Back** from a round is its setup page; from there, the
 trainer's ring. From a result,
 **CLICK** runs another round as set up.
 
@@ -164,7 +166,7 @@ subject, until you stop missing it.
 
 ## On the page
 
-In a browser the trainers work the same way: the rings, the setup box as cards with − and + on each,
+In a browser the trainers work the same way: the rings, the setup page as cards with a picker each,
 the answer buttons in their pad colours, and Stats as a table with a chart of the row you pick.
 See [the page](web.md#trainers).
 

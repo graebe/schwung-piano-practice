@@ -726,61 +726,75 @@ export function TrainerStatsView(props) {
   );
 }
 
-/* ---- A trainer's setup box ---------------------------------------------------- */
+/* ---- A trainer's setup page ---------------------------------------------------- */
 
 /*
- * A trainer circle's setup, as the Move's box has it: a LEVEL card with its
+ * A trainer circle's setup, as the Move's page has it: a Level card with its
  * big number and what the level adds, a card for each other setting the
- * circle has (nothing for the rest), each with the number of the knob that
- * turns it on the Move, its value in words and − / + to step it, and a large
- * Play. While a Custom pick is too small, Play waits and says why.
+ * circle has, each its value in words, and a large Play that says what it
+ * starts ("Play 10 chords"). No knob numbers: a click on a card opens its
+ * picker — the setting, every option with the one set highlighted, and what
+ * it means — as touching its knob opens the Move's overlay. While a Custom
+ * pick is too small, Play waits and says why.
  */
 export function KnobSetupView(props) {
   const ks = () => props.vm().trainerSetup;
+  const [open, setOpen] = createSignal(null);
   const level = () => ks() && ks().knobs.find((k) => k.field === 'level');
+  /* Every other setting a card, Key and Scale each, Round too. */
   const others = () => (ks() ? ks().knobs.filter((k) => k.field !== 'level') : []);
-  const step = (k, delta) => props.dispatch({ type: 'knob', n: k.n, delta });
-  const steps = (k) => (
-    <span class="setup-steps">
-      <Button info={`${k.label}: one back`} ariaLabel={`Knob ${k.n}, ${k.label}: down`} onClick={() => step(k, -1)}>−</Button>
-      <Button info={`${k.label}: one on`} ariaLabel={`Knob ${k.n}, ${k.label}: up`} onClick={() => step(k, 1)}>+</Button>
-    </span>
-  );
+  const picked = () => ks() && ks().knobs.find((k) => k.n === open());
+  const show = (k) => {
+    setOpen(open() === k.n ? null : k.n);
+    props.dispatch({ type: 'focusKnob', n: k.n });
+  };
+  const playLabel = () => ks().bar.play.replace(/^PLAY/, 'Play');
   return (
     <Show when={ks()}>
       <section class="screen setup-screen" aria-labelledby="setup-title">
         <header class="screen-head">
           <h1 id="setup-title" class="t-title">{ks().title}</h1>
-          <p class="t-hint">Each card is a knob on the Move, numbered as there. Play starts.</p>
+          <p class="t-hint">Click a setting to change it. Play starts.</p>
         </header>
         <div class="setup-box">
           <Show when={level()}>
-            <article class="setup-card setup-level" classList={{ on: ks().focus === level().n }}
-                     data-knob={level().n} data-field="level">
-              <span class="setup-badge t-value" aria-label={`Knob ${level().n}`}>{level().n}</span>
-              <h2 class="t-label setup-label">Level</h2>
+            <button type="button" class="setup-card setup-level" classList={{ on: open() === level().n }}
+                    data-field="level" onClick={() => show(level())} data-info="Level: what a round asks">
+              <span class="t-label setup-label">Level</span>
               <span class="setup-digit" aria-hidden="true">{level().digit === 'Cu' ? 'Custom' : level().digit}</span>
-              <span class="setup-value t-value" title={level().text}>{level().blurb[0]}</span>
-              {steps(level())}
-              <Show when={ks().custom}>
-                <Button onClick={() => props.dispatch({ type: 'customPick' })} info="Tick the items of your own level">Custom…</Button>
-              </Show>
-            </article>
+              <span class="setup-value t-value">{level().blurb}</span>
+            </button>
           </Show>
           <div class="setup-tiles">
             <For each={others()}>{(k) => (
-              <article class="setup-card" classList={{ on: k.n === ks().focus }} data-knob={k.n} data-field={k.field}>
-                <span class="setup-badge t-value" aria-label={`Knob ${k.n}`}>{k.n}</span>
-                <button class="setup-label t-label" type="button" onClick={() => props.dispatch({ type: 'focusKnob', n: k.n })}
-                        data-info={`Knob ${k.n}: ${k.label}`}>{k.label}</button>
-                <span class="setup-value t-value" title={k.text}>{k.plain}</span>
-                {steps(k)}
-              </article>
+              <button type="button" class="setup-card" classList={{ on: open() === k.n }} data-field={k.field}
+                      onClick={() => show(k)} data-info={`${k.label}: ${k.meaning}`}>
+                <span class="t-label setup-label">{k.label}</span>
+                <span class="setup-value t-value">{k.options[k.at].text}</span>
+              </button>
             )}</For>
           </div>
+          <Show when={picked()}>
+            <div class="setup-picker" role="listbox" aria-label={picked().label}>
+              <h2 class="t-label">{picked().label}</h2>
+              <ol class="setup-options">
+                <For each={picked().options}>{(o, i) => (
+                  <li>
+                    <button type="button" class="setup-option" classList={{ on: i() === picked().at }}
+                            role="option" aria-selected={i() === picked().at}
+                            onClick={() => props.dispatch({ type: 'knobPick', n: picked().n, index: i() })}>{o.text}</button>
+                  </li>
+                )}</For>
+              </ol>
+              <p class="setup-meaning t-hint">{picked().options[picked().at].meaning}</p>
+              <Show when={picked().field === 'level' && ks().custom}>
+                <Button onClick={() => props.dispatch({ type: 'customPick' })} info="Tick the items of your own level">Custom…</Button>
+              </Show>
+            </div>
+          </Show>
           <Button icon="play" disabled={Boolean(ks().blocked)}
                   info={ks().blocked ? 'Not yet: ' + ks().blocked : 'Start a round'}
-                  onClick={() => props.dispatch({ type: 'play' })}>{ks().blocked ? ks().blocked : 'Play'}</Button>
+                  onClick={() => props.dispatch({ type: 'play' })}>{ks().blocked ? ks().blocked : playLabel()}</Button>
         </div>
         <div class="transport">
           <Button onClick={() => props.dispatch({ type: 'back' })} info="Back to the trainer">Back</Button>

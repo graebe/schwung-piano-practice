@@ -343,27 +343,34 @@ button.status-pill { cursor: pointer; }
 }
 .stat-bar > span { display: block; height: 100%; background: var(--uv-deep); }
 
-/* A trainer's setup box, as on the Move: the LEVEL card, a card per setting
- * with its knob's number, and a large Play. */
+/* A trainer's setup page, as on the Move: the Level card, a card per
+ * setting in words, the picker of the one clicked, and a large Play. */
 .setup-box {
   display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: var(--space-3);
   padding: var(--space-3); border: 1px solid var(--line-200);
 }
-.setup-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); }
+.setup-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--space-2); align-content: start; }
 .setup-card {
-  position: relative; display: flex; flex-direction: column; gap: var(--space-1); min-width: 0;
-  padding: var(--space-2) var(--space-2) var(--space-2) calc(var(--space-2) + 24px); border: 1px solid var(--line-100);
+  all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: var(--space-1);
+  min-width: 0; padding: var(--space-2); border: 1px solid var(--line-100);
 }
-.setup-card.on { border-color: var(--uv); box-shadow: var(--glow-focus); }
-.setup-badge {
-  position: absolute; left: var(--space-2); top: var(--space-2); width: 18px; height: 18px;
-  display: grid; place-items: center; background: var(--ink); color: var(--bg-000); font-size: 12px;
-}
-.setup-label { all: unset; cursor: pointer; font-size: 11px; color: var(--ink-dim); }
-.setup-value { font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
+.setup-card:hover { background: var(--bg-200); }
+.setup-card.on, .setup-card:focus-visible { border-color: var(--uv); box-shadow: var(--glow-focus); }
+.setup-label { font-size: 11px; color: var(--ink-dim); }
+.setup-value { font-family: var(--font-mono); font-size: 13px; color: var(--ink); overflow-wrap: anywhere; }
 .setup-digit { font-family: var(--font-mono); font-size: 44px; line-height: 1; color: var(--ink); }
-.setup-steps { display: flex; gap: var(--space-1); }
-.setup-steps .btn { min-width: 28px; padding: 0 var(--space-1); }
+.setup-picker {
+  grid-column: 1 / -1; display: flex; flex-direction: column; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--uv-deep);
+}
+.setup-options { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; margin: 0; padding: 0; }
+.setup-option {
+  all: unset; cursor: pointer; padding: var(--space-1) var(--space-2); border: 1px solid var(--line-100);
+  font-family: var(--font-mono); font-size: 12px; color: var(--ink);
+}
+.setup-option.on { background: var(--uv); color: var(--on-uv); border-color: var(--uv); }
+.setup-option:focus-visible { box-shadow: var(--glow-focus); }
+.setup-meaning { margin: 0; }
 .setup-box > .btn { grid-column: 1 / -1; justify-content: center; min-height: 48px; font-size: 15px; }
 @media (max-width: 640px) {
   .setup-box { grid-template-columns: 1fr; }

@@ -383,12 +383,13 @@ knows one knows them all: the subject changes, the way to practise it never does
 | **Learn** | the lessons that were there before: scale drills, chord lessons, progression charts |
 | **Stats** | every item asked, weakest first, a meter each for read, heard and played |
 
-**The setup.** Read, Hear and Play open a setup box, the song ready box's family: **LEVEL** across
-the top with its big number, a tile for each setting the circle really has, and a strip that says
-**▶ PLAY start**. Each tile carries the number of the knob that turns it — **LEVEL is knob 1**,
-**Answer knob 2** — and a deliberate turn is one value (ten units of a knob, never racing). A touch
-names the knob in full in the PLAY strip for two seconds; the jog walks the tiles; **PLAY** starts.
-It remembers what you set, per trainer and circle; **Shift + click** shows it as a list.
+**The setup.** Read, Hear and Play open a setup page of the settings in words: **LEVEL** across the
+top with its big number, the settings the circle really has (`C# harmonic minor`, `name it`,
+`broken chords`), and a bar that says what PLAY starts, **▶ PLAY 10 chords**. **Touching a knob**
+opens an overlay: which knob, what it changes, its options with the one set, and what it means;
+turning steps them, a deliberate turn one value (ten units of a knob, never racing); letting go
+closes it a moment later, BACK at once. **LEVEL is knob 1**, the rest follow the page. It remembers
+what you set, per trainer and circle; **Shift + click** shows it as a list.
 
 | Setting | What it sets |
 | --- | --- |
@@ -631,7 +632,7 @@ A hinted answer still counts and keeps your streak — a hint you are afraid to 
 does not help you learn — but the round records how many you took, and the result screen shows it.
 Record dims once the help is used up, so the button itself tells you whether there is more.
 
-**Back** during a round returns to its setup box. From a round's result it starts a **fresh round** of
+**Back** during a round returns to its setup page. From a round's result it starts a **fresh round** of
 the same setup, so trying again is one press; Back once more for the setup, and again for the
 trainer.
 
@@ -1044,7 +1045,7 @@ Four beats count you in, counted down on screen.
 | **Knob 8** | tempo, 40–200: a drill's Tempo setting, or a song's own tempo for the session (not saved) |
 
 The knobs mean different things in different places: in an exercise they are the two above, in
-Settings they are the four rows on screen, in a trainer's setup box the numbered tiles, and
+Settings they are the four rows on screen, on a trainer's setup page its settings (touch one to see which), and
 everywhere else they do nothing. Settings and setup knobs are deliberately calm: about ten units of
 a turn move one value, and a fast flick never moves more than one. **Touching** a knob in Settings moves the cursor to the row it edits, so the
 mapping is something you find rather than memorise.

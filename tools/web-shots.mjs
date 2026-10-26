@@ -102,7 +102,9 @@ await page.close();
  * Hear, higher or lower. */
 page = await open({ width: 1280, height: 640 });
 await openPath(page, ['Practice', 'Notes', 'Hear']);
-await page.locator('.setup-card[data-field="answer"]').getByRole('button', { name: /Answer: up$/ }).click();
+await page.locator('.setup-card[data-field="answer"]').click();
+await page.locator('.setup-picker .setup-option', { hasText: 'higher/lower' }).click();
+await page.locator('.setup-card[data-field="answer"]').click();
 await page.locator('.setup-box > .btn').click();
 await page.locator('.option').first().waitFor();
 for (const option of await page.locator('.option').all()) {
