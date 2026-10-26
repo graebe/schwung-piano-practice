@@ -2412,6 +2412,7 @@ export function createSession(fx, opts = {}) {
       levelKnob: levelKnob(knobs),
       custom: setup.level === 'custom',
       blocked,
+      asks: TRAIN.asksOf(trainerOpen.subject, trainerOpen.circle, setup),
       /* What PLAY starts: the round ("10 chords"), or a chart. */
       bar: {
         play: 'PLAY ' + (round ? round.phrase[0] : 'start'),

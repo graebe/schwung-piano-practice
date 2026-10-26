@@ -343,8 +343,21 @@ const MEANING = {
   pattern: (v) => ({ straight: 'note by note', '3rds': '1 3 2 4 3 5 ...', '5ths': '1 5 2 6 3 7 ...' })[v],
   voicing: (v) => ({ root: 'each chord from its root', smooth: 'nearest inversions', bass: 'bass note, then chord', guide: '3rd and 7th only' })[v],
   rhythm: (v) => ({ block: 'one chord a bar', pop: 'pop 8th notes', ballad: 'slow broken chords', offbeat: 'chords off the beat', stabs: 'short stabs', waltz: 'three-four time' })[v],
-  round: (v) => (v ? v + ' right to finish' : 'until you stop'),
+  round: (v) => (v ? 'ends at ' + v + ' right' : 'until you stop'),
 };
+
+/*
+ * What a round asks, in one line, for the rows a setup page leaves empty
+ * (info.mjs says it at length: "A note on the staff. Play it ...").
+ */
+export function asksOf(subject, circle, setup) {
+  if (circle === 'play') return 'play it by its name';
+  const a = setup.answer;
+  if (a === 'compare') return 'which is bigger?';
+  if (a === 'hilo') return 'higher or lower?';
+  if (circle === 'read') return a === 'name' ? 'name what you see' : 'play what is written';
+  return a === 'name' ? 'name what you hear' : 'play what you hear';
+}
 
 /* A level's items, as the overlay lists them. */
 function itemShort(s, id) {

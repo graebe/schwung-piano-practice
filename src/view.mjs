@@ -1556,40 +1556,51 @@ export function infoLines(ctx, paragraphs) {
 }
 
 /*
- * A trainer circle's setup: the settings, not the knobs. A box of the song
+ * A trainer circle's setup: the settings, not the knobs. A frame of the song
  * ready box's family — the LEVEL band with its big digit and what the level
  * adds, under a rule up to three rows of values that explain themselves
  * ("C harmonic minor", "name it", "broken chords"; a full row of one setting
- * says its name too) — and under the box, as the bottom line, an inverted
- * bar: "PLAY  10 chords", the Round being what PLAY starts. No knob numbers:
- * touching a knob opens the overlay (drawSetupOverlay), which names it and
- * lists its options. The bar takes turns with "TOUCH a knob to change", as
- * every bottom line takes turns with its keys; blocked (a Custom pick too
- * small to start) it is not inverted and says what is missing.
+ * says its name too) — closed at the bottom by an inverted bar: "PLAY 10
+ * chords", the Round being what PLAY starts. No knob numbers: touching a
+ * knob opens the overlay (drawSetupOverlay), which names it and lists its
+ * options. The bar takes turns with "TOUCH a knob to set", as every bottom
+ * line takes turns with its keys; blocked (a Custom pick too small to start)
+ * it is not inverted and says what is missing. Rows a circle leaves empty
+ * hold one centred line on what the round asks ("play what you hear").
  *
  * A value is fitted by measure: its phrase, then a shorter accepted form
  * (trainer.mjs ACCEPTED_SHORT), never a code. Two values on a row keep two
- * clear characters between them.
+ * clear characters between them, and every text three clear pixels from the
+ * frame.
  *
- *   y 10        the box's top                 x 2..125
- *   y 13        LEVEL, the digit (12..21), what the level adds
+ *   y 8         the frame's top: the title's rule    x 0 and 127 its sides
+ *   y 12        LEVEL, the digit (12..21), what the level adds
  *   y 23        the rule
- *   y 26/35/44  the rows, two clear rows above each; the box's bottom at 53
- *   y 55..63    the bar, its words at 56
+ *   y 26/35/44  the rows, two clear rows above each
+ *   y 55..63    the bar, its words at 56: the frame's bottom
  *
- *   state = { title, knobs (trainer.mjs knobsOf), bar: { play, alt,
+ *   state = { title, knobs (trainer.mjs knobsOf), asks, bar: { play, alt,
  *             blocked }, overlay, footer }
  */
 export { SETUP_LAYOUTS } from './setup_layout.mjs';
-export const SETUP_BOX = { x: 2, y: 10, w: 124, h: 44 };
-export const SETUP_LEVEL_Y = 13;
+export const SETUP_FRAME = { x: 0, y: L.HEADER_RULE_Y, w: L.SCREEN_W, bottom: 54 };
+/* Text keeps this far from the frame, on every side. */
+export const SETUP_PAD = 3;
+export const SETUP_LEVEL_Y = 12;
 export const SETUP_RULE_Y = 23;
 export const SETUP_ROW_Y = [26, 35, 44];
 export const SETUP_BAR = { y: 55, textY: 56 };
-export const SETUP_INNER = { x: SETUP_BOX.x + 2, w: SETUP_BOX.w - 4 };
+export const SETUP_INNER = { x: SETUP_PAD + 1, w: L.SCREEN_W - 2 * (SETUP_PAD + 1) };
 /* Two clear characters between two values on one row. */
 export const SETUP_GAP = 12;
 const SETUP_DIGIT_SCALE = 2;
+
+/* The frame: its sides, from the title's rule down to the bar. */
+function drawSetupFrame(ctx) {
+  const f = SETUP_FRAME;
+  ctx.fillRect(f.x, f.y, 1, f.bottom - f.y + 1, 1);
+  ctx.fillRect(f.x + f.w - 1, f.y, 1, f.bottom - f.y + 1, 1);
+}
 
 /* The first of a value's words that fits `w`; its short only if none does
  * (the layout audit fails on that). */
@@ -1598,7 +1609,7 @@ function fitPhrase(ctx, k, w) {
   return truncate(ctx, k.short, w);
 }
 
-/* Where a row's value may go: { x, w } (halves keep SETUP_GAP between). */
+/* Where a row's value may go: { x, y, w } (halves keep SETUP_GAP between). */
 export function setupCell(k) {
   const y = SETUP_ROW_Y[k.row];
   if (k.kind === 'row') return { x: SETUP_INNER.x, y, w: SETUP_INNER.w };
@@ -1633,13 +1644,23 @@ export function setupTexts(ctx, knobs) {
   return out;
 }
 
+/* Where the line on what a round asks goes: centred in the rows a circle
+ * leaves empty, or null when it fills all three. */
+export function asksY(knobs) {
+  const used = knobs.reduce((m, k) => (k.kind === 'row' || k.kind === 'half' ? Math.max(m, k.row + 1) : m), 0);
+  if (used >= SETUP_ROW_Y.length) return null;
+  const top = used ? SETUP_ROW_Y[used - 1] + L.TEXT_H : SETUP_RULE_Y + 1;
+  const bottom = SETUP_BAR.y - 1;
+  return (top + bottom - L.TEXT_H + 1) >> 1;
+}
+
 function drawLevelBand(ctx, k) {
   const y = SETUP_LEVEL_Y;
-  const lx = SETUP_INNER.x + 2;
+  const lx = SETUP_INNER.x;
   ctx.text(lx, y, 'LEVEL', 1);
   const digit = k.digit || '';
   const dx = lx + ctx.textWidth('LEVEL') + 6;
-  R.drawBigText(ctx, dx, y - 1, digit, SETUP_DIGIT_SCALE, 1);
+  R.drawBigText(ctx, dx, y, digit, SETUP_DIGIT_SCALE, 1);
   const bx = dx + R.bigTextWidth(digit, SETUP_DIGIT_SCALE) + 8;
   const room = SETUP_INNER.x + SETUP_INNER.w - bx;
   const blurbs = (k.blurb || []).flatMap((s) => [s, s.replace(/^\+ /, '+').replace('octaves', 'oct')]);
@@ -1649,7 +1670,7 @@ function drawLevelBand(ctx, k) {
 
 /*
  * The bottom bar. `part` is the bottom line's turn now (hints.mjs): the PLAY
- * part gets the play glyph and the round ("PLAY  10 chords", or "PLAY  10
+ * part gets the play glyph and the round ("PLAY 10 chords", or "PLAY 10
  * right" where the noun does not fit); other parts are the keys. Inverted,
  * unless starting is blocked.
  */
@@ -1658,29 +1679,29 @@ export function drawSetupBar(ctx, part, bar = {}) {
   const inverted = !bar.blocked;
   const ink = inverted ? 0 : 1;
   ctx.fillRect(0, y, L.SCREEN_W, L.SCREEN_H - y, inverted ? 1 : 0);
+  if (!inverted) ctx.fillRect(0, y, L.SCREEN_W, 1, 1);
   if (!part) return;
   if (inverted && part.indexOf('PLAY') === 0) {
     const gh = 7;
-    const gx = 3;
+    const gx = SETUP_INNER.x;
     R.drawPlayGlyph(ctx, gx, textY, gh, 0);
     const tx = gx + R.playGlyphWidth(gh) + 3;
-    const room = L.SCREEN_W - 2 - tx;
+    const room = SETUP_INNER.x + SETUP_INNER.w - tx;
     const said = [part, bar.alt ? 'PLAY ' + bar.alt : null].filter(Boolean).find((s) => ctx.textWidth(s) <= room);
     ctx.text(tx, textY, said || truncate(ctx, part, room), 0);
     return;
   }
-  const s = truncate(ctx, part, L.TEXT_MAX_PX);
-  ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, textY, s, ink);
+  const s = truncate(ctx, part, SETUP_INNER.w);
+  ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, textY + (inverted ? 0 : 1), s, ink);
 }
 
 export function drawTrainerSetup(ctx, state) {
   ctx.clear();
   R.drawChrome(ctx, { left: state.title, right: '' });
-  const b = SETUP_BOX;
-  ctx.drawRect(b.x, b.y, b.w, b.h, 1);
+  drawSetupFrame(ctx);
   const level = state.knobs.find((k) => k.kind === 'level');
   if (level) drawLevelBand(ctx, level);
-  ctx.fillRect(b.x + 1, SETUP_RULE_Y, b.w - 2, 1, 1);
+  ctx.fillRect(SETUP_FRAME.x + 1, SETUP_RULE_Y, SETUP_FRAME.w - 2, 1, 1);
   for (const { k, text, label } of setupTexts(ctx, state.knobs)) {
     const c = setupCell(k);
     if (label) {
@@ -1690,26 +1711,34 @@ export function drawTrainerSetup(ctx, state) {
       ctx.text(c.x + ((c.w - ctx.textWidth(text)) >> 1), c.y, text, 1);
     }
   }
+  const ay = asksY(state.knobs);
+  if (ay !== null && state.asks) {
+    const s = fitWords(ctx, state.asks, SETUP_INNER.w);
+    ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, ay, s, 1);
+  }
   if (state.overlay) drawSetupOverlay(ctx, state);
   drawSetupBar(ctx, state.footer, state.bar);
   return ctx;
 }
 
 /*
- * The knob overlay, over the box while a knob is touched or turned (and a
- * moment after): which knob, what it changes, a window of three of its
- * options with the one set in the middle, inverted, marks where more are
- * hidden, its place n/N, and a line on what it means. A knob with no setting
- * here says which knobs do. The title and the bottom bar stay.
+ * The knob overlay, over the frame while a knob is touched or turned (and a
+ * moment after): which knob and what it changes, inverted, with the set
+ * option's place n/N; three of its options in a row, the set one marked
+ * ">" and inverted, the others plain; marks where more are hidden; and a
+ * line on what the set option means. The window is three options in a row
+ * that holds the set one, kept inside the list: Roots, three options, shows
+ * all three. A knob with no setting here says which knobs do. The title and
+ * the bottom bar stay.
  *
- *   y 11..19   the header, inverted: KNOB n NAME, and n/N where it fits
- *   y 21/29/37 the options; the one set at 29, inverted 28..36 (its n/N
- *              beside it when the header is full)
- *   y 45       what it means
+ *   y 9..17     the header, inverted: KNOB n NAME, and n/N where it fits
+ *   y 20/28/36  the options, the set one inverted (y-1..y+6)
+ *   y 45        what it means, three clear rows above the bar
  *
- *   state.overlay = { n, unused, of } with state.knobs
+ *   state.overlay = { n, unused } with state.knobs
  */
-export const OVERLAY_ROW_Y = [21, 29, 37];
+export const OVERLAY_HEAD = { y: 9, h: 9, textY: 10 };
+export const OVERLAY_ROW_Y = [20, 28, 36];
 export const OVERLAY_MEANING_Y = 45;
 
 /* A small solid triangle, 5 wide and 3 high, pointing up or down. */
@@ -1720,52 +1749,68 @@ function drawMark(ctx, x, y, up, ink) {
   }
 }
 
+/*
+ * What the overlay says: { head, place, placeInHead, rows, current, window,
+ * meaning, meaningOf, more, k }. `window` the option indexes on its three
+ * rows (-1 for none), `current` the row of the set option, `meaningOf` the
+ * option whose meaning is shown: always the set one.
+ */
 export function overlayTexts(ctx, state) {
   const o = state.overlay;
   const k = state.knobs.find((x) => x.n === o.n);
-  const inner = SETUP_INNER.w - 4;
+  const inner = SETUP_INNER.w;
   if (!k) {
     const last = state.knobs.length;
     return { head: 'KNOB ' + o.n, lines: ['Knobs 1-' + last + ' set', 'this trainer'], k: null };
   }
   const opts = k.options || [];
-  const window = [k.at - 1, k.at, k.at + 1].map((i) => (i >= 0 && i < opts.length ? i : -1));
+  const first = Math.max(0, Math.min(k.at - 1, opts.length - 3));
+  const window = [first, first + 1, first + 2].map((i) => (i < opts.length ? i : -1));
+  const current = window.indexOf(k.at);
   const place = (k.at + 1) + '/' + opts.length;
   const head = truncate(ctx, 'KNOB ' + k.n + ' ' + k.label.toUpperCase(), inner);
   /* Its place n/N at the header's end, or where that is full ("KNOB 6
    * INVERSIONS"), beside the option set. Options keep clear of the marks. */
   const placeInHead = ctx.textWidth(head) + SETUP_GAP + ctx.textWidth(place) <= inner;
+  const optX = 8;
   const rows = window.map((i, r) => (i < 0 ? ''
-    : truncate(ctx, opts[i].text, inner - 8 - (r === 1 && !placeInHead ? ctx.textWidth(place) + SETUP_GAP : 10))));
+    : truncate(ctx, opts[i].text, inner - optX - (r === current && !placeInHead ? ctx.textWidth(place) + SETUP_GAP : 10))));
   const meaningText = opts[k.at] ? opts[k.at].meaning : k.meaning;
   const meaning = k.field === 'level' ? fitItems(ctx, meaningText, inner) : fitWords(ctx, meaningText, inner);
-  return { head, place, placeInHead, rows, meaning: truncate(ctx, meaning, inner), more: [k.at > 1, k.at < opts.length - 2], k };
+  return {
+    head, place, placeInHead, rows, window, current, optX, meaningOf: k.at,
+    meaning: truncate(ctx, meaning, inner), more: [first > 0, first + 3 < opts.length], k,
+  };
 }
 
 export function drawSetupOverlay(ctx, state) {
-  const b = SETUP_BOX;
-  ctx.fillRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2, 0);
+  const f = SETUP_FRAME;
+  ctx.fillRect(f.x + 1, f.y + 1, f.w - 2, f.bottom - f.y, 0);
   const t = overlayTexts(ctx, state);
-  const x0 = b.x + 1;
-  const w = b.w - 2;
-  ctx.fillRect(x0, b.y + 1, w, 9, 1);
-  ctx.text(SETUP_INNER.x + 1, b.y + 2, t.head, 0);
-  if (t.placeInHead) ctx.text(SETUP_INNER.x + SETUP_INNER.w - 1 - ctx.textWidth(t.place), b.y + 2, t.place, 0);
+  const x0 = SETUP_INNER.x;
+  const right = SETUP_INNER.x + SETUP_INNER.w;
+  ctx.fillRect(f.x + 1, OVERLAY_HEAD.y, f.w - 2, OVERLAY_HEAD.h, 1);
+  ctx.text(x0, OVERLAY_HEAD.textY, t.head, 0);
+  if (t.placeInHead) ctx.text(right - ctx.textWidth(t.place), OVERLAY_HEAD.textY, t.place, 0);
   if (!t.k) {
     t.lines.forEach((s, i) => ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, OVERLAY_ROW_Y[i] + 4, s, 1));
     return;
   }
   t.rows.forEach((s, i) => {
     const y = OVERLAY_ROW_Y[i];
-    const on = i === 1;
-    if (on) ctx.fillRect(x0, y - 1, w, L.TEXT_H + 2, 1);
-    if (s) ctx.text(SETUP_INNER.x + 8, y, s, on ? 0 : 1);
-    if (on && !t.placeInHead) ctx.text(SETUP_INNER.x + SETUP_INNER.w - 1 - ctx.textWidth(t.place), y, t.place, 0);
+    if (!s) return;
+    const on = i === t.current;
+    if (on) {
+      ctx.fillRect(x0 - 2, y - 1, SETUP_INNER.w + 4, L.TEXT_H + 1, 1);
+      ctx.text(x0, y, '>', 0);
+      if (!t.placeInHead) ctx.text(right - ctx.textWidth(t.place), y, t.place, 0);
+    }
+    ctx.text(x0 + t.optX, y, s, on ? 0 : 1);
   });
   /* Marks where more options are hidden, above and below the window. */
-  const mx = SETUP_INNER.x + SETUP_INNER.w - 7;
-  if (t.more[0]) drawMark(ctx, mx, OVERLAY_ROW_Y[0] + 2, true, 1);
-  if (t.more[1]) drawMark(ctx, mx, OVERLAY_ROW_Y[2] + 2, false, 1);
+  const mx = right - 5;
+  if (t.more[0]) drawMark(ctx, mx, OVERLAY_ROW_Y[0] + 2, true, t.current === 0 ? 0 : 1);
+  if (t.more[1]) drawMark(ctx, mx, OVERLAY_ROW_Y[2] + 2, false, t.current === 2 ? 0 : 1);
   ctx.text((L.SCREEN_W - ctx.textWidth(t.meaning)) >> 1, OVERLAY_MEANING_Y, t.meaning, 1);
 }
 

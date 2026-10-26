@@ -23,7 +23,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createScreen } from '../tools/screen_buffer.mjs';
+import { createScreen, isOn } from '../tools/screen_buffer.mjs';
 import * as V from '../src/view.mjs';
 import * as L from '../src/layout.mjs';
 import { makeRecord } from '../src/stats.mjs';
@@ -52,7 +52,7 @@ function setupState(subject, circle, stored, overlay = 0, turn = 0) {
   const parts = hintFor('trainer-setup', { blocked, play: bar.play, custom: setup.level === 'custom' });
   return {
     title: (TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle]).toUpperCase(),
-    knobs, blocked, bar,
+    knobs, blocked, bar, asks: TRAIN.asksOf(subject, circle, setup),
     overlay: overlay ? { n: overlay, unused: !knobs[overlay - 1] } : null,
     footer: parts[turn % parts.length],
   };
@@ -711,7 +711,7 @@ test('a level learned: the score centred in the band, LEVEL LEARNED under it, th
 });
 
 test('the star stays in its room: clear of the digits and the caption, inside the band', async () => {
-  const { isOn } = await import('../tools/screen_buffer.mjs');
+  /* isOn: imported above. */
   for (const result of [{ kind: 'exercise', percent: 100 }, { kind: 'exercise', percent: 90 }, { kind: 'quiz', success: 95 }]) {
     const still = createScreen();
     still.clear();
@@ -784,20 +784,33 @@ function eachValue(fn, every = true) {
   }
 }
 
+/*
+ * Every text of the page or the overlay inside the frame, three clear pixels
+ * from it on every side: the sides at x 0 and 127, the title's rule above,
+ * the bar below. The bar's words and the overlay's inverted header are in
+ * bands of their own.
+ */
+function padding(c, where) {
+  const F = V.SETUP_FRAME;
+  const P = V.SETUP_PAD;
+  const bad = [];
+  for (const tx of c.transcript().texts) {
+    if (tx.y < F.y || tx.y >= V.SETUP_BAR.y) continue;
+    const header = tx.y === V.OVERLAY_HEAD.textY;
+    if (tx.x < F.x + 1 + P || tx.x + tx.w > F.x + F.w - 1 - P) bad.push(`${where}: ${JSON.stringify(tx.s)} @x${tx.x}..${tx.x + tx.w}`);
+    if (!header && (tx.y < F.y + 1 + P || tx.y + L.TEXT_H > V.SETUP_BAR.y - P)) bad.push(`${where}: ${JSON.stringify(tx.s)} @y${tx.y}`);
+  }
+  return bad;
+}
+
 test('the setup page fits every circle at every value of every setting, in words', () => {
-  const B = V.SETUP_BOX;
   eachValue((subject, circle, s, _k, where) => {
     for (const turn of [0, 1]) {
       const c = probe();
       const state = setupState(subject, circle, s, 0, turn);
       V.drawTrainerSetup(c, state);
-      const bad = collisions(c).concat(gaps(c, [V.SETUP_LEVEL_Y, ...V.SETUP_ROW_Y]));
+      const bad = collisions(c).concat(gaps(c, [V.SETUP_LEVEL_Y, ...V.SETUP_ROW_Y]), padding(c, where));
       assert.deepEqual(bad, [], `${where}\n  ` + bad.join('\n  '));
-      for (const tx of c.transcript().texts) {
-        if (tx.y < L.HEADER_H || tx.y >= V.SETUP_BAR.y) continue;
-        assert.ok(tx.x > B.x && tx.x + tx.w < B.x + B.w - 1 && tx.y > B.y && tx.y + L.TEXT_H < B.y + B.h,
-          `${where}: ${JSON.stringify(tx.s)} @${tx.x},${tx.y} leaves the box`);
-      }
       for (const { k, text } of V.setupTexts(c, state.knobs)) {
         assert.ok(acceptable(k, text), `${where}: ${k.field} reads "${text}", not its phrase or an accepted short`);
       }
@@ -805,30 +818,81 @@ test('the setup page fits every circle at every value of every setting, in words
   });
 });
 
-test('the overlay fits every setting at its first, middle and last option', () => {
-  const B = V.SETUP_BOX;
+test('a row a circle leaves empty holds what the round asks; a full page does not', () => {
+  for (const subject of Object.keys(TRAIN.SUBJECTS)) {
+    for (const circle of TRAIN.CIRCLES) {
+      const state = setupState(subject, circle, { answer: 'name' });
+      const c = probe();
+      V.drawTrainerSetup(c, state);
+      const said = c.transcript().texts.some((x) => x.s === state.asks);
+      const rows = state.knobs.reduce((m, k) => (k.kind === 'row' || k.kind === 'half' ? Math.max(m, k.row + 1) : m), 0);
+      assert.equal(said, rows < 3, `${subject} ${circle}: ${rows} rows, the asks line ${said ? 'shown' : 'missing'}`);
+    }
+  }
+});
+
+/* The overlay's option rows as the panel shows them: for each, whether its
+ * background is lit, read off the frame buffer one row above its letters. */
+function litRows(c) {
+  return V.OVERLAY_ROW_Y.map((y) => {
+    let lit = 0;
+    for (let x = 4; x < 120; x++) if (isOn(c, x, y - 1)) lit++;
+    return lit > 100;
+  });
+}
+
+test('the overlay: only the set option is inverted, n/N is its place, the meaning is its own', () => {
+  const failures = [];
   eachValue((subject, circle, s, k, where) => {
     const c = probe();
     const state = setupState(subject, circle, s, k.n);
     V.drawTrainerSetup(c, state);
-    const bad = collisions(c).concat(gaps(c, [B.y + 2, ...V.OVERLAY_ROW_Y]));
+    const t = V.overlayTexts(c, state);
+    const kk = state.knobs.find((x) => x.n === k.n);
+    const lit = litRows(c);
+    if (lit.filter(Boolean).length !== 1) failures.push(`${where}: ${lit.filter(Boolean).length} rows inverted`);
+    if (!lit[t.current]) failures.push(`${where}: the set option's row is not the inverted one`);
+    if (t.window[t.current] !== kk.at) failures.push(`${where}: the inverted row is option ${t.window[t.current]}, the set one ${kk.at}`);
+    if (t.rows[t.current] !== kk.options[kk.at].text) failures.push(`${where}: the set option is "${t.rows[t.current]}"`);
+    if (t.place !== `${kk.at + 1}/${kk.options.length}`) failures.push(`${where}: n/N "${t.place}"`);
+    if (t.meaningOf !== kk.at) failures.push(`${where}: the meaning of another option`);
+    /* The window lists options in order, none twice, blanks only past the end. */
+    const shown = t.window.filter((i) => i >= 0);
+    if (shown.length !== Math.min(3, kk.options.length)) failures.push(`${where}: ${shown.length} options shown`);
+    if (shown.some((i, j) => j && i !== shown[j - 1] + 1)) failures.push(`${where}: the window skips`);
+    /* The header lit across, its words dark on it. */
+    if (!isOn(c, 2, V.OVERLAY_HEAD.y) || !isOn(c, 125, V.OVERLAY_HEAD.y + V.OVERLAY_HEAD.h - 1)) failures.push(`${where}: header not inverted`);
+  }, false);
+  assert.deepEqual(failures, []);
+});
+
+test('a knob with no setting: its overlay says which knobs do, and inverts no option', () => {
+  const c = probe();
+  const state = setupState('note', 'play', {}, 7);
+  V.drawTrainerSetup(c, state);
+  assert.deepEqual(litRows(c), [false, false, false]);
+  assert.ok(c.transcript().texts.some((x) => x.s === 'Knobs 1-2 set'));
+  assert.deepEqual(padding(c, 'unused'), []);
+});
+
+test('the overlay fits every setting at its first, middle and last option', () => {
+  eachValue((subject, circle, s, k, where) => {
+    const c = probe();
+    const state = setupState(subject, circle, s, k.n);
+    V.drawTrainerSetup(c, state);
+    const bad = collisions(c).concat(gaps(c, [V.OVERLAY_HEAD.textY, V.OVERLAY_MEANING_Y]), padding(c, where + ', overlay'));
     assert.deepEqual(bad, [], `${where}, overlay\n  ` + bad.join('\n  '));
-    for (const tx of c.transcript().texts) {
-      if (tx.y < L.HEADER_H || tx.y >= V.SETUP_BAR.y) continue;
-      assert.ok(tx.x > B.x && tx.x + tx.w < B.x + B.w - 1 && tx.y > B.y && tx.y + L.TEXT_H < B.y + B.h,
-        `${where}, overlay: ${JSON.stringify(tx.s)} @${tx.x},${tx.y} leaves the box`);
-    }
     /* The option set, whole, and what it means, as far as it fits. */
     const t = V.overlayTexts(c, state);
     const kk = state.knobs.find((x) => x.n === k.n);
-    assert.equal(t.rows[1], kk.options[kk.at].text, `${where}: the option set, in full`);
+    assert.equal(t.rows[t.current], kk.options[kk.at].text, `${where}: the option set, in full`);
     assert.ok(t.meaning.length > 0);
   }, false);
 });
 
-test('the setup page\'s rhythm: two clear rows above each row, the box clear of the bar', () => {
+test('the setup page\'s rhythm: two clear rows above each row, three clear pixels to the frame', () => {
   assert.equal(V.SETUP_ROW_Y[0] - V.SETUP_RULE_Y, 3);
   for (let i = 1; i < V.SETUP_ROW_Y.length; i++) assert.equal(V.SETUP_ROW_Y[i] - V.SETUP_ROW_Y[i - 1], L.TEXT_H + 2);
-  assert.ok(V.SETUP_ROW_Y.at(-1) + L.TEXT_H + 2 <= V.SETUP_BOX.y + V.SETUP_BOX.h - 1, 'two clear rows above the box\'s bottom');
-  assert.ok(V.SETUP_BOX.y + V.SETUP_BOX.h < V.SETUP_BAR.y, 'the box clear of the bar');
+  assert.ok(V.SETUP_ROW_Y.at(-1) + L.TEXT_H + V.SETUP_PAD <= V.SETUP_BAR.y, 'three clear rows above the bar');
+  assert.ok(V.OVERLAY_MEANING_Y + L.TEXT_H + V.SETUP_PAD <= V.SETUP_BAR.y, 'the overlay\'s meaning too');
 });

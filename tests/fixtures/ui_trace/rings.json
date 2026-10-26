@@ -45,7 +45,7 @@
 ["write","/data/UserData/schwung/modules/tools/piano-practice/settings.json","{\"version\":8,\"bpm\":80,\"pxPerBeat\":24,\"rootPc\":0,\"mode\":\"major\",\"transpose\":12,\"anyOctave\":false,\"halfTones\":true,\"roundSize\":10,\"quizSounds\":false,\"autoInfo\":false,\"chordSet\":\"triads\",\"click\":true,\"reference\":\"stage1\",\"names\":\"stage1\",\"midiOut\":4,\"waitForNote\":true,\"graceBeats\":0.25,\"refVel\":70,\"midiCh\":0,\"countIn\":4}"],
 ["tick",50,"eee15d3213c3","f62f2fecab27"],
 ["announce","Chords Play. Touch a knob to change; Play starts."],
-["tick",64,"d1b2dd71d893","6e7808a6b6a5"],
+["tick",64,"674f9b758ac9","6e7808a6b6a5"],
 ["tick",75,"-","57c3baa1d5bb"],
 ["tick",78,"c54471491ac5","079825f50063"],
 ["tick",80,"66fcbf0d52f0","5d2739e0768e"],

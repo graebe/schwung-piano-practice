@@ -38,7 +38,8 @@ Read, Hear and Play each open a **setup page** that shows the settings, not the 
 **LEVEL** across the top with its big number and what that level adds, then the settings this
 circle really has, each in words that say what it is — `C# harmonic minor`, `name it`,
 `chromatic`, `broken chords` — and at the bottom a bar that says what PLAY starts:
-**▶ PLAY 10 chords**. Notes › Play shows only its level; Chords › Hear all of it.
+**▶ PLAY 10 chords**. Chords › Hear fills the page; where a circle has fewer settings, one line says
+what the round asks, such as *play what you hear*.
 
 ![The setup page of Chords › Hear](media/move-setup.png)
 
