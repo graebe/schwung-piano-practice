@@ -64,6 +64,15 @@ export function answerAt(count, pad) {
 }
 
 /* How many rows from the bottom the answers take: the pads above them are free. */
+/*
+ * Where answer i's pad sits in the answer rows: { row, col }, row 0 the
+ * bottom row of the grid. What a legend draws to say "this pad".
+ */
+export function answerCell(count, i) {
+  const p = answerPads(count)[i] - PAD_FIRST;
+  return { row: p >> 3, col: p & 7 };
+}
+
 export function answerRows(count) {
   return count > ROW ? 2 : count > 0 ? 1 : 0;
 }

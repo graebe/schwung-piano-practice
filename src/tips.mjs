@@ -18,13 +18,15 @@ export const WELCOME = 'welcome';
 export const SHEET = 'sheet';
 export const PRACTICE = 'practice';
 export const QUIZ = 'quiz';
+/* The first round whose answers are cells over their pads (read strip, Hear map). */
+export const CELLS = 'cells';
 /* Shown once, after "I already play". */
 export const PLACEMENT = 'placement';
 
 export const MAP = 'map';
 export const ISLAND = 'island';
 
-export const TIP_KEYS = [WELCOME, SHEET, PRACTICE, QUIZ, MAP, ISLAND];
+export const TIP_KEYS = [WELCOME, SHEET, PRACTICE, QUIZ, MAP, ISLAND, CELLS];
 
 /* The welcome's choice, page 3. */
 export const FROM_START = 0;
@@ -37,6 +39,7 @@ const TIPS = {
   [SHEET]: { title: 'Tip', paragraphs: [para('Options for this row. JOG choose, CLICK do it, BACK close.')] },
   [PRACTICE]: { title: 'Tip', paragraphs: [para('REC plays and scores it, PLAY lets you listen first. MENU: help.')] },
   [QUIZ]: { title: 'Tip', paragraphs: [para('Answer with the lit pads or the jog. MENU: help.')] },
+  [CELLS]: { title: 'Tip', paragraphs: [para('Each answer is a cell above its pad: press the pad under it, or jog and click.')] },
   [MAP]: { title: 'Tip', paragraphs: [para('Lit pads are places. Press one to walk there, again to go in. PLAY continues.')] },
   [ISLAND]: { title: 'Tip', paragraphs: [para('Each place is part of the stage. The fort is its checkpoint.')] },
   [PLACEMENT]: {

@@ -9,7 +9,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { fakeHost, openPath } from './support/fake_host.mjs';
-import { MENU, SETTINGS, GUESS_VIEW, RESULT_VIEW, INFO_VIEW, TRAINER_STATS } from '../src/session.mjs';
+import { MENU, SETTINGS, GUESS_VIEW, RESULT_VIEW, INFO_VIEW, TRAINER_STATS, TRAINER_SETUP } from '../src/session.mjs';
+import * as CTRL from '../src/controls.mjs';
 
 function start() {
   const h = fakeHost();
@@ -18,7 +19,9 @@ function start() {
   return h;
 }
 const S = (h) => h.session;
-const row = (h, label) => S(h).settingsRows().findIndex((r) => r.label === label);
+/* A setting's tile, and the knob that turns it. */
+const tile = (h, field) => S(h).knobSetup().knobs.find((k) => k.field === field);
+const knob = (h, field) => tile(h, field).n;
 
 /* Answer every prompt right, by name or by playing it, until the round ends. */
 function playRound(h, wrongFirst = () => false) {
@@ -49,15 +52,20 @@ test('Practice › Chords is a ring of the five circles', () => {
   assert.equal(S(h).nav[S(h).nav.length - 1].node.children[0].label, 'Triads');
 });
 
-test('a circle opens its setup on Start; Start runs a round; next is another', () => {
+test('a circle opens its knob screen; PLAY runs a round; next is another', () => {
   const h = start();
   openPath(S(h), ['Read']);
-  assert.equal(S(h).view, SETTINGS);
-  assert.equal(S(h).settingsTitle(), 'Chords Read');
-  const rows = S(h).settingsRows();
-  assert.equal(S(h).settingsCursor, rows.length - 1);
-  assert.equal(rows[rows.length - 1].act, 'start');
+  assert.equal(S(h).view, TRAINER_SETUP);
+  const ks = S(h).knobSetup();
+  assert.equal(ks.title, 'CHORDS READ');
+  assert.equal(ks.focus, 1, 'it opens on Level, knob 1');
+  assert.deepEqual(ks.knobs.map((k) => k.field), ['level', 'key', 'scale', 'answer', 'roots', 'inversions', 'round'],
+    'only the settings Read has, in reading order: no Sound, no empty knob');
+  assert.equal(ks.bar.play, 'PLAY 10 chords', 'the bar says what PLAY starts');
+  assert.deepEqual(ks.knobs.map((k) => k.n), [1, 2, 3, 4, 5, 6, 7]);
   S(h).activate(false);
+  assert.equal(S(h).view, TRAINER_SETUP, 'a click starts nothing');
+  S(h).playButton();
   assert.equal(S(h).view, GUESS_VIEW);
   assert.equal(S(h).quizTitle(), 'CHORDS READ');
   playRound(h);
@@ -69,14 +77,101 @@ test('a circle opens its setup on Start; Start runs a round; next is another', (
   assert.equal(S(h).quizTitle(), 'CHORDS READ');
 });
 
-test('Back: the round to its setup, the setup to the ring, the ring to Practice', () => {
+test('knobs: each turns its own setting, in reading order; the jog walks them', () => {
   const h = start();
   openPath(S(h), ['Hear']);
-  S(h).activate(false);
+  for (const [n, field, want] of [[4, 'answer', 'nm'], [1, 'level', 'L3'], [2, 'key', 'C#'], [3, 'scale', 'm'],
+    [5, 'roots', 'ik'], [6, 'inversions', 'on'], [7, 'sound', 'bn'], [8, 'round', '20']]) {
+    S(h).knobStep(n, 1);
+    const k = S(h).knobSetup().knobs[n - 1];
+    assert.equal(k.field, field);
+    assert.equal(k.short, want, field);
+    assert.equal(S(h).knobSetup().focus, n);
+  }
+  assert.equal(S(h).knobSetup().bar.play, 'PLAY 20 chords');
+  const saved = JSON.parse(h.files.get('progress.json')).trainers.chord.hear;
+  assert.equal(saved.round, 20);
+  /* The jog walks the knobs in use, each one's overlay showing. */
+  S(h).back();
+  openPath(S(h), ['Play']);
+  assert.equal(S(h).knobSetup().knobs.length, 6);
+  S(h).knobTouch(5);
+  S(h).knobRelease(5);
+  S(h).moveSelection(1);
+  assert.equal(S(h).knobSetup().focus, 6);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'the jog shows the knob it reached');
+  S(h).moveSelection(1);
+  assert.equal(S(h).knobSetup().focus, 6, 'clamped');
+  for (let i = 0; i < 9; i++) S(h).moveSelection(-1);
+  assert.equal(S(h).knobSetup().focus, 1);
+});
+
+test('the overlay: a touch opens it on its knob, letting go closes it 1.5 s later', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  assert.equal(S(h).knobSetup().overlay, null, 'the page alone at first');
+  S(h).knobTouch(5);
+  assert.deepEqual(S(h).knobSetup().overlay, { n: 5, unused: false });
+  assert.ok(h.said().some((t) => /^Knob 5, Roots: diatonic/.test(t)));
+  h.run(5000);
+  assert.equal(S(h).knobSetup().overlay.n, 5, 'held: it stays');
+  S(h).knobTouch(6);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'another knob takes it over');
+  S(h).knobRelease(5);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'letting go of the old one changes nothing');
+  S(h).knobRelease(6);
+  h.run(1400);
+  assert.equal(S(h).knobSetup().overlay.n, 6, 'a moment after letting go: still there');
+  h.run(200);
+  assert.equal(S(h).knobSetup().overlay, null, '1.5 s after: gone');
+});
+
+test('the overlay: a turn without a touch opens it too, and it closes 1.5 s after the last turn', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  const roots = () => S(h).knobSetup().knobs[4];
+  for (let i = 0; i < 9; i++) { S(h).knobTurn(5, 1); h.run(20); }
+  assert.equal(roots().short, 'dt', 'nine units: nothing yet');
+  assert.equal(S(h).knobSetup().overlay.n, 5, 'but the overlay shows it');
+  S(h).knobTurn(5, 1);
+  assert.equal(roots().short, 'ik', 'the tenth: one value');
+  h.run(1400);
+  assert.ok(S(h).knobSetup().overlay);
+  h.run(200);
+  assert.equal(S(h).knobSetup().overlay, null);
+});
+
+test('the overlay: Back closes it and stays; PLAY closes it and starts; a knob with no setting says which do', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  S(h).knobTouch(2);
+  S(h).back();
+  assert.equal(S(h).view, TRAINER_SETUP, 'Back: still the setup');
+  assert.equal(S(h).knobSetup().overlay, null, 'the overlay gone');
+  openPath(S(h), []);
+  S(h).back();
+  assert.equal(S(h).view, MENU, 'Back again leaves');
+  openPath(S(h), ['Play']);
+  S(h).knobTouch(8);
+  assert.deepEqual(S(h).knobSetup().overlay, { n: 8, unused: true }, 'Chords > Play has six knobs');
+  assert.ok(h.said().some((t) => /knobs 1 to 6 set this trainer/.test(t)));
+  S(h).knobRelease(8);
+  S(h).knobTouch(1);
+  S(h).playButton();
+  assert.equal(S(h).view, GUESS_VIEW, 'PLAY starts');
+  S(h).back();
+  assert.equal(S(h).knobSetup().overlay, null, 'and the overlay is not waiting on the way back');
+});
+
+test('Back: the round to its knobs, focus kept; the knobs to the ring; the ring to Practice', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  S(h).knobTouch(8);
+  S(h).playButton();
   assert.equal(S(h).view, GUESS_VIEW);
   S(h).back();
-  assert.equal(S(h).view, SETTINGS);
-  assert.equal(S(h).settingsTitle(), 'Chords Hear');
+  assert.equal(S(h).view, TRAINER_SETUP);
+  assert.equal(S(h).knobSetup().focus, 8, 'where it was');
   S(h).back();
   assert.equal(S(h).view, MENU);
   assert.equal(S(h).nav[S(h).nav.length - 1].node.label, 'Chords');
@@ -87,57 +182,50 @@ test('Back: the round to its setup, the setup to the ring, the ring to Practice'
 test('a setup is remembered per circle, and kept in the progress file', () => {
   const h = start();
   openPath(S(h), ['Play']);
-  S(h).selectSettingRow(row(h, 'Level'));
-  S(h).editRow(row(h, 'Level'), 1);
-  S(h).editRow(row(h, 'Level'), 1);
+  S(h).knobStep(1, 1);
+  S(h).knobStep(1, 1);
   S(h).back();
   openPath(S(h), ['Play']);
-  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, '3 + dim aug');
-  openPath(S(h), []);
+  assert.equal(tile(h, 'level').text, '3  maj m dim aug');
   S(h).back();
   openPath(S(h), ['Read']);
-  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, '1 major', 'Read has its own');
+  assert.equal(tile(h, 'level').short, 'L1', 'Read has its own');
   const saved = JSON.parse(h.files.get('progress.json'));
   assert.equal(saved.trainers.chord.play.level, 3);
 });
 
-test('Custom: starts as the level it came from; the tick list; a round of only the picked', () => {
+test('Custom: a click opens the tick list, Back returns to the knobs; a round of only the picked', () => {
   const h = start();
   openPath(S(h), ['Read']);
-  S(h).selectSettingRow(row(h, 'Level'));
-  S(h).editRow(row(h, 'Level'), 6);
-  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, '2 + minor', 'one step a turn');
-  for (let i = 0; i < 7; i++) S(h).editRow(row(h, 'Level'), 1);   /* 2 -> ... -> 8 -> custom */
-  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, 'custom');
-  const at = row(h, 'Chords');
-  assert.equal(S(h).settingsRows()[at].value, '27 >', 'chosen from level 8: its whole set ticked');
-  S(h).selectSettingRow(at);
+  S(h).knobStep(1, 6);
+  assert.equal(tile(h, 'level').short, 'L2', 'one step a click');
+  for (let i = 0; i < 7; i++) S(h).knobStep(1, 1);       /* 2 -> ... -> 8 -> custom */
+  assert.equal(tile(h, 'level').short, 'Cu');
+  assert.equal(tile(h, 'level').digit, 'Cu');
+  assert.deepEqual(tile(h, 'level').blurb, ['27 chords', '27 ticked']);
+  assert.deepEqual(S(h).hint(), ['PLAY 10 chords', 'TOUCH a knob to set', 'CLICK custom']);
   S(h).activate(false);
+  assert.equal(S(h).view, SETTINGS);
   assert.equal(S(h).settingsTitle(), 'Chords custom');
-  /* Untick all but two. */
+  assert.equal(S(h).settingsRows().filter((r) => r.value === 'on').length, 27, 'from level 8: all of it');
   for (const r of S(h).settingsRows()) {
     if (r.item === 'm7' || r.item === 'dim') continue;
     S(h).selectSettingRow(S(h).settingsRows().findIndex((x) => x.item === r.item));
     S(h).activate(false);
   }
   S(h).back();
-  assert.equal(S(h).settingsTitle(), 'Chords Read');
-  assert.equal(S(h).settingsRows()[S(h).settingsCursor].act, 'custom', 'back on the row that opened it');
-  assert.equal(S(h).settingsRows()[S(h).settingsCursor].value, '2 >');
-  S(h).selectSettingRow(S(h).settingsRows().length - 1);
-  S(h).activate(false);
+  assert.equal(S(h).view, TRAINER_SETUP, 'Back: the knobs');
+  assert.equal(tile(h, 'level').text, 'custom  dim m7');
+  S(h).playButton();
   const kinds = new Set(S(h).quiz.pool.map((e) => e.qualityId));
   assert.deepEqual([...kinds].sort(), ['dim', 'm7']);
 });
 
-test('Start waits for enough ticked: one to play, two to name', () => {
+test('PLAY waits for enough ticked: one to play, two to name; the Play LED goes dark', () => {
   const h = start();
   openPath(S(h), ['Read']);
-  S(h).selectSettingRow(row(h, 'Level'));
-  S(h).editRow(row(h, 'Level'), 1);                      /* 2: maj, min */
-  for (let i = 0; i < 7; i++) S(h).editRow(row(h, 'Level'), 1);
-  assert.equal(S(h).settingsRows()[row(h, 'Level')].value, 'custom');
-  S(h).selectSettingRow(row(h, 'Chords'));
+  S(h).knobStep(1, 1);
+  for (let i = 0; i < 7; i++) S(h).knobStep(1, 1);
   S(h).activate(false);
   const untick = (item) => {
     S(h).selectSettingRow(S(h).settingsRows().findIndex((x) => x.item === item));
@@ -145,44 +233,54 @@ test('Start waits for enough ticked: one to play, two to name', () => {
   };
   for (const r of S(h).settingsRows().filter((x) => x.value === 'on')) untick(r.item);
   S(h).back();
-  const startRow = () => S(h).settingsRows()[S(h).settingsRows().length - 1];
-  assert.deepEqual([startRow().value, startRow().disabled], ['tick 1 chord', true]);
-  S(h).selectSettingRow(S(h).settingsRows().length - 1);
-  assert.deepEqual(S(h).hint(), ['JOG choose  BACK up']);
-  S(h).activate(false);
-  assert.equal(S(h).view, SETTINGS, 'nothing starts');
+  assert.equal(S(h).knobSetup().blocked, 'tick 1 chord');
+  assert.deepEqual(S(h).hint(), ['tick 1 chord', 'TOUCH a knob to set', 'CLICK custom'], 'the reason where PLAY was');
+  assert.equal(CTRL.playLedColor('trainer-setup', 1, false, false, true), CTRL.OFF);
+  assert.notEqual(CTRL.playLedColor('trainer-setup', 1, false, false, false), CTRL.OFF);
+  S(h).playButton();
+  assert.equal(S(h).view, TRAINER_SETUP, 'nothing starts');
   assert.ok(h.said().some((t) => /Not yet: tick 1 chord/.test(t)));
   /* Naming: one ticked is still not enough. */
-  S(h).selectSettingRow(row(h, 'Answer'));
-  S(h).editRow(row(h, 'Answer'), 1);
-  S(h).selectSettingRow(row(h, 'Chords'));
+  S(h).knobStep(knob(h, 'answer'), 1);
+  S(h).knobTouch(knob(h, 'level'));
   S(h).activate(false);
   untick('maj');
   S(h).back();
-  assert.equal(startRow().value, 'tick 2 chords');
-  S(h).selectSettingRow(row(h, 'Chords'));
+  assert.equal(S(h).knobSetup().blocked, 'tick 2 chords');
   S(h).activate(false);
   untick('min');
   S(h).back();
-  assert.equal(startRow().value, '>');
-  S(h).selectSettingRow(S(h).settingsRows().length - 1);
-  S(h).activate(false);
+  assert.equal(S(h).knobSetup().blocked, null);
+  S(h).playButton();
   assert.equal(S(h).view, GUESS_VIEW);
+});
+
+test('Shift + click shows the setup as a list, Start last; Back is the knobs again', () => {
+  const h = start();
+  openPath(S(h), ['Read']);
+  S(h).activate(true);
+  assert.equal(S(h).view, SETTINGS);
+  const rows = S(h).settingsRows();
+  assert.equal(rows.at(-1).act, 'start');
+  assert.equal(S(h).settingsCursor, rows.length - 1);
+  S(h).back();
+  assert.equal(S(h).view, TRAINER_SETUP);
+  S(h).activate(true);
+  S(h).activate(false);
+  assert.equal(S(h).view, GUESS_VIEW, 'Start in the list starts too');
 });
 
 test('Stats: weakest first, a row\'s detail, Back to the ring', () => {
   const h = start();
   openPath(S(h), ['Hear']);
-  S(h).selectSettingRow(row(h, 'Answer'));
-  S(h).editRow(row(h, 'Answer'), 1);
-  S(h).selectSettingRow(S(h).settingsRows().length - 1);
-  S(h).activate(false);
+  S(h).knobStep(knob(h, 'answer'), 1);
+  S(h).playButton();
   /* Miss every minor chord once. */
   playRound(h, (q) => q.entry.answer === 'min');
   assert.equal(S(h).view, RESULT_VIEW);
   S(h).back(); S(h).back();
   if (S(h).view === GUESS_VIEW) S(h).back();
-  if (S(h).view === SETTINGS) S(h).back();
+  if (S(h).view === TRAINER_SETUP) S(h).back();
   openPath(S(h), ['Stats']);
   assert.equal(S(h).view, TRAINER_STATS);
   const rows = S(h).statsRows;
@@ -244,7 +342,7 @@ test('Scales: read and play is a chart; its result files the scale; next is anot
   assert.equal(S(h).listTitle(), 'Scales');
   S(h).back();
   openPath(S(h), ['Read']);
-  S(h).activate(false);
+  S(h).playButton();
   assert.equal(S(h).view, 'ready');
   assert.equal(S(h).armedId, 'quiz:scale:read:play:L1');
   const name = S(h).chart.name;
@@ -259,14 +357,14 @@ test('Scales: read and play is a chart; its result files the scale; next is anot
   S(h).activate(false);
   assert.equal(S(h).view, 'ready', 'next: another scale');
   S(h).back();
-  assert.equal(S(h).view, SETTINGS, 'Back from its ready screen: the setup');
+  assert.equal(S(h).view, TRAINER_SETUP, 'Back from its ready screen: the setup');
 });
 
 test('Scales: heard and played back, note by note, filed under hear', () => {
   const h = fakeHost();
   S(h).init();
   openPath(S(h), ['Practice', 'Scales', 'Hear']);
-  S(h).activate(false);
+  S(h).playButton();
   assert.equal(S(h).view, GUESS_VIEW);
   assert.equal(S(h).quizTitle(), 'SCALES HEAR');
   for (let i = 0; i < 400 && S(h).view === GUESS_VIEW; i++) {
@@ -290,10 +388,9 @@ test('Progressions: Key all 12 walks the circle, a chart a key; Learn keeps its 
   assert.equal(S(h).nav[S(h).nav.length - 1].node.children[0].id, 'basics/progressions/I-IV-V-I');
   S(h).back();
   openPath(S(h), ['Read']);
-  const key = S(h).settingsRows().findIndex((r) => r.field === 'key');
-  for (let i = 0; i < 13; i++) S(h).editRow(key, 1);
-  S(h).selectSettingRow(S(h).settingsRows().length - 1);
-  S(h).activate(false);
+  for (let i = 0; i < 13; i++) S(h).knobStep(knob(h, 'key'), 1);   /* Key: all 12 */
+  assert.equal(tile(h, 'key').short, 'al');
+  S(h).playButton();
   assert.equal(S(h).view, 'ready');
   const first = S(h).chart.name;
   assert.match(first, /^Cm? /);
@@ -309,7 +406,7 @@ test('Progressions: heard and played back, chord by chord, filed under hear', ()
   const h = fakeHost();
   S(h).init();
   openPath(S(h), ['Practice', 'Progressions', 'Hear']);
-  S(h).activate(false);
+  S(h).playButton();
   assert.equal(S(h).quizTitle(), 'PROGS HEAR');
   for (let i = 0; i < 400 && S(h).view === GUESS_VIEW; i++) {
     const q = S(h).quiz;
@@ -351,9 +448,24 @@ test('the page gets a line, a row of chords, a setup and Stats as the Move draws
   S(h).init();
   openPath(S(h), ['Practice', 'Scales', 'Play']);
   let vm = viewModel(S(h));
-  assert.equal(vm.settings.title, 'Scales Play');
-  assert.deepEqual(vm.settings.rows.at(-1), { row: vm.settings.rows.length - 1, index: -1, label: 'Start', value: '>', act: 'start', edit: null, disabled: false });
-  S(h).activate(false);
+  assert.equal(vm.screen, TRAINER_SETUP);
+  assert.equal(vm.trainerSetup.title, 'SCALES PLAY');
+  assert.deepEqual(vm.trainerSetup.knobs.map((k) => k.field), ['level', 'key', 'direction', 'round']);
+  assert.deepEqual(vm.trainerSetup.knobs.map((k) => k.n), [1, 2, 3, 4]);
+  const lv = vm.trainerSetup.knobs[0];
+  assert.equal(lv.field, 'level');
+  assert.equal(lv.phrase, '1  major minor');
+  assert.equal(lv.digit, '1');
+  assert.equal(lv.blurb, 'major minor');
+  assert.equal(lv.at, 0);
+  assert.equal(lv.options.length, 11);
+  assert.deepEqual(lv.options[0], { text: '1  major minor', meaning: '1  Major Minor' });
+  assert.deepEqual(vm.trainerSetup.knobs[1].options.slice(0, 2), [
+    { text: 'C', meaning: 'everything in C' }, { text: 'C#', meaning: 'everything in C#' }]);
+  assert.equal(vm.trainerSetup.bar.play, 'PLAY 10 scales');
+  assert.equal(vm.trainerSetup.focus, 1);
+  assert.equal(vm.trainerSetup.blocked, null);
+  S(h).playButton();
   vm = viewModel(S(h));
   assert.equal(vm.quiz.mode, 'line');
   assert.equal(vm.quiz.read, null, 'no row of names: the line is the prompt');
@@ -367,7 +479,7 @@ test('the page gets a line, a row of chords, a setup and Stats as the Move draws
   S(h).back(); S(h).back();
   S(h).back();
   openPath(S(h), ['Progressions', 'Hear']);
-  S(h).activate(false);
+  S(h).playButton();
   vm = viewModel(S(h));
   assert.equal(vm.quiz.mode, 'row');
   assert.ok(vm.quiz.row.tokens.every((w) => w === '?'), 'heard: the numerals withheld');
@@ -378,4 +490,29 @@ test('the page gets a line, a row of chords, a setup and Stats as the Move draws
   assert.equal(vm.screen, TRAINER_STATS);
   assert.deepEqual(vm.trainerStats.rows, []);
   assert.equal(applyAction(S(h), { type: 'trainerStats', index: 3 }), null);
+});
+
+test('a knob on the Move moves its setting a value per ten units; Settings too', () => {
+  const h = start();
+  openPath(S(h), ['Hear']);
+  const level = () => S(h).knobSetup().knobs.find((k) => k.field === 'level').short;
+  const n = S(h).knobSetup().knobs.find((k) => k.field === 'level').n;
+  for (let i = 0; i < 9; i++) { S(h).knobTurn(n, 1); h.run(20); }
+  assert.equal(level(), 'L1', 'nine units: nothing yet');
+  assert.equal(S(h).knobSetup().focus, n, 'but the knob is in focus');
+  S(h).knobTurn(n, 1);
+  assert.equal(level(), 'L2', 'the tenth: one value');
+  S(h).knobTurn(n, 40);
+  assert.equal(level(), 'L3', 'a flick: one value, no more');
+  h.run(700);
+  for (let i = 0; i < 9; i++) S(h).knobTurn(n, -1);
+  assert.equal(level(), 'L3', 'turning back starts the count again');
+  /* Settings: the same feel. */
+  for (let i = 0; i < 6; i++) S(h).back();
+  S(h).openSettingsPage();
+  const before = S(h).settingsRows()[0].value;
+  for (let i = 0; i < 9; i++) S(h).settingsKnob(0, 1);
+  assert.equal(S(h).settingsRows()[0].value, before, 'nine units on a Settings row: nothing');
+  S(h).settingsKnob(0, 1);
+  assert.notEqual(S(h).settingsRows()[0].value, before, 'the tenth: one value');
 });

@@ -166,10 +166,14 @@ Progressions — each the same five circles: **Read**, **Hear**, **Play**,
 
 ![A trainer's five circles](media/web-trainer.png)
 
-**Read**, **Hear** and **Play** open a setup page: the rows a round asks for,
-each with **−** and **+**, and **Start** last. It remembers what you set.
+**Read**, **Hear** and **Play** open the setup page, as on the Move: a
+**Level** card with its big number and what the level adds, and a card for
+each setting the circle has, its value in words — nothing for the rest.
+Click a card for its picker: every option, the one set highlighted, and what
+it means. The big **Play** says what it starts (**Play 10 chords**); while a
+Custom pick is too small it waits and says why. It remembers what you set.
 
-![A setup page](media/web-setup.png)
+![The setup page](media/web-setup.png)
 
 A round of naming offers its answers as buttons, each in the colour its pad
 has on the Move. Choose one; a wrong answer is counted once and the question

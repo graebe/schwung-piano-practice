@@ -23,7 +23,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { createScreen } from '../tools/screen_buffer.mjs';
+import { createScreen, isOn } from '../tools/screen_buffer.mjs';
 import * as V from '../src/view.mjs';
 import * as L from '../src/layout.mjs';
 import { makeRecord } from '../src/stats.mjs';
@@ -38,8 +38,32 @@ import { createWalk, walkTo } from '../src/pathmap/walk.mjs';
 import { mapTitle } from '../src/map_places.mjs';
 import { createGrow, startGrow } from '../src/home/render.mjs';
 import { PRACTICE_PIANO } from '../src/home/icons.mjs';
+import * as TRAIN from '../src/trainer.mjs';
 
 /* A map at its worst: long names, three-digit percents, reviews due. */
+/* A trainer's setup page as the session hands it to the view: `overlay` the
+ * knob whose overlay is open, `turn` which part of the bottom line shows. */
+function setupState(subject, circle, stored, overlay = 0, turn = 0) {
+  const setup = TRAIN.coerceSetup(subject, circle, stored);
+  const blocked = TRAIN.startBlock(subject, circle, setup);
+  const knobs = TRAIN.knobsOf(subject, circle, setup);
+  const round = knobs.find((k) => k.field === 'round');
+  const bar = { play: 'PLAY ' + (round ? round.phrase[0] : 'start'), alt: round ? round.phrase[1] || null : null, blocked };
+  const parts = hintFor('trainer-setup', { blocked, play: bar.play, custom: setup.level === 'custom' });
+  return {
+    title: (TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle]).toUpperCase(),
+    knobs, blocked, bar, asks: TRAIN.asksOf(subject, circle, setup),
+    overlay: overlay ? { n: overlay, unused: !knobs[overlay - 1] } : null,
+    footer: parts[turn % parts.length],
+  };
+}
+function setupScreen(c, ...args) {
+  return V.drawTrainerSetup(c, setupState(...args));
+}
+
+const CHORD_STAFF = [{ part: 0, notes: [{ pitch: 61, diatonic: 28, alter: 1 }, { pitch: 64, diatonic: 30, alter: 0 },
+  { pitch: 68, diatonic: 32, alter: 1 }, { pitch: 71, diatonic: 34, alter: 0 }] }];
+
 function mapScreen(c, n, kind, at, opts = {}) {
   const places = Array.from({ length: n }, (_, i) => makePlace({
     label: kind === 'island' ? `${i + 1} Shapes and time` : `${3}.${i + 1} Advanced pieces`, percent: 100,
@@ -449,6 +473,28 @@ const SCREENS = {
   'trainer stats, nothing yet': (c) => V.drawTrainerStats(c, {
     title: 'CHORDS', rows: [], cursor: 0, footer: hintFor('trainer-stats', { empty: true })[0],
   }),
+  /* The knob screen: three, five and eight knobs in use, the focus at
+   * either end, the longest level, and a Custom pick too small to start. */
+  /* The setup page: each trainer's busiest circle, the longest values,
+   * Custom, blocked, and the bottom line's other turn. */
+  'setup, Notes Play: the level alone': (c) => setupScreen(c, 'note', 'play', {}),
+  'setup, Notes Hear: higher or lower, endless': (c) => setupScreen(c, 'note', 'hear', { answer: 'hilo', round: 0 }),
+  'setup, Intervals Read: compare, together': (c) => setupScreen(c, 'int', 'read', { answer: 'compare', direction: 'together' }),
+  'setup, Scales Read: played, in 3rds': (c) => setupScreen(c, 'scale', 'read', { answer: 'play', pattern: '3rds', direction: 'both' }),
+  'setup, Chords Hear: every setting': (c) => setupScreen(c, 'chord', 'hear',
+    { answer: 'name', key: 1, roots: 'chromatic', inversions: true, sound: 'broken', scale: 'phrygianDominant' }),
+  'setup, Chords Hear: any key, harmonic minor': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', key: 'random', scale: 'harmonicMinor' }),
+  'setup, Progressions Read: guide tones, pop 8ths': (c) => setupScreen(c, 'prog', 'read', { voicing: 'guide', rhythm: 'pop', key: 'all' }),
+  'setup, Progressions Hear: 30 to go': (c) => setupScreen(c, 'prog', 'hear', { voicing: 'bass', round: 30 }),
+  'setup, Progressions Read: Custom, blocked': (c) => setupScreen(c, 'prog', 'read', { answer: 'name', level: 'custom', custom: [] }),
+  'setup, Chords Hear: Custom of 27, its keys turn': (c) =>
+    setupScreen(c, 'chord', 'hear', { answer: 'name', level: 'custom', custom: TRAIN.allItems('chord') }, 0, 1),
+  'overlay, Chords Hear: Level': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', level: 8 }, 1),
+  'overlay, Chords Hear: Key': (c) => setupScreen(c, 'chord', 'hear', { answer: 'name', key: 11 }, 2),
+  'overlay, Chords Hear: Custom': (c) =>
+    setupScreen(c, 'chord', 'hear', { answer: 'name', level: 'custom', custom: TRAIN.allItems('chord') }, 1),
+  'overlay, Progressions Read: Voicing': (c) => setupScreen(c, 'prog', 'read', { voicing: 'bass' }, 4),
+  'overlay, a knob with no setting': (c) => setupScreen(c, 'note', 'play', {}, 7),
   'pick, eight chord answers on the map': (c) => V.drawPick(c, {
     title: 'CHORDS HEAR', score: '19/20', index: 7,
     options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
@@ -456,11 +502,23 @@ const SCREENS = {
     colours: ['blue', 'orange', 'cyan', 'pink', 'green', 'yellow', 'purple', 'red'],
     hint: 'which chord?', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
   }),
-  'read pick, a chord on the staff': (c) => V.drawReadPick(c, {
-    title: 'CHORDS READ', score: '19/20',
-    staff: [{ part: 0, notes: [{ pitch: 61, diatonic: 28, alter: 1 }, { pitch: 64, diatonic: 30, alter: 0 },
-      { pitch: 68, diatonic: 32, alter: 1 }, { pitch: 71, diatonic: 34, alter: 0 }] }],
-    option: 'Minor-maj 7th', footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  /* The read strip: eight answers, two far apart, a struck one, and right
+   * with the longest label in the title. */
+  'read pick, a chord on the staff, eight answers': (c) => V.drawReadPick(c, {
+    title: 'CHORDS READ', score: '19/20', staff: CHORD_STAFF, index: 7,
+    options: ['Major', 'Minor', 'Diminished', 'Augmented', 'Dominant 7th', 'Major 7th', 'Minor 7th', 'Minor-maj 7th'],
+    short: ['M', 'm', '°', '+', '7', 'M7', 'm7', 'mM'], eliminated: [2],
+    footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
+  'read pick, two answers': (c) => V.drawReadPick(c, {
+    title: 'INTERVALS READ', score: '0/10', staff: CHORD_STAFF, index: 1,
+    options: ['First bigger', 'Second bigger'], short: ['1', '2'],
+    footer: hintFor('guess', { ear: true, hintsLeft: true })[0],
+  }),
+  'read pick, right, a long label': (c) => V.drawReadPick(c, {
+    title: 'PROGS READ', score: '100/100', staff: CHORD_STAFF, index: 3, solved: true,
+    label: 'iii-vi-ii-V-I in F# minor', options: ['I-V-vi-IV', 'ii-V-I', 'vi-IV-I-V', 'iii-vi-ii-V-I'],
+    short: ['Ax', 'ii', 'vi', 'iii'], footer: hintFor('guess', {})[0],
   }),
   /* A scale both ways, fifteen notes, the longest name a scale has. */
   'line, half played': (c) => V.drawLineView(c, {
@@ -537,7 +595,7 @@ test('a Stats row keeps its whole label: thirteen characters beside the meters',
 });
 
 test('the name-lane rule is drawn only by the views that have a name lane', () => {
-  const laned = ['reading', 'guess', 'ready', 'read pick', 'line', 'chord row'];
+  const laned = ['reading', 'guess', 'ready', 'line', 'chord row'];
   for (const [name, draw] of Object.entries(SCREENS)) {
     const c = probe();
     draw(c);
@@ -572,6 +630,16 @@ test('every footer this module can show fits across the screen', () => {
   for (const screen of ['menu', 'ready', 'running', 'settings', 'guess', 'summary', 'progress',
     'progress-detail', 'info', 'sheet', 'card', 'map', 'home', 'anim', 'trainer-stats']) {
     for (const st of states) footers.push(...hintFor(screen, st), ...hintFor(screen, { ...st, shift: true }));
+  }
+  /* The knob screen, ready, on Custom, and with each trainer's reason not
+   * to start. */
+  const knobStates = [{}, { custom: true }];
+  for (const s of Object.keys(TRAIN.SUBJECTS)) {
+    const noun = TRAIN.subjectOf(s).noun;
+    knobStates.push({ blocked: 'tick 1 ' + noun[0], custom: true }, { blocked: 'tick 2 ' + noun[1], custom: true });
+  }
+  for (const st of knobStates) {
+    footers.push(...hintFor('trainer-setup', st), ...hintFor('trainer-setup', { ...st, shift: true }));
   }
   for (const f of footers) {
     assert.ok(c.textWidth(f) <= L.TEXT_MAX_PX, `${JSON.stringify(f)} is ${c.textWidth(f)}px`);
@@ -643,7 +711,7 @@ test('a level learned: the score centred in the band, LEVEL LEARNED under it, th
 });
 
 test('the star stays in its room: clear of the digits and the caption, inside the band', async () => {
-  const { isOn } = await import('../tools/screen_buffer.mjs');
+  /* isOn: imported above. */
   for (const result of [{ kind: 'exercise', percent: 100 }, { kind: 'exercise', percent: 90 }, { kind: 'quiz', success: 95 }]) {
     const still = createScreen();
     still.clear();
@@ -666,4 +734,165 @@ test('the star stays in its room: clear of the digits and the caption, inside th
     }
     assert.ok(rays > 0, 'a star is drawn');
   }
+});
+
+/* Every circle of every trainer: the knob screen's values sit under their
+ * knobs, inside the screen, and its two detail lines fit, whichever knob is in
+ * focus and whatever its value. */
+/* What the page may say for a value: its phrase, the words its options use,
+ * or an accepted short form (trainer.mjs ACCEPTED_SHORT) — never a code. */
+function acceptable(k, text) {
+  if ((k.phrase || []).includes(text) && ((k.phrase || []).indexOf(text) === 0 || accepted(text))) return true;
+  return Boolean(k.options && k.options[k.at] && k.options[k.at].text === text);
+}
+function accepted(text) {
+  const part = text.replace(/, any key$/, '').replace(/^[A-G]#? /, '');
+  return TRAIN.ACCEPTED_SHORT.includes(text) || TRAIN.ACCEPTED_SHORT.includes(part);
+}
+
+/* Every text run on one line keeps two characters (12 px) from the next. */
+function gaps(c, ys) {
+  const bad = [];
+  const { texts } = c.transcript();
+  for (const y of ys) {
+    const line = texts.filter((t) => t.y === y).sort((a, b) => a.x - b.x);
+    for (let i = 1; i < line.length; i++) {
+      const gap = line[i].x - (line[i - 1].x + line[i - 1].w);
+      if (gap < V.SETUP_GAP) bad.push(`${JSON.stringify(line[i - 1].s)} and ${JSON.stringify(line[i].s)}: ${gap} px apart`);
+    }
+  }
+  return bad;
+}
+
+/* Each value of a field to check: the first, the middle and the last, or all. */
+const pick = (all, every) => (every ? all : [all[0], all[all.length >> 1], all[all.length - 1]]);
+
+function eachValue(fn, every = true) {
+  for (const subject of Object.keys(TRAIN.SUBJECTS)) {
+    for (const circle of TRAIN.CIRCLES) {
+      for (const answer of TRAIN.knobValues(subject, circle, TRAIN.coerceSetup(subject, circle, {}), 'answer')) {
+        const setup = TRAIN.coerceSetup(subject, circle, { answer: answer.value });
+        for (const k of TRAIN.knobsOf(subject, circle, setup)) {
+          for (const v of pick(TRAIN.knobValues(subject, circle, setup, k.field), every)) {
+            const s = { ...setup, [k.field]: v.value };
+            if (v.value === 'custom') s.custom = TRAIN.allItems(subject);
+            fn(subject, circle, s, k, `${subject} ${circle} ${answer.value}: ${k.field} = ${v.short}`);
+          }
+        }
+      }
+    }
+  }
+}
+
+/*
+ * Every text of the page or the overlay inside the frame, three clear pixels
+ * from it on every side: the sides at x 0 and 127, the title's rule above,
+ * the bar below. The bar's words and the overlay's inverted header are in
+ * bands of their own.
+ */
+function padding(c, where) {
+  const F = V.SETUP_FRAME;
+  const P = V.SETUP_PAD;
+  const bad = [];
+  for (const tx of c.transcript().texts) {
+    if (tx.y < F.y || tx.y >= V.SETUP_BAR.y) continue;
+    const header = tx.y === V.OVERLAY_HEAD.textY;
+    if (tx.x < F.x + 1 + P || tx.x + tx.w > F.x + F.w - 1 - P) bad.push(`${where}: ${JSON.stringify(tx.s)} @x${tx.x}..${tx.x + tx.w}`);
+    if (!header && (tx.y < F.y + 1 + P || tx.y + L.TEXT_H > V.SETUP_BAR.y - P)) bad.push(`${where}: ${JSON.stringify(tx.s)} @y${tx.y}`);
+  }
+  return bad;
+}
+
+test('the setup page fits every circle at every value of every setting, in words', () => {
+  eachValue((subject, circle, s, _k, where) => {
+    for (const turn of [0, 1]) {
+      const c = probe();
+      const state = setupState(subject, circle, s, 0, turn);
+      V.drawTrainerSetup(c, state);
+      const bad = collisions(c).concat(gaps(c, [V.SETUP_LEVEL_Y, ...V.SETUP_ROW_Y]), padding(c, where));
+      assert.deepEqual(bad, [], `${where}\n  ` + bad.join('\n  '));
+      for (const { k, text } of V.setupTexts(c, state.knobs)) {
+        assert.ok(acceptable(k, text), `${where}: ${k.field} reads "${text}", not its phrase or an accepted short`);
+      }
+    }
+  });
+});
+
+test('a row a circle leaves empty holds what the round asks; a full page does not', () => {
+  for (const subject of Object.keys(TRAIN.SUBJECTS)) {
+    for (const circle of TRAIN.CIRCLES) {
+      const state = setupState(subject, circle, { answer: 'name' });
+      const c = probe();
+      V.drawTrainerSetup(c, state);
+      const said = c.transcript().texts.some((x) => x.s === state.asks);
+      const rows = state.knobs.reduce((m, k) => (k.kind === 'row' || k.kind === 'half' ? Math.max(m, k.row + 1) : m), 0);
+      assert.equal(said, rows < 3, `${subject} ${circle}: ${rows} rows, the asks line ${said ? 'shown' : 'missing'}`);
+    }
+  }
+});
+
+/* The overlay's option rows as the panel shows them: for each, whether its
+ * background is lit, read off the frame buffer one row above its letters. */
+function litRows(c) {
+  return V.OVERLAY_ROW_Y.map((y) => {
+    let lit = 0;
+    for (let x = 4; x < 120; x++) if (isOn(c, x, y - 1)) lit++;
+    return lit > 100;
+  });
+}
+
+test('the overlay: only the set option is inverted, n/N is its place, the meaning is its own', () => {
+  const failures = [];
+  eachValue((subject, circle, s, k, where) => {
+    const c = probe();
+    const state = setupState(subject, circle, s, k.n);
+    V.drawTrainerSetup(c, state);
+    const t = V.overlayTexts(c, state);
+    const kk = state.knobs.find((x) => x.n === k.n);
+    const lit = litRows(c);
+    if (lit.filter(Boolean).length !== 1) failures.push(`${where}: ${lit.filter(Boolean).length} rows inverted`);
+    if (!lit[t.current]) failures.push(`${where}: the set option's row is not the inverted one`);
+    if (t.window[t.current] !== kk.at) failures.push(`${where}: the inverted row is option ${t.window[t.current]}, the set one ${kk.at}`);
+    if (t.rows[t.current] !== kk.options[kk.at].text) failures.push(`${where}: the set option is "${t.rows[t.current]}"`);
+    if (t.place !== `${kk.at + 1}/${kk.options.length}`) failures.push(`${where}: n/N "${t.place}"`);
+    if (t.meaningOf !== kk.at) failures.push(`${where}: the meaning of another option`);
+    /* The window lists options in order, none twice, blanks only past the end. */
+    const shown = t.window.filter((i) => i >= 0);
+    if (shown.length !== Math.min(3, kk.options.length)) failures.push(`${where}: ${shown.length} options shown`);
+    if (shown.some((i, j) => j && i !== shown[j - 1] + 1)) failures.push(`${where}: the window skips`);
+    /* The header lit across, its words dark on it. */
+    if (!isOn(c, 2, V.OVERLAY_HEAD.y) || !isOn(c, 125, V.OVERLAY_HEAD.y + V.OVERLAY_HEAD.h - 1)) failures.push(`${where}: header not inverted`);
+  }, false);
+  assert.deepEqual(failures, []);
+});
+
+test('a knob with no setting: its overlay says which knobs do, and inverts no option', () => {
+  const c = probe();
+  const state = setupState('note', 'play', {}, 7);
+  V.drawTrainerSetup(c, state);
+  assert.deepEqual(litRows(c), [false, false, false]);
+  assert.ok(c.transcript().texts.some((x) => x.s === 'Knobs 1-2 set'));
+  assert.deepEqual(padding(c, 'unused'), []);
+});
+
+test('the overlay fits every setting at its first, middle and last option', () => {
+  eachValue((subject, circle, s, k, where) => {
+    const c = probe();
+    const state = setupState(subject, circle, s, k.n);
+    V.drawTrainerSetup(c, state);
+    const bad = collisions(c).concat(gaps(c, [V.OVERLAY_HEAD.textY, V.OVERLAY_MEANING_Y]), padding(c, where + ', overlay'));
+    assert.deepEqual(bad, [], `${where}, overlay\n  ` + bad.join('\n  '));
+    /* The option set, whole, and what it means, as far as it fits. */
+    const t = V.overlayTexts(c, state);
+    const kk = state.knobs.find((x) => x.n === k.n);
+    assert.equal(t.rows[t.current], kk.options[kk.at].text, `${where}: the option set, in full`);
+    assert.ok(t.meaning.length > 0);
+  }, false);
+});
+
+test('the setup page\'s rhythm: two clear rows above each row, three clear pixels to the frame', () => {
+  assert.equal(V.SETUP_ROW_Y[0] - V.SETUP_RULE_Y, 3);
+  for (let i = 1; i < V.SETUP_ROW_Y.length; i++) assert.equal(V.SETUP_ROW_Y[i] - V.SETUP_ROW_Y[i - 1], L.TEXT_H + 2);
+  assert.ok(V.SETUP_ROW_Y.at(-1) + L.TEXT_H + V.SETUP_PAD <= V.SETUP_BAR.y, 'three clear rows above the bar');
+  assert.ok(V.OVERLAY_MEANING_Y + L.TEXT_H + V.SETUP_PAD <= V.SETUP_BAR.y, 'the overlay\'s meaning too');
 });

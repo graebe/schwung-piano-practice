@@ -68,6 +68,7 @@ import { createGrow, startGrow, growing, itemOfPad, HOME_MAX } from './home/rend
 import { PRACTICE_PIANO } from './home/icons.mjs';
 import * as SC from './pathmap/scenes.mjs';
 import * as TRAIN from './trainer.mjs';
+import { createKnobAccumulator } from './knob_accel.mjs';
 
 /*
  * Two genuinely different destinations, and which one carries your piano
@@ -120,11 +121,13 @@ export const HOME_SCREEN = 'home';
 export const ANIM_VIEW = 'anim';
 /* A trainer's Stats: its items, weakest first (trainer.mjs, stats.items). */
 export const TRAINER_STATS = 'trainer-stats';
+/* A trainer circle's setup: a row of eight knobs (trainer.mjs knobsOf). */
+export const TRAINER_SETUP = 'trainer-setup';
 
 /* Every screen, for whoever must cover them all (hints.mjs, its test). */
 export const VIEWS = [
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL,
-  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN, ANIM_VIEW, TRAINER_STATS,
+  INFO_VIEW, SHEET_VIEW, CARD_VIEW, MAP_SCREEN, HOME_SCREEN, ANIM_VIEW, TRAINER_STATS, TRAINER_SETUP,
 ];
 
 /* What the session keeps, by name; the host decides where. */
@@ -868,7 +871,9 @@ export function createSession(fx, opts = {}) {
       announce('Note guesser. Play ' + promptName() + '.');
     }
     autoInfo({ id: quizId(spec) });
-    showTip(TIPS.QUIZ);
+    /* Answers drawn as cells over their pads get their own first tip. */
+    const cells = answerBarActive() && (readingCourse() || quiz.choices.length > AP.LIST_MAX);
+    showTip(cells ? TIPS.CELLS : TIPS.QUIZ);
   }
 
   /*
@@ -1933,8 +1938,9 @@ export function createSession(fx, opts = {}) {
     if (view === GUESS_VIEW && quizSpec) return { id: quizId(quizSpec), label: quizSpec.label };
     if (view === RESULT_VIEW) return { kind: 'result' };
     if (view === PROGRESS_VIEW || view === PROGRESS_DETAIL) return { kind: 'progress' };
-    if (view === SETTINGS && settingsGroup === TRAINER_GROUP && trainerOpen) {
-      return { id: 'basics/' + trainerOpen.subject + '-trainer/' + trainerOpen.circle, label: settingsTitle() };
+    if ((view === SETTINGS && settingsGroup === TRAINER_GROUP && trainerOpen) || view === TRAINER_SETUP) {
+      return { id: 'basics/' + trainerOpen.subject + '-trainer/' + trainerOpen.circle,
+        label: settingsTitleOf(trainerOpen.subject, trainerOpen.circle) };
     }
     if (view === SETTINGS) return { kind: 'settings', group: settingsGroup };
     if (view === TRAINER_STATS) return { id: 'basics/' + statsSubject + '-trainer/stats', label: trainerStatsTitle() };
@@ -2161,18 +2167,16 @@ export function createSession(fx, opts = {}) {
   /* Back from a page: a group to Advanced's list, the page to its origin. */
   function closeSettings() {
     settingsEditing = false;
-    if (settingsGroup === TRAINER_GROUP && trainerOpen && trainerOpen.custom) {
-      /* The tick list goes back to its setup, on the row that opened it. */
+    if (settingsGroup === TRAINER_GROUP && trainerOpen && trainerOpen.custom && !trainerOpen.fromKnobs) {
+      /* The tick list goes back to the setup as a list, on the row that opened it. */
       trainerOpen.custom = false;
       settingsCursor = Math.max(0, settingsRows().findIndex((r) => r.act === 'custom'));
       dirty = true;
       return;
     }
     if (settingsGroup === TRAINER_GROUP) {
-      settingsGroup = SET.MAIN_GROUP.key;
-      view = MENU;
-      dirty = true;
-      ledDirty = true;
+      /* The tick list from the knobs, and the setup as a list: the knobs again. */
+      openSetup(trainerOpen.subject, trainerOpen.circle);
       return;
     }
     if (!onMain()) view = MENU;
@@ -2192,6 +2196,15 @@ export function createSession(fx, opts = {}) {
   }
 
   /* A row of the page changed by the jog or a knob. */
+  /* A Settings row's knob turned on the Move, by `units`: a value per ten. */
+  function settingsKnob(row, units) {
+    if (view !== SETTINGS) return;
+    selectSettingRow(row);
+    const step = settingsAccel.feed('settings:' + row, units, now());
+    if (step) editRow(row, step);
+    dirty = true;
+  }
+
   function editRow(row, delta) {
     const r = settingsRows()[row];
     if (!r || !delta) return;
@@ -2334,10 +2347,182 @@ export function createSession(fx, opts = {}) {
     saveProgress();
   }
 
-  /* A circle's setup page, the cursor on Start: the usual next thing is to go. */
+  /*
+   * A circle's setup: a page of its settings (trainer.mjs knobsOf), each
+   * turned by a knob numbered in the page's reading order. Touching a knob
+   * opens the overlay — which knob, what it changes, its options — and
+   * letting go closes it a moment later (KNOB_OVERLAY_MS); with no touch (a
+   * turn alone, the jog) it closes that long after the last turn. Back
+   * closes it and stays; PLAY closes it and starts; another knob takes it
+   * over. A click on Level = Custom opens the tick list. The focus (the knob
+   * last used) is kept per circle, so a round's Back finds it where it was;
+   * it opens on Level.
+   */
+  const knobFocus = {};
+  const knobKey = () => trainerOpen.subject + ':' + trainerOpen.circle;
+  const KNOB_OVERLAY_MS = 1500;
+  /* KNOBS on the Move: touches 0..7 are knobs, 8 and 9 the volume and jog. */
+  const KNOB_COUNT = 8;
+  let knobOverlay = null;      /* { n, held, until } */
+  const levelKnob = (knobs) => (knobs.find((k) => k.field === 'level') || knobs[0]).n;
+
+  /* The overlay over knob n: held while touched, else until a moment on. */
+  function openOverlay(n, held) {
+    const keep = knobOverlay && knobOverlay.n === n && knobOverlay.held;
+    knobOverlay = { n, held: held || keep, until: held || keep ? Infinity : now() + KNOB_OVERLAY_MS };
+    dirty = true;
+  }
+
+  function closeOverlay() {
+    if (!knobOverlay) return false;
+    knobOverlay = null;
+    dirty = true;
+    return true;
+  }
+
   function openSetup(subject, circle) {
     trainerOpen = { subject, circle, custom: false };
+    settingsGroup = SET.MAIN_GROUP.key;
+    settingsEditing = false;
+    view = TRAINER_SETUP;
+    knobOverlay = null;
+    settingsAccel.reset();
+    dirty = true;
+    ledDirty = true;
+    announce(settingsTitleOf(subject, circle) + '. Touch a knob to change; Play starts.');
+  }
+
+  function settingsTitleOf(subject, circle) {
+    return TRAIN.subjectOf(subject).name + ' ' + TRAIN.CIRCLE_LABEL[circle];
+  }
+
+  /* The setup page as ui.js and the page draw it. */
+  function knobSetup() {
+    if (!trainerOpen) return null;
+    const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
+    const knobs = TRAIN.knobsOf(trainerOpen.subject, trainerOpen.circle, setup);
+    let focus = knobFocus[knobKey()] || levelKnob(knobs);
+    if (!knobs[focus - 1]) focus = levelKnob(knobs);
+    const round = knobs.find((k) => k.field === 'round');
+    const blocked = TRAIN.startBlock(trainerOpen.subject, trainerOpen.circle, setup);
+    return {
+      title: settingsTitleOf(trainerOpen.subject, trainerOpen.circle).toUpperCase(),
+      knobs,
+      focus,
+      levelKnob: levelKnob(knobs),
+      custom: setup.level === 'custom',
+      blocked,
+      asks: TRAIN.asksOf(trainerOpen.subject, trainerOpen.circle, setup),
+      /* What PLAY starts: the round ("10 chords"), or a chart. */
+      bar: {
+        play: 'PLAY ' + (round ? round.phrase[0] : 'start'),
+        alt: round ? round.phrase[1] || null : null,
+        blocked,
+      },
+      overlay: knobOverlay && now() < knobOverlay.until
+        ? { n: knobOverlay.n, unused: !knobs[knobOverlay.n - 1] }
+        : null,
+    };
+  }
+
+  /*
+   * The settings knobs, calmed (knob_accel.mjs): a hardware knob moves its
+   * setting one value per ten units turned. The page's − and + are a value
+   * a click (knobStep, editRow).
+   */
+  const settingsAccel = createKnobAccumulator();
+
+  /* Knob n turned on the Move, by `units`: its overlay, and a value per ten. */
+  function knobTurn(n, units) {
+    if (view !== TRAINER_SETUP || !units || n < 1 || n > KNOB_COUNT) return;
+    openOverlay(n, false);
+    const k = knobSetup().knobs[n - 1];
+    if (!k) return;
+    knobFocus[knobKey()] = n;
+    const step = settingsAccel.feed('setup:' + n, units, now());
+    if (step) knobStep(n, step);
+  }
+
+  /* Knob n's setting one value on (+1) or back (-1), and the focus. */
+  function knobStep(n, delta) {
+    if (view !== TRAINER_SETUP || !delta) return;
+    const k = knobSetup().knobs[n - 1];
+    if (!k) return;
+    knobFocus[knobKey()] = n;
+    const setup = trainerSetup(trainerOpen.subject, trainerOpen.circle);
+    if (TRAIN.applySetup(trainerOpen.subject, setup, k.field, delta)) saveTrainerSetup(setup);
+    const turned = knobSetup().knobs[n - 1];
+    announce(turned.label + ' ' + turned.options[turned.at].text + '.');
+    dirty = true;
+    ledDirty = true;
+  }
+
+  /* Knob n set to its option `index` at once: the page's picker. */
+  function knobPick(n, index) {
+    const k = view === TRAINER_SETUP && knobSetup().knobs[n - 1];
+    if (!k) return;
+    const to = clamp(index | 0, 0, k.count - 1);
+    for (let i = 0; i < k.count && knobSetup().knobs[n - 1].at !== to; i++) {
+      knobStep(n, to > knobSetup().knobs[n - 1].at ? 1 : -1);
+    }
+  }
+
+  /* Knob n touched: its overlay, held until it is let go. */
+  function knobTouch(n) {
+    if (view !== TRAINER_SETUP || n < 1 || n > KNOB_COUNT) return;
+    openOverlay(n, true);
+    const k = knobSetup().knobs[n - 1];
+    if (!k) {
+      announce('Knob ' + n + ': knobs 1 to ' + knobSetup().knobs.length + ' set this trainer.');
+      return;
+    }
+    knobFocus[knobKey()] = n;
+    announce('Knob ' + n + ', ' + k.label + ': ' + k.options[k.at].text + '.');
+  }
+
+  /* Knob n let go: its overlay closes a moment later. */
+  function knobRelease(n) {
+    if (!knobOverlay || knobOverlay.n !== n) return;
+    knobOverlay = { n, held: false, until: now() + KNOB_OVERLAY_MS };
+  }
+
+  /* The jog walks the knobs in use, showing each one's overlay. */
+  function knobJog(delta) {
+    const ks = knobSetup();
+    const used = ks.knobs.map((k) => k.n);
+    const at = used.indexOf(ks.focus);
+    const to = used[clamp(at + (delta > 0 ? 1 : -1), 0, used.length - 1)];
+    knobFocus[knobKey()] = to;
+    openOverlay(to, false);
+  }
+
+  /* A click: on Level = Custom the tick list; the setup as a list with Shift. */
+  function knobClick(shiftHeld) {
+    const ks = knobSetup();
+    if (shiftHeld) {
+      openSetupList();
+      return;
+    }
+    if (ks.focus === ks.levelKnob && ks.custom) {
+      trainerOpen.custom = true;
+      trainerOpen.fromKnobs = true;
+      settingsGroup = TRAINER_GROUP;
+      settingsCursor = 0;
+      settingsEditing = false;
+      view = SETTINGS;
+      dirty = true;
+      ledDirty = true;
+      announce(settingsTitle() + '.');
+      return;
+    }
+    announce(ks.blocked ? 'Not yet: ' + ks.blocked + '.' : 'Press play to start.');
+  }
+
+  /* The same setup as rows of a list, for Shift + click: Start last. */
+  function openSetupList() {
     settingsGroup = TRAINER_GROUP;
+    trainerOpen.custom = false;
+    trainerOpen.fromKnobs = false;
     settingsOver = 'menu';
     settingsEditing = false;
     settingsCursor = settingsRows().length - 1;
@@ -2473,6 +2658,55 @@ export function createSession(fx, opts = {}) {
     const s = TRAIN.subjectOf(quizSpec.trainer.subject);
     return ((s.short || s.name) + ' '
       + TRAIN.CIRCLE_LABEL[quizSpec.trainer.circle]).toUpperCase();
+  }
+
+  /*
+   * A multiple-choice round as the Move draws it: `read` with the prompt on
+   * the staff and the answer strip under it (view.drawReadPick), else the
+   * question and the answers as a list or a map of their pads
+   * (view.drawPick). Where pads answer (answerBarActive), every answer is
+   * tied to its pad: its colour named in the list, its cell over its pad in
+   * the strip and the map. Null when no choice is open.
+   */
+  function pickScreen() {
+    if (view !== GUESS_VIEW || !quizPick || !quiz) return null;
+    const ear = quiz.kind === GUESS.EAR;
+    const score = quiz.roundSize > 0
+      ? quiz.correct + '/' + quiz.roundSize
+      : String(GUESS.quizStats(quiz).correct);
+    const options = quiz.choices.map((c) => GUESS.optionLabel(quiz, c));
+    const common = {
+      score, options,
+      short: quiz.choices.map(AP.shortLabel),
+      index: quiz.choiceIndex,
+      eliminated: quiz.eliminated,
+    };
+    if (quiz.exercise && quiz.exercise.read) {
+      return {
+        read: true,
+        state: {
+          ...common,
+          title: quizTitle() || 'READ ' + quiz.exercise.short.toUpperCase(),
+          staff: quiz.entry ? quiz.entry.staff : [],
+          solved: quiz.solved,
+          label: quiz.label,
+        },
+      };
+    }
+    let ask = 'which pad is lit?';
+    if (ear) ask = quiz.solved ? quiz.label : quiz.exercise.question;
+    else if (quiz.solved) ask = 'right';
+    return {
+      read: false,
+      state: {
+        ...common,
+        title: quizTitle() || (ear ? 'HEAR ' + quiz.exercise.short.toUpperCase()
+          : (quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE')),
+        /* Name has no answer pads: the lit pads are its question. */
+        colours: ear ? quiz.choices.map((c, i) => AP.answerColour(i).name) : null,
+        hint: ask,
+      },
+    };
   }
 
   /*
@@ -2803,6 +3037,13 @@ export function createSession(fx, opts = {}) {
       st.trainer = settingsGroup === TRAINER_GROUP;
     }
     if (view === TRAINER_STATS) st.empty = !statsRows.length;
+    if (view === TRAINER_SETUP) {
+      const ks = knobSetup();
+      st.custom = ks.custom && ks.focus === ks.levelKnob;
+      st.blocked = ks.blocked || null;
+      st.play = ks.bar.play;
+      st.knobs = ks.knobs.map((k) => k.n + ' ' + k.label).join(', ');
+    }
     if (view === CARD_VIEW && card) {
       st.pages = card.pages.length;
       st.choice = Boolean(card.pages[card.page].choices);
@@ -3393,6 +3634,10 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
+    if (view === TRAINER_SETUP) {
+      knobJog(delta);
+      return;
+    }
     if (view === PROGRESS_DETAIL) {
       if (progressRows.length > 1) {
         progressCursor = (progressCursor + (delta > 0 ? 1 : -1) + progressRows.length)
@@ -3488,6 +3733,10 @@ export function createSession(fx, opts = {}) {
       openStatsDetail();
       return;
     }
+    if (view === TRAINER_SETUP) {
+      knobClick(shiftHeld);
+      return;
+    }
     switch (CTRL.jogClickAction(view, shiftHeld)) {
       case 'next':
         goNext();
@@ -3525,6 +3774,13 @@ export function createSession(fx, opts = {}) {
   function playButton() {
     if (skipScene()) return;
     if (view === INFO_VIEW || view === CARD_VIEW || view === SHEET_VIEW) return;
+    /* A trainer's setup: Play closes the knob overlay and starts, unless the
+     * pick is too small. */
+    if (view === TRAINER_SETUP) {
+      closeOverlay();
+      startTrainer(trainerOpen.subject, trainerOpen.circle);
+      return;
+    }
     /* Home offers nothing to play. */
     if (onHome()) return;
     /* On the map Play is Continue: the one button. */
@@ -3627,7 +3883,9 @@ export function createSession(fx, opts = {}) {
       dirty = true;
       return;
     }
-    if (view === PROGRESS_VIEW || view === TRAINER_STATS) {
+    /* Back over a knob's overlay closes it and stays. */
+    if (view === TRAINER_SETUP && closeOverlay()) return;
+    if (view === PROGRESS_VIEW || view === TRAINER_STATS || view === TRAINER_SETUP) {
       view = MENU;
       dirty = true;
       ledDirty = true;
@@ -3748,6 +4006,11 @@ export function createSession(fx, opts = {}) {
    */
   function tick(t) {
     if (view === ANIM_VIEW) serviceScenes(t);
+    /* The knob overlay closes a moment after its knob is let go. */
+    if (knobOverlay && now() >= knobOverlay.until) {
+      knobOverlay = null;
+      dirty = true;
+    }
     if (view === MENU) serviceMap(t);
     /* While a circle grows every frame is a new picture. */
     if (homeGrow && onHome() && growing(homeGrow, t)) {
@@ -3901,6 +4164,13 @@ export function createSession(fx, opts = {}) {
     openSheet,
     openItem,
     selectStatsRow,
+    knobSetup,
+    knobTurn,
+    knobStep,
+    knobPick,
+    knobRelease,
+    settingsKnob,
+    knobTouch,
     pickSheet,
     pickCard,
     /* The Settings page over the list, as the web page's top bar opens it. */
@@ -3926,6 +4196,7 @@ export function createSession(fx, opts = {}) {
     settingsTitle,
     trainerStatsTitle,
     quizTitle,
+    pickScreen,
     lineState,
     rowState,
     decorateRow,

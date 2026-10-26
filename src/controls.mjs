@@ -52,7 +52,10 @@ export function pulsePhase(nowMs, periodMs = PULSE_MS) {
  * Whatever else changes here, READY must never be OFF for either: that was the
  * shipped bug this module exists to prevent, and both tests below guard it.
  */
-export function playLedColor(view, phase, listening = false, paused = false) {
+export function playLedColor(view, phase, listening = false, paused = false, blocked = false) {
+  /* A trainer's knob setup: Play starts the round, so it pulses — and is
+   * dark while a Custom pick is too small to start. */
+  if (view === 'trainer-setup') return blocked ? OFF : (phase ? GREEN : GREEN_DIM);
   /* Paused pulses: the button is the way out of the state it put you in, and
    * a steady light there says "running" when nothing is running. */
   if (view === RUNNING && paused) return listening ? (phase ? GREEN : GREEN_DIM) : GREEN_DIM;

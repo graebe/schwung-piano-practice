@@ -20,7 +20,7 @@ import { runStats, blockingNotes, blockingEntryIndex } from './scoring.mjs';
 import { countInRemaining } from './controls.mjs';
 import { drillLabel, sparkline, summarise, errorFraction, successSeries } from './stats.mjs';
 import { accuracySeries } from './progress.mjs';
-import { LIST_MAX, shortLabel } from './answer_pads.mjs';
+import { LIST_MAX, shortLabel, answerCell, answerRows } from './answer_pads.mjs';
 import { wrapLines } from './info.mjs';
 import { drawMap } from './pathmap/render.mjs';
 import { createWalk } from './pathmap/walk.mjs';
@@ -80,6 +80,23 @@ export function fitWords(ctx, text, maxPx) {
     }
   }
   return front(words, '') || truncate(ctx, words[0] || text, maxPx);
+}
+
+/*
+ * A level and its items ("8  maj m dim aug sus2 ..."): as many whole items as
+ * fit, then "+n" for the ones left out, so a long level never ends mid-word
+ * and still says that there is more.
+ */
+export function fitItems(ctx, text, maxPx) {
+  if (ctx.textWidth(text) <= maxPx) return text;
+  const at = text.indexOf('  ');
+  const head = at < 0 ? '' : text.slice(0, at + 2);
+  const items = (at < 0 ? text : text.slice(at + 2)).split(' ').filter(Boolean);
+  for (let n = items.length - 1; n > 0; n--) {
+    const s = head + items.slice(0, n).join(' ') + ' +' + (items.length - n);
+    if (ctx.textWidth(s) <= maxPx) return s;
+  }
+  return truncate(ctx, head + '+' + items.length, maxPx);
 }
 
 /*
@@ -1078,44 +1095,77 @@ function drawAnswerList(ctx, state, options) {
  * jog's choice spelled out in full underneath. Past four answers a list of
  * colour names stops being readable; the position carries the meaning.
  */
-const MAP_CELL_W = 16;
-const MAP_CELL_H = 11;
 const MAP_TOP_Y = 20;
 const MAP_NAME_Y = 46;
 
 function drawAnswerMap(ctx, state, options) {
-  const rows = options.length > 8 ? 2 : 1;
-  for (let i = 0; i < options.length; i++) {
-    const row = i >> 3;
-    const col = i & 7;
-    /* Row 0 is the bottom row of pads, so with two rows it is drawn lower. */
-    const y = rows === 2
-      ? MAP_TOP_Y + (1 - row) * (MAP_CELL_H + 1)
-      : MAP_TOP_Y + ((MAP_CELL_H + 1) >> 1);
-    const x = col * MAP_CELL_W;
-    const selected = i === state.index;
-    const short = state.short ? state.short[i] : shortLabel({ label: options[i] });
-    if (selected) ctx.fillRect(x + 1, y, MAP_CELL_W - 1, MAP_CELL_H, 1);
-    else ctx.drawRect(x + 1, y, MAP_CELL_W - 1, MAP_CELL_H, 1);
-    const tw = ctx.textWidth(short);
-    ctx.text(x + 1 + ((MAP_CELL_W - 1 - tw) >> 1), y + 2, short, selected ? 0 : 1);
-    if (state.eliminated && state.eliminated.indexOf(i) >= 0) {
-      ctx.line(x + 2, y + MAP_CELL_H - 2, x + MAP_CELL_W - 2, y + 1, selected ? 0 : 1);
-    }
-  }
+  const rows = answerRows(options.length);
+  const top = rows === 2 ? MAP_TOP_Y : MAP_TOP_Y + ((CELL_H + 1) >> 1);
+  drawAnswerCells(ctx, state, options, top);
   const name = truncate(ctx, options[state.index] || '', L.TEXT_MAX_PX);
   ctx.text((L.SCREEN_W - ctx.textWidth(name)) >> 1, MAP_NAME_Y, name, 1);
 }
 
 /*
- * A reading course: the prompt on the staff, the answer under the jog in the
- * name lane. The staff needs the screen, so the answers are one line — the
- * jog walks them, the answer pads light them, the one under the jog pulses.
+ * The answer pads as cells, each over the column of its pad (answer_pads.mjs
+ * answerCell), the bottom row lowest: the answer's short name in it, the
+ * jog's choice inverted, a struck answer crossed out. A column of the row
+ * with no answer is a dotted cell, so the eight columns read as the pads
+ * they are even when two answers sit far apart. The Hear map and the read
+ * strip are this one drawing.
+ *
+ *   state = { index, short, eliminated }; `top` is the upper row's top.
+ */
+export const CELL_W = 16;
+export const CELL_H = 9;
+
+function drawAnswerCells(ctx, state, options, top) {
+  const rows = answerRows(options.length);
+  const used = [];
+  for (let i = 0; i < options.length; i++) {
+    const { row, col } = answerCell(options.length, i);
+    used[row * 8 + col] = true;
+    const x = col * CELL_W;
+    const y = top + (rows - 1 - row) * (CELL_H + 1);
+    const selected = i === state.index;
+    const short = state.short ? state.short[i] : shortLabel({ label: options[i] });
+    if (selected) ctx.fillRect(x + 1, y, CELL_W - 1, CELL_H, 1);
+    else ctx.drawRect(x + 1, y, CELL_W - 1, CELL_H, 1);
+    const tw = ctx.textWidth(short);
+    ctx.text(x + 1 + ((CELL_W - 1 - tw) >> 1), y + 1, short, selected ? 0 : 1);
+    if (state.eliminated && state.eliminated.indexOf(i) >= 0) {
+      ctx.line(x + 2, y + CELL_H - 2, x + CELL_W - 2, y + 1, selected ? 0 : 1);
+    }
+  }
+  for (let row = 0; row < rows; row++) {
+    const y = top + (rows - 1 - row) * (CELL_H + 1);
+    for (let col = 0; col < 8; col++) {
+      if (used[row * 8 + col]) continue;
+      const x = col * CELL_W + 1;
+      for (let d = 0; d < CELL_W - 1; d += 2) {
+        ctx.fillRect(x + d, y, 1, 1, 1);
+        ctx.fillRect(x + d, y + CELL_H - 1, 1, 1, 1);
+      }
+      for (let d = 2; d < CELL_H - 1; d += 2) {
+        ctx.fillRect(x, y + d, 1, 1, 1);
+        ctx.fillRect(x + CELL_W - 2, y + d, 1, 1, 1);
+      }
+    }
+  }
+}
+
+/*
+ * A reading course: the prompt on the staff, and under it the answer strip:
+ * a cell per answer over its pad, as the Hear map draws them. The jog's
+ * choice is inverted there and named in full in the title; a struck answer
+ * is crossed out. The strip is what says which pad to press — a lone
+ * "< Major >" named the jog's choice and left the pads a guess.
  *
  * Notes come spelled ({ diatonic, alter }): a read interval is counted by its
  * letters, so they are placed by letter, never re-spelled by a key.
  *
- * state = { title, score, staff: [{ part, notes }], option, solved, label, footer }
+ * state = { title, score, staff: [{ part, notes }], options, short, index,
+ *           eliminated, solved, label, footer }
  */
 const READ_LEFT_X = 26;
 const READ_RIGHT_X = 122;
@@ -1164,25 +1214,21 @@ export function drawReadPick(ctx, state) {
   }
   ctx.fillRect(0, L.STAFF_AREA_TOP_Y, L.STAFF_LEFT_X, L.STAFF_AREA_BOTTOM_Y - L.STAFF_AREA_TOP_Y + 1, 0);
   R.drawClef(ctx);
-  R.drawChrome(ctx, { left: state.title || 'READ', right: state.score || '', lane: true });
-
-  if (state.solved) {
-    /* Right: what it was, knocked out, as a solved prompt is everywhere. */
-    const text = truncate(ctx, state.label || '', L.TEXT_MAX_PX - 4);
-    const w = ctx.textWidth(text);
-    const x = (L.SCREEN_W - w) >> 1;
-    ctx.fillRect(x - 2, L.NAME_LANE_Y - 1, w + 4, L.TEXT_H + 1, 1);
-    ctx.text(x, L.NAME_LANE_Y, text, 0);
-  } else {
-    const text = truncate(ctx, state.option || '', L.TEXT_MAX_PX - 16);
-    ctx.text(1, L.NAME_LANE_Y, '<', 1);
-    ctx.text(L.SCREEN_W - 1 - ctx.textWidth('>'), L.NAME_LANE_Y, '>', 1);
-    ctx.text((L.SCREEN_W - ctx.textWidth(text)) >> 1, L.NAME_LANE_Y, text, 1);
-    if (state.struck) ctx.fillRect(8, L.NAME_LANE_Y + 3, L.SCREEN_W - 16, 1, 1);
-  }
+  /* The title names the jog's choice in full, or what it was once right;
+   * the strip below says which pad is which. */
+  const options = state.options || [];
+  const score = state.score || '';
+  const name = state.solved ? state.label || '' : options[state.index] || '';
+  const room = L.SCREEN_W - 2 - (score ? ctx.textWidth(score) + 6 : 0);
+  R.drawChrome(ctx, { left: truncate(ctx, name || state.title || 'READ', room), right: score });
+  drawAnswerCells(ctx, state, options, STRIP_Y);
   if (state.footer) drawFooterHint(ctx, state.footer);
   return ctx;
 }
+
+/* The read screen's answer strip: where the name lane was, under the staff
+ * (whose lowest ledger, A3, ends at 45), a free row above the hint line. */
+export const STRIP_Y = L.STAFF_AREA_BOTTOM_Y + 1;
 
 /*
  * A line to play — a scale, from its name or by ear — drawn as it is played:
@@ -1509,7 +1555,265 @@ export function infoLines(ctx, paragraphs) {
   return wrapLines(paragraphs, L.INFO_TEXT_PX, (s) => ctx.textWidth(s));
 }
 
-/* Scrolling list used for both the exercise picker and the settings page. */
+/*
+ * A trainer circle's setup: the settings, not the knobs. A frame of the song
+ * ready box's family — the LEVEL band with its big digit and what the level
+ * adds, under a rule up to three rows of values that explain themselves
+ * ("C harmonic minor", "name it", "broken chords"; a full row of one setting
+ * says its name too) — closed at the bottom by an inverted bar: "PLAY 10
+ * chords", the Round being what PLAY starts. No knob numbers: touching a
+ * knob opens the overlay (drawSetupOverlay), which names it and lists its
+ * options. The bar takes turns with "TOUCH a knob to set", as every bottom
+ * line takes turns with its keys; blocked (a Custom pick too small to start)
+ * it is not inverted and says what is missing. Rows a circle leaves empty
+ * hold one centred line on what the round asks ("play what you hear").
+ *
+ * A value is fitted by measure: its phrase, then a shorter accepted form
+ * (trainer.mjs ACCEPTED_SHORT), never a code. Two values on a row keep two
+ * clear characters between them, and every text three clear pixels from the
+ * frame.
+ *
+ *   y 8         the frame's top: the title's rule    x 0 and 127 its sides
+ *   y 12        LEVEL, the digit (12..21), what the level adds
+ *   y 23        the rule
+ *   y 26/35/44  the rows, two clear rows above each
+ *   y 55..63    the bar, its words at 56: the frame's bottom
+ *
+ *   state = { title, knobs (trainer.mjs knobsOf), asks, bar: { play, alt,
+ *             blocked }, overlay, footer }
+ */
+export { SETUP_LAYOUTS } from './setup_layout.mjs';
+export const SETUP_FRAME = { x: 0, y: L.HEADER_RULE_Y, w: L.SCREEN_W, bottom: 54 };
+/* Text keeps this far from the frame, on every side. */
+export const SETUP_PAD = 3;
+export const SETUP_LEVEL_Y = 12;
+export const SETUP_RULE_Y = 23;
+export const SETUP_ROW_Y = [26, 35, 44];
+export const SETUP_BAR = { y: 55, textY: 56 };
+export const SETUP_INNER = { x: SETUP_PAD + 1, w: L.SCREEN_W - 2 * (SETUP_PAD + 1) };
+/* Two clear characters between two values on one row. */
+export const SETUP_GAP = 12;
+const SETUP_DIGIT_SCALE = 2;
+
+/* The frame: its sides, from the title's rule down to the bar. */
+function drawSetupFrame(ctx) {
+  const f = SETUP_FRAME;
+  ctx.fillRect(f.x, f.y, 1, f.bottom - f.y + 1, 1);
+  ctx.fillRect(f.x + f.w - 1, f.y, 1, f.bottom - f.y + 1, 1);
+}
+
+/* The first of a value's words that fits `w`; its short only if none does
+ * (the layout audit fails on that). */
+function fitPhrase(ctx, k, w) {
+  for (const s of k.phrase || []) if (ctx.textWidth(s) <= w) return s;
+  return truncate(ctx, k.short, w);
+}
+
+/* Where a row's value may go: { x, y, w } (halves keep SETUP_GAP between). */
+export function setupCell(k) {
+  const y = SETUP_ROW_Y[k.row];
+  if (k.kind === 'row') return { x: SETUP_INNER.x, y, w: SETUP_INNER.w };
+  const w = (SETUP_INNER.w - SETUP_GAP) >> 1;
+  return { x: SETUP_INNER.x + k.col * (w + SETUP_GAP), y, w };
+}
+
+/*
+ * What the page says for each tile: [{ k, text, label }] (a pair once),
+ * fitted by measure. Pure but for measuring, so the audit checks exactly
+ * what is drawn.
+ */
+export function setupTexts(ctx, knobs) {
+  const out = [];
+  for (const k of knobs) {
+    if (k.kind !== 'row' && k.kind !== 'half') continue;
+    if (k.pair === 1) continue;
+    const c = setupCell(k);
+    if (k.kind === 'row' && k.pair === undefined) {
+      /* A full row says the setting's name, and beside it the value as its
+       * options read ("Key  C", "Voicing  guide tones"). */
+      const room = c.w - ctx.textWidth(k.label) - SETUP_GAP;
+      const named = k.options && k.options[k.at] ? [k.options[k.at].text] : [];
+      const value = named.concat(k.phrase || []).find((s) => ctx.textWidth(s) <= room);
+      if (value) {
+        out.push({ k, label: k.label, text: value });
+        continue;
+      }
+    }
+    out.push({ k, text: fitPhrase(ctx, k, c.w) });
+  }
+  return out;
+}
+
+/* Where the line on what a round asks goes: centred in the rows a circle
+ * leaves empty, or null when it fills all three. */
+export function asksY(knobs) {
+  const used = knobs.reduce((m, k) => (k.kind === 'row' || k.kind === 'half' ? Math.max(m, k.row + 1) : m), 0);
+  if (used >= SETUP_ROW_Y.length) return null;
+  const top = used ? SETUP_ROW_Y[used - 1] + L.TEXT_H : SETUP_RULE_Y + 1;
+  const bottom = SETUP_BAR.y - 1;
+  return (top + bottom - L.TEXT_H + 1) >> 1;
+}
+
+function drawLevelBand(ctx, k) {
+  const y = SETUP_LEVEL_Y;
+  const lx = SETUP_INNER.x;
+  ctx.text(lx, y, 'LEVEL', 1);
+  const digit = k.digit || '';
+  const dx = lx + ctx.textWidth('LEVEL') + 6;
+  R.drawBigText(ctx, dx, y, digit, SETUP_DIGIT_SCALE, 1);
+  const bx = dx + R.bigTextWidth(digit, SETUP_DIGIT_SCALE) + 8;
+  const room = SETUP_INNER.x + SETUP_INNER.w - bx;
+  const blurbs = (k.blurb || []).flatMap((s) => [s, s.replace(/^\+ /, '+').replace('octaves', 'oct')]);
+  const blurb = blurbs.find((s) => ctx.textWidth(s) <= room) || fitWords(ctx, blurbs[1] || '', room);
+  ctx.text(bx, y, truncate(ctx, blurb, room), 1);
+}
+
+/*
+ * The bottom bar. `part` is the bottom line's turn now (hints.mjs): the PLAY
+ * part gets the play glyph and the round ("PLAY 10 chords", or "PLAY 10
+ * right" where the noun does not fit); other parts are the keys. Inverted,
+ * unless starting is blocked.
+ */
+export function drawSetupBar(ctx, part, bar = {}) {
+  const { y, textY } = SETUP_BAR;
+  const inverted = !bar.blocked;
+  const ink = inverted ? 0 : 1;
+  ctx.fillRect(0, y, L.SCREEN_W, L.SCREEN_H - y, inverted ? 1 : 0);
+  if (!inverted) ctx.fillRect(0, y, L.SCREEN_W, 1, 1);
+  if (!part) return;
+  if (inverted && part.indexOf('PLAY') === 0) {
+    const gh = 7;
+    const gx = SETUP_INNER.x;
+    R.drawPlayGlyph(ctx, gx, textY, gh, 0);
+    const tx = gx + R.playGlyphWidth(gh) + 3;
+    const room = SETUP_INNER.x + SETUP_INNER.w - tx;
+    const said = [part, bar.alt ? 'PLAY ' + bar.alt : null].filter(Boolean).find((s) => ctx.textWidth(s) <= room);
+    ctx.text(tx, textY, said || truncate(ctx, part, room), 0);
+    return;
+  }
+  const s = truncate(ctx, part, SETUP_INNER.w);
+  ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, textY + (inverted ? 0 : 1), s, ink);
+}
+
+export function drawTrainerSetup(ctx, state) {
+  ctx.clear();
+  R.drawChrome(ctx, { left: state.title, right: '' });
+  drawSetupFrame(ctx);
+  const level = state.knobs.find((k) => k.kind === 'level');
+  if (level) drawLevelBand(ctx, level);
+  ctx.fillRect(SETUP_FRAME.x + 1, SETUP_RULE_Y, SETUP_FRAME.w - 2, 1, 1);
+  for (const { k, text, label } of setupTexts(ctx, state.knobs)) {
+    const c = setupCell(k);
+    if (label) {
+      ctx.text(c.x, c.y, label, 1);
+      ctx.text(c.x + c.w - ctx.textWidth(text), c.y, text, 1);
+    } else {
+      ctx.text(c.x + ((c.w - ctx.textWidth(text)) >> 1), c.y, text, 1);
+    }
+  }
+  const ay = asksY(state.knobs);
+  if (ay !== null && state.asks) {
+    const s = fitWords(ctx, state.asks, SETUP_INNER.w);
+    ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, ay, s, 1);
+  }
+  if (state.overlay) drawSetupOverlay(ctx, state);
+  drawSetupBar(ctx, state.footer, state.bar);
+  return ctx;
+}
+
+/*
+ * The knob overlay, over the frame while a knob is touched or turned (and a
+ * moment after): which knob and what it changes, inverted, with the set
+ * option's place n/N; three of its options in a row, the set one marked
+ * ">" and inverted, the others plain; marks where more are hidden; and a
+ * line on what the set option means. The window is three options in a row
+ * that holds the set one, kept inside the list: Roots, three options, shows
+ * all three. A knob with no setting here says which knobs do. The title and
+ * the bottom bar stay.
+ *
+ *   y 9..17     the header, inverted: KNOB n NAME, and n/N where it fits
+ *   y 20/28/36  the options, the set one inverted (y-1..y+6)
+ *   y 45        what it means, three clear rows above the bar
+ *
+ *   state.overlay = { n, unused } with state.knobs
+ */
+export const OVERLAY_HEAD = { y: 9, h: 9, textY: 10 };
+export const OVERLAY_ROW_Y = [20, 28, 36];
+export const OVERLAY_MEANING_Y = 45;
+
+/* A small solid triangle, 5 wide and 3 high, pointing up or down. */
+function drawMark(ctx, x, y, up, ink) {
+  for (let r = 0; r < 3; r++) {
+    const w = up ? 1 + 2 * r : 5 - 2 * r;
+    ctx.fillRect(x + ((5 - w) >> 1), y + r, w, 1, ink);
+  }
+}
+
+/*
+ * What the overlay says: { head, place, placeInHead, rows, current, window,
+ * meaning, meaningOf, more, k }. `window` the option indexes on its three
+ * rows (-1 for none), `current` the row of the set option, `meaningOf` the
+ * option whose meaning is shown: always the set one.
+ */
+export function overlayTexts(ctx, state) {
+  const o = state.overlay;
+  const k = state.knobs.find((x) => x.n === o.n);
+  const inner = SETUP_INNER.w;
+  if (!k) {
+    const last = state.knobs.length;
+    return { head: 'KNOB ' + o.n, lines: ['Knobs 1-' + last + ' set', 'this trainer'], k: null };
+  }
+  const opts = k.options || [];
+  const first = Math.max(0, Math.min(k.at - 1, opts.length - 3));
+  const window = [first, first + 1, first + 2].map((i) => (i < opts.length ? i : -1));
+  const current = window.indexOf(k.at);
+  const place = (k.at + 1) + '/' + opts.length;
+  const head = truncate(ctx, 'KNOB ' + k.n + ' ' + k.label.toUpperCase(), inner);
+  /* Its place n/N at the header's end, or where that is full ("KNOB 6
+   * INVERSIONS"), beside the option set. Options keep clear of the marks. */
+  const placeInHead = ctx.textWidth(head) + SETUP_GAP + ctx.textWidth(place) <= inner;
+  const optX = 8;
+  const rows = window.map((i, r) => (i < 0 ? ''
+    : truncate(ctx, opts[i].text, inner - optX - (r === current && !placeInHead ? ctx.textWidth(place) + SETUP_GAP : 10))));
+  const meaningText = opts[k.at] ? opts[k.at].meaning : k.meaning;
+  const meaning = k.field === 'level' ? fitItems(ctx, meaningText, inner) : fitWords(ctx, meaningText, inner);
+  return {
+    head, place, placeInHead, rows, window, current, optX, meaningOf: k.at,
+    meaning: truncate(ctx, meaning, inner), more: [first > 0, first + 3 < opts.length], k,
+  };
+}
+
+export function drawSetupOverlay(ctx, state) {
+  const f = SETUP_FRAME;
+  ctx.fillRect(f.x + 1, f.y + 1, f.w - 2, f.bottom - f.y, 0);
+  const t = overlayTexts(ctx, state);
+  const x0 = SETUP_INNER.x;
+  const right = SETUP_INNER.x + SETUP_INNER.w;
+  ctx.fillRect(f.x + 1, OVERLAY_HEAD.y, f.w - 2, OVERLAY_HEAD.h, 1);
+  ctx.text(x0, OVERLAY_HEAD.textY, t.head, 0);
+  if (t.placeInHead) ctx.text(right - ctx.textWidth(t.place), OVERLAY_HEAD.textY, t.place, 0);
+  if (!t.k) {
+    t.lines.forEach((s, i) => ctx.text((L.SCREEN_W - ctx.textWidth(s)) >> 1, OVERLAY_ROW_Y[i] + 4, s, 1));
+    return;
+  }
+  t.rows.forEach((s, i) => {
+    const y = OVERLAY_ROW_Y[i];
+    if (!s) return;
+    const on = i === t.current;
+    if (on) {
+      ctx.fillRect(x0 - 2, y - 1, SETUP_INNER.w + 4, L.TEXT_H + 1, 1);
+      ctx.text(x0, y, '>', 0);
+      if (!t.placeInHead) ctx.text(right - ctx.textWidth(t.place), y, t.place, 0);
+    }
+    ctx.text(x0 + t.optX, y, s, on ? 0 : 1);
+  });
+  /* Marks where more options are hidden, above and below the window. */
+  const mx = right - 5;
+  if (t.more[0]) drawMark(ctx, mx, OVERLAY_ROW_Y[0] + 2, true, t.current === 0 ? 0 : 1);
+  if (t.more[1]) drawMark(ctx, mx, OVERLAY_ROW_Y[2] + 2, false, t.current === 2 ? 0 : 1);
+  ctx.text((L.SCREEN_W - ctx.textWidth(t.meaning)) >> 1, OVERLAY_MEANING_Y, t.meaning, 1);
+}
+
 /*
  * A trainer's Stats: its items, weakest first, and how much of each was right
  * read, heard and played — a meter each under R H P.

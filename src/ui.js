@@ -50,7 +50,7 @@ import * as CAT from './catalog.mjs';
 import {
   createSession, OUT_TRACK, OUT_USB, OUT_INTERNAL,
   MENU, READY, RUNNING, SETTINGS, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, INFO_VIEW,
-  SHEET_VIEW, CARD_VIEW, ANIM_VIEW, TRAINER_STATS,
+  SHEET_VIEW, CARD_VIEW, ANIM_VIEW, TRAINER_STATS, TRAINER_SETUP,
 } from './session.mjs';
 import { hintPart, ROTATE_MS } from './hints.mjs';
 import { mapPadColors } from './pathmap/leds.mjs';
@@ -523,7 +523,8 @@ function paintPads() {
   const view = S.view;
   const quiz = S.quiz;
   const ledView = view === GUESS_VIEW ? CTRL.GUESS : view;
-  setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, S.listening, S.paused));
+  const blocked = view === TRAINER_SETUP && Boolean(S.knobSetup().blocked);
+  setButtonLED(CC_PLAY, CTRL.playLedColor(ledView, ledPhase, S.listening, S.paused, blocked));
   setButtonLED(CC_RECORD, CTRL.recordLedColor(ledView, S.listening, ledPhase,
     Boolean(quiz && GUESS.hintsLeft(quiz) === 0), S.paused));
 }
@@ -693,6 +694,8 @@ function draw() {
       centreFooter: true,
       editing: S.settingsEditing,
     });
+  } else if (view === TRAINER_SETUP) {
+    VIEW.drawTrainerSetup(ctx, { ...S.knobSetup(), footer: footer() });
   } else if (view === TRAINER_STATS) {
     VIEW.drawTrainerStats(ctx, {
       title: S.trainerStatsTitle().toUpperCase(),
@@ -713,41 +716,11 @@ function draw() {
       scroll: infoScroll,
       footer: footer(),
     });
-  } else if (view === GUESS_VIEW && S.quizPick && quiz.exercise && quiz.exercise.read) {
-    const option = quiz.choices[quiz.choiceIndex];
-    VIEW.drawReadPick(ctx, {
-      title: S.quizTitle() || 'READ ' + quiz.exercise.short.toUpperCase(),
-      score: quiz.roundSize > 0
-        ? quiz.correct + '/' + quiz.roundSize
-        : String(GUESS.quizStats(quiz).correct),
-      staff: quiz.entry ? quiz.entry.staff : [],
-      option: option ? GUESS.optionLabel(quiz, option) : '',
-      struck: GUESS.isEliminated(quiz, quiz.choiceIndex),
-      solved: quiz.solved,
-      label: quiz.label,
-      footer: footer(),
-    });
   } else if (view === GUESS_VIEW && S.quizPick) {
-    const ear = quiz.kind === GUESS.EAR;
-    let ask = 'which pad is lit?';
-    if (ear) ask = quiz.solved ? quiz.label : quiz.exercise.question;
-    else if (quiz.solved) ask = 'right';
-    VIEW.drawPick(ctx, {
-      title: S.quizTitle() || (ear ? 'HEAR ' + quiz.exercise.short.toUpperCase()
-        : (quiz.kind === GUESS.CHORDS ? 'NAME CHORD' : 'NAME NOTE')),
-      score: quiz.roundSize > 0
-        ? quiz.correct + '/' + quiz.roundSize
-        : String(GUESS.quizStats(quiz).correct),
-      options: quiz.choices.map((c) => GUESS.optionLabel(quiz, c)),
-      /* The legend for the answer pads: their colours, and for a map the
-       * short names drawn where the pads sit. Name has no pads to explain. */
-      colours: ear ? quiz.choices.map((c, i) => AP.answerColour(i).name) : null,
-      short: quiz.choices.map(AP.shortLabel),
-      index: quiz.choiceIndex,
-      eliminated: quiz.eliminated,
-      hint: ask,
-      footer: footer(),
-    });
+    const pick = S.pickScreen();
+    const state = { ...pick.state, footer: footer() };
+    if (pick.read) VIEW.drawReadPick(ctx, state);
+    else VIEW.drawPick(ctx, state);
   } else if (view === GUESS_VIEW && S.rowState()) {
     /* A progression played chord by chord: from its numerals, or by ear. */
     const row = S.rowState();
@@ -969,6 +942,12 @@ function inSong() {
 }
 
 function onKnob(index, delta) {
+  /* A trainer's setup: knob n is setting n, a value per ten units turned
+   * (knob_accel.mjs). */
+  if (S.view === TRAINER_SETUP) {
+    S.knobTurn(index + 1, delta);
+    return;
+  }
   if (inSong()) {
     if (index === 0) {
       /*
@@ -989,12 +968,8 @@ function onKnob(index, delta) {
     const row = settingsPageTop() + index;
     const rows = S.settingsRows();
     if (index >= SETTINGS_PER_PAGE || row >= rows.length || rows[row].act) return;
-    S.selectSettingRow(row);
-    /* Key and octave wrap through a lot of values; one step per event or a
-     * flick sends them spinning. */
-    const def = SET.SETTINGS_DEF[rows[row].index];
-    const step = !def || def.type === 'wrap' || def.type === 'list' || def.type === 'enum';
-    S.editRow(row, step ? (delta > 0 ? 1 : -1) : delta);
+    /* A value per ten units, one at most an event: a flick never spins. */
+    S.settingsKnob(row, delta);
   }
 }
 
@@ -1006,6 +981,10 @@ function onKnob(index, delta) {
  * by resting a finger on a knob.
  */
 function onKnobTouch(index) {
+  if (S.view === TRAINER_SETUP) {
+    S.knobTouch(index + 1);
+    return;
+  }
   if (S.view !== SETTINGS || index >= SETTINGS_PER_PAGE) return;
   const row = settingsPageTop() + index;
   if (row >= S.settingsRows().length) return;
@@ -1102,9 +1081,9 @@ globalThis.onMidiMessageInternal = function onMidiMessageInternal(data) {
 
   if (status === 0x90 || status === 0x80) {
     if (d1 < 10) {
-      /* Knob capacitive touch. Used in Settings to point at the row the knob
-       * edits; ignored everywhere else. */
+      /* Knob touch (onKnobTouch); let go, a setup's overlay closes. */
       if (status === 0x90 && d2 > 0) onKnobTouch(d1);
+      else if (S.view === TRAINER_SETUP) S.knobRelease(d1 + 1);
       return;
     }
     if (!PAD.isPad(d1)) return;

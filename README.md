@@ -383,23 +383,31 @@ knows one knows them all: the subject changes, the way to practise it never does
 | **Learn** | the lessons that were there before: scale drills, chord lessons, progression charts |
 | **Stats** | every item asked, weakest first, a meter each for read, heard and played |
 
-**The setup.** Read, Hear and Play open a setup page: rows edited in place as Settings are, and
-**Start** last. It remembers what you set, per trainer and circle.
+**The setup.** Read, Hear and Play open a setup page of the settings in words: **LEVEL** across the
+top with its big number, the settings the circle really has (`C# harmonic minor`, `name it`,
+`broken chords`), and a bar that says what PLAY starts, **▶ PLAY 10 chords**. **Touching a knob**
+opens an overlay: which knob, what it changes, its options with the one set, and what it means;
+turning steps them, a deliberate turn one value (ten units of a knob, never racing); letting go
+closes it a moment later, BACK at once. **LEVEL is knob 1**, the rest follow the page. It remembers
+what you set, per trainer and circle; **Shift + click** shows it as a list.
 
-| Row | What it sets |
+| Setting | What it sets |
 | --- | --- |
+| Level | the trainer's ladder, simple first; **Custom** ticks your own set (click opens the list) |
 | Answer | play or name (compare; play back or higher/lower), where the circle offers a choice |
-| Level | the trainer's ladder, simple first; **Custom** ticks your own set |
 | Key | the key a round is in, or random; for progressions also **all 12**, round the circle of fifths |
-| Scale, Roots, Inversions | chords: the key's scale, which roots (diatonic, in key, chromatic), inversions on or off |
-| Direction, Pattern | scales: up, down or both; straight, in 3rds or in 5ths |
-| Direction | intervals: up, down or together |
-| Voicing, Rhythm | progressions: root, smooth, bass + chord, guide tones; block, pop 8ths, ballad, offbeat, stabs, waltz |
+| Scale, Direction | chords: the key's scale; scales: up, down or both; intervals: up, down or together |
+| Roots, Pattern, Voicing | chords: diatonic, in key, chromatic; scales: straight, in 3rds or 5ths; progressions: root, smooth, bass + chord, guide tones |
+| Inversions, Rhythm | chords: on or off; progressions: block, pop 8ths, ballad, offbeat, stabs, waltz |
 | Sound | chords heard: block or broken |
 | Round | 10, 20 or 30 right answers, or endless |
 
-Naming needs two things to tell apart, so Start waits until a Custom pick has two (its row says
-what is missing); playing needs one.
+Naming needs two things to tell apart, so PLAY waits until a Custom pick has two (the strip says
+what is missing, and the PLAY light stays dark); playing needs one.
+
+**Which pad.** Wherever pads answer, the screen ties each answer to its pad: heard, four answers or
+fewer are listed with the colour of their pad, more are cells over their pads; read, an answer
+strip of the same cells sits under the staff, the jog's choice named in full in the title.
 
 **What counts.** Read and played, the written notes exactly. Heard and played back, or played from
 a name, any octave and any voicing: `Am` is A, C and E in any order. A scale or an interval goes
@@ -624,7 +632,7 @@ A hinted answer still counts and keeps your streak — a hint you are afraid to 
 does not help you learn — but the round records how many you took, and the result screen shows it.
 Record dims once the help is used up, so the button itself tells you whether there is more.
 
-**Back** during a round returns to its setup. From a round's result it starts a **fresh round** of
+**Back** during a round returns to its setup page. From a round's result it starts a **fresh round** of
 the same setup, so trying again is one press; Back once more for the setup, and again for the
 trainer.
 
@@ -1036,9 +1044,10 @@ Four beats count you in, counted down on screen.
 | **Knob 1** | **scrub**, whenever the music is not running — on the ready screen, or paused. About a turn and a half per bar, deliberately slow, and continuous rather than jumping bar to bar. The pads light the note the playhead has landed on, at either stage, so you can see where you are on the grid as well as on the staff; they go dark again the moment the music runs. Find your spot, then Play or Record from there |
 | **Knob 8** | tempo, 40–200: a drill's Tempo setting, or a song's own tempo for the session (not saved) |
 
-The knobs mean different things in different places, and **only Settings changes settings**: in an
-exercise they are the two above, in Settings they are the four rows on screen, and everywhere else
-they do nothing. **Touching** a knob in Settings moves the cursor to the row it edits, so the
+The knobs mean different things in different places: in an exercise they are the two above, in
+Settings they are the four rows on screen, on a trainer's setup page its settings (touch one to see which), and
+everywhere else they do nothing. Settings and setup knobs are deliberately calm: about ten units of
+a turn move one value, and a fast flick never moves more than one. **Touching** a knob in Settings moves the cursor to the row it edits, so the
 mapping is something you find rather than memorise.
 
 The ready screen spells all three out — `▶ PLAY listen`, `● REC practice`, `↻ SCRUB view` — and the
@@ -1095,7 +1104,7 @@ in `settings.json`.
 | Grace | **1/4** | how late you may play a note and still be scored a hit, in beats, so the tolerance scales with tempo. A quarter beat is 190 ms at 80bpm — in time. Raise it to 1, 2 or 4 while a piece is new and finding the pad is the work. Never shorter than the 180 ms scoring window. It does **not** move where the scroll stops: that is always the note itself (Wait). Play later than Grace and the scroll still releases — it just scores a miss |
 | Count in | **4** | beats before the first note |
 | Names | **guided** | the note names under the notes, when Guided. `always` keeps them in Solo, `off` hides them in both |
-| Round | **20** | right answers in a round of the Learning Path's hearing drills: 10, 20, 30, or `endless`, which records nothing. A trainer's round has its own, on its setup page |
+| Round | **20** | right answers in a round of the Learning Path's hearing drills: 10, 20, 30, or `endless`, which records nothing. A trainer's round has its own, on knob 8 of its knob screen |
 
 **Advanced › Sound**
 

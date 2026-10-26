@@ -111,12 +111,12 @@ export function drawAccidental(ctx, x, y, alter) {
  * a button and the thing you do with your hands — while the transport symbol is
  * only ever the button.
  */
-export function drawPlayGlyph(ctx, x, y, h) {
+export function drawPlayGlyph(ctx, x, y, h, ink = 1) {
   const height = h | 1; /* odd, so the tip is a single row */
   const half = (height - 1) >> 1;
   for (let row = 0; row < height; row++) {
     const w = half + 1 - Math.abs(row - half);
-    ctx.fillRect(x, y + row, w, 1, 1);
+    ctx.fillRect(x, y + row, w, 1, ink);
   }
 }
 
@@ -153,6 +153,8 @@ const GLYPH_ROWS = {
   '#': ['#.#', '###', '#.#', '###', '#.#'],
   b: ['#..', '#..', '##.', '#.#', '##.'],
   '?': ['###', '..#', '.##', '...', '.#.'],
+  /* Custom, on a trainer's LEVEL tile: Cu. */
+  u: ['...', '...', '#.#', '#.#', '###'],
   ' ': ['...', '...', '...', '...', '...'],
 };
 
@@ -173,7 +175,7 @@ export function bigTextWidth(text, scale) {
   return text.length * (DIGIT_W + BIG_GAP) * scale - BIG_GAP * scale;
 }
 
-export function drawBigDigit(ctx, x, y, digit, scale) {
+export function drawBigDigit(ctx, x, y, digit, scale, ink = 1) {
   const rows = GLYPH_ROWS[digit];
   if (!rows) return;
   for (let r = 0; r < DIGIT_H; r++) {
@@ -183,7 +185,7 @@ export function drawBigDigit(ctx, x, y, digit, scale) {
       if (row[c] === '#') {
         const start = c;
         while (c < DIGIT_W && row[c] === '#') c++;
-        ctx.fillRect(x + start * scale, y + r * scale, (c - start) * scale, scale, 1);
+        ctx.fillRect(x + start * scale, y + r * scale, (c - start) * scale, scale, ink);
       } else {
         c++;
       }
@@ -196,10 +198,10 @@ export function drawBigDigit(ctx, x, y, digit, scale) {
  * on. Reading the staff is the skill, but when you are stuck you need telling,
  * not testing, so it wants to be legible without being read.
  */
-export function drawBigText(ctx, x, y, text, scale) {
+export function drawBigText(ctx, x, y, text, scale, ink = 1) {
   let cx = x;
   for (let i = 0; i < text.length; i++) {
-    drawBigDigit(ctx, cx, y, text[i], scale);
+    drawBigDigit(ctx, cx, y, text[i], scale, ink);
     cx += (DIGIT_W + BIG_GAP) * scale;
   }
 }

@@ -18,18 +18,24 @@ async function openSettings(page, group) {
   await page.locator('.setting').getByRole('button', { name: 'Advanced' }).click();
   await page.locator('.row', { hasText: new RegExp(`^${group}`) }).click();
 }
-/* Practice › a trainer › a circle: its setup page. */
+/* Practice › a trainer › a circle: its setup box. */
 async function openTrainer(page, subject, circle) {
   await openPath(page, ['Practice', subject, circle]);
-  await expect(page.locator('.settings-screen')).toBeVisible();
+  await expect(page.locator('.setup-screen')).toBeVisible();
 }
-/* A row of the setup turned `n` steps (More, or Less when n < 0). */
+/* The setting `label` moved `n` options on (back when n < 0), by its picker. */
 async function turn(page, label, n) {
-  const row = page.locator('.setting', { has: page.locator('.row-label', { hasText: new RegExp(`^${label}$`) }) });
-  for (let i = 0; i < Math.abs(n); i++) await row.getByRole('button', { name: `${n > 0 ? 'More' : 'Less'} ${label}` }).click();
+  const card = page.locator('.setup-card', { has: page.locator('.setup-label', { hasText: new RegExp(`^${label}$`) }) });
+  await card.click();
+  const opts = page.locator('.setup-picker .setup-option');
+  const at = await opts.evaluateAll((els) => els.findIndex((el) => el.classList.contains('on')));
+  const to = Math.max(0, Math.min((await opts.count()) - 1, at + n));
+  if (to !== at) await opts.nth(to).click();
+  await card.click();
+  await expect(page.locator('.setup-picker')).toHaveCount(0);
 }
 async function start(page) {
-  await page.locator('.setting').getByRole('button', { name: 'Start' }).click();
+  await page.locator('.setup-box > .btn').click();
   await closeInfo(page);
   await expect(page.locator('.quiz-screen, .practice-screen').first()).toBeVisible();
 }
@@ -322,10 +328,60 @@ test('scrubbing picks the start; tempo follows the knob-less stepper', async ({ 
   await expect(page.locator('.tempo .pp-value')).toHaveText('85');
 });
 
+test('a trainer\'s setup page: settings in words, a picker each, Play says what it starts', async ({ page }) => {
+  await openTrainer(page, 'Chords', 'Hear');
+  await expect(page.locator('.setup-card .setup-label')).toHaveText(
+    ['Level', 'Key', 'Scale', 'Answer', 'Roots', 'Inversions', 'Sound', 'Round']);
+  await expect(page.locator('.setup-badge')).toHaveCount(0, { message: 'no knob numbers' });
+  await expect(page.locator('.setup-box > .btn')).toHaveText('Play 10 chords');
+  /* A card's picker: every option, the one set highlighted, what it means. */
+  await page.locator('.setup-card[data-field="roots"]').click();
+  await expect(page.locator('.setup-picker h2')).toHaveText('Roots');
+  await expect(page.locator('.setup-picker .setup-option')).toHaveText(['diatonic', 'in key', 'chromatic']);
+  await expect(page.locator('.setup-picker .setup-option.on')).toHaveText('diatonic');
+  await page.locator('.setup-picker .setup-option', { hasText: 'chromatic' }).click();
+  await expect(page.locator('.setup-card[data-field="roots"] .setup-value')).toHaveText('chromatic');
+  await expect(page.locator('.setup-picker .setup-meaning')).toHaveText('any of the 12 roots');
+  await page.locator('.setup-card[data-field="roots"]').click();
+  await turn(page, 'Key', 2);
+  await expect(page.locator('.setup-card[data-field="key"] .setup-value')).toHaveText('D');
+  await turn(page, 'Key', -1);
+  await expect(page.locator('.setup-card[data-field="key"] .setup-value')).toHaveText('C#');
+  await turn(page, 'Round', 1);
+  await expect(page.locator('.setup-box > .btn')).toHaveText('Play 20 chords');
+  await expect(page).toHaveScreenshot('setup-chords-hear.png', { fullPage: true });
+  await start(page);
+  await expect(page.locator('#quiz-title')).toHaveText('CHORDS HEAR');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.setup-screen')).toBeVisible();
+  await expect(page.locator('.setup-card[data-field="key"] .setup-value')).toHaveText('C#', { message: 'remembered' });
+});
+
+test('Notes › Play: only its two settings, no empty cards', async ({ page }) => {
+  await openTrainer(page, 'Notes', 'Play');
+  await expect(page.locator('.setup-card .setup-label')).toHaveText(['Level', 'Round']);
+});
+
+test('a Custom level with too little ticked: Play waits and says why', async ({ page }) => {
+  await openTrainer(page, 'Chords', 'Hear');
+  await turn(page, 'Answer', 1);
+  await turn(page, 'Level', 20);
+  await expect(page.locator('.setup-level .setup-digit')).toHaveText('Custom');
+  await page.locator('.setup-level').click();
+  await page.getByRole('button', { name: 'Custom…' }).click();
+  await expect(page.locator('.settings-screen')).toBeVisible();
+  const ticked = page.locator('.setting', { has: page.locator('.setting-value', { hasText: /^on$/ }) });
+  for (let i = 0; i < 40 && await ticked.count(); i++) await ticked.first().click();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.setup-screen')).toBeVisible();
+  await expect(page.locator('.setup-box > .btn')).toBeDisabled();
+  await expect(page.locator('.setup-box > .btn')).toHaveText('tick 2 chords');
+});
+
 test('a round named off the staff runs to its result, and Progress charts it', async ({ page }) => {
   await openTrainer(page, 'Notes', 'Read');
   await turn(page, 'Answer', 1);
-  await expect(page.locator('.setting', { hasText: 'Answer' }).locator('.setting-value')).toHaveText('name');
+  await expect(page.locator('.setup-card[data-field="answer"] .setup-value')).toHaveText('name it');
   await start(page);
   await expect(page.locator('#quiz-title')).toHaveText('NOTES READ');
   await expect(page.locator('.quiz-row svg')).toBeVisible();
@@ -430,7 +486,7 @@ test('settings are remembered across a reload', async ({ page }) => {
 test('a hearing drill answers by colour, then shows where the answer sits', async ({ page }) => {
   await openTrainer(page, 'Notes', 'Hear');
   await turn(page, 'Answer', 1);
-  await expect(page.locator('.setting', { hasText: 'Answer' }).locator('.setting-value')).toHaveText('higher/lower');
+  await expect(page.locator('.setup-card[data-field="answer"] .setup-value')).toHaveText('higher/lower');
   await start(page);
   await expect(page.locator('#quiz-title')).toHaveText('NOTES HEAR');
   await expect(page.locator('.option .chip')).toHaveCount(3);

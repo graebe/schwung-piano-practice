@@ -30,7 +30,7 @@ import * as AP from './answer_pads.mjs';
 import { chartTotalBeats, beatsPerBar, barBeatOf, keyAt } from './chart.mjs';
 import {
   MENU, READY, RUNNING, GUESS_VIEW, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SHEET_VIEW, CARD_VIEW,
-  TRAINER_STATS,
+  TRAINER_STATS, TRAINER_SETUP,
 } from './session.mjs';
 import { iconRows } from './home/render.mjs';
 
@@ -412,6 +412,23 @@ export function viewModel(S, { plotW = 240, plotH = 96, t = null } = {}) {
     anim: animOf(S, t),
     /* The hint line, as the Move's footer has it: its parts, which take turns. */
     hint: S.hint(),
+    /* A trainer circle's setup: its eight knobs, the one in focus, and why
+     * Play waits, if it does (session.knobSetup). */
+    trainerSetup: view === TRAINER_SETUP ? (() => {
+      const ks = S.knobSetup();
+      return {
+        title: ks.title, focus: ks.focus, blocked: ks.blocked, custom: ks.custom, levelKnob: ks.levelKnob,
+        bar: { ...ks.bar },
+        /* A setting each, as the Move's page has them (trainer.mjs knobsOf):
+         * its phrase, its options and what each means, for the picker. */
+        knobs: ks.knobs.map((k) => ({
+          n: k.n, field: k.field, kind: k.kind, row: k.row, col: k.col, pair: k.pair, label: k.label,
+          phrase: k.phrase[0], meaning: k.meaning, at: k.at, count: k.count,
+          options: k.options.map((o) => ({ text: o.text, meaning: o.meaning })),
+          ...(k.digit ? { digit: k.digit, blurb: k.blurb[0] } : {}),
+        })),
+      };
+    })() : null,
     /* A trainer's Stats: its items, weakest first, % right read, heard, played. */
     trainerStats: view === TRAINER_STATS ? {
       title: S.trainerStatsTitle(),

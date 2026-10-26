@@ -52,6 +52,7 @@ import {
 } from './comping.mjs';
 import { chordSymbol } from './chords.mjs';
 import { DEFAULT_TRANSPOSE } from './padmap.mjs';
+import { placeTiles } from './setup_layout.mjs';
 
 export const CIRCLES = ['read', 'hear', 'play'];
 export const CIRCLE_LABEL = { read: 'Read', hear: 'Hear', play: 'Play' };
@@ -220,6 +221,7 @@ const FIELDS = {
     label: 'Answer',
     values: (s, setup) => answersOf(s, setup.circle),
     text: (v, s, setup) => (v === 'play' && s.key === 'note' && setup.circle === 'hear' ? 'play back' : ANSWER_TEXT[v]),
+    short: (v) => ({ name: 'nm', play: 'pl', compare: 'cp', hilo: 'hl' })[v],
   },
   level: {
     label: 'Level',
@@ -230,34 +232,214 @@ const FIELDS = {
       return out.concat(['custom']);
     },
     text: (v, s) => (v === 'custom' ? 'custom' : v + ' ' + s.levelText[v - 1]),
+    short: (v) => (v === 'custom' ? 'Cu' : v < 10 ? 'L' + v : String(v)),
   },
   key: {
     label: 'Key',
     values: (s) => [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'random'].concat(s.allKeys ? ['all'] : []),
     text: (v) => (v === 'random' ? 'random' : v === 'all' ? 'all 12' : PC_NAMES[v]),
+    short: (v) => (v === 'random' ? 'rn' : v === 'all' ? 'al' : PC_NAMES[v]),
   },
-  voicing: { label: 'Voicing', values: () => VOICINGS, text: (v) => VOICING_TEXT[v] },
-  rhythm: { label: 'Rhythm', values: () => RHYTHMS, text: (v) => RHYTHM_TEXT[v] },
-  scale: { label: 'Scale', values: () => SCALE_IDS, text: (v) => MODE_LABELS[v] || v },
+  voicing: {
+    label: 'Voicing', values: () => VOICINGS, text: (v) => VOICING_TEXT[v],
+    short: (v) => ({ root: 'rt', smooth: 'sm', bass: 'bc', guide: 'gt' })[v],
+  },
+  rhythm: {
+    label: 'Rhythm', values: () => RHYTHMS, text: (v) => RHYTHM_TEXT[v],
+    short: (v) => ({ block: 'bl', pop: 'p8', ballad: 'ba', offbeat: 'of', stabs: 'sb', waltz: 'wz' })[v],
+  },
+  scale: {
+    label: 'Scale', values: () => SCALE_IDS, text: (v) => MODE_LABELS[v] || v,
+    short: (v) => scaleById(v).mark,
+  },
   roots: {
     label: 'Roots',
     values: () => ['diatonic', 'key', 'chromatic'],
     text: (v) => ({ diatonic: 'diatonic', key: 'in key', chromatic: 'chromatic' })[v],
+    short: (v) => ({ diatonic: 'dt', key: 'ik', chromatic: 'ch' })[v],
   },
-  inversions: { label: 'Inversions', values: () => [false, true], text: (v) => (v ? 'on' : 'off') },
-  sound: { label: 'Sound', values: () => ['block', 'broken'], text: (v) => v },
-  direction: { label: 'Direction', values: (s) => s.directions || ['up', 'down', 'both'], text: (v) => v },
+  inversions: {
+    label: 'Inversions', values: () => [false, true], text: (v) => (v ? 'on' : 'off'),
+    short: (v) => (v ? 'on' : 'of'),
+  },
+  sound: {
+    label: 'Sound', values: () => ['block', 'broken'], text: (v) => v,
+    short: (v) => ({ block: 'bk', broken: 'bn' })[v],
+  },
+  direction: {
+    label: 'Direction', values: (s) => s.directions || ['up', 'down', 'both'], text: (v) => v,
+    short: (v) => ({ up: 'up', down: 'dn', both: 'bo', together: 'tg' })[v],
+  },
   pattern: {
     label: 'Pattern',
     values: () => ['straight', '3rds', '5ths'],
     text: (v) => ({ straight: 'straight', '3rds': 'in 3rds', '5ths': 'in 5ths' })[v],
+    short: (v) => ({ straight: 'st', '3rds': '3r', '5ths': '5t' })[v],
   },
   round: {
     label: 'Round',
     values: () => [10, 20, 30, 0],
     text: (v) => (v ? String(v) : 'endless'),
+    /* No infinity in the Move's font: endless is "en". */
+    short: (v) => (v ? String(v) : 'en'),
   },
 };
+
+/* ---- How a setting reads ------------------------------------------------- */
+
+/*
+ * A value as the setup page says it: a phrase that explains itself ("name
+ * it", "C harmonic minor", "broken chords", "up + down"), never a two-letter
+ * code. Where the room runs out, a shorter form from ACCEPTED_SHORT — words
+ * or the abbreviations musicians write — and nothing else (the layout audit
+ * holds it to that). And a line on what the value means, for the overlay.
+ */
+const SCALE_NAME = {
+  major: 'major', minor: 'minor', dorian: 'Dorian', mixolydian: 'Mixolydian', lydian: 'Lydian',
+  phrygian: 'Phrygian', locrian: 'Locrian', majorPent: 'major pentatonic', minorPent: 'minor pentatonic',
+  minorBlues: 'minor blues', harmonicMinor: 'harmonic minor', melodicMinor: 'melodic minor',
+  wholeTone: 'whole tone', superLocrian: 'super Locrian', phrygianDominant: 'Phrygian dominant',
+  bhairav: 'Bhairav', hungarianMinor: 'Hungarian minor', hirajoshi: 'Hirajoshi', inSen: 'In-Sen',
+  iwato: 'Iwato', kumoi: 'Kumoi',
+};
+const SCALE_SHORT = {
+  majorPent: 'maj pent', minorPent: 'min pent', harmonicMinor: 'harm min', melodicMinor: 'mel min',
+  phrygianDominant: 'Phryg dom', hungarianMinor: 'Hung minor', superLocrian: 'altered',
+};
+
+/* Every shorter form a phrase may fall back to. Nothing else is allowed. */
+export const ACCEPTED_SHORT = [
+  ...Object.values(SCALE_SHORT), 'high/low', 'all 12', 'root pos.', 'block', 'broken',
+  '10 right', '20 right', '30 right',
+];
+
+const keyOption = (v) => (v === 'random' ? 'any key' : v === 'all' ? 'all 12 keys' : PC_NAMES[v]);
+
+const PHRASE = {
+  answer: (v, s, setup) => (v === 'play' && s.key === 'note' && setup.circle === 'hear' ? ['play back']
+    : { name: ['name it'], play: ['play it'], compare: ['compare'], hilo: ['higher/lower', 'high/low'] }[v]),
+  level: (v, s) => [v === 'custom' ? 'Cu  custom' : v + '  ' + s.levelText[v - 1]],
+  key: (v) => (v === 'random' ? ['any key'] : v === 'all' ? ['all 12 keys', 'all 12'] : ['key ' + PC_NAMES[v]]),
+  scale: (v) => [SCALE_NAME[v] || v].concat(SCALE_SHORT[v] ? [SCALE_SHORT[v]] : []),
+  roots: (v) => [{ diatonic: 'diatonic', key: 'in key', chromatic: 'chromatic' }[v]],
+  inversions: (v) => (v ? ['inverted'] : ['root position', 'root pos.']),
+  sound: (v) => ({ block: ['block chords', 'block'], broken: ['broken chords', 'broken'] })[v],
+  direction: (v) => [{ up: 'up', down: 'down', both: 'up + down', together: 'together' }[v]],
+  pattern: (v) => [{ straight: 'straight', '3rds': 'in 3rds', '5ths': 'in 5ths' }[v]],
+  voicing: (v) => (v === 'root' ? ['root position', 'root pos.'] : [{ smooth: 'smooth', bass: 'bass + chord', guide: 'guide tones' }[v]]),
+  rhythm: (v) => (v === 'block' ? ['block chords', 'block'] : [RHYTHM_TEXT[v]]),
+  round: (v, s) => (v ? [v + ' ' + s.noun[1], v + ' right'] : ['endless']),
+};
+
+const MEANING = {
+  answer: (v, s, setup) => (v === 'play' && s.key === 'note' && setup.circle === 'hear' ? 'play what you hear'
+    : { name: 'pick its name', play: 'play it on the pads', compare: 'which is bigger?', hilo: 'higher, same or lower?' }[v]),
+  key: (v) => (v === 'random' ? 'a new key each time' : v === 'all' ? 'round the 5ths' : 'everything in ' + PC_NAMES[v]),
+  scale: (v) => 'the key is ' + (SCALE_NAME[v] || v),
+  roots: (v) => ({ diatonic: 'the chords of the key', key: 'roots in the key', chromatic: 'any of the 12 roots' })[v],
+  inversions: (v) => (v ? 'any inversion' : 'root position only'),
+  sound: (v) => ({ block: 'notes together', broken: 'notes one by one' })[v],
+  direction: (v) => ({ up: 'low to high', down: 'high to low', both: 'up, then down', together: 'both notes at once' })[v],
+  pattern: (v) => ({ straight: 'note by note', '3rds': '1 3 2 4 3 5 ...', '5ths': '1 5 2 6 3 7 ...' })[v],
+  voicing: (v) => ({ root: 'each chord from its root', smooth: 'nearest inversions', bass: 'bass note, then chord', guide: '3rd and 7th only' })[v],
+  rhythm: (v) => ({ block: 'one chord a bar', pop: 'pop 8th notes', ballad: 'slow broken chords', offbeat: 'chords off the beat', stabs: 'short stabs', waltz: 'three-four time' })[v],
+  round: (v) => (v ? 'ends at ' + v + ' right' : 'until you stop'),
+};
+
+/*
+ * What a round asks, in one line, for the rows a setup page leaves empty
+ * (info.mjs says it at length: "A note on the staff. Play it ...").
+ */
+export function asksOf(subject, circle, setup) {
+  if (circle === 'play') return 'play it by its name';
+  const a = setup.answer;
+  if (a === 'compare') return 'which is bigger?';
+  if (a === 'hilo') return 'higher or lower?';
+  if (circle === 'read') return a === 'name' ? 'name what you see' : 'play what is written';
+  return a === 'name' ? 'name what you hear' : 'play what you hear';
+}
+
+/* A level's items, as the overlay lists them. */
+function itemShort(s, id) {
+  if (s.key === 'chord') return qualityById(id).suffix || 'maj';
+  if (s.key === 'scale') return scaleById(id).short;
+  if (s.key === 'prog') return progressionById(id).name;
+  return id;
+}
+
+/* A value's meaning: a level lists what it asks. */
+function meaningOf(s, setup, field, v) {
+  if (field !== 'level') return MEANING[field](v, s, setup);
+  const items = itemSet(s.key, { ...setup, level: v }).map((id) => itemShort(s, id)).join(' ');
+  return v === 'custom' ? 'custom  ' + (items || 'nothing ticked') : v + '  ' + items;
+}
+
+/* A setting's whole value, as the overlay and the help say it. */
+function detailText(s, setup, field) {
+  if (field !== 'level') return FIELDS[field].text(setup[field], s, setup);
+  return meaningOf(s, setup, 'level', setup.level);
+}
+
+/*
+ * The setup page's tiles: one per setting this circle really has, numbered
+ * 1..n — the knob that turns it — in the reading order of its trainer's
+ * layout (setup_layout.mjs). Each is { n, field, kind, row, col, pair, label,
+ * short, text, plain, phrase, meaning, options, at, pos, count }:
+ *   phrase   the value as the page says it, then shorter accepted forms
+ *   meaning  what the value means, one line
+ *   options  every value as the overlay lists it: [{ value, text, meaning }]
+ *   at       which option is set
+ * Key and Scale paired in one phrase ("C harmonic minor") are two tiles with
+ * the same `phrase`. The level adds `digit` (its number, or Cu) and `blurb`
+ * (what it adds, or how many are ticked); Round adds what PLAY starts.
+ */
+export function knobsOf(subject, circle, setup) {
+  const s = subjectOf(subject);
+  const fields = s.fields[circle].filter((f) => !(s.hidden && s.hidden(f, circle, setup)));
+  const tiles = placeTiles(subject, fields).map((place, i) => {
+    const f = place.field;
+    const values = valuesOf(s, setup, f);
+    const at = Math.max(0, values.indexOf(setup[f]));
+    const optionText = (v) => (f === 'key' ? keyOption(v) : PHRASE[f](v, s, setup)[0]);
+    const k = {
+      n: i + 1,
+      ...place,
+      label: FIELDS[f].label,
+      short: FIELDS[f].short(setup[f], s, setup),
+      text: detailText(s, setup, f),
+      plain: FIELDS[f].text(setup[f], s, setup),
+      phrase: PHRASE[f](setup[f], s, setup),
+      meaning: meaningOf(s, setup, f, setup[f]),
+      options: values.map((v) => ({ value: v, text: optionText(v), meaning: meaningOf(s, setup, f, v) })),
+      at,
+      pos: values.length > 1 ? at / (values.length - 1) : 0,
+      count: values.length,
+    };
+    if (f === 'level') {
+      const custom = setup.level === 'custom';
+      const n = custom ? itemSet(s.key, setup).length : 0;
+      k.digit = custom ? 'Cu' : String(setup.level);
+      k.blurb = custom ? [n + ' ' + s.noun[n === 1 ? 0 : 1], n + ' ticked'] : [s.levelText[setup.level - 1]];
+    }
+    return k;
+  });
+  /* Key and Scale as one phrase: "C# harmonic minor", "harm min, any key". */
+  const key = tiles.find((k) => k.field === 'key' && k.pair !== undefined);
+  const scale = tiles.find((k) => k.field === 'scale' && k.pair !== undefined);
+  if (key && scale) {
+    const names = PHRASE.scale(setup.scale);
+    const both = setup.key === 'random' ? names.map((nm) => nm + ', any key') : names.map((nm) => PC_NAMES[setup.key] + ' ' + nm);
+    key.phrase = both;
+    scale.phrase = both;
+  }
+  return tiles;
+}
+
+/* Every value a knob can show, for its tests: [{ value, short }]. */
+export function knobValues(subject, circle, setup, field) {
+  const s = subjectOf(subject);
+  return valuesOf(s, setup, field).map((v) => ({ value: v, short: FIELDS[field].short(v, s, setup) }));
+}
 
 function firstNamingLevel(s) {
   for (let n = 1; n <= s.levels.length; n++) if (levelItems(s, n).length >= 2) return n;

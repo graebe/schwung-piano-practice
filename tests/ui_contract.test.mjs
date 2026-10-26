@@ -272,7 +272,9 @@ test('every settings row is reachable, not just the four on knobs', () => {
   assert.match(code, /settingsEditing/);
   assert.match(code, /if \(settingsEditing\) editRow\(settingsCursor, delta\)/);
   /* The knobs follow the rows on the page, whichever group is open. */
-  assert.match(fnBody(uiCode, 'onKnob'), /S\.editRow\(row,/);
+  assert.match(fnBody(uiCode, 'onKnob'), /S\.settingsKnob\(row, delta\)/);
+  /* ...a value per ten units turned (knob_accel.mjs). */
+  assert.match(fnBody(code, 'settingsKnob'), /settingsAccel\.feed\([\s\S]{0,80}if \(step\) editRow\(row, step\)/);
 });
 
 test('the reference line is decided in controls.mjs, and skips the count-in', () => {

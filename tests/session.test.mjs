@@ -874,12 +874,19 @@ test('a first-visit tip shows once, over the screen it explains', () => {
   openPath(h.session, ['Down']);
   assert.equal(h.session.view, READY, 'shown once');
   for (let i = 0; i < 5; i++) h.session.back();
+  /* Naming notes off the staff: its answers are cells over their pads. */
   h.session.openItem('quiz:pick:notes:half');
+  assert.equal(h.session.view, CARD_VIEW);
+  assert.match(h.session.card.pages[0].paragraphs[0].text, /^Each answer is a cell above its pad/);
+  h.session.back();
+  assert.equal(h.session.view, GUESS_VIEW);
+  h.session.back();
+  /* Playing notes from their names: the plain one. */
+  h.session.openItem('quiz:guess:notes:key');
   assert.equal(h.session.view, CARD_VIEW);
   assert.match(h.session.card.pages[0].paragraphs[0].text, /^Answer with the lit pads/);
   h.session.back();
-  assert.equal(h.session.view, GUESS_VIEW);
-  assert.deepEqual([...h.session.progress.tips].sort(), ['practice', 'quiz', 'welcome']);
+  assert.deepEqual([...h.session.progress.tips].sort(), ['cells', 'practice', 'quiz', 'welcome']);
 });
 
 test('MENU is help on every screen, with the keys of that screen', () => {

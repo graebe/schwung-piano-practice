@@ -49,7 +49,7 @@
  * verdict, which a renderer flashes; otherwise null.
  */
 
-import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS, TRAINER_STATS } from './session.mjs';
+import { MENU, READY, RESULT_VIEW, PROGRESS_VIEW, PROGRESS_DETAIL, SETTINGS, TRAINER_STATS, TRAINER_SETUP } from './session.mjs';
 import { beatsPerBar } from './chart.mjs';
 
 /* The knob's scrub resolution (ui.js / session.mjs: SCRUB_UNITS_PER_BAR). */
@@ -59,6 +59,7 @@ export const ACTIONS = [
   'noteOn', 'noteOff', 'select', 'open', 'back', 'move', 'options', 'sheet', 'sheetPick', 'cardPick', 'mapGo',
   'homeGo', 'skip', 'settings', 'listen', 'practice', 'info', 'hint', 'hear', 'answer', 'next', 'skip', 'retry', 'stage', 'level',
   'scrubTo', 'tempo', 'editSetting', 'selectSetting', 'editRow', 'settingRow', 'progress', 'trainerStats',
+  'knob', 'focusKnob', 'knobPick', 'play', 'customPick',
 ];
 
 const MIDI = (n) => Number.isInteger(n) && n >= 0 && n <= 127;
@@ -168,6 +169,28 @@ export function applyAction(S, a) {
       S.dirty = true;
       return null;
     }
+    /* A trainer's setup box: a knob turned one step, a knob pointed at,
+     * PLAY, and the Custom tick list (a click on LEVEL on the Move). */
+    case 'knob':
+      if (S.view === TRAINER_SETUP && a.delta) S.knobStep(a.n | 0, a.delta > 0 ? 1 : -1);
+      return null;
+    /* A page has no touch to let go of: the Move's overlay shows a moment. */
+    case 'focusKnob':
+      S.knobTouch(a.n | 0);
+      S.knobRelease(a.n | 0);
+      return null;
+    case 'knobPick':
+      S.knobPick(a.n | 0, a.index | 0);
+      return null;
+    case 'play':
+      if (S.view === TRAINER_SETUP) S.playButton();
+      return null;
+    case 'customPick':
+      if (S.view !== TRAINER_SETUP) return null;
+      S.knobTouch(S.knobSetup().levelKnob);
+      S.knobRelease(S.knobSetup().levelKnob);
+      S.activate(false);
+      return null;
     case 'trainerStats':
       if (S.view !== TRAINER_STATS) return null;
       S.selectStatsRow(a.index | 0);

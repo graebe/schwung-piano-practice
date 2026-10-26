@@ -37,6 +37,7 @@ import { LEVELS } from './levels.mjs';
 import { buildProgram } from './program.mjs';
 import { groupByKey } from './settings_def.mjs';
 import { PATH_TEXT, STRANDS, STRAND_TEXT } from './curriculum.mjs';
+import { coerceSetup, knobsOf } from './trainer.mjs';
 
 /* ---- Glossary ------------------------------------------------------------- */
 
@@ -428,16 +429,22 @@ const TRAINER_TEXT = {
 };
 
 const CIRCLE_TEXT = {
-  setup: 'The setup: what a round asks and how. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round.',
+  setup: 'The setup: what a round asks and how, each setting in words. Touch a knob to see which setting it turns and its options; LEVEL is knob 1 in every trainer. Answer is play or name; Level what it asks; Key the key it is in, or random; the rest how it is asked; Round how many right answers make a round, what PLAY starts.',
   common: 'The same five circles in every trainer: Read, Hear, Play, Learn, Stats.',
 };
+
+/* This circle's knobs, by number: "Knobs: 1 Level, 2 Answer, 3 Round." */
+function knobLine(subject, circle) {
+  const used = knobsOf(subject, circle, coerceSetup(subject, circle, {}));
+  return 'Knobs: ' + used.map((k) => k.n + ' ' + k.label).join(', ') + '.';
+}
 
 export function trainerPage(subject, circle, label) {
   const t = TRAINER_TEXT[subject];
   if (!t) return null;
   const sections = [sec('', t[circle] || t.ring)];
   if (circle === 'read' || circle === 'hear' || circle === 'play') {
-    sections.push(sec('', CIRCLE_TEXT.setup), sec('', t.ladder));
+    sections.push(sec('', CIRCLE_TEXT.setup), sec('', knobLine(subject, circle)), sec('', t.ladder));
   } else {
     sections.push(sec('', CIRCLE_TEXT.common));
   }
